@@ -91,10 +91,16 @@ set relativenumber
 "set mouse=a
 
 set colorcolumn=100
-hi ColorColumn guibg=#2d2d2d ctermbg=246
+"hi ColorColumn guibg=#2d2d2d ctermbg=246
+hi ColorColumn guibg=#000000 ctermbg=253
+
 
 " Dropdown menu color
-highlight Pmenu ctermfg=15 ctermbg=blue guifg=#ffffff guibg=#000080
+"highlight Pmenu ctermfg=15 ctermbg=blue guifg=#ffffff guibg=#000080
+highlight Pmenu ctermfg=15 ctermbg=67 guifg=#ffffff guibg=#000080
+
+" NumberLine color
+highlight LineNr ctermbg=253
 
 " }}}
 
@@ -167,7 +173,12 @@ nnoremap <leader>s :mksession ./mysession.vim
 
 nnoremap <leader><leader> :call KeyScrollToggle()<CR>
 
-nnoremap <leader>n :YcmCompleter GoToDefinitionElseDeclaration<CR>
+" Definition/Decleration
+nnoremap <leader>d :YcmCompleter GoToDefinitionElseDeclaration<CR>
+" References
+nnoremap <leader>n :YcmCompleter GoToReferences<CR>
+" Help
+nnoremap <leader>h :YcmCompleter GetDoc<CR>
 
 inoremap <C-h> <Esc>i
 inoremap <C-l> <Esc>la
@@ -245,7 +256,6 @@ Plugin 'vim-scripts/taglist.vim'
 Plugin 'kien/ctrlp.vim'
 Plugin 'Lokaltog/vim-easymotion'
 Plugin 'vim-scripts/Solarized'
-"Plugin 'bling/vim-airline'
 Plugin 'vim-airline/vim-airline'
 Plugin 'vim-airline/vim-airline-themes'
 Plugin 'edkolev/tmuxline.vim'
@@ -264,7 +274,6 @@ Plugin 'honza/vim-snippets'
 Plugin 'tomasr/molokai'
 Plugin 'chazy/cscope_maps'
 Plugin 'flazz/vim-colorschemes'
-"Plugin 'tomtom/tcomment_vim'
 Plugin 'Valloric/YouCompleteMe'
 Plugin 'vim-scripts/gdbmgr'
 Plugin 'rdnetto/YCM-Generator'
@@ -272,11 +281,6 @@ Plugin 'majutsushi/tagbar'
 Plugin 'airblade/vim-gitgutter'
 Plugin 'benmills/vimux'
 Plugin 'tpope/vim-unimpaired'
-"Plugin 'christoomey/vim-tmux-navigator'
-"Plugin 'fholgado/minibufexpl.vim'
-"Plugin 'weynhamz/vim-plugin-minibufexpl'
-"Plugin 'bling/vim-bufferline'
-
 Plugin 'xolox/vim-misc'
 Plugin 'xolox/vim-session'
 Plugin 'python-mode/python-mode'
@@ -284,6 +288,7 @@ Plugin 'takac/vim-hardtime'
 
 "Plugin 'aSk/ultisnips_aSk'
 
+"Plugin 'bling/vim-airline'
 "Plugin 'scrooloose/syntastic'
 "Plugin 'vim-scripts/CCTree'
 "Plugin 'vim-scripts/OmniCppComplete'
@@ -293,6 +298,13 @@ Plugin 'takac/vim-hardtime'
 "Plugin 'garbas/vim-snipmate'
 "Plugin 'honza/vim-snippets'
 "Plugin 'gcmt/taboo.vim'
+"Plugin 'tomtom/tcomment_vim'
+"Plugin 'christoomey/vim-tmux-navigator'
+"Plugin 'fholgado/minibufexpl.vim'
+"Plugin 'weynhamz/vim-plugin-minibufexpl'
+"Plugin 'bling/vim-bufferline'
+Plugin 'lilydjwg/colorizer'
+
 
 " All of your Plugins must be added before the following line
 call vundle#end()            " required
@@ -408,6 +420,10 @@ set background=light
 "let g:solarized_bold = 1
 let g:solarized_termcolors=256
 
+" Uncomment to inform Vim and Solarized to use terminal emulator’s color pallete. (Set solarized color scheme in terminal)
+"set t_Co=16
+"let g:solarized_termcolors=16
+
 " Access colors present in 256 colorspace"
 let base16colorspace=256  
 
@@ -473,9 +489,8 @@ let g:airline#extensions#tabline#fnamemod = ':t:.'
 let g:airline#extensions#tmuxline#enabled = 0
 let g:tmuxline_powerline_separators = 0
 
-let g:airline_theme = 'aurora'
-"let g:airline_theme = 'bubblegum'
-"let g:airline_theme = 'solarized'
+let g:airline_theme = 'solarized'
+"let g:airline_theme = 'aurora'
 "let g:airline_theme = 'lucius'
 "let g:airline_theme = 'papercolor'
 "let g:airline_theme = 'bubblegum'
@@ -1039,7 +1054,7 @@ let g:pymode_virtualenv = 1
 let g:pymode_virtualenv_path = $VIRTUAL_ENV
 
 " Binds keys to run python code 
-let g:pymode_run_bind = '<leader>r'
+" let g:pymode_run_bind = '<leader>r'
 
 " Break point
 let g:pymode_breakpoint_bind = '<leader>b'
