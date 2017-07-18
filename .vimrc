@@ -91,6 +91,7 @@ set relativenumber
 "set mouse=a
 
 set colorcolumn=100
+hi ColorColumn guibg=#2d2d2d ctermbg=246
 
 " }}}
 
@@ -470,6 +471,7 @@ let g:airline#extensions#tmuxline#enabled = 0
 let g:tmuxline_powerline_separators = 0
 
 let g:airline_theme = 'aurora'
+"let g:airline_theme = 'bubblegum'
 "let g:airline_theme = 'solarized'
 "let g:airline_theme = 'lucius'
 "let g:airline_theme = 'papercolor'
