@@ -93,6 +93,9 @@ set relativenumber
 set colorcolumn=100
 hi ColorColumn guibg=#2d2d2d ctermbg=246
 
+" Dropdown menu color
+highlight Pmenu ctermfg=15 ctermbg=blue guifg=#ffffff guibg=#000080
+
 " }}}
 
 " Mapping {{{
