@@ -102,6 +102,9 @@ highlight Pmenu ctermfg=15 ctermbg=67 guifg=#ffffff guibg=#000080
 " NumberLine color
 highlight LineNr ctermbg=253
 
+" Highlighted word
+highlight Search cterm=NONE ctermfg=white
+
 " }}}
 
 " Mapping {{{
