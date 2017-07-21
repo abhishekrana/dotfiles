@@ -105,6 +105,9 @@ highlight LineNr ctermbg=253
 " Highlighted word
 highlight Search cterm=NONE ctermfg=white
 
+" For YouCompleteMe Plugin
+set encoding=utf-8
+
 " }}}
 
 " Mapping {{{
