@@ -2,6 +2,9 @@
 
 ![Screenshot](screenshot1.png)
 
+![Screenshot](screenshot2.png)
+
+
 # Vim
 git clone https://github.com/VundleVim/Vundle.vim.git ~/.vim/bundle/Vundle.vim
 
