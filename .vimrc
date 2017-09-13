@@ -151,7 +151,7 @@ nnoremap <leader>l :next<CR>
 "nnoremap <leader>k :tabnext<CR>
 nnoremap <leader>j :bprev<CR>
 nnoremap <leader>k :bnext<CR>
-nnoremap <leader>b :buffers<CR>:buffer<Space>
+"nnoremap <leader>b :buffers<CR>:buffer<Space>
 nnoremap <leader>Y :set paste<CR>
 nnoremap <leader>y :set nopaste<CR>
 "nnoremap <leader>p :setlocal paste!<cr>
@@ -184,7 +184,7 @@ nnoremap <leader>d :YcmCompleter GoToDefinitionElseDeclaration<CR>
 " References
 nnoremap <leader>n :YcmCompleter GoToReferences<CR>
 " Help
-nnoremap <leader>h :YcmCompleter GetDoc<CR>
+nnoremap <leader>h :only<CR> :YcmCompleter GetDoc<CR><C-w>L<C-w>r
 
 inoremap <C-h> <Esc>i
 inoremap <C-l> <Esc>la
@@ -280,7 +280,6 @@ Plugin 'honza/vim-snippets'
 Plugin 'tomasr/molokai'
 Plugin 'chazy/cscope_maps'
 Plugin 'flazz/vim-colorschemes'
-Plugin 'Valloric/YouCompleteMe'
 Plugin 'vim-scripts/gdbmgr'
 Plugin 'rdnetto/YCM-Generator'
 Plugin 'majutsushi/tagbar'
@@ -289,8 +288,11 @@ Plugin 'benmills/vimux'
 Plugin 'tpope/vim-unimpaired'
 Plugin 'xolox/vim-misc'
 Plugin 'xolox/vim-session'
-Plugin 'python-mode/python-mode'
 Plugin 'takac/vim-hardtime'
+Plugin 'ervandew/supertab'
+Plugin 'davidhalter/jedi-vim'
+"Plugin 'Valloric/YouCompleteMe'
+"Plugin 'python-mode/python-mode'
 
 "Plugin 'aSk/ultisnips_aSk'
 
@@ -1098,6 +1100,23 @@ let g:pymode_lint_pyflakes_symbol = 'FF'
 
 
 " }}}
+
+
+" vimux {{{
+"""""""""""""""""""""""""""""""""""""""""""
+" vimux
+"""""""""""""""""""""""""""""""""""""""""""
+let g:VimuxHeight = "20"
+" let g:VimuxOrientation = "v"
+map <leader>v :call VimuxRunCommand("clear; python " . bufname("%"))<CR>
+" Run last command executed by VimuxRunCommand
+map <leader>b :VimuxRunLastCommand<CR>
+
+" Use existing pane or window (not used by vim) if found instead of running split-window.
+let VimuxUseNearest = 1
+
+" }}}
+
 
 " Functions {{{
 """""""""""""""""""""""""""""""""""""""""""

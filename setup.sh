@@ -10,3 +10,6 @@ git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
 wget https://raw.githubusercontent.com/abhishekrana/dotfiles/master/.tmux.conf -O ~/.tmux.conf
 <leader_key> I
 
+# Vim key binding in terminal
+wget https://raw.githubusercontent.com/abhishekrana/dotfiles/master/.inputrc -O ~/.inputrc
+
