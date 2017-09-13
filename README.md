@@ -28,3 +28,6 @@ cd ~/.vim/bundle/YouCompleteMe
 ./install.py --clang-completer
 
 
+# Vim key binding in terminal
+wget https://raw.githubusercontent.com/abhishekrana/dotfiles/master/.inputrc -O ~/.inputrc
+
