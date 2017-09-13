@@ -31,3 +31,13 @@ cd ~/.vim/bundle/YouCompleteMe
 # Vim key binding in terminal
 wget https://raw.githubusercontent.com/abhishekrana/dotfiles/master/.inputrc -O ~/.inputrc
 
+
+# Terminator (Colorscheme: solarized)
+sudo add-apt-repository ppa:gnome-terminator
+
+sudo apt-get update
+
+sudo apt-get install terminator
+
+For solarized colorscheme, update terminator config according to screenshot2.png
+
