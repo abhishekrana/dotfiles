@@ -10,7 +10,7 @@
 " set textwidth=80
 set formatoptions+=t
 
-inoremap jk <esc>
+" inoremap jk <esc>
 
 " leader is comma
 " let mapleader=","
@@ -83,7 +83,7 @@ set ignorecase
 set clipboard=unnamedplus
 
 " show relative line numbers
-set relativenumber 
+" set relativenumber 
 
 "let python_highlight_all=1
 
@@ -107,6 +107,13 @@ highlight Search cterm=NONE ctermfg=white
 
 " For YouCompleteMe Plugin
 set encoding=utf-8
+
+" 2 lines above/below cursor when scrolling
+set scrolloff=2
+
+" no redraws in macros
+set lazyredraw
+
 
 " }}}
 
@@ -143,8 +150,19 @@ inoremap <C-k> <Up>
 noremap <S-l> <ESC>$
 noremap <S-h> <ESC>^
 noremap <S-j> <ESC>:call cursor(0, len(getline('.'))/2)<cr> 
-noremap <c-j> <Esc>:w<CR>
-inoremap <c-j> <Esc>:w<CR>
+
+" noremap <c-j> <Esc>:w<CR>
+" inoremap <c-j> <Esc>:w<CR>
+" noremap jk <Esc>:w<CR>
+" noremap ii <Esc>:w<CR>
+" inoremap ii <Esc>:w<CR>
+noremap ff <Esc>:w<CR>
+inoremap ff <Esc>:w<CR>
+" noremap iii <Esc>:w<CR>
+" inoremap iii <Esc>:w<CR>
+inoremap jk <Esc>:w<CR>
+nnoremap <leader><leader> <Esc>:w<CR>
+
 nnoremap <leader>h :prev<CR>
 nnoremap <leader>l :next<CR>
 "nnoremap <leader>j :tabprev<CR>
@@ -160,15 +178,17 @@ nnoremap <leader>a :Ag -i
 nnoremap <silent> <leader>A :Ag <cword><CR>
 nnoremap <leader>= gg=G'' :w<CR>
 nnoremap <leader>c ciw
+nnoremap <leader>[ :set paste<CR>i
+nnoremap <leader>] :set nopaste<CR>
 
 autocmd filetype c nnoremap <leader>m :!gcc % -ggdb -o %:r && ./%:r
-autocmd filetype c nnoremap <leader>g :!gcc % -ggdb -o %:r && gdb -tui %:r<CR>
+" autocmd filetype c nnoremap <leader>g :!gcc % -ggdb -o %:r && gdb -tui %:r<CR>
 autocmd filetype cpp nnoremap <leader>m :!g++ % -ggdb -o %:r && ./%:r
-autocmd filetype cpp nnoremap <leader>g :!g++ % -ggdb -o %:r && gdb -tui %:r<CR>
+" autocmd filetype cpp nnoremap <leader>g :!g++ % -ggdb -o %:r && gdb -tui %:r<CR>
 
 " Fugitive Shortcuts:
-nmap <silent> <leader>gs :Gstatus<cr>
-nmap <silent><leader>gb :Gblame<cr>
+" nmap <silent> <leader>gs :Gstatus<cr>
+" nmap <silent><leader>gb :Gblame<cr>
 
 " Session:
 " It will not save the changes to any files that you've made
@@ -177,12 +197,12 @@ set ssop-=options    " do not store global and local values in a session
 set ssop-=folds      " do not store folds
 nnoremap <leader>s :mksession ./mysession.vim
 
-nnoremap <leader><leader> :call KeyScrollToggle()<CR>
+" nnoremap <leader><leader> :call KeyScrollToggle()<CR>
 
 " Definition/Decleration
-nnoremap <leader>d :YcmCompleter GoToDefinitionElseDeclaration<CR>
+" nnoremap <leader>d :YcmCompleter GoToDefinitionElseDeclaration<CR>
 " References
-nnoremap <leader>n :YcmCompleter GoToReferences<CR>
+" nnoremap <leader>n :YcmCompleter GoToReferences<CR>
 " Help
 nnoremap <leader>h :only<CR> :YcmCompleter GetDoc<CR><C-w>L<C-w>r
 
@@ -206,6 +226,9 @@ nnoremap <C-y> 3<C-y>
 "Easier moving of code blocks
 vnoremap < <gv
 vnoremap > >gv
+
+nnoremap <C-i> <C-o>
+nnoremap <C-o> <C-i>
 
 " }}}
 
@@ -259,45 +282,58 @@ call vundle#begin()
 Plugin 'gmarik/Vundle.vim'
 
 Plugin 'vim-scripts/taglist.vim'
-Plugin 'kien/ctrlp.vim'
-Plugin 'Lokaltog/vim-easymotion'
-Plugin 'vim-scripts/Solarized'
+" Plugin 'kien/ctrlp.vim'
+" Plugin 'Lokaltog/vim-easymotion'
+" Plugin 'vim-scripts/Solarized'
 Plugin 'vim-airline/vim-airline'
 Plugin 'vim-airline/vim-airline-themes'
 Plugin 'edkolev/tmuxline.vim'
-Plugin 'hari-rangarajan/CCTree'
+" Plugin 'hari-rangarajan/CCTree'
 Plugin 'scrooloose/nerdtree'
-Plugin 'rking/ag.vim'
-Plugin 'vim-scripts/a.vim'
+" Plugin 'rking/ag.vim'
+" Plugin 'vim-scripts/a.vim'
 Plugin 'godlygeek/tabular'
-Plugin 'Raimondi/delimitMate'
+" Plugin 'Raimondi/delimitMate'
 Plugin 'tpope/vim-surround'
 Plugin 'tpope/vim-commentary'
 Plugin 'tpope/vim-fugitive'
-Plugin 'terryma/vim-multiple-cursors'
+" Plugin 'terryma/vim-multiple-cursors'
 Plugin 'sirver/ultisnips'
-Plugin 'honza/vim-snippets'
-Plugin 'tomasr/molokai'
-Plugin 'chazy/cscope_maps'
-Plugin 'flazz/vim-colorschemes'
-Plugin 'vim-scripts/gdbmgr'
-Plugin 'rdnetto/YCM-Generator'
+" Plugin 'honza/vim-snippets'
+" Plugin 'tomasr/molokai'
+" Plugin 'chazy/cscope_maps'
+" Plugin 'flazz/vim-colorschemes'
+" Plugin 'vim-scripts/gdbmgr'
+" Plugin 'rdnetto/YCM-Generator'
 Plugin 'majutsushi/tagbar'
 Plugin 'airblade/vim-gitgutter'
 Plugin 'benmills/vimux'
-Plugin 'tpope/vim-unimpaired'
+" Plugin 'tpope/vim-unimpaired'
 Plugin 'xolox/vim-misc'
 Plugin 'xolox/vim-session'
-Plugin 'takac/vim-hardtime'
-Plugin 'ervandew/supertab'
+" Plugin 'takac/vim-hardtime'
+Plugin 'tpope/vim-repeat'
+Plugin 'justinmk/vim-sneak'
+
+Plugin 'Valloric/YouCompleteMe'	" Conflicts with jedi-vim
 Plugin 'davidhalter/jedi-vim'
-"Plugin 'Valloric/YouCompleteMe'
-"Plugin 'python-mode/python-mode'
+Plugin 'python-mode/python-mode'	" Conflicts with jedi-vim
+Plugin 'ervandew/supertab'
+
+" vim-codequery
+Plugin 'Shougo/unite.vim'
+Plugin 'mileszs/ack.vim'
+Plugin 'devjoe/vim-codequery'
+Plugin 'tpope/vim-dispatch'
+
+Plugin 'octol/vim-cpp-enhanced-highlight'
+" Plugin 'scrooloose/syntastic'
+
+"Plugin 'w0rp/ale'
 
 "Plugin 'aSk/ultisnips_aSk'
 
 "Plugin 'bling/vim-airline'
-"Plugin 'scrooloose/syntastic'
 "Plugin 'vim-scripts/CCTree'
 "Plugin 'vim-scripts/OmniCppComplete'
 "Plugin 'ervandew/supertab'
@@ -311,7 +347,7 @@ Plugin 'davidhalter/jedi-vim'
 "Plugin 'fholgado/minibufexpl.vim'
 "Plugin 'weynhamz/vim-plugin-minibufexpl'
 "Plugin 'bling/vim-bufferline'
-Plugin 'lilydjwg/colorizer'
+" Plugin 'lilydjwg/colorizer'
 
 
 " All of your Plugins must be added before the following line
@@ -390,8 +426,8 @@ let g:EasyMotion_do_mapping = 0 " Disable default mappings
 "noremap s <Plug>(easymotion-s2)
 "nnoremap s <Plug>(easymotion-bd-w)
 "nnoremap s <Plug>(easymotion-t2)
-nmap t <Plug>(easymotion-s)
-nmap s <Plug>(easymotion-bd-w)
+" nmap t <Plug>(easymotion-s)
+" nmap s <Plug>(easymotion-bd-w)
 "nmap s <Plug>(easymotion-bd-w)
 "nmap t <Plug>(easymotion-t2)
 
@@ -673,17 +709,17 @@ let g:ag_highlight=1
 " Syntastic 
 """""""""""""""""""""""""""""""""""""""""""
 " CONFIG:
-set statusline+=%#warningmsg#
-"set statusline+=%{SyntasticStatuslineFlag()}
-set statusline+=%*
+"set statusline+=%#warningmsg#
+""set statusline+=%{SyntasticStatuslineFlag()}
+"set statusline+=%*
 
-let g:syntastic_always_populate_loc_list = 1
-let g:syntastic_auto_loc_list = 1
-let g:syntastic_check_on_open = 1
-let g:syntastic_check_on_wq = 0
-let g:airline#extensions#syntastic#enabled = 1
-let g:syntastic_error_symbol = "✗"
-let g:syntastic_warning_symbol = "⚠"
+"let g:syntastic_always_populate_loc_list = 1
+"let g:syntastic_auto_loc_list = 1
+"let g:syntastic_check_on_open = 1
+"let g:syntastic_check_on_wq = 0
+"let g:airline#extensions#syntastic#enabled = 1
+"let g:syntastic_error_symbol = "✗"
+"let g:syntastic_warning_symbol = "⚠"
 
 " HELP:
 
@@ -815,7 +851,8 @@ let g:ycm_register_as_syntastic_checker = 0
 " let g:ycm_autoclose_preview_window_after_completion = 1
 let g:ycm_autoclose_preview_window_after_insertion = 1
 " Open Preview Window at bottom
-set splitbelow
+" set splitbelow
+set splitright
 " ctags --fields=+l // ctags should be exuberant ctags
 let g:ycm_collect_identifiers_from_tags_files = 1
 " Set to 0 if using Syntastic
@@ -1026,7 +1063,7 @@ let g:pymode = 1
 let g:pymode_rope = 0
 
 " Turn off plugin's warnings
-let g:pymode_warnings = 1
+let g:pymode_warnings = 0
 
 " Add paths to `sys.path`
 " Value is list of path's strings. 
@@ -1085,6 +1122,9 @@ let g:pymode_lint_message = 1
 " Default code checkers (you could set several)
 let g:pymode_lint_checkers = ['pyflakes', 'pep8', 'mccabe']
 
+" Sort errors by relevance
+let g:pymode_lint_sort = ['E', 'C', 'I']
+
 " Auto open cwindow (quickfix) if any errors have been found
 let g:pymode_lint_cwindow = 1
 
@@ -1101,6 +1141,57 @@ let g:pymode_lint_pyflakes_symbol = 'FF'
 
 " }}}
 
+" jedi-vim {{{
+"""""""""""""""""""""""""""""""""""""""""""
+" jedi-vim 
+"""""""""""""""""""""""""""""""""""""""""""
+" CONFIG:
+let g:jedi#show_call_signatures = "1"
+let g:jedi#popup_select_first = "0"
+let g:jedi#popup_on_dot = 0
+" let g:jedi#use_splits_not_buffers = "right"
+" autocmd FileType python setlocal completeopt-=preview
+" autocmd FileType python setlocal completeopt=menuone,longest,preview
+" set splitright
+
+
+" vim/bundle/jedi-vim/autoload/jedi.vim: 367
+
+" _aSk - replace this
+" split __doc__
+" aSk - with
+" setlocal splitright
+" vsplit __doc__
+" execute 'vertical resize 80'
+
+" Commented this
+" if l:doc_lines > g:jedi#max_doc_height " max lines for plugin
+"     let l:doc_lines = g:jedi#max_doc_height
+" endif
+" execute 'resize '.l:doc_lines
+" _aSk
+
+" aSk - Add at the end of func show_documentation
+" execute "wincmd w"
+
+
+
+" HELP:
+
+" }}}
+
+" super-tab {{{
+"""""""""""""""""""""""""""""""""""""""""""
+" super-tab 
+"""""""""""""""""""""""""""""""""""""""""""
+" CONFIG:
+" let g:jedi#show_call_signatures = "1"
+let g:SuperTabDefaultCompletionType = "<c-n>"
+let g:SuperTabContextDefaultCompletionType = "<c-n>"
+
+" HELP:
+
+" }}}
 
 " vimux {{{
 """""""""""""""""""""""""""""""""""""""""""
@@ -1114,6 +1205,17 @@ map <leader>b :VimuxRunLastCommand<CR>
 
 " Use existing pane or window (not used by vim) if found instead of running split-window.
 let VimuxUseNearest = 1
+
+" }}}
+
+" vim-sneak {{{
+"""""""""""""""""""""""""""""""""""""""""""
+" vim-sneak
+"""""""""""""""""""""""""""""""""""""""""""
+let g:sneak#label = 1
+map f <Plug>Sneak_s
+map t <Plug>Sneak_S
+
 
 " }}}
 
