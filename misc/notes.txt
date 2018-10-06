@@ -1,0 +1,111 @@
+pip3 install --user neovim
+
+# aptitude download <package_name>
+# avoids problems faced by apt-get when the package is already installed 
+apt download git
+
+# Error messages are likely to be cryptic
+# dpkg doesn't automatically resolve dependencies or create the directory structure it expects.
+dpkg -x git_1%3a2.7.4-0ubuntu1.4_amd64.deb git_pkg
+dpkg -i package.deb --force-not-root --root=$HOME
+
+
+https://github.com/w0rp/ale
+https://github.com/ncm2/ncm2
+
+
+syntaxtic plugin may not be async
+ale is
+
+terminus
+
+
+ag-searcher
+
+:CheckHealth
+
+
+Snippets
+Lines
+Buffer
+Files
+Ag
+History
+Colors
+BCommits	Current buffer
+Commands
+Maps
+
+
+xset r rate 160  20
+xset r rate 200  30
+
+
+
+
+
+Jedivim
+    Completion <C-Space>
+    Goto assignments <leader>g (typical goto function)
+    Goto definitions <leader>d (follow identifier as far as possible, includes imports and statements)
+    Show Documentation/Pydoc K (shows a popup with assignments)
+    Renaming <leader>r
+    Usages <leader>n (shows all the usages of a name)
+    Open module, e.g. :Pyimport os (opens the os module)
+
+
+
+
+set termguicolours
+
+
+
+awk 'BEGIN{
+    s="/\\/\\/\\/\\/\\"; s=s s s s s s s s s s s s s s s s s s s s s s s;
+    for (colnum = 0; colnum<256; colnum++) {
+        r = 255-(colnum*255/255);
+        g = (colnum*510/255);
+        b = (colnum*255/255);
+        if (g>255) g = 510-g;
+        printf "\033[48;2;%d;%d;%dm", r,g,b;
+        printf "\033[38;2;%d;%d;%dm", 255-r,255-g,255-b;
+        printf "%s\033[0m", substr(s,colnum+1,1);
+    }
+    printf "\n";
+}'
+
+https://gist.github.com/XVilka/8346728
+
+
+https://pkgs.org/download/tmux
+# ubuntu 18.04
+http://archive.ubuntu.com/ubuntu/pool/main/t/tmux/tmux_2.6-3_amd64.deb
+
+
+vim
+set termguicolors
+
+
+https://medium.com/@dubistkomisch/how-to-actually-get-italics-and-true-colour-to-work-in-iterm-tmux-vim-9ebe55ebc2be
+alias ssh='TERM=xterm-256color ssh'
+
+https://github.com/tmux/tmux/releases/download/2.3/tmux-2.3.tar.gz
+http://archive.ubuntu.com/ubuntu/pool/main/t/tmux/tmux_2.5-3build1_amd64.deb
+http://ftp.br.debian.org/debian/pool/main/t/tmux/tmux_2.3-4_amd64.deb
+
+
+
+upgraded gnome-terminal
+https://stackoverflow.com/questions/41783367/tmux-tmux-true-color-is-not-working-properly
+https://sunaku.github.io/tmux-24bit-color.html#usage
+tmux info | grep Tc
+
+http://roxterm.sourceforge.net/index.php?page=installation&lang=en
+https://deductivelabs.com/en/using-true-color-vim-tmux/
+
+
+IMPORTANT
+In case of {{solarized or other}} theme issue not applied correctly, 
+Delete all tmux session and then create window again to resolve this issue
+Make sure diffrent session are note restored by tmux resurrection plugin
+
