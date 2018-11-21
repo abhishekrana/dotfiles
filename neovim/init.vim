@@ -233,7 +233,7 @@ set backspace=indent,eol,start
 " set t_Co=256
 " TODO
 " colorscheme solarized8_light
-colorscheme solarized8_flat
+" colorscheme solarized8_flat
 
 " incsearch: search as characters are entered
 set ic
@@ -897,7 +897,9 @@ nmap <leader>9 <Plug>AirlineSelectTab9
 
 
 " set background=dark
-colorscheme solarized8_flat
+if !empty(glob('~/.config/nvim/plugged/vim-solarized8/colors/solarized8_flat.vim'))
+	colorscheme solarized8_flat
+endif
 
 " YouCompleteMe
 " cd ~/.config/nvim/plugged/YouCompleteMe
