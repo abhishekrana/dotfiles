@@ -1,50 +1,79 @@
 #/bin/bash
 
-mkdir -p /tmp/tmp_1
-cd /tmp/tmp_1
-mkdir -p ~/aSk
+### Globals
+ROOT_PATH="$HOME/aSk"
+mkdir -p $ROOT_PATH $ROOT_PATH/bin $ROOT_PATH/lib
 
 
-## Vim
+### Get dotfiles
+if [ ! -d $ROOT_PATH/dotfiles ]; then
+	git clone https://github.com/abhishekrana/dotfiles $ROOT_PATH/dotfiles
+fi
+
+
+### Install Vim
 # git clone https://github.com/VundleVim/Vundle.vim.git ~/.vim/bundle/Vundle.vim
 # wget https://raw.githubusercontent.com/abhishekrana/dotfiles/master/.vimrc -O ~/.vimrc
 # vim +BundleInstall +qall
 
 
-## Neovim
+### Install Neovim
 pip install --upgrade pip
 pip3 install --upgrade neovim
 pip3 install --user --upgrade neovim	# Install without no root access
 curl -LO https://github.com/neovim/neovim/releases/download/v0.3.1/nvim.appimage
 chmod u+x nvim.appimage
-# ./nvim.appimage
 ./nvim.appimage --appimage-extract
 cp -r squashfs-root/usr/* ~/aSk/
+rm -rf squashfs-root
+rm nvim.appimage
 cp ~/aSk/bin/nvim ~/aSk/bin/vim
 
-echo 'export PATH='$PATH':~/aSk/bin' >> ~/.bashrc
 
-# Neovim config and plugins
+### Setup bashrc config
+echo '' >> ~/.bashrc
+echo '### aSk'  >> ~/.bashrc
+echo 'if [ -f ~/dotfiles/bash/.bashrc_aSk ]; then
+    source ~/dotfiles/bash/.bashrc_aSk
+fi' >> ~/.bashrc
+
+
+### Install Neovim plugin dependencies
+pip install --upgrade jedi
+pip install -U setuptools
+pip install python-language-server[all]
+
+### Setup Neovim config
 curl -fLo ~/.local/share/nvim/site/autoload/plug.vim --create-dirs \
     https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
 mkdir -p ~/.config/nvim
-wget https://raw.githubusercontent.com/abhishekrana/dotfiles/master/neovim/init.vim -O ~/.config/nvim/init.vim
+echo '' >> ~/.config/nvim/init.vim
+echo '### aSk'  >> ~/.config/nvim/init.vim
+echo 'so ~/aSk/dotfiles/neovim/init_aSk.vim' >> ~/.config/nvim/init.vim
 ~/aSk/bin/nvim +PlugInstall +qall
 
 
-## Tmux
+# ### Install Tmux
 git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
 wget https://raw.githubusercontent.com/abhishekrana/dotfiles/master/tmux/.tmux.conf -O ~/.tmux.conf
 # <leader_key> I
 
 
-## Vim key binding in terminal
+### Vim key binding in terminal
 wget https://raw.githubusercontent.com/abhishekrana/dotfiles/master/misc/.inputrc -O ~/.inputrc
 
 
-## Dependencies
-# apt install exuberant-ctags
+### Install dependencies
+echo ""
+echo "##########"
+if [ "$EUID" -ne 0 ]
+  # Root user
+  sudo apt-get update
+  sudo apt-get install -y python-autopep8 cmake build-essential exuberant-ctags
+else
+  echo "Manually install:"
+  echo "python-autopep8 cmake build-essential exuberant-ctags"
+fi
 
-
-## Cleanup
-cd ~;rm -rf /tmp/tmp_1
+echo "Manually install tmux plugins: <leader_key> I"
+echo ""

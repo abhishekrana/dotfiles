@@ -1,0 +1,8 @@
+export PATH=$PATH:~/aSk/bin
+
+### Alias
+alias ls="ls --color"
+alias ll='ls --color -lrth'
+alias cl='clear; ls --color -lrth'
+alias nvimrc='vim ~/.config/nvim/init.vim'
+

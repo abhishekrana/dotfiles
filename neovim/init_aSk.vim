@@ -37,13 +37,16 @@ Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --bin' }
 Plug 'justinmk/vim-sneak'
 Plug 'dbeniamine/cheat.sh-vim'
 Plug 'terryma/vim-multiple-cursors'
+" Plug 'unblevable/quick-scope'
 " Plug 'KabbAmine/zeavim.vim'
-" Plug 'jiangmiao/auto-pairs'																			" Insert or delete brackets, parens, quotes in pair
+" Plug 'jiangmiao/auto-pairs'	" Insert or delete brackets, parens, quotes in pair
 
 " Plug 'Shougo/unite.vim'
 " Plug 'devjoe/vim-codequery'
-Plug 'ludovicchabant/vim-gutentags'																	" Automatic Tag generation
-" Plug 'skywind3000/gutentags_plus'
+"
+"" Automatic Tag generation
+Plug 'ludovicchabant/vim-gutentags'
+Plug 'skywind3000/gutentags_plus'
 
 "" Snippets
 Plug 'SirVer/ultisnips'
@@ -107,6 +110,76 @@ Plug 'Valloric/YouCompleteMe', { 'do': './install.py --clang-completer' } " Conf
 " Plug 'python-mode/python-mode', { 'branch': 'develop' }
 
 
+"" ---------- CODE COMPLETION 4 ----------
+"" Sensible completion. Integrated with deoplete or ncm2. Or with vim built-in omnifunc.
+""pip install -U setuptools
+""pip install python-language-server pyls
+"" pip install 'python-language-server[all]'
+Plug 'autozimu/LanguageClient-neovim', {
+    \ 'branch': 'next',
+    \ 'do': 'bash install.sh',
+    \ }
+
+" (Optional) Multi-entry selection UI.
+" Plug 'junegunn/fzf'
+
+Plug 'Shougo/deoplete.nvim', { 'do': ':UpdateRemotePlugins' }
+Plug 'ervandew/supertab' " Added by aSk
+
+
+" Example configuration
+
+" Required for operations modifying multiple buffers like rename.
+set hidden
+
+let g:LanguageClient_serverCommands = {
+    \ 'python': ['pyls'],
+    \ }
+" \ 'pyls.plugins.pydocstyle.enabled': ['true']
+
+
+function LC_maps()
+  if has_key(g:LanguageClient_serverCommands, &filetype)
+	nnoremap <buffer> <silent> K :call LanguageClient#textDocument_hover()<CR>
+	nnoremap <buffer> <silent> <leader>d :call LanguageClient#textDocument_definition()<CR>
+	nnoremap <buffer> <silent> <leader>r :call LanguageClient#textDocument_references()<CR>
+  endif
+endfunction
+
+autocmd FileType * call LC_maps()
+
+
+" call LanguageClient_contextMenu() 
+" LanguageClient#textDocument_rangeFormatting()
+
+"let g:LanguageClient_windowLogMessageLevel = 'Error'
+
+
+
+"" ---------- CODE COMPLETION 5 ----------
+" Async Language Server Protocol plugin for vim8 and neovim.
+"Plug 'prabirshrestha/async.vim'
+"Plug 'prabirshrestha/vim-lsp'
+
+""pip install python-language-server pyls
+"if executable('pyls')
+"    " pip install python-language-server
+"    au User lsp_setup call lsp#register_server({
+"        \ 'name': 'pyls',
+"        \ 'cmd': {server_info->['pyls']},
+"        \ 'whitelist': ['python'],
+"        \ })
+"endif
+
+
+
+"Plug 'Shougo/deoplete.nvim', { 'do': ':UpdateRemotePlugins' }
+"Plug 'ervandew/supertab'
+
+
+
+
+
 " Git
 Plug 'tpope/vim-fugitive'
 Plug 'airblade/vim-gitgutter'
@@ -114,11 +187,13 @@ Plug 'airblade/vim-gitgutter'
 
 
 " Key conflict
-" Plug 'christoomey/vim-tmux-navigator'																" Seamless navigation between tmux panes and vim splits
+" Seamless navigation between tmux panes and vim splits
+" Plug 'christoomey/vim-tmux-navigator'		
 
 "" UI
-Plug 'Shougo/echodoc.vim'																			"Print documents in echo area while auto-completion
-Plug 'scrooloose/nerdtree'
+"Print documents in echo area while auto-completion
+Plug 'Shougo/echodoc.vim'
+" Plug 'scrooloose/nerdtree'
 Plug 'lifepillar/vim-solarized8'
 Plug 'vim-airline/vim-airline'
 Plug 'vim-airline/vim-airline-themes'
@@ -126,12 +201,11 @@ Plug 'edkolev/tmuxline.vim'
 Plug 'altercation/vim-colors-solarized'
 " Plug 'tiagofumo/vim-nerdtree-syntax-highlight'
 Plug 'ryanoasis/vim-devicons'																		" Always load the vim-devicons as the very last one
-" Plug 'sheerun/vim-polyglot'																			" A collection of language packs for Vim.
+" Plug 'sheerun/vim-polyglot'																		" A collection of language packs for Vim.
 
 " Plug 'neomake/neomake'
 
-Plug 'majutsushi/tagbar'
-" Plug 'scrooloose/syntastic'
+Plug 'majutsushi/tagbar'																			" Plug 'scrooloose/syntastic'
 
 "" Vim-Session
 Plug 'xolox/vim-misc'
@@ -327,7 +401,8 @@ map <space> <leader>
 
 noremap <leader>f :Files<CR>
 noremap <leader>w :w<CR>
-noremap <leader>q :q<CR>
+" noremap <leader>q :q<CR>
+noremap <leader>q :SaveSession! .session<CR>:qa<CR>
 nnoremap <leader>F :call QuickfixToggle()<cr>
 nnoremap <leader>i :call PasteToggle()<cr>
 nnoremap <leader>= :call BackgroundToggle()<cr>
@@ -359,8 +434,9 @@ nnoremap <leader>c ciw
 " vim -S ~/mysession.vim
 set ssop-=options    " do not store global and local values in a session
 set ssop-=folds      " do not store folds
-nnoremap <leader>z :SaveSession! .session
-nnoremap <leader>Z :OpenSession! .session<cr>
+nnoremap <leader>Z :SaveSession! .session
+" nnoremap <leader>z :OpenSession! .session<cr>
+nnoremap <leader>s :OpenSession! .session<cr>
 
 " word to printf('',word)
 noremap <leader>p yiwoprint('', )<ESC><left><left><left><left>p<right><right><right>p<right>^<down>
@@ -370,7 +446,7 @@ noremap <leader>o yiwologging.debug(' {}'.format())<ESC>bbbb<right>pwwwp<right>^
 " Edit Vimrc
 nnoremap <leader>ev :vsplit $MYVIMRC<cr>
 " Source Vimrc
-nnoremap <leader>sv :source $MYVIMRC<cr>
+" nnoremap <leader>sv :source $MYVIMRC<cr>
 
 "Easier moving of code blocks
 vnoremap < <gv
@@ -558,6 +634,14 @@ let g:multi_cursor_skip_key            = '<C-x>'
 let g:multi_cursor_quit_key            = '<Esc>'
 
 
+"" vim-gutentags
+" To know when Gutentags is generating tags
+set statusline+=%{gutentags#statusline()}
+" let g:gutentags_trace = 1
+
+
+
+
 "*****************************************************************************
 "" Abbreviations
 "*****************************************************************************
@@ -669,10 +753,10 @@ augroup vimrc-make-cmake
 augroup END
 
 "" Start NerdTree automatically when vim starts
-autocmd VimEnter * NERDTree | wincmd p
+" autocmd VimEnter * NERDTree | wincmd p
 
 "" Close vim if the only window left open is a NERDTree
-autocmd BufEnter * if (winnr("$") == 1 && exists("b:NERDTree") && b:NERDTree.isTabTree()) | q | endif
+" autocmd BufEnter * if (winnr("$") == 1 && exists("b:NERDTree") && b:NERDTree.isTabTree()) | q | endif
 
 
 set autoread
