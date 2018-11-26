@@ -33,8 +33,8 @@ cp ~/aSk/bin/nvim ~/aSk/bin/vim
 ### Setup bashrc config
 echo '' >> ~/.bashrc
 echo '### aSk'  >> ~/.bashrc
-echo 'if [ -f ~/dotfiles/bash/.bashrc_aSk ]; then
-    source ~/dotfiles/bash/.bashrc_aSk
+echo 'if [ -f ~/aSk/dotfiles/bash/.bashrc_aSk ]; then
+    source ~/aSk/dotfiles/bash/.bashrc_aSk
 fi' >> ~/.bashrc
 
 
@@ -48,7 +48,7 @@ curl -fLo ~/.local/share/nvim/site/autoload/plug.vim --create-dirs \
     https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
 mkdir -p ~/.config/nvim
 echo '' >> ~/.config/nvim/init.vim
-echo '### aSk'  >> ~/.config/nvim/init.vim
+echo '""" aSk'  >> ~/.config/nvim/init.vim
 echo 'so ~/aSk/dotfiles/neovim/init_aSk.vim' >> ~/.config/nvim/init.vim
 ~/aSk/bin/nvim +PlugInstall +qall
 
@@ -66,13 +66,13 @@ wget https://raw.githubusercontent.com/abhishekrana/dotfiles/master/misc/.inputr
 ### Install dependencies
 echo ""
 echo "##########"
-if [ "$EUID" -ne 0 ]
+if [ "$EUID" -eq 0 ];then
   # Root user
   sudo apt-get update
   sudo apt-get install -y python-autopep8 cmake build-essential exuberant-ctags
 else
   echo "Manually install:"
-  echo "python-autopep8 cmake build-essential exuberant-ctags"
+  echo "sudo apt-get install -y python-autopep8 cmake build-essential exuberant-ctags"
 fi
 
 echo "Manually install tmux plugins: <leader_key> I"
