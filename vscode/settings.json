@@ -1,0 +1,160 @@
+{
+    "workbench.colorTheme": "Solarized Light+",
+
+    // Vim
+    "vim.easymotion": false,
+    "vim.sneak": true,
+    "vim.incsearch": true,
+    "vim.useSystemClipboard": true,
+    "vim.useCtrlKeys": true,
+    "vim.hlsearch": true,
+    "vim.insertModeKeyBindings": [
+        {
+            "before": ["f","f"],
+            "after": ["<Esc>"],
+            "commands": [
+                {
+                    "command": "workbench.action.files.save",
+                    "args": []
+                }
+            ]
+        }
+    ],
+
+    "vim.normalModeKeyBindings": [
+        {
+            "before": ["f","f"],
+            "after": ["<Esc>"],
+            "commands": [
+                {
+                    "command": "workbench.action.files.save",
+                    "args": []
+                }
+            ]
+        },
+        {
+            "before": ["<leader>","c"],
+            "after": ["c", "i", "w"],
+        },
+        {
+            "before": ["H"],
+            "after": ["^"],
+        },
+        {
+            "before": ["L"],
+            "after": ["$"],
+        },
+        // {
+        //     "before": ["leader", "w"],
+        //     "after": [],
+        //     "commands": [
+        //         {
+        //             "command": "workbench.action.files.save",
+        //             "args": []
+        //         }
+        //     ]
+        // },
+        {
+            "before": ["leader", "q"],
+            "after": [],
+            "commands": [
+                {
+                    "command": "workbench.action.closeActiveEditor",
+                    "args": []
+                }
+            ]
+        },
+        {
+            "before": ["leader", "D"],
+            "commands": [
+                {
+                    "command": "editor.action.previewDeclaration",
+                    "when": "editorHasDefinitionProvider && editorTextFocus && !inReferenceSearchEditor && !isInEmbeddedEditor"
+                }
+            ]
+        },
+        {
+            "before": ["<leader>","<leader>"],
+            "commands": [
+                {
+                    "command": "workbench.action.showCommands",
+                }
+            ],
+
+        },
+        {
+            "before": ["<leader>","f"],
+            "commands": [
+                {
+                    "command": "workbench.action.quickOpen",
+                }
+            ],
+
+        },
+        {
+            "before": ["<leader>","r"],
+            "commands": [
+                {
+                    "command": "editor.action.referenceSearch.trigger",
+                    "when": "editor.action.referenceSearch.trigger"
+                }
+                    // "command": "references-view.find",
+            ],
+        },
+        {
+            "before": ["<leader>","d"],
+            "after": ["g", "d"],
+            // "commands": [
+            //     {
+            //         "command": "editor.action.goToTypeDefinition",
+            //     }
+            // ],
+        },
+        {
+            "before": ["<leader>","j"],
+            "commands": [
+                {
+                    "command": "workbench.action.previousEditor"
+                }
+            ]
+        },
+        {
+            "before": ["<leader>","k"],
+            "commands": [
+                {
+                    "command": "workbench.action.nextEditor"
+                }
+            ]
+        }
+
+
+    ],
+    "vim.leader": "<space>",
+    "vim.handleKeys":{
+        "<C-a>": false,
+        "<C-f>": false
+    },
+    "vim.visualstar": true,
+    "window.zoomLevel": 0,
+    "window.menuBarVisibility": "default",
+    "workbench.sideBar.location": "right",
+
+    "[python]": {
+        
+    },
+    // Python
+    // "python.pythonPath": "/home/abhishek/lib/tensorflow170_py352/bin/python",
+    // "python.venvPath": "/home/abhishek/lib/tensorflow170_352"
+
+    "workbench.editor.enablePreview": false,
+    "workbench.activityBar.visible": true,
+
+    "editor.fontFamily": "'Droid Sans Mono' , monospace, 'Droid Sans Fallback'",
+    "editor.renderIndentGuides": false,
+
+    "gitlens.currentLine.enabled": false,
+
+    "python.jediEnabled": false,
+}
+
+
