@@ -115,10 +115,10 @@ Plug 'Valloric/YouCompleteMe', { 'do': './install.py --clang-completer' } " Conf
 ""pip install -U setuptools
 ""pip install python-language-server pyls
 "" pip install 'python-language-server[all]'
-Plug 'autozimu/LanguageClient-neovim', {
-    \ 'branch': 'next',
-    \ 'do': 'bash install.sh',
-    \ }
+" Plug 'autozimu/LanguageClient-neovim', {
+"     \ 'branch': 'next',
+"     \ 'do': 'bash install.sh',
+"     \ }
 
 " (Optional) Multi-entry selection UI.
 " Plug 'junegunn/fzf'
@@ -132,21 +132,21 @@ Plug 'ervandew/supertab' " Added by aSk
 " Required for operations modifying multiple buffers like rename.
 set hidden
 
-let g:LanguageClient_serverCommands = {
-    \ 'python': ['pyls'],
-    \ }
+" let g:LanguageClient_serverCommands = {
+"     \ 'python': ['pyls'],
+"     \ }
 " \ 'pyls.plugins.pydocstyle.enabled': ['true']
 
 
-function LC_maps()
-  if has_key(g:LanguageClient_serverCommands, &filetype)
-	nnoremap <buffer> <silent> K :call LanguageClient#textDocument_hover()<CR>
-	nnoremap <buffer> <silent> <leader>d :call LanguageClient#textDocument_definition()<CR>
-	nnoremap <buffer> <silent> <leader>r :call LanguageClient#textDocument_references()<CR>
-  endif
-endfunction
+" function LC_maps()
+"   if has_key(g:LanguageClient_serverCommands, &filetype)
+" 	nnoremap <buffer> <silent> K :call LanguageClient#textDocument_hover()<CR>
+" 	nnoremap <buffer> <silent> <leader>d :call LanguageClient#textDocument_definition()<CR>
+" 	nnoremap <buffer> <silent> <leader>r :call LanguageClient#textDocument_references()<CR>
+"   endif
+" endfunction
 
-autocmd FileType * call LC_maps()
+" autocmd FileType * call LC_maps()
 
 
 " call LanguageClient_contextMenu() 
@@ -232,7 +232,7 @@ Plug 'xolox/vim-session'																			" Requires vim-misc
 " Plug 'ggreer/the_silver_searcher'
 
 " Plug 'octol/vim-cpp-enhanced-highlight'
-" Plug 'scrooloose/syntastic'
+Plug 'scrooloose/syntastic'
 
 
 
@@ -428,6 +428,10 @@ nnoremap <leader>y :set paste<CR>
 nnoremap <leader>Y :set nopaste<CR>
 nnoremap <leader>c ciw
 
+nnoremap <leader>d :YcmCompleter GoToDefinitionElseDeclaration<CR>
+" nnoremap <leader>d :YcmCompleter GoTo<CR>
+nnoremap <leader>r :YcmCompleter GoToReferences<CR>
+nnoremap <Leader>s :Ack!<CR>
 
 " Session:
 " It will not save the changes to any files that you've made
@@ -492,7 +496,8 @@ set mousemodel=popup
 " let g:indentLine_char = '┆'
 " let g:indentLine_faster = 1
 
-
+" Don't jump to next word
+nnoremap * :keepjumps normal! mi*`i<CR>
 
 "" Disable the blinking cursor.
 set gcr=a:blinkon0
@@ -544,8 +549,8 @@ let g:deoplete#sources#jedi#show_docstring = 1
 " jedi-vim
 let g:jedi#completions_enabled = 0
 let g:jedi#popup_on_dot = 1
-let g:jedi#goto_assignments_command = "<leader>g"
-let g:jedi#goto_definitions_command = "<leader>d"
+let g:jedi#goto_assignments_command = "<leader>ga"
+let g:jedi#goto_definitions_command = "<leader>gd"
 let g:jedi#documentation_command = "K"
 " let g:jedi#usages_command = "<leader>n"
 " let g:jedi#rename_command = "<leader>r"
@@ -621,6 +626,28 @@ let g:ycm_complete_in_comments = 1
 " let g:ycm_collect_identifiers_from_tags_files = 1
 " let g:ycm_server_python_interpreter = '/home/abhishek/lib/anaconda3/bin/python'
 " let g:ycm_global_ycm_extra_conf = ''
+"
+"
+" Completion and GoTo commands work out of the box with no additional
+" configuration. Those features are provided by the jedi library which
+" supports a variety of Python versions (2.6, 2.7, 3.2+) as long as it
+" runs in the corresponding Python interpreter. By default YCM runs jedi with
+" the same Python interpreter used by the ycmd server, so if you would like to
+" use a different interpreter, use the following option specifying the Python
+" binary to use. For example, to provide Python 3 completion in your project, set:
+" let g:ycm_python_binary_path = '/usr/bin/python3'
+" If the value of g:ycm_python_binary_path is an absolute path like above it
+" will be used as-is, but if it's an executable name it will be searched through
+" the PATH. So for example if you set:
+"
+" YCM will use the first python executable it finds in the PATH to run
+" jedi. This means that if you are in a virtual environment and you start vim
+" in that directory, the first python that YCM will find will be the one in the
+" virtual environment, so jedi will be able to provide completions for every
+" package you have in the virtual environment.
+let g:ycm_python_binary_path = 'python'
+
+
 
 " vim-multi-cursors
 let g:multi_cursor_use_default_mapping = 0
@@ -640,6 +667,24 @@ set statusline+=%{gutentags#statusline()}
 " let g:gutentags_trace = 1
 
 
+"" ack.vim
+if executable('ag')
+  let g:ackprg = 'ag --vimgrep'
+endif
+let g:ackhighlight = 1
+" Space [      : previous file
+" Space ]      : next file
+" ?    a quick summary of these keys, repeat to close
+" o    to open (same as Enter)
+" O    to open and close the quickfix window
+" go   to preview file, open but maintain focus on ack.vim results
+" t    to open in new tab
+" T    to open in new tab without moving to it
+" h    to open in horizontal split
+" H    to open in horizontal split, keeping focus on the results
+" v    to open in vertical split
+" gv   to open in vertical split, keeping focus on the results
+" q    to close the quickfix window
 
 
 "*****************************************************************************
@@ -978,6 +1023,12 @@ nmap <leader>9 <Plug>AirlineSelectTab9
 " cs"'
 
 " autocmd CompleteDone * pclose " To close preview window of deoplete automatically
+
+" syntax sync fromstart
+"
+" curl https://beyondgrep.com/ack-2.24-single-file > ~/bin/ack && chmod 0755 ~/bin/ack 
+" curl https://beyondgrep.com/ack-2.24-single-file > ~/aSk/bin/ack && chmod 0755 ~/aSk/bin/ack 
+" apt install silversearcher-ag
 
 
 " set background=dark

@@ -5,4 +5,13 @@ alias ls="ls --color"
 alias ll='ls --color -lrth'
 alias cl='clear; ls --color -lrth'
 alias nvimrc='vim ~/.config/nvim/init.vim'
+alias tmux='tmux -2'
 
+function task(){
+	if [ -z "$TMUX" ]; then
+		tmux attach -t aSk || tmux new -s aSk
+	fi
+}
+
+# Use vi-mode in shell
+bindkey -v
