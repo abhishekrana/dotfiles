@@ -23,7 +23,7 @@ docker run -dit \
 	--ipc=host \
 	-v /tmp/.X11-unix:/tmp/.X11-unix \
 	-v `pwd`:/workspace/$PWD_NAME \
-	-v /home/abhishek/Abhishek/git/dotfiles:/workspace/dotfiles \
+	# -v /home/abhishek/Abhishek/git/dotfiles:/workspace/dotfiles \
 	--name $CONTAINER_NAME \
 	"$REPO_NAME":"$REPO_VERSION"
 

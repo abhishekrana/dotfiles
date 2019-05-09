@@ -15,3 +15,5 @@ function task(){
 	fi
 }
 
+# Use vi-mode in shell
+bindkey -v
