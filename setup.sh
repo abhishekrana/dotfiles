@@ -154,4 +154,9 @@ echo "Manually install tmux plugins: <leader_key> I"
 echo ""
 
 
+# Update tmux to 2.9
+# vim -
+# :checkhealth
+# :CocInstall coc-python
+
 
