@@ -415,7 +415,7 @@ set modelines=1
 " }}}
 
 " === colorscheme ===
-" colorscheme solarized8
+silent! colorscheme solarized8
 set background=light
 
 " checkhealth
