@@ -16,13 +16,14 @@ endif
 call plug#begin(expand('~/.config/nvim/plugged'))
 
 " Intellisense code engine, auto-completion, linting, code fixing
+" Plug 'neoclide/coc.nvim', {'do': './install.sh nightly'}
 Plug 'neoclide/coc.nvim', {'tag': '*', 'do': './install.sh'}
 Plug 'neoclide/coc-json', {'do': 'yarn install --frozen-lockfile'}
 Plug 'neoclide/coc-python', {'do': 'yarn install --frozen-lockfile'}
 Plug 'neoclide/coc-emmet', {'do': 'yarn install --frozen-lockfile'}
 Plug 'neoclide/coc-pairs', {'do': 'yarn install --frozen-lockfile'}
 Plug 'neoclide/coc-lists', {'do': 'yarn install --frozen-lockfile'}
-Plug 'neoclide/coc-snippets', {'do': 'yarn install --frozen-lockfile'}
+" Plug 'neoclide/coc-snippets', {'do': 'yarn install --frozen-lockfile'}
 
 " Fuzzy file finding, project searching, file browsing
 Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
@@ -31,8 +32,8 @@ Plug 'scrooloose/nerdtree'
 
 " Git
 Plug 'tpope/vim-fugitive'
-Plug 'airblade/vim-gitgutter'
 Plug 'tpope/vim-rhubarb'
+" Plug 'airblade/vim-gitgutter'
 
 " UI
 Plug 'vim-airline/vim-airline'
@@ -50,6 +51,8 @@ Plug 'xolox/vim-session'
 Plug 'machakann/vim-highlightedyank'
 Plug 'tpope/vim-commentary'
 Plug 'liuchengxu/vista.vim'
+
+" Plug 'unblevable/quick-scope' " hangs a lot everything
 
 " Plug 'christoomey/vim-tmux-navigator'
 
@@ -94,6 +97,7 @@ set autoread							" Read latest file when moving buffers
 set statusline=%F%m%r%h%w%=(%{&ff}/%Y)\ (line\ %l\/%L,\ col\ %c)\
 set fillchars+=vert:\					" Remove char in the vertical separation line
 
+
 " set mousemodel=popup
 " set gcr=a:blinkon0					" disable the blinking cursor.
 " set title
@@ -124,7 +128,7 @@ noremap ff <Esc>:w<CR>
 inoremap ff <Esc>:w<CR>
 noremap <S-l> <ESC>$
 noremap <S-h> <ESC>^
-noremap <S-j> <ESC>:call cursor(0, len(getline('.'))/2)<cr> 
+" noremap <S-j> <ESC>:call cursor(0, len(getline('.'))/2)<cr>
 nnoremap <C-i> <C-o>
 nnoremap <C-o> <C-i>
 nnoremap ; :
@@ -137,7 +141,8 @@ nnoremap N Nzzzv						" Going to the next one in a search will center on the lin
 nnoremap * :keepjumps normal! mi*`i<CR>	" Dont jump to next word
 
 " Custom <leader> Mappings
-noremap <leader>w :windo bd<CR>
+" noremap <leader>w :windo bd<CR>
+noremap <leader>w :q<CR>
 noremap <leader>q :SaveSession! .session<CR>:qa<CR>
 nnoremap <leader>h <C-w>h
 nnoremap <leader>l <C-w>l
@@ -181,7 +186,7 @@ set nobackup
 set nowritebackup
 
 " Better display for messages
-set cmdheight=1
+set cmdheight=2
 
 " Smaller updatetime for CursorHold & CursorHoldI
 set updatetime=300
@@ -199,6 +204,9 @@ inoremap <silent><expr> <TAB>
       \ <SID>check_back_space() ? "\<TAB>" :
       \ coc#refresh()
 inoremap <expr><S-TAB> pumvisible() ? "\<C-p>" : "\<C-h>"
+" Use <Tab> and <S-Tab> for navigate completion list
+" inoremap <expr> <Tab> pumvisible() ? "\<C-n>" : "\<Tab>"
+" inoremap <expr> <S-Tab> pumvisible() ? "\<C-p>" : "\<S-Tab>"
 
 function! s:check_back_space() abort
   let col = col('.') - 1
@@ -286,7 +294,23 @@ nnoremap <silent> <space>a  :<C-u>CocList diagnostics<cr>
 " nnoremap <silent> <space>k  :<C-u>CocPrev<CR>
 " " Resume latest coc list
 " nnoremap <silent> <space>p  :<C-u>CocListResume<CR>
-"
+
+nnoremap <silent> <leader>cl  :<C-u>CocList locationlist<cr>
+
+" rename the current word in the cursor
+nmap <leader>cr  <Plug>(coc-rename)
+nmap <leader>cf  <Plug>(coc-format-selected)
+vmap <leader>cf  <Plug>(coc-format-selected)
+
+" run code actions
+vmap <leader>ca  <Plug>(coc-codeaction-selected)
+nmap <leader>ca  <Plug>(coc-codeaction-selected)
+
+" map <F2> :echo 'Current time is ' . strftime('%c')<CR>
+" map <F2> : <Plug>(coc-command-python.setInterpreter)
+nnoremap <F2> :<C-u>CocCommand python.setInterpreter<CR>
+nnoremap <F3> :<C-u>CocCommand python.setLinter<CR>
+
 
 " set statusline+=%{coc#status()}
 " hi! link CocErrorSign WarningMsg
@@ -330,6 +354,9 @@ let g:airline#extensions#tabline#enabled = 1
 let g:airline#extensions#tagbar#enabled = 1
 let g:airline_skip_empty_sections = 1
 
+" coc
+" let g:airline#extensions#disable_rtp_load = 1
+" let g:airline_extensions = ['branch', 'hunks', 'coc']
 " Configure error/warning section to use coc.nvim
 let g:airline_section_error = '%{airline#util#wrap(airline#extensions#coc#get_error(),0)}'
 let g:airline_section_warning = '%{airline#util#wrap(airline#extensions#coc#get_warning(),0)}'
@@ -387,6 +414,68 @@ nmap <leader>8 <Plug>AirlineSelectTab8
 nmap <leader>9 <Plug>AirlineSelectTab9
 
 
+" === vista.vim ===
+" How each level is indented and what to prepend.
+" This could make the display more compact or more spacious.
+" let g:vista_icon_indent = ["╰─▸ ", "├─▸ "]
+let g:vista_icon_indent = ["╰─▸  ", "▸ "]
+
+" Executive used when opening vista sidebar without specifying it.
+" See all the avaliable executives via `:echo g:vista#executives`.
+" :echo g:vista#executives
+" ['ale', 'coc', 'ctags', 'lcn', 'vim_lsp']
+let g:vista_default_executive = 'coc'
+
+" Set the executive for some filetypes explicitly. Use the explicit executive
+" instead of the default one for these filetypes when using `:Vista` without
+" specifying the executive.
+let g:vista_executive_for = {
+  \ 'cpp': 'vim_lsp',
+  \ 'php': 'vim_lsp',
+  \ }
+
+" Declare the command including the executable and options used to generate ctags output
+" for some certain filetypes.The file path will be appened to your custom command.
+" For example:
+let g:vista_ctags_cmd = {
+      \ 'haskell': 'hasktags -x -o - -c',
+      \ }
+
+" To enable fzf's preview window set g:vista_fzf_preview.
+" The elements of g:vista_fzf_preview will be passed as arguments to fzf#vim#with_preview()
+" For example:
+let g:vista_fzf_preview = ['right:50%']
+
+
+" Ensure you have installed some decent font to show these pretty symbols, then you can enable icon for the kind.
+let g:vista#renderer#enable_icon = 1
+
+" The default icons can't be suitable for all the filetypes, you can extend it as you wish.
+let g:vista#renderer#icons = {
+\   "function": "\uf794",
+\   "variable": "\uf71b",
+\  }
+
+function! NearestMethodOrFunction() abort
+  return get(b:, 'vista_nearest_method_or_function', '')
+endfunction
+
+set statusline+=%{NearestMethodOrFunction()}
+
+" By default vista.vim never run if you don't call it explicitly.
+" If you want to show the nearest function in your statusline automatically,
+" you can add the following line to your vimrc
+autocmd VimEnter * call vista#RunForNearestMethodOrFunction()
+
+" let g:vista_echo_cursor_strategy = 'both'
+let g:vista_echo_cursor_strategy = 'scroll'
+let g:vista_stay_on_open = 0
+let g:vista_sidebar_width = 40
+
+autocmd! VimEnter * Vista coc<CR>
+nnoremap <F4> :Vista coc<CR>
+
+
 " }}}
 
 " Commands {{{
@@ -402,6 +491,9 @@ if exists('g:loaded_webdevicons')
   call webdevicons#refresh()
 endif
 
+" Correct comment highlight in jsonc
+autocmd FileType json syntax match Comment +\/\/.\+$+
+
 " }}}
 
 " Folding {{{
@@ -415,8 +507,13 @@ set modelines=1
 " }}}
 
 " === colorscheme ===
-silent! colorscheme solarized8
+colorscheme solarized8
 set background=light
 
-" checkhealth
+" :CocCommand python.workspaceSymbols.rebuildOnFileSave = false
+" :checkhealth
+" :CocConfig
+" :CocInfo
+" :Vista finder coc
+" F2, F3, F4
 

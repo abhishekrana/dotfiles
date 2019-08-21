@@ -1,14 +1,31 @@
+# https://github.com/neovim/neovim/wiki/Installing-Neovim 
 
-pip3 install --user neovim
+## Dependencies
+sudo pip install --upgrade pip
+sudo pip3 install --upgrade pip
 
-pip3 install neovim
+sudo pip install --upgrade pynvim
+sudo pip3 install --upgrade pynvim
+
+sudo npm install -g neovim
+sudo gem install neovim
+
 pip3 install --upgrade neovim
+# pip3 install --user neovim
 
-curl -LO https://github.com/neovim/neovim/releases/download/v0.3.1/nvim.appimage
-chmod u+x nvim.appimage
+sudo apt-get install python-neovim
+sudo apt-get install python3-neovim
+
+# curl -LO https://github.com/neovim/neovim/releases/download/v0.3.8/nvim.appimage
+# curl -LO https://github.com/neovim/neovim/releases/download/nightly/nvim.appimage
+# chmod u+x nvim.appimage
 #./nvim.appimage
 
-mkdir ~/.config/nvim/
 
-cd ~/.config/nvim
-git clone https://github.com/VundleVim/Vundle.vim.git ~/.config/nvim/bundle/Vundle.vim
+## coc.nvim
+curl -sL install-node.now.sh | sh
+
+# Install yarn if you want to build coc.nvim from source code.
+# curl --compressed -o- -L https://yarnpkg.com/install.sh | bash
+
+

@@ -1,0 +1,13 @@
+{
+	// Set to false to use Microsoft Python Language Server
+	"python.jediEnabled": true,
+
+	// "python.analysis.downloadChannel": "beta",
+	"codeLens.enable": true,
+	"coc.preferences.extensionUpdateCheck": "daily",
+
+	// First complete item selected automatically,
+	//"suggest.noselect": false
+
+}
+
