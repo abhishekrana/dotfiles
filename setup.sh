@@ -99,7 +99,7 @@ fi
 
 ### Install Tmux
 git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
-wget https://raw.githubusercontent.com/abhishekrana/dotfiles/master/tmux/.tmux.conf -O ~/.tmux.conf
+wget https://raw.githubusercontent.com/abhishekrana/dotfiles/master/tmux/tmux.conf -O ~/.tmux.conf
 # <leader_key> I
 if [ "$EUID" -eq 0 ];then
 	# Root user
