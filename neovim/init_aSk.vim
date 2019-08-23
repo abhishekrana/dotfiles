@@ -296,16 +296,16 @@ nnoremap <silent> <space>a  :<C-u>CocList diagnostics<cr>
 " " Resume latest coc list
 " nnoremap <silent> <space>p  :<C-u>CocListResume<CR>
 
-nnoremap <silent> <leader>cl  :<C-u>CocList locationlist<cr>
+nnoremap <silent> <leader>vl  :<C-u>CocList locationlist<cr>
 
 " rename the current word in the cursor
-nmap <leader>cr  <Plug>(coc-rename)
-nmap <leader>cf  <Plug>(coc-format-selected)
-vmap <leader>cf  <Plug>(coc-format-selected)
+nmap <leader>vr  <Plug>(coc-rename)
+nmap <leader>vf  <Plug>(coc-format-selected)
+vmap <leader>vf  <Plug>(coc-format-selected)
 
 " run code actions
-vmap <leader>ca  <Plug>(coc-codeaction-selected)
-nmap <leader>ca  <Plug>(coc-codeaction-selected)
+vmap <leader>va  <Plug>(coc-codeaction-selected)
+nmap <leader>va  <Plug>(coc-codeaction-selected)
 
 " map <F2> :echo 'Current time is ' . strftime('%c')<CR>
 " map <F2> : <Plug>(coc-command-python.setInterpreter)
@@ -489,7 +489,7 @@ nnoremap <silent> <F5> :TagbarToggle<CR>
 
 " === vim-slime ===
 let g:slime_target = "tmux"
-" let g:slime_python_ipython = 1
+let g:slime_python_ipython = 1
 " let g:slime_default_config = {"socket_name": get(split($TMUX, ","), 0), "target_pane": ":.2"}
 let g:slime_default_config = {"socket_name": "default", "target_pane": "{right-of}"}
 " let g:slime_paste_file = "/tmp/slime/slime_paste"
