@@ -7,10 +7,10 @@ alias ls="ls --color"
 alias ll='ls --color -lrth'
 alias cl='clear; ls --color -lrth'
 alias nvimrc='vim ~/.config/nvim/init.vim'
-alias tmux='tmux -2 -f ~/aSk/dotfiles/tmux/.tmux.conf'
+alias tmux='tmux -2 -f ~/aSk/dotfiles/tmux/tmux.conf'
 alias vimrc='vim ~/aSk/dotfiles/neovim/init_aSk.vim'
 alias bashrc='vim ~/aSk/dotfiles/bash/.bashrc_aSk'
-alias tmuxrc='vim ~/aSk/dotfiles/tmux/.tmux.conf'
+alias tmuxrc='vim ~/aSk/dotfiles/tmux/tmux.conf'
 
 function task(){
 	if [ -z "$TMUX" ]; then
