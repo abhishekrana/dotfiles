@@ -18,11 +18,11 @@ call plug#begin(expand('~/.config/nvim/plugged'))
 " Intellisense code engine, auto-completion, linting, code fixing
 " Plug 'neoclide/coc.nvim', {'do': './install.sh nightly'}
 Plug 'neoclide/coc.nvim', {'tag': '*', 'do': './install.sh'}
-Plug 'neoclide/coc-json', {'do': 'yarn install --frozen-lockfile'}
-Plug 'neoclide/coc-python', {'do': 'yarn install --frozen-lockfile'}
-Plug 'neoclide/coc-emmet', {'do': 'yarn install --frozen-lockfile'}
-Plug 'neoclide/coc-pairs', {'do': 'yarn install --frozen-lockfile'}
-Plug 'neoclide/coc-lists', {'do': 'yarn install --frozen-lockfile'}
+" Plug 'neoclide/coc-json', {'do': 'yarn install --frozen-lockfile'}
+" Plug 'neoclide/coc-python', {'do': 'yarn install --frozen-lockfile'}
+" Plug 'neoclide/coc-emmet', {'do': 'yarn install --frozen-lockfile'}
+" Plug 'neoclide/coc-pairs', {'do': 'yarn install --frozen-lockfile'}
+" Plug 'neoclide/coc-lists', {'do': 'yarn install --frozen-lockfile'}
 " Plug 'neoclide/coc-snippets', {'do': 'yarn install --frozen-lockfile'}
 
 " Fuzzy file finding, project searching, file browsing
@@ -51,9 +51,10 @@ Plug 'xolox/vim-session'
 Plug 'machakann/vim-highlightedyank'
 Plug 'tpope/vim-commentary'
 Plug 'liuchengxu/vista.vim'
+Plug 'majutsushi/tagbar'
+Plug 'jpalardy/vim-slime'
 
 " Plug 'unblevable/quick-scope' " hangs a lot everything
-
 " Plug 'christoomey/vim-tmux-navigator'
 
 call plug#end()
@@ -472,9 +473,27 @@ let g:vista_echo_cursor_strategy = 'scroll'
 let g:vista_stay_on_open = 0
 let g:vista_sidebar_width = 40
 
-autocmd! VimEnter * Vista coc<CR>
+" autocmd! VimEnter * Vista coc<CR>
 nnoremap <F4> :Vista coc<CR>
 
+
+" === tagbar ===
+let g:tagbar_sort = 0
+let g:tagbar_compact = 1
+let g:tagbar_iconchars = ['▸', '▾']
+let g:tagbar_width = 40
+" autocmd FileType c,cpp,py,sh nested :TagbarOpen
+" autocmd FileType * nested :call tagbar#autoopen(0) 
+nnoremap <silent> <F5> :TagbarToggle<CR> 
+
+
+" === vim-slime ===
+let g:slime_target = "tmux"
+" let g:slime_python_ipython = 1
+" let g:slime_default_config = {"socket_name": get(split($TMUX, ","), 0), "target_pane": ":.2"}
+let g:slime_default_config = {"socket_name": "default", "target_pane": "{right-of}"}
+" let g:slime_paste_file = "/tmp/slime/slime_paste"
+let g:slime_paste_file = "~/slime_paste"
 
 " }}}
 
@@ -506,14 +525,30 @@ set modelines=1
 
 " }}}
 
+
 " === colorscheme ===
+nnoremap <F12> :call CommentColorSchemeToggle()<CR>
+let g:ccs_flag = 0
+function! CommentColorSchemeToggle()
+    if g:ccs_flag
+		hi Comment guifg=#93a1a1
+		hi Comment guibg=#fdf6e3
+        let g:ccs_flag = 0
+    else
+		hi Comment guifg=#fdf6e3
+		hi Comment guibg=#93a1a1
+        let g:ccs_flag = 1
+    endif
+endfunction
 colorscheme solarized8
 set background=light
+
 
 " :CocCommand python.workspaceSymbols.rebuildOnFileSave = false
 " :checkhealth
 " :CocConfig
 " :CocInfo
 " :Vista finder coc
-" F2, F3, F4
+" F2, F3, F4, F5, F12
+" so $VIMRUNTIME/syntax/hitest.vim
 
