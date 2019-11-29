@@ -3,11 +3,12 @@ ROOT_PATH="$HOME/aSk"
 
 sudo apt-get update
 
+## Misc
+sudo apt-get install -y python-autopep8 universal-ctags silversearcher-ag xclip xsel
+
 ## Prerequisites
 mkdir -p $ROOT_PATH $ROOT_PATH/bin $ROOT_PATH/lib
-sudo apt install python-pip
-sudo apt install python3-pip
-sudo apt install curl
+sudo apt install python-pip python3-pip curl
 ## Install Neovim
 if ! [ -x "$(command -v nvim)" ];then
 	pip install --upgrade pip
@@ -26,18 +27,16 @@ fi
 
 
 # Install Neovim plugin dependencies
-pip install --upgrade jedi
-pip install --upgrade setuptools
-pip install --upgrade --user pylint
-pip3 install --upgrade --user pylint
-pip install --upgrade --user python-language-server[all]
-pip3 install --upgrade --user python-language-server[all]
-pip3 install --user pynvim
+pip install --upgrade jedi setuptools pylint python-language-server[all] pynvim
+pip3 install --upgrade jedi setuptools pylint python-language-server[all] pynvim
+curl -sL install-node.now.sh/lts | sudo bash
 
 
 ### Setup Neovim config
-grep -q "init_aSk" "~/.config/nvim/init.vim"
 cp neovim/init_aSk.vim ~/aSk/
+mkdir -p ~/.config/nvim
+
+grep -q "init_aSk" "~/.config/nvim/init.vim"
 if [[ $? != 0 ]];then
 	curl -fLo ~/.local/share/nvim/site/autoload/plug.vim --create-dirs \
 		https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
@@ -51,3 +50,4 @@ else
 	echo "~/.config/nvim/init.vim not updated"
 fi
 
+sudo npm install -g neovim
