@@ -16,19 +16,31 @@ endif
 call plug#begin(expand('~/.config/nvim/plugged'))
 
 " Intellisense code engine, auto-completion, linting, code fixing
-" Plug 'neoclide/coc.nvim', {'do': './install.sh nightly'}
-Plug 'neoclide/coc.nvim', {'tag': '*', 'do': './install.sh'}
-" Plug 'neoclide/coc-json', {'do': 'yarn install --frozen-lockfile'}
-" Plug 'neoclide/coc-python', {'do': 'yarn install --frozen-lockfile'}
-" Plug 'neoclide/coc-emmet', {'do': 'yarn install --frozen-lockfile'}
-" Plug 'neoclide/coc-pairs', {'do': 'yarn install --frozen-lockfile'}
-" Plug 'neoclide/coc-lists', {'do': 'yarn install --frozen-lockfile'}
-" Plug 'neoclide/coc-snippets', {'do': 'yarn install --frozen-lockfile'}
+Plug 'neoclide/coc.nvim', {'branch': 'release'}
+let g:coc_global_extensions = [
+  \ 'coc-json',
+  \ 'coc-python',
+  \ 'coc-snippets',
+  \ 'coc-pairs',
+  \ 'coc-explorer',
+  \ 'coc-yank',
+  \ 'coc-highlight',
+  \ 'coc-git',
+  \ 'coc-markdownlint',
+  \ 'coc-lists',
+  \ ]
+
+" Plug 'vim-vdebug/vdebug'
+" Plug 'sakhnik/nvim-gdb', { 'do': ':!./install.sh \| UpdateRemotePlugins' }
 
 " Fuzzy file finding, project searching, file browsing
 Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
 Plug 'junegunn/fzf.vim'
 Plug 'scrooloose/nerdtree'
+"Plug 'tsony-tsonev/nerdtree-git-plugin'
+Plug 'Xuyuanp/nerdtree-git-plugin'
+Plug 'tiagofumo/vim-nerdtree-syntax-highlight'
+Plug 'fisadev/vim-isort'
 
 " Git
 Plug 'tpope/vim-fugitive'
@@ -53,6 +65,7 @@ Plug 'tpope/vim-commentary'
 Plug 'liuchengxu/vista.vim'
 Plug 'majutsushi/tagbar'
 Plug 'jpalardy/vim-slime'
+Plug 'fcpg/vim-osc52'
 
 " Plug 'unblevable/quick-scope' " hangs a lot everything
 " Plug 'christoomey/vim-tmux-navigator'
@@ -178,8 +191,7 @@ let g:session_autosave = 'no'
 let g:session_directory='.'
 
 " === coc ===
-
-" If hidden is not set, TextEdit might fail. (Hides buffers instead of closing them)
+" if hidden is not set, TextEdit might fail.
 set hidden
 
 " Some servers have issues with backup files, see #649
@@ -189,7 +201,7 @@ set nowritebackup
 " Better display for messages
 set cmdheight=2
 
-" Smaller updatetime for CursorHold & CursorHoldI
+" You will have bad experience for diagnostic messages when it's default 4000.
 set updatetime=300
 
 " don't give |ins-completion-menu| messages.
@@ -205,9 +217,6 @@ inoremap <silent><expr> <TAB>
       \ <SID>check_back_space() ? "\<TAB>" :
       \ coc#refresh()
 inoremap <expr><S-TAB> pumvisible() ? "\<C-p>" : "\<C-h>"
-" Use <Tab> and <S-Tab> for navigate completion list
-" inoremap <expr> <Tab> pumvisible() ? "\<C-n>" : "\<Tab>"
-" inoremap <expr> <S-Tab> pumvisible() ? "\<C-p>" : "\<S-Tab>"
 
 function! s:check_back_space() abort
   let col = col('.') - 1
@@ -217,19 +226,17 @@ endfunction
 " Use <c-space> to trigger completion.
 inoremap <silent><expr> <c-space> coc#refresh()
 
-" " Use <cr> to confirm completion, `<C-g>u` means break undo chain at current position.
-" " Coc only does snippet and additional edit on confirm.
-" inoremap <expr> <cr> pumvisible() ? "\<C-y>" : "\<C-g>u\<CR>"
+" Use <cr> to confirm completion, `<C-g>u` means break undo chain at current position.
+" Coc only does snippet and additional edit on confirm.
+inoremap <expr> <cr> pumvisible() ? "\<C-y>" : "\<C-g>u\<CR>"
+" Or use `complete_info` if your vim support it, like:
+" inoremap <expr> <cr> complete_info()["selected"] != "-1" ? "\<C-y>" : "\<C-g>u\<CR>"
 
-" " Use `[c` and `]c` to navigate diagnostics
-" nmap <silent> [c <Plug>(coc-diagnostic-prev)
-" nmap <silent> ]c <Plug>(coc-diagnostic-next)
+" Use `[g` and `]g` to navigate diagnostics
+nmap <silent> [g <Plug>(coc-diagnostic-prev)
+nmap <silent> ]g <Plug>(coc-diagnostic-next)
 
-" " Remap keys for gotos
-" nmap <silent> gd <Plug>(coc-definition)
-" nmap <silent> gy <Plug>(coc-type-definition)
-" nmap <silent> gi <Plug>(coc-implementation)
-" nmap <silent> gr <Plug>(coc-references)
+" Remap keys for gotos
 nmap <silent> <leader>d <Plug>(coc-definition)
 nmap <silent> <leader>y <Plug>(coc-type-definition)
 nmap <silent> <leader>i <Plug>(coc-implementation)
@@ -237,6 +244,7 @@ nmap <silent> <leader>r <Plug>(coc-references)
 
 " Use K to show documentation in preview window
 nnoremap <silent> K :call <SID>show_documentation()<CR>
+
 function! s:show_documentation()
   if (index(['vim','help'], &filetype) >= 0)
     execute 'h '.expand('<cword>')
@@ -248,12 +256,12 @@ endfunction
 " Highlight symbol under cursor on CursorHold
 autocmd CursorHold * silent call CocActionAsync('highlight')
 
-" " Remap for rename current word
-" nmap <leader>rn <Plug>(coc-rename)
+" Remap for rename current word
+nmap <leader>rn <Plug>(coc-rename)
 
-" " Remap for format selected region
-" xmap <leader>f  <Plug>(coc-format-selected)
-" nmap <leader>f  <Plug>(coc-format-selected)
+" Remap for format selected region
+xmap <leader>f  <Plug>(coc-format-selected)
+nmap <leader>f  <Plug>(coc-format-selected)
 
 augroup mygroup
   autocmd!
@@ -269,49 +277,68 @@ augroup end
 
 " Remap for do codeAction of current line
 " nmap <leader>ac  <Plug>(coc-codeaction)
-" Fix autofix problem of current line; 
-" nmap <leader>qf  <Plug>(coc-fix-current) " This mappling slows file closing
+" Fix autofix problem of current line
+" nmap <leader>qf  <Plug>(coc-fix-current)
 
-" " Use `:Format` to format current buffer
-" command! -nargs=0 Format :call CocAction('format')
+" Create mappings for function text object, requires document symbols feature of languageserver.
+" xmap if <Plug>(coc-funcobj-i)
+" xmap af <Plug>(coc-funcobj-a)
+" omap if <Plug>(coc-funcobj-i)
+" omap af <Plug>(coc-funcobj-a)
 
-" " Use `:Fold` to fold current buffer
-" command! -nargs=? Fold :call     CocAction('fold', <f-args>)
+" Use <C-d> for select selections ranges, needs server support, like: coc-tsserver, coc-python
+" nmap <silent> <C-d> <Plug>(coc-range-select)
+" xmap <silent> <C-d> <Plug>(coc-range-select)
 
-" " Using CocList
-" " Show all diagnostics
+" Use `:Format` to format current buffer
+command! -nargs=0 Format :call CocAction('format')
+
+" Use `:Fold` to fold current buffer
+command! -nargs=? Fold :call     CocAction('fold', <f-args>)
+
+" use `:OR` for organize import of current buffer
+command! -nargs=0 OR   :call     CocAction('runCommand', 'editor.action.organizeImport')
+
+" Add status line support, for integration with other plugin, checkout `:h coc-status`
+set statusline^=%{coc#status()}%{get(b:,'coc_current_function','')}
+
+" Using CocList
+" Show all diagnostics
 nnoremap <silent> <space>a  :<C-u>CocList diagnostics<cr>
-" " Manage extensions
+" Manage extensions
 " nnoremap <silent> <space>e  :<C-u>CocList extensions<cr>
-" " Show commands
+" Show commands
 " nnoremap <silent> <space>c  :<C-u>CocList commands<cr>
-" " Find symbol of current document
+" Find symbol of current document
 " nnoremap <silent> <space>o  :<C-u>CocList outline<cr>
 " Search workspace symbols
 " nnoremap <silent> <space>s  :<C-u>CocList -I symbols<cr>
-" " Do default action for next item.
+" Do default action for next item.
 " nnoremap <silent> <space>j  :<C-u>CocNext<CR>
-" " Do default action for previous item.
+" Do default action for previous item.
 " nnoremap <silent> <space>k  :<C-u>CocPrev<CR>
-" " Resume latest coc list
+" Resume latest coc list
 " nnoremap <silent> <space>p  :<C-u>CocListResume<CR>
 
-nnoremap <silent> <leader>vl  :<C-u>CocList locationlist<cr>
 
-" rename the current word in the cursor
-nmap <leader>vr  <Plug>(coc-rename)
-nmap <leader>vf  <Plug>(coc-format-selected)
-vmap <leader>vf  <Plug>(coc-format-selected)
 
-" run code actions
-vmap <leader>va  <Plug>(coc-codeaction-selected)
-nmap <leader>va  <Plug>(coc-codeaction-selected)
 
-" map <F2> :echo 'Current time is ' . strftime('%c')<CR>
-" map <F2> : <Plug>(coc-command-python.setInterpreter)
-nnoremap <F2> :<C-u>CocCommand python.setInterpreter<CR>
-nnoremap <F3> :<C-u>CocCommand python.setLinter<CR>
 
+
+
+" " rename the current word in the cursor
+" nmap <leader>vr  <Plug>(coc-rename)
+" nmap <leader>vf  <Plug>(coc-format-selected)
+" vmap <leader>vf  <Plug>(coc-format-selected)
+
+" " run code actions
+" vmap <leader>va  <Plug>(coc-codeaction-selected)
+" nmap <leader>va  <Plug>(coc-codeaction-selected)
+
+" " map <F2> :echo 'Current time is ' . strftime('%c')<CR>
+" " map <F2> : <Plug>(coc-command-python.setInterpreter)
+" nnoremap <F2> :<C-u>CocCommand python.setInterpreter<CR>
+" nnoremap <F3> :<C-u>CocCommand python.setLinter<CR>
 
 " set statusline+=%{coc#status()}
 " hi! link CocErrorSign WarningMsg
@@ -482,9 +509,19 @@ let g:tagbar_sort = 0
 let g:tagbar_compact = 1
 let g:tagbar_iconchars = ['▸', '▾']
 let g:tagbar_width = 40
-" autocmd FileType c,cpp,py,sh nested :TagbarOpen
+autocmd FileType c,cpp,py,sh nested :TagbarOpen
 " autocmd FileType * nested :call tagbar#autoopen(0) 
+let g:tagbar_type_python  = {
+\ 'ctagstype' : 'python',
+\ 'kinds'     : [
+	\ 'i:interfaces',
+	\ 'd:constant definitions',
+	\ 'f:functions',
+\ ]
+\ }
+	" \ 'c:classes',
 nnoremap <silent> <F5> :TagbarToggle<CR> 
+
 
 
 " === vim-slime ===
@@ -494,6 +531,12 @@ let g:slime_python_ipython = 1
 let g:slime_default_config = {"socket_name": "default", "target_pane": "{right-of}"}
 " let g:slime_paste_file = "/tmp/slime/slime_paste"
 let g:slime_paste_file = "~/slime_paste"
+
+
+" === vim-isort ===
+" let g:vim_isort_map = '<C-i>'
+let g:vim_isort_map = ''
+
 
 " }}}
 
@@ -547,8 +590,51 @@ set background=light
 " :CocCommand python.workspaceSymbols.rebuildOnFileSave = false
 " :checkhealth
 " :CocConfig
+" :CocInstall coc-snippets
+" :CocCommand snippets.editSnippets
+" :CocInstall coc-python
 " :CocInfo
 " :Vista finder coc
 " F2, F3, F4, F5, F12
 " so $VIMRUNTIME/syntax/hitest.vim
+" CocInstall coc-python
+" CocInstall coc-git
+" https://github.com/ryanoasis/nerd-fonts/blob/master/patched-fonts/UbuntuMono/Regular/complete/Ubuntu%20Mono%20Nerd%20Font%20Complete.ttf
+" space t
+" space f
+" space F
+" CocCommand explorer
+"
+"
+" :CocList extensions
+" :CocList commands
+" https://github.com/neoclide/coc.nvim/wiki/Using-coc-extensions
+" An example config to use the custom command Tsc for tsserver.watchBuild:
+" command! -nargs=0 Tsc    :CocCommand tsserver.watchBuild
+"
+" :CocInstall coc-json coc-css
+"
+" After adding this to your vimrc run PlugInstall. This has the limitation that you can't uninstall the extension by using :CocUninstall and that automatic update support is not available.
+" :CocUpdate
+" :CocUninstall coc-css
+"
+"conda install ptpython
+"pip install isort
+"pip install ptpython --upgrade
+"pip install ptipython
+
+" :Isort
+" monkeytype
+" mypy
+" :gd go to definition
+" ctags -R --language=python --exclude=output
+" ]m  goto end of method
+" ctrl+w s  split
+" ctrl+w o  only window
+" 
+"
+
+"python.pythonPath":"/home/jason/python", in coc-settings.json
+""coc.preferences.formatOnSaveFiletypes": ["python"],
+" pip install 'python-language-server[all]'
 
