@@ -1,12 +1,12 @@
-
 ### Install Tmux
-# TMUX_VERSION=2.9
-TMUX_MAJOR_VERSION=3.0
-TMUX_MINOR_VERSION=-rc4
+TMUX_MAJOR_VERSION="3.0a"
+TMUX_MINOR_VERSION=""
+
 # git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
 # wget https://raw.githubusercontent.com/abhishekrana/dotfiles/master/tmux/tmux.conf -O ~/.tmux.conf
 # <leader_key> I
-# if [ "$EUID" -eq 0 ];then
+
+if [ "$EUID" -eq 0 ];then
 	echo "Install Tmux ..."
 	# Root user
 	apt-get -y install sudo
@@ -25,5 +25,5 @@ TMUX_MINOR_VERSION=-rc4
 	# sudo mv tmux-${TMUX_MAJOR_VERSION}${TMUX_MINOR_VERSION} /usr/local/src
 	sudo mv tmux-${TMUX_MAJOR_VERSION}${TMUX_MINOR_VERSION}/tmux ~/aSk/bin/
 	echo "Installed Tmux"
-# fi
+fi
 

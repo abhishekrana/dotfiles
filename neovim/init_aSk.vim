@@ -28,8 +28,15 @@ let g:coc_global_extensions = [
   \ 'coc-git',
   \ 'coc-markdownlint',
   \ 'coc-lists',
+  \ 'coc-marketplace',
+  \ 'coc-yaml',
+  \ 'coc-todolist',
+  \ 'coc-terminal',
+  \ 'coc-git',
+  \ 'coc-tag',
   \ ]
 
+Plug 'honza/vim-snippets'
 " Plug 'vim-vdebug/vdebug'
 " Plug 'sakhnik/nvim-gdb', { 'do': ':!./install.sh \| UpdateRemotePlugins' }
 
@@ -40,7 +47,8 @@ Plug 'scrooloose/nerdtree'
 "Plug 'tsony-tsonev/nerdtree-git-plugin'
 Plug 'Xuyuanp/nerdtree-git-plugin'
 Plug 'tiagofumo/vim-nerdtree-syntax-highlight'
-Plug 'fisadev/vim-isort'
+" Plug 'jeetsukumaran/vim-buffergator'
+Plug 'jlanzarotta/bufexplorer'
 
 " Git
 Plug 'tpope/vim-fugitive'
@@ -54,18 +62,20 @@ Plug 'edkolev/tmuxline.vim'
 Plug 'lifepillar/vim-solarized8'
 Plug 'altercation/vim-colors-solarized'
 Plug 'ryanoasis/vim-devicons'
+Plug 'mhinz/vim-startify'
 
 " Vim-Session
-Plug 'xolox/vim-misc'
-Plug 'xolox/vim-session'
+" Plug 'xolox/vim-misc'
+" Plug 'xolox/vim-session'
 
 " Misc
-Plug 'machakann/vim-highlightedyank'
+" Plug 'machakann/vim-highlightedyank'
 Plug 'tpope/vim-commentary'
 Plug 'liuchengxu/vista.vim'
 Plug 'majutsushi/tagbar'
-Plug 'jpalardy/vim-slime'
+" Plug 'jpalardy/vim-slime'
 Plug 'fcpg/vim-osc52'
+" Plug 'terryma/vim-multiple-cursors'
 
 " Plug 'unblevable/quick-scope' " hangs a lot everything
 " Plug 'christoomey/vim-tmux-navigator'
@@ -130,12 +140,17 @@ map <space> <leader>
 
 " neoclide/coc.nvim - Most commands support CTRL-T / CTRL-X / CTRL-V key bindings
 " to open in a new tab, a new split, or in a new vertical split
-noremap <leader>f :Files<CR>
-noremap <leader>F :GFiles<CR>
+noremap <leader>f :GFiles<CR>
+noremap <leader>F :Files<CR>
 nmap <leader>t :BTags<CR>
 nmap <leader>T :Tags<CR>
 nnoremap <silent><leader>s :Rg <C-R>=expand("<cword>")<CR><CR>
 nnoremap <silent><leader>S :Ag <C-R>=expand("<cword>")<CR><CR>
+nmap <leader>R :Vista finder coc <C-R>
+noremap <leader>v :call CocAction('format') \| w<CR>
+noremap <leader>b :TagbarToggle<CR>
+noremap <silent>c :ToggleBufExplorer<CR>
+
 
 " Custom Mappings
 noremap ff <Esc>:w<CR>
@@ -156,8 +171,12 @@ nnoremap * :keepjumps normal! mi*`i<CR>	" Dont jump to next word
 
 " Custom <leader> Mappings
 " noremap <leader>w :windo bd<CR>
-noremap <leader>w :q<CR>
-noremap <leader>q :SaveSession! .session<CR>:qa<CR>
+" noremap <leader>w :bd<CR>
+noremap <leader>Q :wqa<CR>
+noremap <leader>q :bd<CR>
+" noremap <leader>z :TagbarClose<CR> \| :mks!<CR> \| :TagbarOpen<CR>
+noremap <leader>z :mks!<CR>
+" noremap <leader>q :SaveSession! .session<CR>:qa<CR>
 nnoremap <leader>h <C-w>h
 nnoremap <leader>l <C-w>l
 nnoremap <leader>j :bprev<CR>
@@ -170,7 +189,7 @@ noremap <leader>o yiwologging.debug(' {}'.format())<ESC>bbbb<right>pwwwp<right>^
 " Session - It will not save the changes to any files that you've made
 set ssop-=options    " do not store global and local values in a session
 set ssop-=folds      " do not store folds
-nnoremap <leader>z :OpenSession! .session<cr>
+" nnoremap <leader>z :OpenSession! .session<cr>
 " autocmd! VimEnter * OpenSession! .session<cr>
 
 " Edit Vimrc
@@ -181,6 +200,22 @@ nnoremap <leader>ev :vsplit $MYVIMRC<cr>
 "nnoremap <leader>= :call BackgroundToggle()<cr>
 "noremap <leader>| :!ctags -R --c++-kinds=+p --fields=+iaSl --extra=+q; find . -name "*.c" -o -name "*.cpp" -o -name "*.h" -o -name "*.hpp" > cscope.files; cscope -q -R -b -i cscope.files <CR>
 "noremap <leader>\ :!ctags -R --fields=+iaSl --extra=+q<CR>
+
+noremap <F4> :!ctags -RV --python-kinds=-v --language-force=python --fields=+ailS --exclude=tmp --exclude=output --exclude=datasets <CR>
+" --python-kinds=-v: supress tag entries for variables
+" a	Access (or export) of class members
+" f	File-restricted scoping [enabled]
+" i	Inheritance information
+" k	Kind of tag as a single letter [enabled]
+" K	Kind of tag as full name
+" l	Language of source file containing tag
+" m	Implementation information
+" n	Line number of tag definition
+" s	Scope of tag definition [enabled]
+" S	Signature of routine (e.g. prototype or parameter list)
+" z	Include the "kind:" key in kind field	
+" t	Type and name of a variable or typedef as "typeref:" field [enabled]
+
 
 " }}}
 
@@ -257,11 +292,11 @@ endfunction
 autocmd CursorHold * silent call CocActionAsync('highlight')
 
 " Remap for rename current word
-nmap <leader>rn <Plug>(coc-rename)
+" nmap <leader>rn <Plug>(coc-rename)
 
 " Remap for format selected region
-xmap <leader>f  <Plug>(coc-format-selected)
-nmap <leader>f  <Plug>(coc-format-selected)
+" xmap <leader>=  <Plug>(coc-format-selected)
+" nmap <leader>=  <Plug>(coc-format-selected)
 
 augroup mygroup
   autocmd!
@@ -294,10 +329,10 @@ augroup end
 command! -nargs=0 Format :call CocAction('format')
 
 " Use `:Fold` to fold current buffer
-command! -nargs=? Fold :call     CocAction('fold', <f-args>)
+" command! -nargs=? Fold :call CocAction('fold', <f-args>)
 
 " use `:OR` for organize import of current buffer
-command! -nargs=0 OR   :call     CocAction('runCommand', 'editor.action.organizeImport')
+command! -nargs=0 OR :call CocAction('runCommand', 'editor.action.organizeImport')
 
 " Add status line support, for integration with other plugin, checkout `:h coc-status`
 set statusline^=%{coc#status()}%{get(b:,'coc_current_function','')}
@@ -337,10 +372,12 @@ nnoremap <silent> <space>a  :<C-u>CocList diagnostics<cr>
 
 " " map <F2> :echo 'Current time is ' . strftime('%c')<CR>
 " " map <F2> : <Plug>(coc-command-python.setInterpreter)
-" nnoremap <F2> :<C-u>CocCommand python.setInterpreter<CR>
-" nnoremap <F3> :<C-u>CocCommand python.setLinter<CR>
+nnoremap <F2> :<C-u>CocCommand python.setInterpreter<CR>
+nnoremap <F3> :<C-u>CocCommand python.setLinter<CR>
 
 " set statusline+=%{coc#status()}
+" set statusline^=%{coc#status()}
+
 " hi! link CocErrorSign WarningMsg
 " hi! link CocWarningSign Number
 " hi! link CocInfoSign Type
@@ -370,16 +407,33 @@ endif
 
 
 " === nerdtree ===
+" autocmd vimenter * NERDTree
 " Close vim if the only window left open is a NERDTree
 autocmd BufEnter * if (winnr("$") == 1 && exists("b:NERDTree") && b:NERDTree.isTabTree()) | q | endif
+" If more than one window and previous buffer was NERDTree, go back to it.
+autocmd BufEnter * if bufname('#') =~# "^NERD_tree_" && winnr('$') > 1 | b# | endif
 
+
+" === buffergator ===
+let g:buffergator_suppress_keymaps = 1
+
+
+" === bufexplorer ===
+let g:bufExplorerDisableDefaultKeyMapping = 1
+let g:bufExplorerShowRelativePath = 1
+let g:bufExplorerSortBy='number'     " Sort by the buffer's number.
+" let g:bufExplorerSortBy='extension'  " Sort by file extension.
+" let g:bufExplorerSortBy='fullpath'   " Sort by full file path name.
+" let g:bufExplorerSortBy='mru'        " Sort by most recently used.
+" let g:bufExplorerSortBy='name'       " Sort by the buffer's name.
+let g:bufExplorerSplitBelow=1        " Split new window above current.
 
 " === vim-airline ===
 let g:airline_theme = 'solarized'
 let g:airline#extensions#syntastic#enabled = 1
 let g:airline#extensions#branch#enabled = 1
 let g:airline#extensions#tabline#enabled = 1
-let g:airline#extensions#tagbar#enabled = 1
+let g:airline#extensions#tagbar#enabled = 0
 let g:airline_skip_empty_sections = 1
 
 " coc
@@ -487,13 +541,12 @@ let g:vista#renderer#icons = {
 function! NearestMethodOrFunction() abort
   return get(b:, 'vista_nearest_method_or_function', '')
 endfunction
-
 set statusline+=%{NearestMethodOrFunction()}
 
 " By default vista.vim never run if you don't call it explicitly.
 " If you want to show the nearest function in your statusline automatically,
 " you can add the following line to your vimrc
-autocmd VimEnter * call vista#RunForNearestMethodOrFunction()
+" autocmd VimEnter * call vista#RunForNearestMethodOrFunction()
 
 " let g:vista_echo_cursor_strategy = 'both'
 let g:vista_echo_cursor_strategy = 'scroll'
@@ -501,7 +554,7 @@ let g:vista_stay_on_open = 0
 let g:vista_sidebar_width = 40
 
 " autocmd! VimEnter * Vista coc<CR>
-nnoremap <F4> :Vista coc<CR>
+" nnoremap <F5> :Vista coc<CR>
 
 
 " === tagbar ===
@@ -514,13 +567,13 @@ autocmd FileType c,cpp,py,sh nested :TagbarOpen
 let g:tagbar_type_python  = {
 \ 'ctagstype' : 'python',
 \ 'kinds'     : [
-	\ 'i:interfaces',
-	\ 'd:constant definitions',
+	\ 'c:classes',
 	\ 'f:functions',
 \ ]
 \ }
-	" \ 'c:classes',
-nnoremap <silent> <F5> :TagbarToggle<CR> 
+"	\ 'i:interfaces',
+"	\ 'd:constant definitions',
+" nnoremap <silent> <F5> :TagbarToggle<CR> 
 
 
 
@@ -533,9 +586,18 @@ let g:slime_default_config = {"socket_name": "default", "target_pane": "{right-o
 let g:slime_paste_file = "~/slime_paste"
 
 
-" === vim-isort ===
-" let g:vim_isort_map = '<C-i>'
-let g:vim_isort_map = ''
+" === vim-multiple-cursors ===
+let g:multi_cursor_use_default_mapping=0
+
+" Default mapping
+let g:multi_cursor_start_word_key      = '<C-n>'
+let g:multi_cursor_select_all_word_key = '<A-n>'
+let g:multi_cursor_start_key           = ''
+let g:multi_cursor_select_all_key      = ''
+let g:multi_cursor_next_key            = '<C-n>'
+let g:multi_cursor_prev_key            = '<C-p>'
+let g:multi_cursor_skip_key            = '<C-x>'
+let g:multi_cursor_quit_key            = '<Esc>'
 
 
 " }}}
@@ -558,19 +620,8 @@ autocmd FileType json syntax match Comment +\/\/.\+$+
 
 " }}}
 
-" Folding {{{
-augroup filetype_vim
-	autocmd!
-    autocmd FileType vim setlocal foldmethod=marker
-augroup END
-
-set modelines=1
-
-" }}}
-
-
-" === colorscheme ===
-nnoremap <F12> :call CommentColorSchemeToggle()<CR>
+" Color Scheme {{{
+" nnoremap <F12> :call CommentColorSchemeToggle()<CR>
 let g:ccs_flag = 0
 function! CommentColorSchemeToggle()
     if g:ccs_flag
@@ -583,8 +634,39 @@ function! CommentColorSchemeToggle()
         let g:ccs_flag = 1
     endif
 endfunction
-colorscheme solarized8
+silent! colorscheme solarized8
 set background=light
+set t_Co=256
+
+highlight SignColumn guibg=#EEE8D5
+highlight Pmenu ctermbg=None guibg=#E8E2D1
+highlight CocFloating ctermfg=None  guibg=#E8E2D1
+
+" }}}
+
+function! StatusDiagnostic() abort
+	let info = get(b:, 'coc_diagnostic_info', {})
+	if empty(info) | return '' | endif
+	let msgs = []
+	if get(info, 'error', 0)
+		call add(msgs, 'E' . info['error'])
+	endif
+	if get(info, 'warning', 0)
+		call add(msgs, 'W' . info['warning'])
+	endif
+	return join(msgs, ' ') . ' ' . get(g:, 'coc_status', '')
+endfunction
+set statusline+=%{StatusDiagnostic()}
+
+" Folding {{{
+augroup filetype_vim
+	autocmd!
+    autocmd FileType vim setlocal foldmethod=marker
+augroup END
+
+set modelines=1
+
+" }}}
 
 
 " :CocCommand python.workspaceSymbols.rebuildOnFileSave = false
@@ -627,7 +709,7 @@ set background=light
 " monkeytype
 " mypy
 " :gd go to definition
-" ctags -R --language=python --exclude=output
+" ctags -R --language=python --exclude=tmp --exclude=output
 " ]m  goto end of method
 " ctrl+w s  split
 " ctrl+w o  only window
@@ -637,4 +719,13 @@ set background=light
 "python.pythonPath":"/home/jason/python", in coc-settings.json
 ""coc.preferences.formatOnSaveFiletypes": ["python"],
 " pip install 'python-language-server[all]'
+
+" bufexplorer
+" c: choose buffer
+" o: open buffer
+" s: sort buffer
+
+" :Buffers
+" :BCommits
+
 

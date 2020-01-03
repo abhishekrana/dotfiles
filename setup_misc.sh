@@ -6,6 +6,7 @@ wget https://raw.githubusercontent.com/abhishekrana/dotfiles/master/misc/.inputr
 
 ## Install packages
 sudo apt-get update
-sudo apt-get install -y python-autopep8 cmake build-essential universal-ctags silversearcher-ag
+sudo apt-get install -y python-autopep8 cmake build-essential silversearcher-ag
+sudo snap install universal-ctags
 
 
