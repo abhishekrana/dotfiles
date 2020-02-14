@@ -6,11 +6,13 @@ shopt -s autocd # cd into dir without cd command
 alias ls="ls --color"
 alias ll='ls --color -lrth'
 alias cl='clear; ls --color -lrth'
-alias nvimrc='vim ~/.config/nvim/init.vim'
 alias tmux='tmux -2 -f ~/aSk/tmux.conf'
-alias vimrc='vim ~/aSk/init_aSk.vim'
-alias bashrc='vim ~/aSk/.bashrc_aSk'
+
+alias bashrc='vim ~/aSk/bashrc'
+alias vimrc='vim ~/aSk/init.vim'
 alias tmuxrc='vim ~/aSk/tmux.conf'
+
+alias dot='cd ~/aSk/dotfiles'
 
 function task(){
   if [ -z "$TMUX" ]; then

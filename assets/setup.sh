@@ -89,7 +89,7 @@ if [[ $? != 0 ]];then
 	mkdir -p ~/.config/nvim
 	echo '' >> ~/.config/nvim/init.vim
 	echo '""" aSk'  >> ~/.config/nvim/init.vim
-	echo 'so ~/aSk/dotfiles/neovim/init_aSk.vim' >> ~/.config/nvim/init.vim
+	echo 'so ~/aSk/dotfiles/nvim/init_aSk.vim' >> ~/.config/nvim/init.vim
 	~/aSk/bin/nvim +PlugInstall +qall
 	echo "~/.config/nvim/init.vim updated"
 else

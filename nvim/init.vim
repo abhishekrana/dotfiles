@@ -18,24 +18,24 @@ call plug#begin(expand('~/.config/nvim/plugged'))
 " Intellisense code engine, auto-completion, linting, code fixing
 Plug 'neoclide/coc.nvim', {'branch': 'release'}
 let g:coc_global_extensions = [
+  \ 'coc-explorer',
+  \ 'coc-git',
+  \ 'coc-highlight',
   \ 'coc-json',
+  \ 'coc-lists',
+  \ 'coc-pairs',
   \ 'coc-python',
   \ 'coc-snippets',
-  \ 'coc-pairs',
-  \ 'coc-explorer',
-  \ 'coc-yank',
-  \ 'coc-highlight',
-  \ 'coc-git',
+  \ 'coc-tag',
+  \ 'coc-terminal',
   \ 'coc-markdownlint',
-  \ 'coc-lists',
   \ 'coc-marketplace',
   \ 'coc-yaml',
-  \ 'coc-todolist',
-  \ 'coc-terminal',
-  \ 'coc-git',
-  \ 'coc-tag',
+  \ 'coc-yank',
+  \ 'coc-xml',
   \ ]
 
+Plug 'dense-analysis/ale'
 Plug 'honza/vim-snippets'
 " Plug 'vim-vdebug/vdebug'
 " Plug 'sakhnik/nvim-gdb', { 'do': ':!./install.sh \| UpdateRemotePlugins' }
@@ -43,12 +43,12 @@ Plug 'honza/vim-snippets'
 " Fuzzy file finding, project searching, file browsing
 Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
 Plug 'junegunn/fzf.vim'
+Plug 'jlanzarotta/bufexplorer'
 Plug 'scrooloose/nerdtree'
-"Plug 'tsony-tsonev/nerdtree-git-plugin'
 Plug 'Xuyuanp/nerdtree-git-plugin'
 Plug 'tiagofumo/vim-nerdtree-syntax-highlight'
 " Plug 'jeetsukumaran/vim-buffergator'
-Plug 'jlanzarotta/bufexplorer'
+" Plug 'tsony-tsonev/nerdtree-git-plugin'
 
 " Git
 Plug 'tpope/vim-fugitive'
@@ -63,22 +63,24 @@ Plug 'lifepillar/vim-solarized8'
 Plug 'altercation/vim-colors-solarized'
 Plug 'ryanoasis/vim-devicons'
 Plug 'mhinz/vim-startify'
+Plug 'tmux-plugins/vim-tmux-focus-events'
 
 " Vim-Session
 " Plug 'xolox/vim-misc'
 " Plug 'xolox/vim-session'
 
 " Misc
-" Plug 'machakann/vim-highlightedyank'
 Plug 'tpope/vim-commentary'
 Plug 'liuchengxu/vista.vim'
 Plug 'majutsushi/tagbar'
-" Plug 'jpalardy/vim-slime'
 Plug 'fcpg/vim-osc52'
+Plug 'francoiscabrol/ranger.vim'
+Plug 'rbgrouleff/bclose.vim'
+" Plug 'machakann/vim-highlightedyank'
+" Plug 'jpalardy/vim-slime'
 " Plug 'terryma/vim-multiple-cursors'
-
-" Plug 'unblevable/quick-scope' " hangs a lot everything
 " Plug 'christoomey/vim-tmux-navigator'
+" Plug 'unblevable/quick-scope' " hangs a lot everything
 
 call plug#end()
 
@@ -167,7 +169,7 @@ vnoremap < <gv							" Easier moving of code blocks
 vnoremap > >gv							" Easier moving of code blocks
 nnoremap n nzzzv						" Going to the next one in a search will center on the line it's found in.
 nnoremap N Nzzzv						" Going to the next one in a search will center on the line it's found in.
-nnoremap * :keepjumps normal! mi*`i<CR>	" Dont jump to next word
+nnoremap <silent>* :keepjumps normal! mi*`i<CR>	" Dont jump to next word
 
 " Custom <leader> Mappings
 " noremap <leader>w :windo bd<CR>
@@ -355,12 +357,6 @@ nnoremap <silent> <space>a  :<C-u>CocList diagnostics<cr>
 " Resume latest coc list
 " nnoremap <silent> <space>p  :<C-u>CocListResume<CR>
 
-
-
-
-
-
-
 " " rename the current word in the cursor
 " nmap <leader>vr  <Plug>(coc-rename)
 " nmap <leader>vf  <Plug>(coc-format-selected)
@@ -381,6 +377,11 @@ nnoremap <F3> :<C-u>CocCommand python.setLinter<CR>
 " hi! link CocErrorSign WarningMsg
 " hi! link CocWarningSign Number
 " hi! link CocInfoSign Type
+
+" === ale ===
+let g:ale_completion_enabled = 0
+let g:ale_lint_on_text_changed = 'never'
+let g:ale_lint_on_insert_leave = 0
 
 
 " === fzf ===
@@ -421,11 +422,11 @@ let g:buffergator_suppress_keymaps = 1
 " === bufexplorer ===
 let g:bufExplorerDisableDefaultKeyMapping = 1
 let g:bufExplorerShowRelativePath = 1
-let g:bufExplorerSortBy='number'     " Sort by the buffer's number.
 " let g:bufExplorerSortBy='extension'  " Sort by file extension.
 " let g:bufExplorerSortBy='fullpath'   " Sort by full file path name.
-" let g:bufExplorerSortBy='mru'        " Sort by most recently used.
+let g:bufExplorerSortBy='mru'        " Sort by most recently used.
 " let g:bufExplorerSortBy='name'       " Sort by the buffer's name.
+" let g:bufExplorerSortBy='number'     " Sort by the buffer's number.
 let g:bufExplorerSplitBelow=1        " Split new window above current.
 
 " === vim-airline ===
@@ -564,13 +565,13 @@ let g:tagbar_iconchars = ['▸', '▾']
 let g:tagbar_width = 40
 autocmd FileType c,cpp,py,sh nested :TagbarOpen
 " autocmd FileType * nested :call tagbar#autoopen(0) 
-let g:tagbar_type_python  = {
-\ 'ctagstype' : 'python',
-\ 'kinds'     : [
-	\ 'c:classes',
-	\ 'f:functions',
-\ ]
-\ }
+" let g:tagbar_type_python  = {
+" \ 'ctagstype' : 'python',
+" \ 'kinds'     : [
+" 	\ 'c:classes',
+" 	\ 'f:functions',
+" \ ]
+" \ }
 "	\ 'i:interfaces',
 "	\ 'd:constant definitions',
 " nnoremap <silent> <F5> :TagbarToggle<CR> 
@@ -642,8 +643,15 @@ highlight SignColumn guibg=#EEE8D5
 highlight Pmenu ctermbg=None guibg=#E8E2D1
 highlight CocFloating ctermfg=None  guibg=#E8E2D1
 
+" split bar styling
+set fillchars+=vert:\ 
+hi VertSplit ctermbg=NONE guibg=NONE
+hi VertSplit ctermfg=NONE guifg=NONE
+
 " }}}
 
+" Status Diagnostics {{{
+"
 function! StatusDiagnostic() abort
 	let info = get(b:, 'coc_diagnostic_info', {})
 	if empty(info) | return '' | endif
@@ -658,6 +666,8 @@ function! StatusDiagnostic() abort
 endfunction
 set statusline+=%{StatusDiagnostic()}
 
+" }}}
+
 " Folding {{{
 augroup filetype_vim
 	autocmd!
@@ -668,64 +678,26 @@ set modelines=1
 
 " }}}
 
-
-" :CocCommand python.workspaceSymbols.rebuildOnFileSave = false
+" Notes {{{
+"
+" General
 " :checkhealth
-" :CocConfig
-" :CocInstall coc-snippets
-" :CocCommand snippets.editSnippets
-" :CocInstall coc-python
+
+" # Coc
 " :CocInfo
-" :Vista finder coc
-" F2, F3, F4, F5, F12
-" so $VIMRUNTIME/syntax/hitest.vim
-" CocInstall coc-python
-" CocInstall coc-git
-" https://github.com/ryanoasis/nerd-fonts/blob/master/patched-fonts/UbuntuMono/Regular/complete/Ubuntu%20Mono%20Nerd%20Font%20Complete.ttf
-" space t
-" space f
-" space F
-" CocCommand explorer
-"
-"
+" :CocConfig
+" :CocCommand snippets.editSnippets
+" :CocCommand explorer
 " :CocList extensions
 " :CocList commands
-" https://github.com/neoclide/coc.nvim/wiki/Using-coc-extensions
-" An example config to use the custom command Tsc for tsserver.watchBuild:
-" command! -nargs=0 Tsc    :CocCommand tsserver.watchBuild
 "
-" :CocInstall coc-json coc-css
-"
-" After adding this to your vimrc run PlugInstall. This has the limitation that you can't uninstall the extension by using :CocUninstall and that automatic update support is not available.
-" :CocUpdate
-" :CocUninstall coc-css
-"
-"conda install ptpython
-"pip install isort
-"pip install ptpython --upgrade
-"pip install ptipython
-
-" :Isort
-" monkeytype
-" mypy
-" :gd go to definition
-" ctags -R --language=python --exclude=tmp --exclude=output
-" ]m  goto end of method
-" ctrl+w s  split
-" ctrl+w o  only window
-" 
-"
-
-"python.pythonPath":"/home/jason/python", in coc-settings.json
-""coc.preferences.formatOnSaveFiletypes": ["python"],
-" pip install 'python-language-server[all]'
-
-" bufexplorer
+" # bufexplorer
 " c: choose buffer
 " o: open buffer
 " s: sort buffer
 
-" :Buffers
+" # Misc
 " :BCommits
 
+" }}}
 

@@ -111,8 +111,11 @@
 	"python.autoComplete.extraPaths": [
 		"/root/.local/virtual-site-packages"
 	],
-	"todolist.enable": true,
 	"codeLens.enable": true,
 	"signature.enable": true,
-	"python.autoUpdateLanguageServer": true
+	"python.autoUpdateLanguageServer": true,
+	"markdownlint.config": {
+		"line_length": false
+	}
 }
+
