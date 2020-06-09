@@ -1,7 +1,7 @@
 {
     // PATHS
     // "python.autoComplete.extraPaths": [
-    //     "${workspaceFolder}/defect-prediction/common/src"
+    //     "${workspaceFolder}/path_1"
     // ],
     "terminal.integrated.env.linux": {
         "PYTHONPATH": "${env:PYTHONPATH}:${workspaceFolder}/path_1"
