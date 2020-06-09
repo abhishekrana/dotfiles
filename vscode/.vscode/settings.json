@@ -1,0 +1,122 @@
+{
+    // PATHS
+    // "python.autoComplete.extraPaths": [
+    //     "${workspaceFolder}/defect-prediction/common/src"
+    // ],
+    "terminal.integrated.env.linux": {
+        "PYTHONPATH": "${env:PYTHONPATH}:${workspaceFolder}/path_1"
+    },
+    // PYTHON
+    "python.pythonPath": "/usr/bin/python3.6",
+    "python.dataScience.askForKernelRestart": false,
+    "python.dataScience.sendSelectionToInteractiveWindow": false,
+    "python.envFile": "${workspaceFolder}/.env",
+    "python.jediEnabled": false,
+    // "python.testing.pytestEnabled": true,
+    // PYTHON FORMATTING
+    "python.formatting.provider": "black",
+    "python.formatting.blackArgs": [
+        "--line-length",
+        "120"
+    ],
+    // PYTHON LINTING
+    "python.linting.flake8Enabled": true, // flake8: PyFlakes, pep8, Ned Batchelder’s McCabe script
+    "python.linting.flake8Args": [
+        "--max-line-length=120",
+        "--ignore=F841" // local variable 'variable_name' is assigned to but never used
+        // "--ignore=E402,F841,F401,E302,E305",
+        // "--ignore=E,W,C"
+    ],
+    "python.linting.pycodestyleEnabled": false,
+    "python.linting.pydocstyleEnabled": true,
+    "python.linting.pydocstyleArgs": [
+        "--convention=google",
+        "--ignore=D100,D101,D102,D103,D104,D105,D106,D107,D213"
+    ],
+    "python.linting.pylintEnabled": false,
+    // "python.linting.pylintUseMinimalCheckers": false,
+    // "python.linting.banditEnabled": false,
+    // "python.linting.flake8Enabled": false,
+    // "python.linting.mypyEnabled": false,
+    // "python.linting.prospectorEnabled": false,
+    // "python.linting.pycodestyleEnabled": false,
+    // "python.linting.pylamaEnabled": false,
+    "python.linting.mypyEnabled": true,
+    "python.linting.mypyArgs": [
+        "--ignore-missing-imports",
+        "--follow-imports=silent",
+        // "--strict", // `mypy --help` for complete list
+        // "--disallow-untyped-calls",
+        // "--disallow-untyped-defs",
+        // "--disallow-incomplete-defs",
+        "--check-untyped-defs",
+        "--disallow-subclassing-any",
+        "--disallow-untyped-decorators",
+        "--no-implicit-optional",
+        "--strict-optional",
+        "--warn-redundant-casts",
+        "--warn-return-any",
+        "--warn-unused-ignores",
+        "--warn-unused-configs",
+    ],
+    // GIT
+    "git.autofetch": true,
+    "gitlens.hovers.currentLine.over": "line",
+    "gitlens.currentLine.enabled": false,
+    "gitlens.codeLens.enabled": false,
+    "gitlens.statusBar.enabled": false,
+    // EDITOR
+    "debug.toolBarLocation": "docked",
+    "editor.copyWithSyntaxHighlighting": true,
+    "editor.cursorSmoothCaretAnimation": false,
+    "editor.fontLigatures": true,
+    "editor.largeFileOptimizations": false,
+    "editor.minimap.enabled": false,
+    "editor.occurrencesHighlight": false,
+    "editor.renderIndentGuides": false,
+    "editor.rulers": [
+        120
+    ],
+    "editor.suggestSelection": "first",
+    // "outline.showFunctions": false,
+    "outline.showProperties": false,
+    "outline.showVariables": false,
+    "editor.tabCompletion": "on",
+    "editor.tabSize": 4,
+    "files.trimTrailingWhitespace": true,
+    "window.zoomLevel": 0,
+    "workbench.colorTheme": "Solarized Light",
+    "workbench.colorCustomizations": {},
+    "workbench.editor.enablePreview": false,
+    "workbench.sideBar.location": "right",
+    "workbench.tips.enabled": true,
+    // TERMINAL
+    "terminal.integrated.inheritEnv": false,
+    "terminal.integrated.scrollback": 10000,
+    // CONTAINERS
+    //"remote.containers.defaultExtensions": [
+    //    "[ms-python.python, njpwerner.autodocstring ]"
+    //],
+    // DOCKER
+    "files.associations": {
+        "Dockerfile_*": "dockerfile",
+        "Dockerfile-*": "dockerfile",
+        "Dockerfile.*": "dockerfile"
+    },
+    // MISC
+    "autoDocstring.docstringFormat": "google",
+    "files.exclude": {
+        "**/__pycache__/": true,
+        "**/.git": true
+    },
+    "vsintellicode.modify.editor.suggestSelection": "automaticallyOverrodeDefaultValue",
+    // PRIVACY
+    "AREPL.telemetry": false,
+    "code-runner.enableAppInsights": false,
+    "docker-explorer.enableTelemetry": false,
+    "githubPullRequests.telemetry.enabled": false,
+    "gitlens.advanced.telemetry.enabled": false,
+    "telemetry.enableCrashReporter": false,
+    "telemetry.enableTelemetry": false,
+    "git.ignoreLimitWarning": true
+}

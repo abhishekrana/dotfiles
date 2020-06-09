@@ -1,0 +1,45 @@
+{
+	"name": "project_name",
+	"build": {
+		"dockerfile": "../Dockerfile"
+	},
+	"extensions": [
+		"almenon.arepl",
+		"christian-kohler.path-intellisense",
+		"DavidAnson.vscode-markdownlint",
+		"donjayamanne.githistory",
+		"eamodio.gitlens",
+		"formulahendry.code-runner",
+		"formulahendry.docker-explorer",
+		"foxundermoon.shell-format",
+		"GitHub.vscode-pull-request-github",
+		"matangover.mypy",
+		"ms-python.python",
+		"mutantdino.resourcemonitor",
+		"njpwerner.autodocstring",
+		"redhat.vscode-yaml",
+		"shd101wyy.markdown-preview-enhanced",
+		"usernamehw.errorlens",
+		"VisualStudioExptTeam.vscodeintellicode",
+		"vscode-snippet.snippet",
+		"yzhang.markdown-all-in-one"
+	],
+	"containerEnv": {
+		"DISPLAY": "${localEnv:DISPLAY}",
+		"XAUTHORITY": "${localEnv:XAUTHORITY}"
+	},
+	"mounts": [
+		"source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind,consistency=cached",
+		"source=${localEnv:XAUTHORITY},target=${localEnv:XAUTHORITY},type=bind,consistency=cached"
+	],
+	"runArgs": [
+		"--gpus=all"
+	],
+	// "mounts": [ "source=${localWorkspaceFolder}/app-scripts,target=/usr/local/share/app-scripts,type=bind,consistency=cached" ],
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+	// Set environment variables for VS Code and sub-processes
+	// "remoteEnv": { "MY_VARIABLE": "some-value" }
+	// Use 'postCreateCommand' to run commands after the container is created.
+	// "postCreateCommand": "pip3 install -r requirements.txt",
+}
