@@ -41,19 +41,14 @@
 	//"suggest.preferCompleteThanJumpPlaceholder": true,
 	//"suggest.triggerAfterInsertEnter": false,
 	// 
-	// Linting
-	"python.jediEnabled": false,
-	"python.linting.enabled": true,
-	"python.linting.pylintEnabled": true,
-	"python.linting.lintOnSave": true,
-	// 
+	 
 	// Formatting
 	"python.formatting.provider": "black",
 	"python.formatting.blackArgs": [
 		"--line-length",
-		"100"
+		"120"
 	],
-	// 
+	//
 	// Git
 	"git.enableGutters": true,
 	"git.addedSign.text": "▎",
@@ -116,6 +111,11 @@
 	"python.autoUpdateLanguageServer": true,
 	"markdownlint.config": {
 		"line_length": false
-	}
+	},
+	// Linting
+	"python.jediEnabled": true,
+	"python.linting.enabled": true,
+	"python.linting.pylintEnabled": true,
+	"python.linting.lintOnSave": true
 }
 

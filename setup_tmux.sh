@@ -1,4 +1,4 @@
-TMUX_VERSION=3.0a
+TMUX_VERSION=3.1a
 ROOT_PATH="$HOME/aSk"
 
 sudo apt-get update

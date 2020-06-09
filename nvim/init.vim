@@ -35,7 +35,7 @@ let g:coc_global_extensions = [
   \ 'coc-xml',
   \ ]
 
-Plug 'dense-analysis/ale'
+" Plug 'dense-analysis/ale'
 Plug 'honza/vim-snippets'
 " Plug 'vim-vdebug/vdebug'
 " Plug 'sakhnik/nvim-gdb', { 'do': ':!./install.sh \| UpdateRemotePlugins' }
@@ -74,7 +74,7 @@ Plug 'tpope/vim-commentary'
 Plug 'liuchengxu/vista.vim'
 Plug 'majutsushi/tagbar'
 Plug 'fcpg/vim-osc52'
-Plug 'francoiscabrol/ranger.vim'
+" Plug 'francoiscabrol/ranger.vim'
 Plug 'rbgrouleff/bclose.vim'
 " Plug 'machakann/vim-highlightedyank'
 " Plug 'jpalardy/vim-slime'
