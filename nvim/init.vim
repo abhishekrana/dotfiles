@@ -71,7 +71,7 @@ Plug 'tmux-plugins/vim-tmux-focus-events'
 
 " Misc
 Plug 'tpope/vim-commentary'
-Plug 'liuchengxu/vista.vim'
+" Plug 'liuchengxu/vista.vim'
 Plug 'majutsushi/tagbar'
 Plug 'fcpg/vim-osc52'
 " Plug 'francoiscabrol/ranger.vim'
