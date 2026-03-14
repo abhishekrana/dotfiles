@@ -2,3 +2,4 @@
 *~
 .DS_Store
 Thumbs.db
+bash/.bashrc.d/local.bash
