@@ -47,18 +47,7 @@ cd ~/dotfiles
 ./bootstrap.sh
 ```
 
-### 3. Set up git identity
-
-```bash
-# Create your local git config (not tracked in repo)
-cat > ~/.gitconfig.local << 'EOF'
-[user]
-    name = Your Name
-    email = your@email.com
-EOF
-```
-
-### 4. Restart your shell
+### 3. Restart your shell
 
 ```bash
 source ~/.bashrc
@@ -88,7 +77,7 @@ Create a new `.bash` file in the bash package:
 
 ```bash
 # Edit directly in dotfiles — symlink means it takes effect immediately
-vim ~/dotfiles/bash/.bashrc.d/90-my-feature.bash
+vim ~/dotfiles/bash/.bashrc.d/my-feature.bash
 ```
 
 ### Add private/work-specific aliases
@@ -117,7 +106,7 @@ stow -R <package>    # Re-link (unlink + link)
 dotfiles/
 ├── bash/
 │   └── .bashrc.d/
-│       ├── 00-path.bash
+│       ├── 00-path.bash        # loads first (PATH must be set before tool inits)
 │       ├── aliases.bash
 │       ├── direnv.bash
 │       ├── fzf.bash
@@ -164,7 +153,7 @@ dotfiles/
 ## Notes
 
 - **System `.bashrc` is never overwritten.** All customizations live in `~/.bashrc.d/*.bash` and are sourced from the system `.bashrc`. The bootstrap script appends the sourcing loop with a backup.
-- **No personal info in repo.** Git identity goes in `~/.gitconfig.local`. Work-specific aliases go in `~/.bashrc.d/local.bash`. Neither is tracked.
+- **No personal info in repo.** Work-specific aliases go in `~/.bashrc.d/local.bash` (not tracked).
 - **Neovim plugins**: Managed by lazy.nvim. `lazy-lock.json` pins plugin versions — commit it to keep installs reproducible.
 - **Python venvs**: direnv auto-activates `.venv` per project directory.
 - **Idempotent**: `bootstrap.sh` is safe to re-run — it skips what's already installed.
