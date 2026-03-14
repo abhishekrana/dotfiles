@@ -28,6 +28,7 @@ Installed via `bootstrap.sh` (apt + `~/.local/bin`):
 - [JetBrainsMono Nerd Font](https://www.nerdfonts.com/) — terminal/editor font
 - [GNU Stow](https://www.gnu.org/software/stow/) — symlink manager
 - [bat](https://github.com/sharkdp/bat) — cat with syntax highlighting
+- [ripgrep](https://github.com/BurntSushi/ripgrep) — fast recursive search
 
 ## Setup on a new machine
 
