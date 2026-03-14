@@ -117,9 +117,7 @@ dotfiles/
 ├── bash/
 │   └── .bashrc.d/
 │       ├── 00-path.bash
-│       ├── 10-prompt.bash
 │       ├── 20-aliases.bash
-│       ├── 30-completions.bash
 │       ├── 40-direnv.bash
 │       ├── 50-fzf.bash
 │       ├── 60-zoxide.bash
