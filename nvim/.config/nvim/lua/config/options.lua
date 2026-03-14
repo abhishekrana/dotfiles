@@ -10,6 +10,7 @@ vim.o.shiftwidth = 4               -- indent width
 vim.o.softtabstop = 4              -- tab key width
 vim.o.fixendofline = true          -- ensure final newline
 vim.opt.clipboard = "unnamedplus"  -- yank to system clipboard
+vim.o.relativenumber = false       -- absolute line numbers
 
 
 -- Copy to both clipboard and primary selection (for Shift+Insert)

@@ -22,7 +22,5 @@ return {
         },
       },
     })
-    -- Show full file context (no folding of unchanged lines)
-    vim.opt.diffopt:append("context:99999")
   end,
 }
