@@ -6,13 +6,13 @@ Personal development environment managed with [GNU Stow](https://www.gnu.org/sof
 
 ### Configs (stow packages)
 
-| Package | Description | Target |
-|---------|-------------|--------|
-| `bash` | Shell customizations, aliases, direnv/fzf/zoxide hooks, venv prompt | `~/.bashrc.d/` |
-| `nvim` | Neovim config (LazyVim, LSP, plugins) | `~/.config/nvim/` |
-| `tmux` | Tmux config, gitmux, CI status script | `~/.tmux.conf`, `~/.gitmux.conf` |
-| `terminator` | Terminal emulator (Solarized theme, JetBrainsMono Nerd Font) | `~/.config/terminator/` |
-| `bat` | Syntax highlighter theme | `~/.config/bat/` |
+| Package      | Description                                                         | Target                           |
+| ------------ | ------------------------------------------------------------------- | -------------------------------- |
+| `bash`       | Shell customizations, aliases, direnv/fzf/zoxide hooks, venv prompt | `~/.bashrc.d/`                   |
+| `nvim`       | Neovim config (LazyVim, LSP, plugins)                               | `~/.config/nvim/`                |
+| `tmux`       | Tmux config, gitmux, CI status script                               | `~/.tmux.conf`, `~/.gitmux.conf` |
+| `terminator` | Terminal emulator (Solarized theme, JetBrainsMono Nerd Font)        | `~/.config/terminator/`          |
+| `bat`        | Syntax highlighter theme                                            | `~/.config/bat/`                 |
 
 ### System dependencies
 
