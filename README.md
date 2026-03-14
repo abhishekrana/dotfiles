@@ -27,9 +27,6 @@ Installed via `bootstrap.sh` (apt + `~/.local/bin`):
 - [Terminator](https://gnome-terminator.org/) — terminal emulator
 - [JetBrainsMono Nerd Font](https://www.nerdfonts.com/) — terminal/editor font
 - [GNU Stow](https://www.gnu.org/software/stow/) — symlink manager
-- [glab](https://gitlab.com/gitlab-org/cli) — GitLab CLI
-- [k3d](https://k3d.io/) — local k8s clusters
-- [kubectl](https://kubernetes.io/docs/tasks/tools/) — k8s CLI
 - [bat](https://github.com/sharkdp/bat) — cat with syntax highlighting
 
 ## Setup on a new machine

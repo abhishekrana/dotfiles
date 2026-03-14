@@ -95,47 +95,6 @@ install_gitmux() {
     ok "gitmux $version installed"
 }
 
-install_glab() {
-    if [ -x "$LOCAL_BIN/glab" ]; then
-        ok "glab already installed"
-        return
-    fi
-    log "Installing glab..."
-    local version
-    version=$(curl -sSL "https://gitlab.com/api/v4/projects/34675721/releases" | grep -o '"tag_name":"v[^"]*"' | head -1 | sed -E 's/.*"v([^"]+)".*/\1/')
-    local url="https://gitlab.com/gitlab-org/cli/-/releases/v${version}/downloads/glab_${version}_linux_amd64.tar.gz"
-    local tmp
-    tmp=$(mktemp -d)
-    curl -sSL "$url" | tar xz -C "$tmp"
-    mv "$tmp/bin/glab" "$LOCAL_BIN/glab"
-    chmod +x "$LOCAL_BIN/glab"
-    rm -rf "$tmp"
-    ok "glab $version installed"
-}
-
-install_k3d() {
-    if [ -x "$LOCAL_BIN/k3d" ]; then
-        ok "k3d already installed"
-        return
-    fi
-    log "Installing k3d..."
-    curl -sSL "https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh" | USE_SUDO=false K3D_INSTALL_DIR="$LOCAL_BIN" bash
-    ok "k3d installed"
-}
-
-install_kubectl() {
-    if [ -x "$LOCAL_BIN/kubectl" ]; then
-        ok "kubectl already installed"
-        return
-    fi
-    log "Installing kubectl..."
-    local version
-    version=$(curl -sSL https://dl.k8s.io/release/stable.txt)
-    curl -sSL "https://dl.k8s.io/release/${version}/bin/linux/amd64/kubectl" -o "$LOCAL_BIN/kubectl"
-    chmod +x "$LOCAL_BIN/kubectl"
-    ok "kubectl $version installed"
-}
-
 # =============================================================================
 # JetBrainsMono Nerd Font
 # =============================================================================
@@ -235,9 +194,6 @@ install_neovim
 install_fzf
 install_zoxide
 install_gitmux
-install_glab
-install_k3d
-install_kubectl
 install_nerd_font
 install_tpm
 stow_packages

@@ -9,4 +9,3 @@ fi
 
 # Tool-specific completions
 [ -f "$HOME/.bash-completion/completions/task.bash" ] && source "$HOME/.bash-completion/completions/task.bash"
-[ -f "$HOME/.local/share/bash-completion/completions/k3d/k3d_completion.sh" ] && source "$HOME/.local/share/bash-completion/completions/k3d/k3d_completion.sh"
