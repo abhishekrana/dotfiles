@@ -153,6 +153,7 @@ stow_packages() {
     backup_if_not_symlink "$HOME/.gitmux.conf"
     backup_if_not_symlink "$HOME/.config/terminator"
     backup_if_not_symlink "$HOME/.config/bat"
+    backup_if_not_symlink "$HOME/.local/bin/tmux-ci-status.sh"
 
     cd "$DOTFILES_DIR"
     for pkg in "${packages[@]}"; do
