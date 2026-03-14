@@ -9,8 +9,8 @@ local map = vim.keymap.set
 -- =============================================================================
 
 -- ff to escape and save (insert + normal mode)
-map("i", "ff", "<Esc>:w<CR>", { desc = "Escape and save" })
-map("n", "ff", "<Esc>:w<CR>", { desc = "Save file" })
+map("i", "ff", "<Esc><cmd>w<CR>", { desc = "Escape and save" })
+map("n", "ff", "<cmd>w<CR>", { desc = "Save file" })
 
 -- H/L to beginning/end of line (like ^ and $)
 map("n", "H", "^", { desc = "Beginning of line" })
