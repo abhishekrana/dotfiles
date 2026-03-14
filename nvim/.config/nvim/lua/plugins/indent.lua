@@ -11,6 +11,11 @@ return {
             last = "  ",
           },
         },
+        sources = {
+          explorer = {
+            layout = { layout = { width = 30 } },
+          },
+        },
       },
     },
   },
