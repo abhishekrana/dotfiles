@@ -26,6 +26,7 @@ return {
         diff_buf_win_enter = function(_, winid)
           vim.wo[winid].scrollbind = true
           vim.wo[winid].cursorbind = true
+          vim.wo[winid].wrap = true
           -- Always track the first pane per file open
           if not vim.g._diffview_first_win or not vim.api.nvim_win_is_valid(vim.g._diffview_first_win) then
             vim.g._diffview_first_win = winid
