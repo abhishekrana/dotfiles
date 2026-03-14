@@ -100,7 +100,7 @@ install_gitmux() {
 # =============================================================================
 
 install_nerd_font() {
-    if fc-list | grep -qi "JetBrainsMono Nerd" &>/dev/null; then
+    if fc-list 2>/dev/null | grep -qi "JetBrainsMono Nerd"; then
         ok "JetBrainsMono Nerd Font already installed"
         return
     fi
@@ -202,4 +202,3 @@ patch_bashrc
 
 echo ""
 ok "Done! Restart your shell or run: source ~/.bashrc"
-ok "Don't forget to set up ~/.gitconfig.local with your [user] name and email"
