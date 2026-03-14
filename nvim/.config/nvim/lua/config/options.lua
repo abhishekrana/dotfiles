@@ -11,6 +11,7 @@ vim.o.softtabstop = 4              -- tab key width
 vim.o.fixendofline = true          -- ensure final newline
 vim.opt.clipboard = "unnamedplus"  -- yank to system clipboard
 
+
 -- Copy to both clipboard and primary selection (for Shift+Insert)
 vim.api.nvim_create_autocmd("TextYankPost", {
   callback = function()
