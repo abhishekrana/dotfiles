@@ -26,12 +26,11 @@ return {
         diff_buf_win_enter = function(_, winid)
           vim.wo[winid].scrollbind = true
           vim.wo[winid].cursorbind = true
-        end,
-        view_opened = function()
-          -- Focus the right diff pane (modified file) on open
           vim.defer_fn(function()
-            vim.cmd("wincmd l")
-          end, 100)
+            if vim.api.nvim_win_is_valid(winid) then
+              vim.api.nvim_set_current_win(winid)
+            end
+          end, 50)
         end,
       },
     })
