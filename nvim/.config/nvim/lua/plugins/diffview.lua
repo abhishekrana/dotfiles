@@ -16,10 +16,23 @@ return {
       view = {
         default = {
           layout = "diff2_horizontal",
+          winbar_info = false,
         },
         merge_tool = {
           layout = "diff3_horizontal",
         },
+      },
+      hooks = {
+        diff_buf_win_enter = function(_, winid)
+          vim.wo[winid].scrollbind = true
+          vim.wo[winid].cursorbind = true
+        end,
+        view_opened = function()
+          -- Focus the right diff pane (modified file) on open
+          vim.defer_fn(function()
+            vim.cmd("wincmd l")
+          end, 100)
+        end,
       },
     })
   end,
