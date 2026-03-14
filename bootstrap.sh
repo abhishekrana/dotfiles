@@ -100,7 +100,7 @@ install_gitmux() {
 # =============================================================================
 
 install_nerd_font() {
-    if fc-list 2>/dev/null | grep -qi "JetBrainsMono Nerd"; then
+    if ls "$HOME/.local/share/fonts"/JetBrainsMonoNerdFont-Regular.ttf &>/dev/null; then
         ok "JetBrainsMono Nerd Font already installed"
         return
     fi
