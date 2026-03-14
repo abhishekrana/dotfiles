@@ -3,4 +3,5 @@
 ^bootstrap\.sh$
 ^\.gitignore$
 ^\.stow-local-ignore$
+^CLAUDE\.md$
 ^\.git$
