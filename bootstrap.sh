@@ -14,7 +14,7 @@ ok()   { echo -e "\033[1;32m[dotfiles]\033[0m $*"; }
 # =============================================================================
 
 install_apt_packages() {
-    local pkgs=(stow tmux direnv terminator curl wget unzip fontconfig bat ripgrep)
+    local pkgs=(bat curl direnv fontconfig ripgrep stow terminator tmux unzip wget)
     local to_install=()
     for pkg in "${pkgs[@]}"; do
         dpkg -s "$pkg" &>/dev/null || to_install+=("$pkg")
