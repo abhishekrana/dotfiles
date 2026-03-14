@@ -117,12 +117,12 @@ dotfiles/
 ├── bash/
 │   └── .bashrc.d/
 │       ├── 00-path.bash
-│       ├── 20-aliases.bash
-│       ├── 40-direnv.bash
-│       ├── 50-fzf.bash
-│       ├── 60-zoxide.bash
-│       ├── 70-ssh-agent.bash
-│       └── 80-tools.bash
+│       ├── aliases.bash
+│       ├── direnv.bash
+│       ├── fzf.bash
+│       ├── zoxide.bash
+│       ├── ssh-agent.bash
+│       └── tools.bash
 ├── nvim/
 │   └── .config/
 │       └── nvim/
