@@ -26,19 +26,17 @@ return {
         diff_buf_win_enter = function(_, winid)
           vim.wo[winid].scrollbind = true
           vim.wo[winid].cursorbind = true
-          -- Track the first diff pane
-          if not vim.g._diffview_first_win then
+          -- Always track the first pane per file open
+          if not vim.g._diffview_first_win or not vim.api.nvim_win_is_valid(vim.g._diffview_first_win) then
             vim.g._diffview_first_win = winid
+            -- Focus the first pane after both load
+            vim.defer_fn(function()
+              if vim.g._diffview_first_win and vim.api.nvim_win_is_valid(vim.g._diffview_first_win) then
+                vim.api.nvim_set_current_win(vim.g._diffview_first_win)
+              end
+              vim.g._diffview_first_win = nil
+            end, 100)
           end
-        end,
-        view_opened = function()
-          vim.defer_fn(function()
-            local winid = vim.g._diffview_first_win
-            if winid and vim.api.nvim_win_is_valid(winid) then
-              vim.api.nvim_set_current_win(winid)
-            end
-            vim.g._diffview_first_win = nil
-          end, 100)
         end,
       },
     })
