@@ -26,10 +26,18 @@ return {
         diff_buf_win_enter = function(_, winid)
           vim.wo[winid].scrollbind = true
           vim.wo[winid].cursorbind = true
+          -- Track the first diff pane
+          if not vim.g._diffview_first_win then
+            vim.g._diffview_first_win = winid
+          end
+        end,
+        view_opened = function()
           vim.defer_fn(function()
-            if vim.api.nvim_win_is_valid(winid) then
+            local winid = vim.g._diffview_first_win
+            if winid and vim.api.nvim_win_is_valid(winid) then
               vim.api.nvim_set_current_win(winid)
             end
+            vim.g._diffview_first_win = nil
           end, 100)
         end,
       },
