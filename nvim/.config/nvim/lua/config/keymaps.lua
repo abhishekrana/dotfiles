@@ -27,7 +27,8 @@ map("n", "<leader>r", vim.lsp.buf.references, { desc = "Go to references" })
 map("n", "<leader>i", vim.lsp.buf.implementation, { desc = "Go to implementation" })
 
 -- Quit all (<leader>q)
-map("n", "<leader>q", "<cmd>qa<CR>", { desc = "Quit all" })
+map("n", "<leader>Q", "<cmd>qa<CR>", { desc = "Quit all" })
+map("n", "<leader>qq", "<cmd>qa<CR>", { desc = "Quit all" })
 
 -- Buffer navigation (<leader>j/k)
 map("n", "<leader>j", "<cmd>bprevious<CR>", { desc = "Previous buffer" })
