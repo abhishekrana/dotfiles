@@ -1,8 +1,10 @@
 [global_config]
   suppress_multiple_term_dialog = True
 [keybindings]
-  switch_to_tab_8 = <Alt>8
-  switch_to_tab_9 = <Alt>9
+  move_tab_right = ""
+  move_tab_left = ""
+  next_tab = <Alt>l
+  prev_tab = <Alt>h
   layout_launcher = ""
 [profiles]
   [[default]]
