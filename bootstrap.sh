@@ -14,7 +14,7 @@ ok()   { echo -e "\033[1;32m[dotfiles]\033[0m $*"; }
 # =============================================================================
 
 install_apt_packages() {
-    local pkgs=(bat build-essential curl direnv fontconfig nodejs npm ripgrep stow terminator tmux unzip wget)
+    local pkgs=(bat build-essential curl direnv fontconfig ripgrep stow terminator tmux unzip wget)
     local to_install=()
     for pkg in "${pkgs[@]}"; do
         dpkg -s "$pkg" &>/dev/null || to_install+=("$pkg")
@@ -31,6 +31,21 @@ install_apt_packages() {
     if command -v batcat &>/dev/null && [ ! -e "$LOCAL_BIN/bat" ]; then
         ln -s "$(command -v batcat)" "$LOCAL_BIN/bat"
     fi
+}
+
+# =============================================================================
+# Node.js (via NodeSource)
+# =============================================================================
+
+install_nodejs() {
+    if command -v node &>/dev/null && node --version | grep -q '^v24\.'; then
+        ok "Node.js 24.x already installed"
+        return
+    fi
+    log "Installing Node.js 24.x via NodeSource..."
+    curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
+    sudo apt-get install -y -qq nodejs
+    ok "Node.js $(node --version) / npm $(npm --version) installed"
 }
 
 # =============================================================================
@@ -191,6 +206,7 @@ log "Starting dotfiles bootstrap..."
 mkdir -p "$LOCAL_BIN"
 
 install_apt_packages
+install_nodejs
 install_neovim
 install_fzf
 install_zoxide
