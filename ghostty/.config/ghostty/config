@@ -10,6 +10,10 @@ font-size = 12
 cursor-style = block
 cursor-style-blink = false
 
+# Cursor trail (Neovide-like warp effect via custom shader)
+custom-shader = shaders/cursor_warp.glsl
+custom-shader-animation = always
+
 # Hide mouse cursor while typing
 mouse-hide-while-typing = true
 
