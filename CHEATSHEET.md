@@ -13,8 +13,9 @@ Commands and keys to internalize for this setup. Sorted by frequency of use.
 | `Ctrl+R`            | fzf fuzzy search shell history           |
 | `Ctrl+T`            | fzf insert file path (powered by fd)     |
 | `Alt+C`             | fzf cd into directory (powered by fd)    |
-| `gst` / `gd`        | git status / diff                        |
-| `gl` / `gp` / `gf`  | git pull / push / fetch                  |
+| `gs` / `gd`         | git status / diff                        |
+| `gdl`               | diff of the last commit (HEAD~1..HEAD)   |
+| `gl` / `gp` / `gf`  | git log / push / fetch                   |
 | `glog`              | git log graph (oneline, decorated)       |
 | `gb`                | git branches sorted by recent use        |
 | `gdd`               | open diffview in nvim (unstaged changes) |
@@ -173,6 +174,7 @@ Commands and keys to internalize for this setup. Sorted by frequency of use.
 | Key               | Action                   |
 | ----------------- | ------------------------ |
 | `Alt+h` / `Alt+l` | previous / next tab      |
+| `Ctrl+Shift+,`    | reload config            |
 | `Ctrl+Shift+C`    | copy to clipboard        |
 | `Ctrl+Shift+V`    | paste from clipboard     |
 | select text       | auto-copies to clipboard |
