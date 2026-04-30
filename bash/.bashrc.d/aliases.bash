@@ -9,6 +9,7 @@ export BROWSER="firefox"
 
 # Git
 alias gd='git diff'
+alias gdl='git diff HEAD~1 HEAD'
 alias gf='git fetch'
 # alias gl='git pull'
 alias gl='git log'
