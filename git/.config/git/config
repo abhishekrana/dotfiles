@@ -30,6 +30,7 @@
     conflictstyle = zdiff3
 
 [diff]
+    algorithm = histogram
     colorMoved = default
     colorMovedWS = allow-indentation-change
 
@@ -39,3 +40,6 @@
 [blame]
     coloring = highlightRecent
     date = relative
+
+[push]
+    autoSetupRemote = true
