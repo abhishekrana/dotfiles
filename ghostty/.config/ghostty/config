@@ -11,6 +11,7 @@ cursor-style = block
 cursor-style-blink = false
 
 # Cursor trail (Neovide-like warp effect via custom shader)
+# https://github.com/sahaj-b/ghostty-cursor-shaders
 custom-shader = shaders/cursor_warp.glsl
 custom-shader-animation = always
 
