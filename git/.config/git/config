@@ -9,6 +9,33 @@
     light = true
     side-by-side = true
     line-numbers = true
+    syntax-theme = Solarized (light)
+    plus-style = syntax "#d8f0d8"
+    plus-emph-style = syntax bold "#a8e0a8"
+    minus-style = syntax "#f5d6d3"
+    minus-emph-style = syntax bold "#e8a8a4"
+    file-style = bold yellow
+    file-decoration-style = yellow ul
+    hunk-header-style = syntax bold
+    hunk-header-decoration-style = blue box
+    hunk-header-line-number-style = bold blue
+    keep-plus-minus-markers = false
+    whitespace-error-style = 22 reverse
+    merge-conflict-begin-symbol = "▼"
+    merge-conflict-end-symbol = "▲"
+    merge-conflict-ours-diff-header-style = bold yellow
+    merge-conflict-theirs-diff-header-style = bold yellow
 
 [merge]
     conflictstyle = zdiff3
+
+[diff]
+    colorMoved = default
+    colorMovedWS = allow-indentation-change
+
+[pager]
+    blame = delta
+
+[blame]
+    coloring = highlightRecent
+    date = relative
