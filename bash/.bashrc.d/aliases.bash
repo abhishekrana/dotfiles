@@ -1,5 +1,7 @@
 # Shell
 set -o vi
+# vi-insert keymap defaults Ctrl+L to self-insert; restore clear-screen
+bind -m vi-insert '"\C-l": clear-screen'
 export VISUAL=nvim
 export EDITOR=nvim
 export TERM="tmux-256color"
