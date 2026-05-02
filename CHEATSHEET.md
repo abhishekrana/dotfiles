@@ -165,7 +165,7 @@ Commands and keys to internalize for this setup. Sorted by frequency of use.
 
 ### Sessions (persistence.nvim)
 
-Sessions are scoped per cwd and saved on quit. Bare `nvim` in a directory auto-restores; `vim file` or `vimc` skips restore.
+Sessions are scoped per cwd and saved on quit. Bare `nvim` in a directory auto-restores buffers and the explorer (if it was open); `vim file` or `vimc` skips restore.
 
 | Key          | Action                              |
 | ------------ | ----------------------------------- |
