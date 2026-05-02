@@ -1,4 +1,6 @@
--- Auto-restore the persistence.nvim session for the cwd on bare `nvim`.
+-- Restore the persistence.nvim session for the cwd when launched via `vimr`
+-- (which sets NVIM_RESTORE=1). Plain `nvim` / `vim` start fresh so aliases
+-- that pass `-c "<command>"` aren't shadowed by a restored session.
 -- :mksession can't capture snacks.explorer windows, so we track its
 -- open/closed state in a sidecar marker file and reopen it after load.
 
@@ -18,9 +20,9 @@ local function marker_path()
   return dir .. "/explorer_" .. vim.fn.getcwd():gsub("[/:]", "%%")
 end
 
--- Skip auto-restore when opening a specific file, piping stdin, or via `vimc`.
-local function should_skip()
-  return vim.fn.argc() > 0 or vim.g.started_with_stdin or vim.env.NVIM_NO_RESTORE
+-- Restore only when `vimr` set NVIM_RESTORE=1 and we're at a bare prompt.
+local function should_restore()
+  return vim.env.NVIM_RESTORE == "1" and vim.fn.argc() == 0 and not vim.g.started_with_stdin
 end
 
 return {
@@ -54,7 +56,7 @@ return {
         group = group,
         nested = true,
         callback = function()
-          if should_skip() then
+          if not should_restore() then
             return
           end
           local want_explorer = vim.fn.filereadable(marker_path()) == 1

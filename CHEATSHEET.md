@@ -28,8 +28,8 @@ Commands and keys to internalize for this setup. Sorted by frequency of use.
 | `rg <pattern>`      | ripgrep — fast recursive search          |
 | `fd <pattern>`      | fast find files (respects .gitignore)    |
 | `fd -t d <pattern>` | find directories only                    |
-| `vim`               | nvim, auto-restores session for cwd      |
-| `vimc`              | nvim, skip session restore (clean start) |
+| `vim`               | nvim (clean start, no session restore)   |
+| `vimr`              | nvim, restore saved session for cwd      |
 
 ---
 
@@ -165,7 +165,7 @@ Commands and keys to internalize for this setup. Sorted by frequency of use.
 
 ### Sessions (persistence.nvim)
 
-Sessions are scoped per cwd and saved on quit. Bare `nvim` in a directory auto-restores buffers and the explorer (if it was open); `vim file` or `vimc` skips restore.
+Sessions are scoped per cwd and saved on quit. Use `vimr` to restore buffers and the explorer (if it was open); plain `vim`/`nvim` always starts clean.
 
 | Key          | Action                              |
 | ------------ | ----------------------------------- |
