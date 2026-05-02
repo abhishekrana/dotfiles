@@ -32,6 +32,7 @@ alias ll='ls -lrth'
 
 # Editor
 alias vim='nvim'
+alias vimc='NVIM_NO_RESTORE=1 nvim'
 
 # Quick reference
 alias cheat='bat ~/dotfiles/CHEATSHEET.md'

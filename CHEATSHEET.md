@@ -28,6 +28,8 @@ Commands and keys to internalize for this setup. Sorted by frequency of use.
 | `rg <pattern>`      | ripgrep — fast recursive search          |
 | `fd <pattern>`      | fast find files (respects .gitignore)    |
 | `fd -t d <pattern>` | find directories only                    |
+| `vim`               | nvim, auto-restores session for cwd      |
+| `vimc`              | nvim, skip session restore (clean start) |
 
 ---
 
@@ -160,6 +162,16 @@ Commands and keys to internalize for this setup. Sorted by frequency of use.
 | `<leader>l`  | open Lazy plugin manager   |
 | `<leader>cm` | open Mason (LSP installer) |
 | `<leader>xx` | diagnostics list (trouble) |
+
+### Sessions (persistence.nvim)
+
+Sessions are scoped per cwd and saved on quit. Bare `nvim` in a directory auto-restores; `vim file` or `vimc` skips restore.
+
+| Key          | Action                              |
+| ------------ | ----------------------------------- |
+| `<leader>qs` | restore session for cwd             |
+| `<leader>ql` | restore last session (any cwd)      |
+| `<leader>qd` | stop saving current session on quit |
 
 ### tmux Integration
 
