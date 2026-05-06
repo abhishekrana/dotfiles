@@ -22,6 +22,9 @@ mouse-hide-while-typing = true
 copy-on-select = clipboard
 app-notifications = no-clipboard-copy
 
+# Don't fire desktop notifications (avoids dock badge counter)
+desktop-notifications = false
+
 # Extend content background color into padding for a seamless look
 window-padding-color = extend
 
