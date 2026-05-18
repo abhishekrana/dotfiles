@@ -21,8 +21,9 @@ name = "solarized-light"
 prefix = "ctrl+b"
 
 # Workspaces -- top-level project containers (no tmux analog, closest = session)
-new_workspace = "n"
-rename_workspace = "shift+n"
+# `n` is reserved below for next_tab (mirrors tmux's default prefix+n).
+new_workspace = "w"
+rename_workspace = "shift+w"
 close_workspace = "shift+x"   # mirrors tmux's `X` = kill-session
 previous_workspace = "shift+h"
 next_workspace = "shift+l"
@@ -30,8 +31,11 @@ next_workspace = "shift+l"
 # Tabs -- closest analog to tmux windows
 new_tab = "c"                 # matches tmux new-window
 rename_tab = ","
-previous_tab = "shift+j"      # closest to user's Alt+k/Alt+j window cycle
-next_tab = "shift+k"
+# Bound to plain `p`/`n` (also tmux's default prev/next window) so that a
+# Ghostty `alt+j=text:\x02p` / `alt+k=text:\x02n` injection works in both
+# multiplexers without breaking the tmux fallback.
+previous_tab = "p"
+next_tab = "n"
 close_tab = ""                # unset; close last pane instead
 
 # Panes -- direct tmux mapping
