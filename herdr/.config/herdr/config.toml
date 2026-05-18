@@ -45,10 +45,14 @@ close_pane = "x"              # no confirm (matches tmux `bind x kill-pane`)
 fullscreen = "z"              # tmux's zoom shortcut
 rename_pane = "."
 
-focus_pane_left = "h"
-focus_pane_down = "j"
-focus_pane_up = "k"
-focus_pane_right = "l"
+# Pane focus -- left unset. herdr 0.5.9 intercepts focus_pane_* bindings
+# globally (not only after prefix), so ANY key bound here gets blocked
+# inside panes (verified with both letters and arrow keys). Use the mouse
+# or sidebar to focus panes instead.
+focus_pane_left = ""
+focus_pane_down = ""
+focus_pane_up = ""
+focus_pane_right = ""
 
 # Misc
 reload_config = "r"           # tmux: `bind r source-file ~/.tmux.conf`

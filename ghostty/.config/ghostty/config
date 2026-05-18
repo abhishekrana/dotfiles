@@ -40,9 +40,11 @@ gtk-custom-css = ~/.config/ghostty/style.css
 keybind = alt+h=previous_tab
 keybind = alt+l=next_tab
 
-# Multiplexer prev/next window-or-tab. Sends Ctrl-b p / Ctrl-b n -- the
-# default `prefix p` / `prefix n` in tmux and the configured
-# previous_tab/next_tab in herdr, so alt+j/k cycles in both multiplexers.
+# Inject Ctrl-b (0x02) + p/n -- tmux's default prev/next window and herdr's
+# configured previous_tab/next_tab. Ghostty's `text:` action uses Zig string
+# literal syntax, so \x02 is the hex escape for byte 0x02.
+# Verify: run `cat -v` then press alt+j -- should print `^Bp`. If it prints
+# literally `\x02p`, the escape isn't being parsed; switch to a different syntax.
 keybind = alt+j=text:\x02p
 keybind = alt+k=text:\x02n
 
