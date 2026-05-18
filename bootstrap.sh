@@ -250,6 +250,33 @@ install_tpm() {
 }
 
 # =============================================================================
+# Herdr (terminal-native agent runtime)
+# =============================================================================
+
+install_herdr() {
+    if ! command -v herdr &>/dev/null; then
+        log "Installing herdr..."
+        curl -fsSL https://herdr.dev/install.sh | sh
+    else
+        ok "herdr $(herdr --version 2>/dev/null | awk '{print $2}') already installed"
+    fi
+}
+
+# Provision herdr's Claude integration: writes ~/.claude/hooks/herdr-agent-state.sh
+# and adds PreToolUse/PostToolUse/Notification/PermissionRequest/PostToolUseFailure/
+# SessionEnd entries to ~/.claude/settings.json. Idempotent.
+# Must run AFTER stow_packages because ~/.claude/hooks must be the symlinked dir
+# (otherwise herdr writes to a stale location). The hook file itself is gitignored
+# -- herdr owns it and refreshes it on each install.
+install_herdr_claude_integration() {
+    command -v herdr &>/dev/null || return 0
+    command -v claude &>/dev/null || { warn "claude CLI not found -- skipping herdr Claude integration"; return 0; }
+    log "Provisioning herdr Claude integration..."
+    herdr integration install claude >/dev/null
+    ok "herdr Claude integration installed"
+}
+
+# =============================================================================
 # Ghostty
 # =============================================================================
 
@@ -280,7 +307,7 @@ backup_if_not_symlink() {
 }
 
 stow_packages() {
-    local packages=(bash bat claude claude-indicator git ghostty nvim terminator tmux yazi)
+    local packages=(bash bat claude claude-indicator git ghostty herdr nvim terminator tmux yazi)
 
     # Backup existing configs that would conflict
     backup_if_not_symlink "$HOME/.bashrc.d"
@@ -290,6 +317,8 @@ stow_packages() {
     backup_if_not_symlink "$HOME/.config/terminator"
     backup_if_not_symlink "$HOME/.config/bat"
     backup_if_not_symlink "$HOME/.config/ghostty"
+    # Only back up the config file -- the dir holds live sockets/logs/session.json.
+    backup_if_not_symlink "$HOME/.config/herdr/config.toml"
     backup_if_not_symlink "$HOME/.config/yazi"
     backup_if_not_symlink "$HOME/.local/bin/tmux-ci-status.sh"
     backup_if_not_symlink "$HOME/.claude/hooks"
@@ -344,6 +373,7 @@ install_fd
 install_fzf
 install_ghostty
 install_gitmux
+install_herdr
 install_lazydocker
 install_lazygit
 install_nerd_font
@@ -352,6 +382,7 @@ install_tpm
 install_yazi
 install_zoxide
 stow_packages
+install_herdr_claude_integration
 patch_bashrc
 
 echo ""

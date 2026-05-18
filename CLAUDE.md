@@ -12,6 +12,7 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
 - `claude-indicator/` → `~/.local/bin/claude-indicator`, `~/.config/autostart/`
 - `git/` → `~/.config/git/config` (delta pager, merge settings)
 - `ghostty/` → `~/.config/ghostty/` (Ghostty terminal config)
+- `herdr/` → `~/.config/herdr/config.toml` (terminal-native agent runtime; tmux-aligned keys)
 - `nvim/` → `~/.config/nvim/` (LazyVim config)
 - `terminator/` → `~/.config/terminator/`
 - `tmux/` → `~/.tmux.conf`, `~/.gitmux.conf`, `~/.local/bin/tmux-ci-status.sh`

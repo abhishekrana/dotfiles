@@ -3,3 +3,7 @@
 .DS_Store
 Thumbs.db
 bash/.bashrc.d/local.bash
+
+# herdr installs its Claude hook here via `herdr integration install claude`.
+# bootstrap re-runs that command, so the file is managed by herdr, not git.
+claude/.claude/hooks/herdr-agent-state.sh

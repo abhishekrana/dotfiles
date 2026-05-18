@@ -1,0 +1,106 @@
+# herdr configuration -- mirrors tmux muscle memory where possible.
+# Run `herdr --default-config` to regenerate this template with the
+# upstream defaults and comments.
+
+# Skip the first-run onboarding overlay.
+onboarding = false
+
+# =============================================================================
+# Theme -- solarized-light to match tmux/Ghostty
+# =============================================================================
+
+# Built-in themes: see https://herdr.dev/docs/configuration/
+[theme]
+name = "solarized-light"
+
+# =============================================================================
+# Keybindings -- prefix mode entered with Ctrl-b (same as tmux)
+# =============================================================================
+
+[keys]
+prefix = "ctrl+b"
+
+# Workspaces -- top-level project containers (no tmux analog, closest = session)
+new_workspace = "n"
+rename_workspace = "shift+n"
+close_workspace = "shift+x"   # mirrors tmux's `X` = kill-session
+previous_workspace = "shift+h"
+next_workspace = "shift+l"
+
+# Tabs -- closest analog to tmux windows
+new_tab = "c"                 # matches tmux new-window
+rename_tab = ","
+previous_tab = "shift+j"      # closest to user's Alt+k/Alt+j window cycle
+next_tab = "shift+k"
+close_tab = ""                # unset; close last pane instead
+
+# Panes -- direct tmux mapping
+split_vertical = "|"          # split right (left|right) -- mirrors tmux `|`
+split_horizontal = "-"        # split down (top/bottom)  -- mirrors tmux `-`
+close_pane = "x"              # no confirm (matches tmux `bind x kill-pane`)
+fullscreen = "z"              # tmux's zoom shortcut
+rename_pane = "."
+
+focus_pane_left = "h"
+focus_pane_down = "j"
+focus_pane_up = "k"
+focus_pane_right = "l"
+
+# Misc
+reload_config = "r"           # tmux: `bind r source-file ~/.tmux.conf`
+resize_mode = "shift+r"       # default `r` is taken by reload above
+toggle_sidebar = "b"
+detach = "d"                  # matches tmux `prefix d`
+open_notification_target = "o"
+
+# Indexed jumps -- press <modifier>+<digit> to jump directly.
+# Currently the only way to recover the user's `Alt+1..9` window-switch
+# muscle memory (this may require a recent herdr build; comment out if
+# herdr rejects the section).
+[keys.indexed]
+tabs = "alt"
+workspaces = "ctrl+shift"
+agents = "ctrl+alt"
+
+# Custom prefix-mode commands.
+[[keys.command]]
+key = "g"
+type = "pane"
+command = "lazygit"
+
+[[keys.command]]
+key = "G"
+type = "pane"
+command = "lazydocker"
+
+# =============================================================================
+# UI
+# =============================================================================
+
+[ui]
+sidebar_width = 28
+mouse_capture = true           # tmux: `set -g mouse on`
+confirm_close = false          # tmux: kill without prompt
+prompt_new_tab_name = false
+show_agent_labels_on_pane_borders = true
+agent_panel_scope = "all"
+accent = "#268bd2"
+
+# In-app toasts only -- desktop notifications are off in Ghostty.
+[ui.toast]
+delivery = "herdr"
+
+[ui.sound]
+enabled = false
+
+# =============================================================================
+# Advanced
+# =============================================================================
+
+[advanced]
+# ~10 MB per pane; herdr counts bytes, tmux counts lines (history-limit 10000).
+scrollback_limit_bytes = 10000000
+
+[experimental]
+allow_nested = false
+kitty_graphics = false
