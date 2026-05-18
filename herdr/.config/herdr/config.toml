@@ -25,18 +25,20 @@ prefix = "ctrl+b"
 new_workspace = "w"
 rename_workspace = "shift+w"
 close_workspace = "shift+x"   # mirrors tmux's `X` = kill-session
-previous_workspace = "shift+h"
-next_workspace = "shift+l"
+# Like the other navigation actions, herdr 0.5.9 fires these globally and
+# blocks the bound key from being typed in panes. Use the sidebar.
+previous_workspace = ""
+next_workspace = ""
 
 # Tabs -- closest analog to tmux windows
-new_tab = "c"                 # matches tmux new-window
+new_tab = "c"                 # matches tmux new-window; prefix-mode only
 rename_tab = ","
-# Bound to plain `p`/`n` (also tmux's default prev/next window) so that a
-# Ghostty `alt+j=text:\x02p` / `alt+k=text:\x02n` injection works in both
-# multiplexers without breaking the tmux fallback.
-previous_tab = "p"
-next_tab = "n"
-close_tab = ""                # unset; close last pane instead
+# herdr 0.5.9 fires previous_tab/next_tab globally (not only after prefix),
+# so any letter here blocks typing it in panes. Leave unset and use the
+# sidebar/mouse to switch tabs.
+previous_tab = ""
+next_tab = ""
+close_tab = ""
 
 # Panes -- direct tmux mapping
 split_vertical = "|"          # split right (left|right) -- mirrors tmux `|`
@@ -45,10 +47,8 @@ close_pane = "x"              # no confirm (matches tmux `bind x kill-pane`)
 fullscreen = "z"              # tmux's zoom shortcut
 rename_pane = "."
 
-# Pane focus -- left unset. herdr 0.5.9 intercepts focus_pane_* bindings
-# globally (not only after prefix), so ANY key bound here gets blocked
-# inside panes (verified with both letters and arrow keys). Use the mouse
-# or sidebar to focus panes instead.
+# Pane focus -- herdr 0.5.9 fires focus_pane_* globally, blocking the
+# bound key from being typed in panes. Use the mouse/sidebar instead.
 focus_pane_left = ""
 focus_pane_down = ""
 focus_pane_up = ""
