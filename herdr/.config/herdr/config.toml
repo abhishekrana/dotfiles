@@ -1,4 +1,4 @@
-# herdr configuration -- mirrors tmux muscle memory where possible.
+# herdr configuration -- keybindings mirror tmux where possible.
 # Run `herdr --default-config` to regenerate this template with the
 # upstream defaults and comments.
 
@@ -57,10 +57,7 @@ toggle_sidebar = "b"
 detach = "d"                  # matches tmux `prefix d`
 open_notification_target = "o"
 
-# Indexed jumps -- press <modifier>+<digit> to jump directly.
-# Currently the only way to recover the user's `Alt+1..9` window-switch
-# muscle memory (this may require a recent herdr build; comment out if
-# herdr rejects the section).
+# Indexed jumps -- press prefix, then <modifier>+<digit> to jump directly.
 [keys.indexed]
 tabs = "alt"
 workspaces = "ctrl+shift"

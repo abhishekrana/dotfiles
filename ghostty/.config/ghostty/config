@@ -40,10 +40,9 @@ gtk-custom-css = ~/.config/ghostty/style.css
 keybind = alt+h=previous_tab
 keybind = alt+l=next_tab
 
-# Multiplexer prev/next window-or-tab. Sends Ctrl-b p / Ctrl-b n -- which is
-# the default `prefix p` / `prefix n` in tmux and the configured
-# previous_tab/next_tab in herdr. Preserves the old `alt+j` / `alt+k` muscle
-# memory across both multiplexers without an explicit `bind -n` in tmux.
+# Multiplexer prev/next window-or-tab. Sends Ctrl-b p / Ctrl-b n -- the
+# default `prefix p` / `prefix n` in tmux and the configured
+# previous_tab/next_tab in herdr, so alt+j/k cycles in both multiplexers.
 keybind = alt+j=text:\x02p
 keybind = alt+k=text:\x02n
 
