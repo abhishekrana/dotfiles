@@ -4,6 +4,15 @@ export PATH="$PATH:$HOME/.local/nvim/bin"
 export PATH="$HOME/.local/go/bin:$PATH"
 export PATH="$HOME/go/bin:$PATH"
 
+# macOS: Homebrew prefix (Apple Silicon: /opt/homebrew, Intel: /usr/local)
+if [ "$(uname)" = "Darwin" ]; then
+    if [ -x /opt/homebrew/bin/brew ]; then
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+    elif [ -x /usr/local/bin/brew ]; then
+        eval "$(/usr/local/bin/brew shellenv)"
+    fi
+fi
+
 # pnpm
 export PNPM_HOME="$HOME/.local/share/pnpm"
 case ":$PATH:" in
@@ -17,3 +26,9 @@ if [ -d "$FNM_PATH" ]; then
     export PATH="$FNM_PATH:$PATH"
     eval "$(fnm env)"
 fi
+
+# pixi
+[ -d "$HOME/.pixi/bin" ] && export PATH="$HOME/.pixi/bin:$PATH"
+
+# cargo/rust
+[ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"

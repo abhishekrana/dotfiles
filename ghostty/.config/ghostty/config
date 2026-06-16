@@ -1,10 +1,7 @@
-# Theme
-theme = iTerm2 Solarized Light
+# Theme — use Ghostty's built-in default (dark)
 window-theme = ghostty
 
-# Font
-font-family = JetBrainsMono Nerd Font
-font-size = 10
+# Font — use the system default monospace
 
 # Cursor
 cursor-style = block
@@ -44,7 +41,10 @@ gtk-titlebar-style = tabs
 gtk-wide-tabs = false
 gtk-custom-css = ~/.config/ghostty/style.css
 
-# Tab navigation
+# Tab navigation — ghostty tabs use ctrl+shift+arrows (default)
 keybind = alt+h=previous_tab
 keybind = alt+l=next_tab
 
+
+# Explicitly bind new tab to ghostty default (plain shell, no tmux)
+keybind = ctrl+shift+t=new_tab

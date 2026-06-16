@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Claude Code Indicator
+Exec=claude-indicator
+Hidden=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+Comment=Shows notification dot when Claude Code is waiting for input

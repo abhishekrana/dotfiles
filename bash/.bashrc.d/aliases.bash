@@ -1,20 +1,37 @@
 # Shell
 set -o vi
-# vi-insert keymap defaults Ctrl+L to self-insert; restore clear-screen
-bind -m vi-insert '"\C-l": clear-screen'
+# vi-insert keymap defaults Ctrl+L to self-insert; restore clear-screen.
+# `bind` is bash-only; zsh has `bindkey` and a separate vicmd/viins logic, so
+# skip when sourced under zsh (the macOS default shell).
+if [ -n "${BASH_VERSION:-}" ]; then
+    bind -m vi-insert '"\C-l": clear-screen'
+    bind -m vi-command -x '"\C-l": printf "\033[2J\033[H"'
+fi
 export VISUAL=nvim
 export EDITOR=nvim
 export TERM="tmux-256color"
-export BROWSER="firefox"
+# `open` (macOS) opens URLs in the user's default browser; firefox elsewhere.
+if [ "$(uname)" = "Darwin" ]; then
+    export BROWSER="open"
+else
+    export BROWSER="firefox"
+fi
 
 # Git
+alias gsm='git switch main'
+alias gsw='git switch'
+alias gpm='git pull origin main'
+alias ga='git add .'
 alias gd='git diff'
 alias gdl='git diff HEAD~1 HEAD'
-alias gf='git fetch'
+alias gm='git commit -m'
+alias gf='git fetch --prune'
 # alias gl='git pull'
 alias gl='git log'
 alias glog='git log --oneline --decorate --graph'
 alias gp='git push'
+alias gpub='git push origin $(git branch --show-current)'
+alias gplb='git pull origin $(git branch --show-current)'
 alias gs='git status'
 # alias gst='git status'
 alias gb='git branch --sort=committerdate --format="%(refname:short) %(committerdate:relative)" | tail -20 | awk -F" " "{name=\$1; \$1=\"\"; printf \"%-50s (%s)\\n\", name, substr(\$0,2)}" && echo "" && echo "* $(git branch --show-current)"'
@@ -64,6 +81,8 @@ gwts() {
 }
 
 # Docker
+export DOCKER_BUILDKIT=1
+export COMPOSE_DOCKER_CLI_BUILD=1
 alias docker-stop-all='docker stop $(docker ps -a -q)'
 alias docker-rm-all='docker rm $(docker ps -a -q)'
 
@@ -89,4 +108,7 @@ ta() {
 }
 
 # Quick reference
-alias cheat='bat ~/dotfiles/CHEATSHEET.md'
+alias cheat='bat ~/git/dotfiles/CHEATSHEET.md 2>/dev/null || bat ~/dotfiles/CHEATSHEET.md'
+
+# Fuzzy grep: interactive ripgrep across all files from cwd
+alias rgg='rg --line-number "" | fzf --delimiter : --preview "bat --color=always {1} --highlight-line {2}"'

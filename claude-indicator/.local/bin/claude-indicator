@@ -1,0 +1,159 @@
+#!/usr/bin/env python3
+"""GNOME top bar indicator for Claude Code notifications.
+
+Shows a colored dot based on the worst status across all Claude Code sessions:
+  🔴 (red)    = question — Claude needs your reply
+  🟠 (orange) = stopped/error
+  🟢 (green)  = done — finished, ready for new prompt
+
+Sessions are tracked via state files in /tmp/claude-sessions/.
+Each file contains "status:project_dir" (e.g., "done:dotfiles").
+Files are created by hooks and removed when the user submits a prompt.
+"""
+
+import os
+import glob
+import signal
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("AppIndicator3", "0.1")
+from gi.repository import Gtk, AppIndicator3, GLib
+
+SESSIONS_DIR = "/tmp/claude-sessions"
+POLL_INTERVAL_MS = 1000
+
+# Priority: question > done (higher = worse)
+STATUS_PRIORITY = {"question": 2, "done": 1}
+STATUS_ICON = {
+    "question": "emblem-important-symbolic",
+    "done": "emblem-default-symbolic",
+}
+STATUS_LABEL = {
+    "question": "\u2757",  # red exclamation
+    "done": "\u2714",      # green check
+}
+
+
+class ClaudeIndicator:
+    def __init__(self):
+        self.indicator = AppIndicator3.Indicator.new(
+            "claude-indicator",
+            "dialog-information-symbolic",
+            AppIndicator3.IndicatorCategory.APPLICATION_STATUS,
+        )
+        self.indicator.set_status(AppIndicator3.IndicatorStatus.PASSIVE)
+        self.sessions = {}
+        self.menu = Gtk.Menu()
+        self.indicator.set_menu(self.menu)
+
+        GLib.timeout_add(POLL_INTERVAL_MS, self.poll)
+
+    def read_sessions(self):
+        """Read all session state files."""
+        sessions = {}
+        if not os.path.isdir(SESSIONS_DIR):
+            return sessions
+        for path in glob.glob(os.path.join(SESSIONS_DIR, "*")):
+            pid = os.path.basename(path)
+            try:
+                with open(path, "r") as f:
+                    content = f.read().strip()
+                status, project = content.split(":", 1)
+                sessions[pid] = {"status": status, "project": project}
+            except (ValueError, OSError):
+                continue
+        return sessions
+
+    def worst_status(self, sessions):
+        """Return the worst status across all sessions."""
+        if not sessions:
+            return None
+        return max(
+            (s["status"] for s in sessions.values()),
+            key=lambda s: STATUS_PRIORITY.get(s, 0),
+        )
+
+    def rebuild_menu(self, sessions):
+        """Rebuild the dropdown menu with per-session entries."""
+        for child in self.menu.get_children():
+            self.menu.remove(child)
+
+        # Sort: questions first, then done
+        sorted_sessions = sorted(
+            sessions.items(),
+            key=lambda x: -STATUS_PRIORITY.get(x[1]["status"], 0),
+        )
+
+        for pid, info in sorted_sessions:
+            icon = STATUS_LABEL.get(info["status"], "?")
+            label = f"{icon}  {info['project']} — {info['status']}"
+            item = Gtk.MenuItem(label=label)
+            item.connect("activate", self.dismiss_session, pid)
+            self.menu.append(item)
+
+        if sessions:
+            self.menu.append(Gtk.SeparatorMenuItem())
+            dismiss_all = Gtk.MenuItem(label="Dismiss all")
+            dismiss_all.connect("activate", self.dismiss_all)
+            self.menu.append(dismiss_all)
+
+        sep = Gtk.SeparatorMenuItem()
+        self.menu.append(sep)
+        quit_item = Gtk.MenuItem(label="Quit")
+        quit_item.connect("activate", self.quit)
+        self.menu.append(quit_item)
+
+        self.menu.show_all()
+
+    def poll(self):
+        """Poll session state files and update indicator."""
+        sessions = self.read_sessions()
+
+        if sessions != self.sessions:
+            self.sessions = sessions
+            self.rebuild_menu(sessions)
+
+        worst = self.worst_status(sessions)
+        if worst:
+            self.indicator.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
+            icon = STATUS_ICON.get(worst, "dialog-information-symbolic")
+            self.indicator.set_icon_full(icon, worst)
+            # Show count
+            count = len(sessions)
+            self.indicator.set_label(f" {count}", "")
+        else:
+            self.indicator.set_status(AppIndicator3.IndicatorStatus.PASSIVE)
+            self.indicator.set_label("", "")
+
+        return True
+
+    def dismiss_session(self, _, pid):
+        """Remove a single session's state file."""
+        try:
+            os.remove(os.path.join(SESSIONS_DIR, pid))
+        except FileNotFoundError:
+            pass
+
+    def dismiss_all(self, _):
+        """Remove all session state files."""
+        if os.path.isdir(SESSIONS_DIR):
+            for path in glob.glob(os.path.join(SESSIONS_DIR, "*")):
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
+
+    def quit(self, _):
+        Gtk.main_quit()
+
+
+def main():
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    os.makedirs(SESSIONS_DIR, exist_ok=True)
+    ClaudeIndicator()
+    Gtk.main()
+
+
+if __name__ == "__main__":
+    main()

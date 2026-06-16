@@ -5,7 +5,17 @@ DOTFILES_DIR="$(cd "$(dirname "$0")" && pwd)"
 LOCAL_BIN="$HOME/.local/bin"
 ARCH="$(uname -m)"
 
-# Pinned versions (update these to upgrade)
+# Platform detection: OS_KIND is "linux" or "macos"; everything else fails fast.
+case "$(uname -s)" in
+    Linux)  OS_KIND="linux" ;;
+    Darwin) OS_KIND="macos" ;;
+    *) echo "Unsupported OS: $(uname -s)" >&2; exit 1 ;;
+esac
+
+is_linux() { [ "$OS_KIND" = "linux" ]; }
+is_macos() { [ "$OS_KIND" = "macos" ]; }
+
+# Pinned versions (Linux tarballs only — macOS uses Homebrew)
 DELTA_VERSION="0.19.2"
 FD_VERSION="10.4.2"
 FZF_VERSION="0.72.0"
@@ -22,13 +32,15 @@ warn() { echo -e "\033[1;33m[dotfiles]\033[0m $*"; }
 ok() { echo -e "\033[1;32m[dotfiles]\033[0m $*"; }
 
 # =============================================================================
-# APT packages
+# System packages
 # =============================================================================
 
 install_apt_packages() {
     # chafa: image previews for yazi
+    # gir1.2-appindicator3-0.1 + python3-gi: GNOME top bar indicator for claude-indicator
     # imagemagick: convert/identify, used by snacks.image to render images in nvim
-    local pkgs=(bat build-essential chafa curl direnv fontconfig imagemagick jq ripgrep software-properties-common stow terminator tmux tree unzip wl-clipboard wget)
+    # inotify-tools: screenshot-watcher (auto-copy screenshots to clipboard)
+    local pkgs=(bat build-essential chafa curl direnv fontconfig gir1.2-appindicator3-0.1 imagemagick inotify-tools jq python3-gi ripgrep software-properties-common stow terminator tmux tree unzip wl-clipboard wget)
     local to_install=()
     for pkg in "${pkgs[@]}"; do
         dpkg -s "$pkg" &>/dev/null || to_install+=("$pkg")
@@ -47,8 +59,59 @@ install_apt_packages() {
     fi
 }
 
+install_brew() {
+    if command -v brew &>/dev/null; then
+        ok "Homebrew already installed"
+        return
+    fi
+    log "Installing Homebrew..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    # Add brew to PATH for this script's session (shellenv prints PATH exports).
+    if [ -x /opt/homebrew/bin/brew ]; then
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+    elif [ -x /usr/local/bin/brew ]; then
+        eval "$(/usr/local/bin/brew shellenv)"
+    fi
+    ok "Homebrew installed"
+}
+
+install_brew_packages() {
+    # Mirrors the Linux apt + binary-tool lists. Brew gives us up-to-date
+    # versions and handles macOS-specific quirks (e.g. neovim from formula).
+    local pkgs=(bat chafa direnv fd fzf imagemagick jq lazydocker lazygit neovim node ripgrep stow tmux tree yazi zoxide)
+    local missing=()
+    for pkg in "${pkgs[@]}"; do
+        brew list --formula "$pkg" &>/dev/null || missing+=("$pkg")
+    done
+    if [ ${#missing[@]} -gt 0 ]; then
+        log "Installing brew packages: ${missing[*]}"
+        brew install "${missing[@]}"
+    else
+        ok "Brew packages already installed"
+    fi
+
+    # delta and gitmux live in taps / separate formulae.
+    brew list --formula git-delta &>/dev/null || { log "Installing git-delta..."; brew install git-delta; }
+    brew list --formula gitmux    &>/dev/null || { log "Installing gitmux...";    brew install arl/arl/gitmux 2>/dev/null || brew install gitmux; }
+
+    # Cask: JetBrainsMono Nerd Font (no fc-cache needed; Font Book picks it up).
+    brew list --cask font-jetbrains-mono-nerd-font &>/dev/null || {
+        log "Installing JetBrainsMono Nerd Font..."
+        brew tap homebrew/cask-fonts 2>/dev/null || true
+        brew install --cask font-jetbrains-mono-nerd-font
+    }
+
+    # Cask: Ghostty.
+    if [ ! -d "/Applications/Ghostty.app" ] && ! brew list --cask ghostty &>/dev/null; then
+        log "Installing Ghostty..."
+        brew install --cask ghostty
+    else
+        ok "Ghostty already installed"
+    fi
+}
+
 # =============================================================================
-# Node.js (via NodeSource)
+# Node.js (Linux only — macOS gets it via brew)
 # =============================================================================
 
 install_nodejs() {
@@ -65,7 +128,7 @@ install_nodejs() {
 }
 
 # =============================================================================
-# Binary tools -> ~/.local/bin
+# Linux binary tools -> ~/.local/bin
 # =============================================================================
 
 install_delta() {
@@ -213,7 +276,7 @@ install_zoxide() {
 }
 
 # =============================================================================
-# JetBrainsMono Nerd Font
+# JetBrainsMono Nerd Font (Linux only — macOS uses brew cask)
 # =============================================================================
 
 install_nerd_font() {
@@ -250,7 +313,7 @@ install_tpm() {
 }
 
 # =============================================================================
-# Ghostty
+# Ghostty (Linux — Ubuntu PPA; macOS handled by brew_packages)
 # =============================================================================
 
 install_ghostty() {
@@ -283,7 +346,17 @@ backup_if_not_symlink() {
     #   * otherwise → move target aside to ${target}.pre-dotfiles.
     local target="$1" src="${2:-}"
     [ -e "$target" ] && [ ! -L "$target" ] || return 0
-    if [ -n "$src" ] && [ "$(readlink -f -- "$target")" = "$(readlink -f -- "$src")" ]; then
+    # macOS' readlink lacks -f; coreutils' greadlink covers it. Fall back to
+    # python if neither is available.
+    local resolve
+    if command -v greadlink &>/dev/null; then
+        resolve="greadlink -f"
+    elif readlink -f / &>/dev/null; then
+        resolve="readlink -f"
+    else
+        resolve="python3 -c 'import os,sys;print(os.path.realpath(sys.argv[1]))'"
+    fi
+    if [ -n "$src" ] && [ "$($resolve -- "$target" 2>/dev/null || $resolve "$target")" = "$($resolve -- "$src" 2>/dev/null || $resolve "$src")" ]; then
         return 0
     fi
     if [ -n "$src" ] && [ -f "$target" ] && [ -f "$src" ] && cmp -s "$target" "$src"; then
@@ -307,7 +380,12 @@ backup_pkg_files() {
 }
 
 stow_packages() {
-    local packages=(bash bat claude git ghostty nvim terminator tmux yazi)
+    local packages=(bash bat claude git ghostty nvim tmux yazi)
+    if is_linux; then
+        # Linux-only packages: GNOME indicator, screenshot watcher (inotify),
+        # and the GTK terminator config.
+        packages+=(claude-indicator screenshot-watcher terminator)
+    fi
 
     # Single files we own outright: back up the file itself.
     backup_if_not_symlink "$HOME/.tmux.conf"                    "$DOTFILES_DIR/tmux/.tmux.conf"
@@ -323,15 +401,15 @@ stow_packages() {
 
     # Directories we own outright: back up the whole directory.
     backup_if_not_symlink "$HOME/.config/nvim"
-    backup_if_not_symlink "$HOME/.config/terminator"
     backup_if_not_symlink "$HOME/.config/bat"
     backup_if_not_symlink "$HOME/.config/ghostty"
     backup_if_not_symlink "$HOME/.config/yazi"
+    is_linux && backup_if_not_symlink "$HOME/.config/terminator"
 
     cd "$DOTFILES_DIR"
     for pkg in "${packages[@]}"; do
         log "Stowing $pkg..."
-        stow --restow "$pkg"
+        stow --restow -t "$HOME" "$pkg"
     done
     ok "All packages stowed"
 
@@ -344,23 +422,32 @@ stow_packages() {
 }
 
 # =============================================================================
-# Patch ~/.bashrc
+# Patch shell rc (~/.bashrc on Linux, ~/.zshrc on macOS)
 # =============================================================================
 
-patch_bashrc() {
-    local marker="# Load dotfiles shell customizations"
-    if grep -qF "$marker" "$HOME/.bashrc"; then
-        ok "~/.bashrc already patched"
+patch_shell_rc() {
+    local rc marker="# Load dotfiles shell customizations"
+    if is_macos; then
+        rc="$HOME/.zshrc"
+        [ -f "$rc" ] || touch "$rc"
+    else
+        rc="$HOME/.bashrc"
+    fi
+    if grep -qF "$marker" "$rc"; then
+        ok "$rc already patched"
         return
     fi
-    log "Patching ~/.bashrc..."
-    cp "$HOME/.bashrc" "$HOME/.bashrc.pre-dotfiles"
-    cat >>"$HOME/.bashrc" <<'EOF'
+    log "Patching $rc..."
+    cp "$rc" "${rc}.pre-dotfiles"
+    # Same loop for bash and zsh. Each .bashrc.d/*.bash file is responsible for
+    # guarding bash-only or zsh-only sections internally (via $BASH_VERSION /
+    # $ZSH_VERSION) so a single source line works for both shells.
+    cat >>"$rc" <<'EOF'
 
 # Load dotfiles shell customizations
 for f in ~/.bashrc.d/*.bash; do [ -r "$f" ] && source "$f"; done
 EOF
-    ok "~/.bashrc patched (backup at ~/.bashrc.pre-dotfiles)"
+    ok "$rc patched (backup at ${rc}.pre-dotfiles)"
 }
 
 create_notes_vault() {
@@ -375,11 +462,21 @@ install_nvim_plugins() {
     # Pre-install plugins headlessly so the first interactive launch is ready.
     # Must run after the nvim config is stowed. Idempotent: `install` only
     # fetches missing plugins, `restore` pins them to the committed lazy-lock.json.
-    if [ ! -x "$LOCAL_BIN/nvim" ]; then
+    local nvim_bin
+    if [ -x "$LOCAL_BIN/nvim" ]; then
+        nvim_bin="$LOCAL_BIN/nvim"
+    elif command -v nvim &>/dev/null; then
+        nvim_bin=$(command -v nvim)
+    else
         return
     fi
     log "Installing Neovim plugins (headless)..."
-    timeout 300 "$LOCAL_BIN/nvim" --headless "+Lazy! install" "+Lazy! restore" +qa >/dev/null 2>&1 || true
+    # macOS lacks GNU timeout by default — use perl as a portable fallback.
+    if command -v timeout &>/dev/null; then
+        timeout 300 "$nvim_bin" --headless "+Lazy! install" "+Lazy! restore" +qa >/dev/null 2>&1 || true
+    else
+        perl -e 'alarm shift; exec @ARGV' 300 "$nvim_bin" --headless "+Lazy! install" "+Lazy! restore" +qa >/dev/null 2>&1 || true
+    fi
     ok "Neovim plugins installed"
 }
 
@@ -387,27 +484,37 @@ install_nvim_plugins() {
 # Main
 # =============================================================================
 
-log "Starting dotfiles bootstrap..."
+log "Starting dotfiles bootstrap on $OS_KIND..."
 mkdir -p "$LOCAL_BIN"
 
-install_apt_packages
-install_nodejs
-install_delta
-install_fd
-install_fzf
-install_ghostty
-install_gitmux
-install_lazydocker
-install_lazygit
-install_nerd_font
-install_neovim
+if is_linux; then
+    install_apt_packages
+    install_nodejs
+    install_delta
+    install_fd
+    install_fzf
+    install_ghostty
+    install_gitmux
+    install_lazydocker
+    install_lazygit
+    install_nerd_font
+    install_neovim
+    install_yazi
+    install_zoxide
+else
+    install_brew
+    install_brew_packages
+fi
+
 install_tpm
-install_yazi
-install_zoxide
 stow_packages
-patch_bashrc
+patch_shell_rc
 create_notes_vault
 install_nvim_plugins
 
 echo ""
-ok "Done! Restart your shell or run: source ~/.bashrc"
+if is_macos; then
+    ok "Done! Restart your shell or run: source ~/.zshrc"
+else
+    ok "Done! Restart your shell or run: source ~/.bashrc"
+fi

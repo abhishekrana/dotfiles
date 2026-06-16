@@ -8,12 +8,8 @@
   layout_launcher = ""
 [profiles]
   [[default]]
-    background_color = "#fdf6e3"
-    font = JetBrainsMono Nerd Font 12
-    foreground_color = "#657b83"
     scrollback_lines = 10000
-    use_system_font = False
-    title_transmit_bg_color = "#c0bfbc"
+    use_system_font = True
 [layouts]
   [[default]]
     [[[window0]]]

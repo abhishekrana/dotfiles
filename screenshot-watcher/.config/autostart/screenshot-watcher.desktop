@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Screenshot Watcher
+Exec=screenshot-watcher
+Hidden=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+Comment=Auto-copies new screenshots to clipboard

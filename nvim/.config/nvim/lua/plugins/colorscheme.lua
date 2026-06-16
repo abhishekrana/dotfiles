@@ -1,27 +1,21 @@
 return {
-  -- Add the solarized plugin
   {
-    "maxmx03/solarized.nvim",
+    "Mofiqul/vscode.nvim",
     lazy = false,
     priority = 1000,
-    opts = {
-      on_highlights = function(colors, color)
-        ---@type table<string, vim.api.keyset.highlight>
-        return {
-          Visual = { bg = "#eee8d5", fg = "#002b36" },
-          Search = { bg = "#93A1A1", fg = "#fdf6e3" },
-          IncSearch = { bg = "#B58900", fg = "#fdf6e3" },
-          CurSearch = { bg = "#B58900", fg = "#fdf6e3" },
-        }
-      end,
-    },
+    config = function()
+      require("vscode").setup({
+        style = "dark",
+        transparent = false,
+        italic_comments = true,
+      })
+      require("vscode").load()
+    end,
   },
-
-  -- Tell LazyVim to use it
   {
     "LazyVim/LazyVim",
     opts = {
-      colorscheme = "solarized",
+      colorscheme = "vscode",
     },
   },
 }
