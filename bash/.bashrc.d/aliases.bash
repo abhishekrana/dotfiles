@@ -62,27 +62,6 @@ gwts() {
   [ -n "$dir" ] && cd "$dir"
 }
 
-# gwtb: gb for worktrees — every worktree's branch + relative commit date,
-# sorted oldest->newest, current worktree marked with *. Skips the bare repo.
-gwtb() {
-  local cur
-  cur=$(git rev-parse --show-toplevel 2>/dev/null)
-  git worktree list --porcelain | awk '
-    /^worktree / { path=substr($0,10); head=""; br="(detached)"; bare=0 }
-    /^bare$/     { bare=1 }
-    /^HEAD /     { head=$2 }
-    /^branch /   { b=$2; sub(/^refs\/heads\//,"",b); br=b }
-    /^$/         { if (!bare && path!="") print path"\t"br"\t"head; path="" }
-    END          { if (!bare && path!="") print path"\t"br"\t"head }
-  ' | while IFS=$'\t' read -r path br head; do
-        local mark=" "
-        [ "$path" = "$cur" ] && mark="*"
-        printf '%s\t%s\t%s\t%s\t%s\n' \
-          "$(git show -s --format=%ct "$head" 2>/dev/null)" "$mark" \
-          "$(basename "$path")" "$br" "$(git show -s --format=%cr "$head" 2>/dev/null)"
-      done | sort -n | awk -F'\t' '{ printf "%s %-14s %-42s (%s)\n", $2, $3, $4, $5 }'
-}
-
 # Docker
 alias docker-stop-all='docker stop $(docker ps -a -q)'
 alias docker-rm-all='docker rm $(docker ps -a -q)'

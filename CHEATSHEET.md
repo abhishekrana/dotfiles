@@ -25,7 +25,6 @@ Commands and keys to internalize for this setup. Sorted by frequency of use.
 | `gwta`              | add worktree: <dir> <branch>              |
 | `gwts`              | fzf-switch worktree (cd into pick)        |
 | `gwtls`             | list worktrees                            |
-| `gwtb`              | branch + date per worktree (gb for those) |
 | `gwtrm`             | remove a worktree (not rm -rf)            |
 | `gwt`               | git worktree (raw passthrough)            |
 | `lazygit`           | terminal git UI                           |
