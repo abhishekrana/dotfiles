@@ -19,6 +19,7 @@ Commands and keys to internalize for this setup. Sorted by frequency of use.
 | `gdw`               | hunk working-tree review, auto-reload     |
 | `gl` / `gp` / `gf`  | git log / push / fetch                    |
 | `gb`                | git branches sorted by recent use         |
+| `gbr`               | remote branches by recency (last 50)      |
 | `gdm`               | hunk: review merge request (vs main)      |
 | `gw`                | live git diff in tmux split pane          |
 | `gwta`              | add worktree: <dir> <branch>              |
