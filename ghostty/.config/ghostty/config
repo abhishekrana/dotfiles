@@ -44,7 +44,7 @@ gtk-titlebar-style = tabs
 gtk-wide-tabs = false
 gtk-custom-css = ~/.config/ghostty/style.css
 
-# Tab navigation
-keybind = alt+h=previous_tab
-keybind = alt+l=next_tab
+# Tab navigation -- alt+h/l freed for tmux session switching (see .tmux.conf)
+keybind = alt+h=unbind
+keybind = alt+l=unbind
 
