@@ -39,7 +39,7 @@ done
 
 echo
 echo \"--- symlinks ---\"
-for f in ~/.tmux.conf ~/.gitmux.conf ~/.bashrc.d ~/.config/nvim ~/.local/bin/tmux-ci-status.sh; do
+for f in ~/.tmux.conf ~/.gitmux.conf ~/.bashrc.d ~/.config/nvim ~/.local/bin/tmux-gitlab.sh; do
   if [ -L \"\$f\" ]; then printf \"OK   %s\n\" \"\$f\"
   else printf \"MISS %s\n\" \"\$f\"; fail=1; fi
 done

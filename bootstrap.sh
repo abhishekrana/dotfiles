@@ -323,7 +323,7 @@ stow_packages() {
     # Single files we own outright: back up the file itself.
     backup_if_not_symlink "$HOME/.tmux.conf"                    "$DOTFILES_DIR/tmux/.tmux.conf"
     backup_if_not_symlink "$HOME/.gitmux.conf"                  "$DOTFILES_DIR/tmux/.gitmux.conf"
-    backup_if_not_symlink "$HOME/.local/bin/tmux-ci-status.sh"  "$DOTFILES_DIR/tmux/.local/bin/tmux-ci-status.sh"
+    backup_if_not_symlink "$HOME/.local/bin/tmux-gitlab.sh"     "$DOTFILES_DIR/tmux/.local/bin/tmux-gitlab.sh"
     backup_if_not_symlink "$HOME/.claude/settings.json"         "$DOTFILES_DIR/claude/.claude/settings.json"
     backup_if_not_symlink "$HOME/.claude/statusline-command.sh" "$DOTFILES_DIR/claude/.claude/statusline-command.sh"
 

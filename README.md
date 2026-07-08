@@ -157,7 +157,7 @@ dotfiles/
 ├── tmux/
 │   ├── .tmux.conf
 │   ├── .gitmux.conf
-│   └── .local/bin/tmux-ci-status.sh
+│   └── .local/bin/tmux-gitlab.sh
 ├── ghostty/.config/ghostty/
 │   ├── config
 │   └── shaders/                 # vendored cursor trail shaders
