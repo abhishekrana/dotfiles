@@ -24,6 +24,7 @@ Commands and keys to internalize for this setup. Sorted by frequency of use.
 | `gw`                | live git diff in tmux split pane          |
 | `gwta`              | add worktree: <dir> <branch>              |
 | `gwts`              | fzf-switch worktree (cd into pick)        |
+| `gwtm`              | ff worktree's own branch to origin/main   |
 | `gwtls`             | list worktrees                            |
 | `gwtrm`             | remove a worktree (not rm -rf)            |
 | `gwt`               | git worktree (raw passthrough)            |

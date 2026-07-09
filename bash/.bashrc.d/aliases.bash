@@ -62,6 +62,22 @@ gwts() {
   [ -n "$dir" ] && cd "$dir"
 }
 
+# gwtm: switch to the branch named after the current worktree dir (create it off
+# origin/main if missing), then fast-forward it to origin/main. --ff-only aborts
+# on divergence instead of dropping commits.
+gwtm() {
+  local root name
+  root=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "not in a git repo" >&2; return 1; }
+  name=$(basename "$root")
+  git fetch origin || return
+  if git show-ref --verify --quiet "refs/heads/$name"; then
+    git switch "$name" || return
+  else
+    git switch -c "$name" origin/main || return
+  fi
+  git merge --ff-only origin/main
+}
+
 # Docker
 alias docker-stop-all='docker stop $(docker ps -a -q)'
 alias docker-rm-all='docker rm $(docker ps -a -q)'
