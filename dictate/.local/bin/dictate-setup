@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# One-time permission setup for `dictate` on Wayland.
+# Grants your user read access to keyboards (/dev/input) and write access to
+# the synthetic keyboard device (/dev/uinput), via the 'input' group.
+#
+# This is deliberately NOT run by bootstrap.sh: it changes your security posture
+# (any process you run can then read/inject keystrokes) and needs a re-login, so
+# it is opt-in per machine. Idempotent — safe to re-run.
+set -euo pipefail
+
+RULE=/etc/udev/rules.d/99-uinput-dictate.rules
+
+echo "==> ensure 'input' group exists and you're a member"
+sudo groupadd -f input
+if id -nG "$USER" | tr ' ' '\n' | grep -qx input; then
+  echo "    already in 'input'"
+else
+  sudo usermod -aG input "$USER"
+  echo "    added $USER to 'input'  (re-login or 'newgrp input' to activate)"
+fi
+
+echo "==> udev rule: /dev/uinput -> group input, mode 0660"
+echo 'KERNEL=="uinput", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"' \
+  | sudo tee "$RULE" >/dev/null
+
+echo "==> load the uinput module now and at every boot"
+echo uinput | sudo tee /etc/modules-load.d/uinput.conf >/dev/null
+sudo modprobe uinput
+
+echo "==> reload udev"
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+
+echo
+echo "Done."
+echo "If you were just added to 'input', activate it with either:"
+echo "    newgrp input      # this shell only, good enough to test"
+echo "  or log out and back in (activates it everywhere)."
+echo
+echo "Then verify:   dictate --check"

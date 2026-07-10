@@ -1,0 +1,281 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["faster-whisper", "evdev", "numpy"]
+# ///
+"""
+dictate — push-to-talk local speech-to-text for Wayland (GNOME), CPU-only.
+
+Hold the push-to-talk key (default Right Ctrl), speak, release. The clip is
+transcribed locally with faster-whisper and typed into whatever window is
+focused, via a synthetic uinput keyboard. No cloud, no daemon, no clipboard.
+The mic is opened ONLY while the key is held; idle = nothing captured.
+
+One-time enablement (grants input-group / uinput access):  dictate-setup
+
+Config via env vars (all optional):
+  DICTATE_KEY      evdev key name to hold        (default KEY_RIGHTCTRL)
+  DICTATE_MODEL    faster-whisper model          (default small.en)
+  DICTATE_COMPUTE  ctranslate2 compute type      (default int8)
+  DICTATE_LANG     language                      (default en)
+  DICTATE_SOURCE   PipeWire/Pulse source name    (default: system default)
+  DICTATE_PROMPT   initial_prompt to bias vocab  (default: coding terms)
+  DICTATE_BEAM     beam size (1=fast, 5=accurate)(default 1)
+  DICTATE_LATENCY  parec latency ms (low=prompt) (default 50)
+  DICTATE_TEST_SECS seconds to record in --test  (default 5)
+
+Models (DICTATE_MODEL): base.en (faster) · small.en (default, best balance) ·
+  distil-small.en (fast English) · large-v3-turbo (most accurate, slower on CPU;
+  multilingual, so keep DICTATE_LANG=en).
+
+Run:  dictate            # start listening (needs the one-time `dictate-setup`)
+      dictate --check     # verify permissions/devices, then exit
+      dictate --test      # record N s and print transcript (no sudo needed)
+"""
+import os, sys, time, threading, subprocess, selectors
+
+KEY_NAME = os.environ.get("DICTATE_KEY", "KEY_RIGHTCTRL")
+MODEL    = os.environ.get("DICTATE_MODEL", "small.en")
+COMPUTE  = os.environ.get("DICTATE_COMPUTE", "int8")
+LANG     = os.environ.get("DICTATE_LANG", "en")
+SOURCE   = os.environ.get("DICTATE_SOURCE", "")
+BEAM     = int(os.environ.get("DICTATE_BEAM", "1"))
+LATENCY  = os.environ.get("DICTATE_LATENCY", "50")  # ms; low so parec flushes promptly
+PROMPT   = os.environ.get(
+    "DICTATE_PROMPT",
+    "Dictation for a coding terminal. Terms: git, npm, Python, TypeScript, "
+    "async, await, API, JSON, YAML, stdout, regex, Claude Code.",
+)
+RATE = 16000  # Whisper wants 16 kHz mono
+
+
+def log(*a):
+    print("[dictate]", *a, file=sys.stderr, flush=True)
+
+
+import evdev
+from evdev import InputDevice, UInput, ecodes as e
+
+
+# ---- US-layout: char -> (keycode, needs_shift) ---------------------------
+def build_keymap():
+    m = {}
+    for c in "abcdefghijklmnopqrstuvwxyz":
+        kc = getattr(e, f"KEY_{c.upper()}")
+        m[c] = (kc, False)
+        m[c.upper()] = (kc, True)
+    shifted_digits = ")!@#$%^&*("  # shift+0 .. shift+9
+    for i, c in enumerate("0123456789"):
+        kc = getattr(e, f"KEY_{c}")
+        m[c] = (kc, False)
+        m[shifted_digits[i]] = (kc, True)
+    pairs = {
+        " ": ("KEY_SPACE", False),      "\t": ("KEY_TAB", False),
+        "-": ("KEY_MINUS", False),      "_": ("KEY_MINUS", True),
+        "=": ("KEY_EQUAL", False),      "+": ("KEY_EQUAL", True),
+        "[": ("KEY_LEFTBRACE", False),  "{": ("KEY_LEFTBRACE", True),
+        "]": ("KEY_RIGHTBRACE", False), "}": ("KEY_RIGHTBRACE", True),
+        "\\": ("KEY_BACKSLASH", False), "|": ("KEY_BACKSLASH", True),
+        ";": ("KEY_SEMICOLON", False),  ":": ("KEY_SEMICOLON", True),
+        "'": ("KEY_APOSTROPHE", False), '"': ("KEY_APOSTROPHE", True),
+        "`": ("KEY_GRAVE", False),      "~": ("KEY_GRAVE", True),
+        ",": ("KEY_COMMA", False),      "<": ("KEY_COMMA", True),
+        ".": ("KEY_DOT", False),        ">": ("KEY_DOT", True),
+        "/": ("KEY_SLASH", False),      "?": ("KEY_SLASH", True),
+    }
+    for c, (name, sh) in pairs.items():
+        m[c] = (getattr(e, name), sh)
+    return m
+
+
+KEYMAP = build_keymap()
+
+# Characters Whisper emits that aren't on a US keyboard -> ASCII equivalents.
+NORMALIZE = str.maketrans({
+    "’": "'", "‘": "'", "“": '"', "”": '"',
+    "–": "-", "—": "-", " ": " ", "…": "...",
+})
+
+
+def uinput_caps():
+    keys = {e.KEY_LEFTSHIFT}
+    for kc, _ in KEYMAP.values():
+        keys.add(kc)
+    return {e.EV_KEY: sorted(keys)}
+
+
+def type_text(ui, text):
+    for ch in text:
+        if ch == "\n":
+            ch = " "  # never press Enter: it could submit the prompt
+        km = KEYMAP.get(ch)
+        if km is None:
+            continue  # silently skip anything we can't map
+        kc, shift = km
+        if shift:
+            ui.write(e.EV_KEY, e.KEY_LEFTSHIFT, 1); ui.syn()
+        ui.write(e.EV_KEY, kc, 1); ui.syn()
+        ui.write(e.EV_KEY, kc, 0); ui.syn()
+        if shift:
+            ui.write(e.EV_KEY, e.KEY_LEFTSHIFT, 0); ui.syn()
+        time.sleep(0.004)  # let the compositor keep up
+
+
+def find_keyboards(key_code):
+    devs = []
+    for path in evdev.list_devices():
+        try:
+            d = InputDevice(path)
+        except Exception:
+            continue
+        if key_code in d.capabilities().get(e.EV_KEY, []):
+            devs.append(d)
+    return devs
+
+
+class Recorder:
+    """Capture raw s16le/16k/mono PCM from `parec` while the key is held.
+
+    A low --latency-msec makes parec flush to stdout promptly, so the reader
+    thread captures audio as it streams (rather than losing a big buffer when
+    we terminate parec on key release — important for short utterances)."""
+
+    def __init__(self):
+        self.proc = None
+        self.buf = bytearray()
+        self.thread = None
+
+    def start(self):
+        cmd = ["parec", "--format=s16le", f"--rate={RATE}", "--channels=1",
+               f"--latency-msec={LATENCY}"]
+        if SOURCE:
+            cmd.append(f"--device={SOURCE}")
+        self.buf = bytearray()
+        self.proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        self.thread = threading.Thread(target=self._reader, daemon=True)
+        self.thread.start()
+
+    def _reader(self):
+        while True:
+            chunk = self.proc.stdout.read(4096)
+            if not chunk:
+                break
+            self.buf.extend(chunk)
+
+    def stop(self):
+        if self.proc:
+            self.proc.terminate()
+            try:
+                self.proc.wait(timeout=1)
+            except Exception:
+                self.proc.kill()
+        if self.thread:
+            self.thread.join(timeout=1)
+        return bytes(self.buf)
+
+
+def load_model():
+    log(f"loading model {MODEL!r} (first run downloads it)…")
+    from faster_whisper import WhisperModel
+    import numpy as np
+    t0 = time.time()
+    model = WhisperModel(MODEL, device="cpu", compute_type=COMPUTE)
+    log(f"model ready in {time.time() - t0:.1f}s")
+    return model, np
+
+
+def transcribe(model, np, pcm):
+    if len(pcm) < RATE * 2 * 0.3:  # < 0.3 s of audio
+        return ""
+    audio = np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768.0
+    # condition_on_previous_text=False is the key anti-hallucination flag for
+    # dictation; vad_filter + faster-whisper's default logprob/compression/
+    # no_speech thresholds handle the rest.
+    segments, _ = model.transcribe(
+        audio, language=LANG, initial_prompt=PROMPT, beam_size=BEAM,
+        vad_filter=True, condition_on_previous_text=False,
+    )
+    text = "".join(s.text for s in segments).translate(NORMALIZE)
+    return " ".join(text.split())  # collapse all whitespace incl. newlines
+
+
+def require_parec():
+    if subprocess.run(["which", "parec"], capture_output=True).returncode != 0:
+        log("parec not found (install pipewire-pulse / pulseaudio-utils)")
+        sys.exit(1)
+
+
+def main():
+    args = sys.argv[1:]
+
+    # --- STT-only self test: no uinput, no input group, no sudo needed ---
+    if "--test" in args:
+        require_parec()
+        secs = float(os.environ.get("DICTATE_TEST_SECS", "5"))
+        model, np = load_model()
+        rec = Recorder()
+        log(f"● recording {secs:.0f}s — speak now…")
+        rec.start(); time.sleep(secs); pcm = rec.stop()
+        log(f"■ captured {len(pcm)} bytes ({len(pcm)/(RATE*2):.1f}s), transcribing…")
+        t0 = time.time()
+        text = transcribe(model, np, pcm)
+        log(f"transcribed in {time.time() - t0:.2f}s")
+        print("\nTRANSCRIPT:", repr(text))
+        return
+
+    key_code = getattr(e, KEY_NAME, None)
+    if key_code is None:
+        log(f"unknown key name {KEY_NAME!r} (e.g. KEY_RIGHTCTRL, KEY_SCROLLLOCK)")
+        sys.exit(2)
+
+    try:
+        ui = UInput(uinput_caps(), name="dictate-virtual-kbd")
+    except Exception as ex:
+        log(f"cannot open /dev/uinput ({ex}).")
+        log("Run 'dictate-setup', then log out/in (or: newgrp input).")
+        sys.exit(1)
+
+    kbds = find_keyboards(key_code)
+    if not kbds:
+        log(f"no keyboard exposes {KEY_NAME}. Are you in the 'input' group?")
+        ui.close(); sys.exit(1)
+    log("watching:", ", ".join(d.name for d in kbds))
+    require_parec()
+
+    if "--check" in args:
+        log(f"OK — uinput writable, {len(kbds)} keyboard(s) expose {KEY_NAME}, parec present.")
+        ui.close(); return
+
+    model, np = load_model()
+    log(f"ready — hold {KEY_NAME}, speak, release.  Ctrl-C to quit.")
+
+    rec = Recorder()
+    recording = False
+    sel = selectors.DefaultSelector()
+    for d in kbds:
+        sel.register(d, selectors.EVENT_READ)
+
+    try:
+        while True:
+            for skey, _ in sel.select():
+                for ev in skey.fileobj.read():
+                    if ev.type != e.EV_KEY or ev.code != key_code:
+                        continue
+                    if ev.value == 1 and not recording:       # key down
+                        recording = True; rec.start(); log("● recording")
+                    elif ev.value == 0 and recording:         # key up
+                        recording = False; log("■ transcribing")
+                        text = transcribe(model, np, rec.stop())
+                        if text:
+                            log(f"→ {text!r}"); type_text(ui, text)
+                        else:
+                            log("(no speech)")
+                    # value == 2 (autorepeat) ignored
+    except KeyboardInterrupt:
+        pass
+    finally:
+        ui.close()
+
+
+if __name__ == "__main__":
+    main()
