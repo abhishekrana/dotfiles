@@ -4,17 +4,31 @@
 # dependencies = ["faster-whisper", "evdev", "numpy"]
 # ///
 """
-dictate — push-to-talk local speech-to-text for Wayland (GNOME), CPU-only.
+dictate — toggle-key local speech-to-text for Wayland (GNOME), CPU-only.
 
-Hold the push-to-talk key (default Right Ctrl), speak, release. The clip is
-transcribed locally with faster-whisper and typed into whatever window is
-focused, via a synthetic uinput keyboard. No cloud, no daemon, no clipboard.
-The mic is opened ONLY while the key is held; idle = nothing captured.
+A GNOME custom shortcut runs `dictate --toggle`: first press starts recording,
+second press stops, transcribes locally with faster-whisper, and types the text
+into the focused window via a synthetic uinput keyboard.
 
-One-time enablement (grants input-group / uinput access):  dictate-setup
+Security by design: the trigger is a GNOME shortcut, so nothing here ever reads
+/dev/input — there is no keylogger surface and no `input` group. The only
+elevated access is write to /dev/uinput (for typing), granted via a dedicated
+`uinput` group. The mic opens only between toggle-on and toggle-off. Daemonless:
+no resident process, no autostart.
+
+Setup:
+  dictate-setup            # one-time: dedicated 'uinput' group + udev rule (sudo)
+  # log out / in, then:
+  dictate --install-shortcut          # bind Ctrl+Alt+D to `dictate --toggle`
+  dictate --check                     # verify uinput writable + parec present
+
+Commands:
+  dictate --toggle         # start/stop (bind this to a key; see --install-shortcut)
+  dictate --check          # verify permissions/devices
+  dictate --test           # record N s and print transcript (no sudo/uinput needed)
+  dictate --install-shortcut [BINDING]   # default BINDING is <Ctrl><Alt>d
 
 Config via env vars (all optional):
-  DICTATE_KEY      evdev key name to hold        (default KEY_RIGHTCTRL)
   DICTATE_MODEL    faster-whisper model          (default small.en)
   DICTATE_COMPUTE  ctranslate2 compute type      (default int8)
   DICTATE_LANG     language                      (default en)
@@ -22,25 +36,22 @@ Config via env vars (all optional):
   DICTATE_PROMPT   initial_prompt to bias vocab  (default: coding terms)
   DICTATE_BEAM     beam size (1=fast, 5=accurate)(default 1)
   DICTATE_LATENCY  parec latency ms (low=prompt) (default 50)
+  DICTATE_NOTIFY   desktop notifications 1/0     (default 1)
   DICTATE_TEST_SECS seconds to record in --test  (default 5)
 
-Models (DICTATE_MODEL): base.en (faster) · small.en (default, best balance) ·
-  distil-small.en (fast English) · large-v3-turbo (most accurate, slower on CPU;
-  multilingual, so keep DICTATE_LANG=en).
-
-Run:  dictate            # start listening (needs the one-time `dictate-setup`)
-      dictate --check     # verify permissions/devices, then exit
-      dictate --test      # record N s and print transcript (no sudo needed)
+Models: base.en (faster) · small.en (default, best balance) · distil-small.en
+  (fast English) · large-v3-turbo (most accurate, slower on CPU; multilingual,
+  so keep DICTATE_LANG=en).
 """
-import os, sys, time, threading, subprocess, selectors
+import os, sys, time, signal, shutil, subprocess
 
-KEY_NAME = os.environ.get("DICTATE_KEY", "KEY_RIGHTCTRL")
 MODEL    = os.environ.get("DICTATE_MODEL", "small.en")
 COMPUTE  = os.environ.get("DICTATE_COMPUTE", "int8")
 LANG     = os.environ.get("DICTATE_LANG", "en")
 SOURCE   = os.environ.get("DICTATE_SOURCE", "")
 BEAM     = int(os.environ.get("DICTATE_BEAM", "1"))
 LATENCY  = os.environ.get("DICTATE_LATENCY", "50")  # ms; low so parec flushes promptly
+NOTIFY   = os.environ.get("DICTATE_NOTIFY", "1") == "1"
 PROMPT   = os.environ.get(
     "DICTATE_PROMPT",
     "Dictation for a coding terminal. Terms: git, npm, Python, TypeScript, "
@@ -48,17 +59,32 @@ PROMPT   = os.environ.get(
 )
 RATE = 16000  # Whisper wants 16 kHz mono
 
+RUNTIME   = os.environ.get("XDG_RUNTIME_DIR") or f"/tmp/dictate-{os.getuid()}"
+PCM_FILE  = os.path.join(RUNTIME, "dictate.pcm")
+PID_FILE  = os.path.join(RUNTIME, "dictate.pid")
+
 
 def log(*a):
     print("[dictate]", *a, file=sys.stderr, flush=True)
 
 
+def notify(msg):
+    # Best-effort desktop notification (the GNOME-shortcut path has no terminal).
+    if not NOTIFY or not shutil.which("notify-send"):
+        return
+    try:
+        subprocess.run(["notify-send", "-a", "dictate", "-t", "1500", "Dictate", msg],
+                       check=False)
+    except Exception:
+        pass
+
+
+# ---- typing via a synthetic uinput keyboard ------------------------------
 import evdev
-from evdev import InputDevice, UInput, ecodes as e
+from evdev import UInput, ecodes as e
 
 
-# ---- US-layout: char -> (keycode, needs_shift) ---------------------------
-def build_keymap():
+def build_keymap():  # US layout: char -> (keycode, needs_shift)
     m = {}
     for c in "abcdefghijklmnopqrstuvwxyz":
         kc = getattr(e, f"KEY_{c.upper()}")
@@ -90,18 +116,15 @@ def build_keymap():
 
 KEYMAP = build_keymap()
 
-# Characters Whisper emits that aren't on a US keyboard -> ASCII equivalents.
-NORMALIZE = str.maketrans({
+NORMALIZE = str.maketrans({  # chars Whisper emits that aren't on a US keyboard
     "’": "'", "‘": "'", "“": '"', "”": '"',
     "–": "-", "—": "-", " ": " ", "…": "...",
 })
 
 
-def uinput_caps():
-    keys = {e.KEY_LEFTSHIFT}
-    for kc, _ in KEYMAP.values():
-        keys.add(kc)
-    return {e.EV_KEY: sorted(keys)}
+def open_uinput():
+    keys = {e.KEY_LEFTSHIFT} | {kc for kc, _ in KEYMAP.values()}
+    return UInput({e.EV_KEY: sorted(keys)}, name="dictate-virtual-kbd")
 
 
 def type_text(ui, text):
@@ -121,59 +144,7 @@ def type_text(ui, text):
         time.sleep(0.004)  # let the compositor keep up
 
 
-def find_keyboards(key_code):
-    devs = []
-    for path in evdev.list_devices():
-        try:
-            d = InputDevice(path)
-        except Exception:
-            continue
-        if key_code in d.capabilities().get(e.EV_KEY, []):
-            devs.append(d)
-    return devs
-
-
-class Recorder:
-    """Capture raw s16le/16k/mono PCM from `parec` while the key is held.
-
-    A low --latency-msec makes parec flush to stdout promptly, so the reader
-    thread captures audio as it streams (rather than losing a big buffer when
-    we terminate parec on key release — important for short utterances)."""
-
-    def __init__(self):
-        self.proc = None
-        self.buf = bytearray()
-        self.thread = None
-
-    def start(self):
-        cmd = ["parec", "--format=s16le", f"--rate={RATE}", "--channels=1",
-               f"--latency-msec={LATENCY}"]
-        if SOURCE:
-            cmd.append(f"--device={SOURCE}")
-        self.buf = bytearray()
-        self.proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-        self.thread = threading.Thread(target=self._reader, daemon=True)
-        self.thread.start()
-
-    def _reader(self):
-        while True:
-            chunk = self.proc.stdout.read(4096)
-            if not chunk:
-                break
-            self.buf.extend(chunk)
-
-    def stop(self):
-        if self.proc:
-            self.proc.terminate()
-            try:
-                self.proc.wait(timeout=1)
-            except Exception:
-                self.proc.kill()
-        if self.thread:
-            self.thread.join(timeout=1)
-        return bytes(self.buf)
-
-
+# ---- transcription -------------------------------------------------------
 def load_model():
     log(f"loading model {MODEL!r} (first run downloads it)…")
     from faster_whisper import WhisperModel
@@ -200,81 +171,189 @@ def transcribe(model, np, pcm):
 
 
 def require_parec():
-    if subprocess.run(["which", "parec"], capture_output=True).returncode != 0:
+    if not shutil.which("parec"):
         log("parec not found (install pipewire-pulse / pulseaudio-utils)")
         sys.exit(1)
 
 
-def main():
-    args = sys.argv[1:]
+# ---- recording (detached parec -> temp file; daemonless toggle state) ----
+def parec_cmd():
+    cmd = ["parec", "--format=s16le", f"--rate={RATE}", "--channels=1",
+           f"--latency-msec={LATENCY}"]
+    if SOURCE:
+        cmd.append(f"--device={SOURCE}")
+    return cmd
 
-    # --- STT-only self test: no uinput, no input group, no sudo needed ---
-    if "--test" in args:
-        require_parec()
-        secs = float(os.environ.get("DICTATE_TEST_SECS", "5"))
-        model, np = load_model()
-        rec = Recorder()
-        log(f"● recording {secs:.0f}s — speak now…")
-        rec.start(); time.sleep(secs); pcm = rec.stop()
-        log(f"■ captured {len(pcm)} bytes ({len(pcm)/(RATE*2):.1f}s), transcribing…")
-        t0 = time.time()
-        text = transcribe(model, np, pcm)
-        log(f"transcribed in {time.time() - t0:.2f}s")
-        print("\nTRANSCRIPT:", repr(text))
-        return
 
-    key_code = getattr(e, KEY_NAME, None)
-    if key_code is None:
-        log(f"unknown key name {KEY_NAME!r} (e.g. KEY_RIGHTCTRL, KEY_SCROLLLOCK)")
-        sys.exit(2)
-
+def recording_pid():
+    """Return the live parec pid if a recording is in progress, else None."""
     try:
-        ui = UInput(uinput_caps(), name="dictate-virtual-kbd")
+        pid = int(open(PID_FILE).read().strip())
+    except (OSError, ValueError):
+        return None
+    try:
+        comm = open(f"/proc/{pid}/comm").read().strip()
+    except OSError:
+        _cleanup(); return None            # process gone -> stale state
+    if comm != "parec":
+        _cleanup(); return None            # pid reused by something else
+    return pid
+
+
+def _cleanup():
+    for p in (PID_FILE, PCM_FILE):
+        try:
+            os.remove(p)
+        except OSError:
+            pass
+
+
+def start_recording():
+    os.makedirs(RUNTIME, exist_ok=True)
+    f = open(PCM_FILE, "wb")
+    p = subprocess.Popen(parec_cmd(), stdout=f, stderr=subprocess.DEVNULL,
+                         start_new_session=True)  # survives this short-lived process
+    with open(PID_FILE, "w") as pf:
+        pf.write(str(p.pid))
+    log("● recording (toggle again to stop)")
+    notify("● Recording…")
+
+
+def stop_and_type(pid):
+    os.kill(pid, signal.SIGTERM)
+    for _ in range(50):                    # wait up to ~1s for parec to exit & flush
+        try:
+            os.kill(pid, 0); time.sleep(0.02)
+        except ProcessLookupError:
+            break
+    try:
+        pcm = open(PCM_FILE, "rb").read()
+    except OSError:
+        pcm = b""
+    _cleanup()
+    log(f"■ captured {len(pcm)} bytes ({len(pcm)/(RATE*2):.1f}s), transcribing…")
+    notify("■ Transcribing…")
+    model, np = load_model()
+    text = transcribe(model, np, pcm)
+    if not text:
+        log("(no speech)"); notify("(no speech)"); return
+    log(f"→ {text!r}")
+    try:
+        ui = open_uinput()
+    except Exception as ex:
+        log(f"cannot open /dev/uinput ({ex}); run 'dictate-setup' + re-login.")
+        return
+    time.sleep(0.05)                       # let the compositor register the device
+    type_text(ui, text)
+    ui.close()
+
+
+def do_toggle():
+    require_parec()
+    pid = recording_pid()
+    if pid is None:
+        start_recording()
+    else:
+        stop_and_type(pid)
+
+
+# ---- GNOME custom shortcut wiring (user-level, no sudo) -------------------
+def _gs_get(schema, key, path=None):
+    tgt = f"{schema}:{path}" if path else schema
+    return subprocess.run(["gsettings", "get", tgt, key],
+                          capture_output=True, text=True).stdout.strip()
+
+
+def _gs_set(schema, key, value, path=None):
+    tgt = f"{schema}:{path}" if path else schema
+    subprocess.run(["gsettings", "set", tgt, key, value], check=True)
+
+
+def install_shortcut(binding):
+    if not shutil.which("gsettings"):
+        log("gsettings not found — is this a GNOME session?"); sys.exit(1)
+    exe = os.path.realpath(shutil.which("dictate") or sys.argv[0])
+    command = f"{exe} --toggle"
+    base = "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/"
+    path = base + "dictate/"
+    schema = "org.gnome.settings-daemon.plugins.media-keys"
+    kb = schema + ".custom-keybinding"
+
+    import ast
+    raw = _gs_get(schema, "custom-keybindings")
+    lst = [] if raw.startswith("@as") else ast.literal_eval(raw)
+    if path not in lst:
+        lst.append(path)
+    _gs_set(schema, "custom-keybindings", str(lst))
+    _gs_set(kb, "name", "Dictate toggle", path)
+    _gs_set(kb, "command", command, path)
+    _gs_set(kb, "binding", binding, path)
+    log(f"bound {binding} -> {command}")
+    log("Change it in Settings ▸ Keyboard ▸ Custom Shortcuts, or re-run with a new BINDING.")
+
+
+def check():
+    require_parec()
+    try:
+        ui = open_uinput(); ui.close()
     except Exception as ex:
         log(f"cannot open /dev/uinput ({ex}).")
-        log("Run 'dictate-setup', then log out/in (or: newgrp input).")
+        log("Run 'dictate-setup', then log out/in (or: newgrp uinput).")
         sys.exit(1)
+    os.makedirs(RUNTIME, exist_ok=True)
+    log(f"OK — /dev/uinput writable, parec present, runtime dir {RUNTIME} ok.")
+    log("Bind a key with 'dictate --install-shortcut', then press it to start/stop.")
 
-    kbds = find_keyboards(key_code)
-    if not kbds:
-        log(f"no keyboard exposes {KEY_NAME}. Are you in the 'input' group?")
-        ui.close(); sys.exit(1)
-    log("watching:", ", ".join(d.name for d in kbds))
+
+def self_test():
     require_parec()
-
-    if "--check" in args:
-        log(f"OK — uinput writable, {len(kbds)} keyboard(s) expose {KEY_NAME}, parec present.")
-        ui.close(); return
-
+    secs = float(os.environ.get("DICTATE_TEST_SECS", "5"))
     model, np = load_model()
-    log(f"ready — hold {KEY_NAME}, speak, release.  Ctrl-C to quit.")
-
-    rec = Recorder()
-    recording = False
-    sel = selectors.DefaultSelector()
-    for d in kbds:
-        sel.register(d, selectors.EVENT_READ)
-
+    os.makedirs(RUNTIME, exist_ok=True)
+    f = open(PCM_FILE, "wb")
+    p = subprocess.Popen(parec_cmd(), stdout=f, stderr=subprocess.DEVNULL)
+    log(f"● recording {secs:.0f}s — speak now…")
+    time.sleep(secs)
+    p.terminate()
     try:
-        while True:
-            for skey, _ in sel.select():
-                for ev in skey.fileobj.read():
-                    if ev.type != e.EV_KEY or ev.code != key_code:
-                        continue
-                    if ev.value == 1 and not recording:       # key down
-                        recording = True; rec.start(); log("● recording")
-                    elif ev.value == 0 and recording:         # key up
-                        recording = False; log("■ transcribing")
-                        text = transcribe(model, np, rec.stop())
-                        if text:
-                            log(f"→ {text!r}"); type_text(ui, text)
-                        else:
-                            log("(no speech)")
-                    # value == 2 (autorepeat) ignored
-    except KeyboardInterrupt:
-        pass
-    finally:
-        ui.close()
+        p.wait(timeout=1)
+    except Exception:
+        p.kill()
+    f.close()
+    pcm = open(PCM_FILE, "rb").read(); os.remove(PCM_FILE)
+    log(f"■ captured {len(pcm)} bytes ({len(pcm)/(RATE*2):.1f}s), transcribing…")
+    t0 = time.time()
+    text = transcribe(model, np, pcm)
+    log(f"transcribed in {time.time() - t0:.2f}s")
+    print("\nTRANSCRIPT:", repr(text))
+
+
+USAGE = """dictate — toggle-key local speech-to-text (Wayland/GNOME, CPU).
+
+  dictate --toggle                     start/stop (bind this to a key)
+  dictate --install-shortcut [BIND]    bind a GNOME key (default <Ctrl><Alt>d)
+  dictate --check                      verify /dev/uinput + parec
+  dictate --test                       record & print a transcript (no setup)
+
+First-time setup:  dictate-setup  (sudo; dedicated 'uinput' group + udev rule)
+Docs: ~/dotfiles/dictate/README.md
+"""
+
+
+def main():
+    args = sys.argv[1:]
+    if "--toggle" in args:
+        do_toggle()
+    elif "--test" in args:
+        self_test()
+    elif "--check" in args:
+        check()
+    elif "--install-shortcut" in args:
+        rest = [a for a in args if a != "--install-shortcut"]
+        binding = rest[0] if rest else os.environ.get("DICTATE_BINDING", "<Ctrl><Alt>d")
+        install_shortcut(binding)
+    else:
+        print(USAGE)
 
 
 if __name__ == "__main__":
