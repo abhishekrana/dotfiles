@@ -58,9 +58,9 @@ def log(*a):
     print("[dictate]", *a, file=sys.stderr, flush=True)
 
 
-def set_rec(text):
-    # red "● REC" badge in the tmux status bar (fixed-width @dictate slot in status-right)
-    tmux("set", "-g", "@dictate", text) if text else tmux("set", "-gu", "@dictate")
+def set_rec(on):
+    # flips the status-right dot grey->red (a fixed-width @dictate slot in the tmux status bar)
+    tmux("set", "-g", "@dictate", "1") if on else tmux("set", "-gu", "@dictate")
     tmux("refresh-client", "-S")
 
 
@@ -185,12 +185,12 @@ def start_recording():
     p = subprocess.Popen(parec_cmd(), stdout=f, stderr=subprocess.DEVNULL,
                          start_new_session=True)  # survives this short-lived process
     open(PID_FILE, "w").write(str(p.pid))
-    set_rec("● REC")
+    set_rec(True)
     log("● recording (toggle again to stop)")
 
 
 def stop_and_send(pid):
-    set_rec("")                                # clear the REC badge immediately on toggle-off
+    set_rec(False)                             # back to the grey idle dot immediately on toggle-off
     os.kill(pid, signal.SIGTERM)
     for _ in range(50):                        # wait up to ~1s for parec to exit & flush
         try:
