@@ -9,7 +9,7 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
 - `bash/` → `~/.bashrc.d/` (shell customizations)
 - `bat/` → `~/.config/bat/`
 - `claude/` → `~/.claude/hooks/`, `~/.claude/settings.json`, `~/.claude/statusline-command.sh` (note: Claude Code does NOT load a user-level `~/.claude/settings.local.json` — hooks/settings there are silently ignored; anything that must take effect goes in `settings.json`)
-- `dictate/` → `~/.local/bin/dictate`, `~/.local/bin/dictate-setup` (toggle-key local Whisper dictation; opt-in, run `dictate-setup` once)
+- `dictate/` → `~/.local/bin/dictate` (toggle-key local Whisper dictation into tmux; opt-in)
 - `git/` → `~/.config/git/config` (delta pager, merge settings)
 - `ghostty/` → `~/.config/ghostty/` (Ghostty terminal config)
 - `hunk/` → `~/.config/hunk/` (hunk diff viewer config, Solarized Light theme)

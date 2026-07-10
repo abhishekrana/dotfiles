@@ -1,67 +1,58 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.12"
-# dependencies = ["faster-whisper", "evdev", "numpy"]
+# dependencies = ["faster-whisper", "numpy"]
 # ///
 """
-dictate — toggle-key local speech-to-text for Wayland (GNOME), CPU-only.
+dictate — toggle-key local speech-to-text into tmux, CPU-only.
 
-A GNOME custom shortcut runs `dictate --toggle`: first press starts recording,
-second press stops, transcribes locally with faster-whisper, and types the text
-into the focused window via a synthetic uinput keyboard.
+A GNOME shortcut runs `dictate --toggle`: first press records the mic, second
+press transcribes locally with faster-whisper and types the text into your
+active tmux pane via `tmux send-keys`. Runs entirely in userspace — no sudo, no
+groups, no device access. The mic opens only while recording; daemonless.
 
-Security by design: the trigger is a GNOME shortcut, so nothing here ever reads
-/dev/input — there is no keylogger surface and no `input` group. The only
-elevated access is write to /dev/uinput (for typing), granted via a dedicated
-`uinput` group. The mic opens only between toggle-on and toggle-off. Daemonless:
-no resident process, no autostart.
+Targeting: the transcript goes to the pane you're focused on if it runs Claude,
+otherwise a `claude` pane in your current session, otherwise the most-recent
+`claude` pane. Override with DICTATE_TMUX_TARGET (a pane id or session:win.pane).
 
 Setup:
-  dictate-setup            # one-time: dedicated 'uinput' group + udev rule (sudo)
-  # log out / in, then:
-  dictate --install-shortcut          # bind Ctrl+Alt+D to `dictate --toggle`
-  dictate --check                     # verify uinput writable + parec present
+  dictate --install-shortcut     # bind Ctrl+Alt+D to `dictate --toggle`
+  dictate --check                # verify parec + tmux
 
 Commands:
-  dictate --toggle         # start/stop (bind this to a key; see --install-shortcut)
-  dictate --check          # verify permissions/devices
-  dictate --test           # record N s and print transcript (no sudo/uinput needed)
-  dictate --install-shortcut [BINDING]   # default BINDING is <Ctrl><Alt>d
+  dictate --toggle       start/stop (bind this to a key)
+  dictate --target       print the pane the transcript would go to
+  dictate --check        verify parec + tmux
+  dictate --test         record N s and print transcript
+  dictate --install-shortcut [BINDING]   default BINDING is <Ctrl><Alt>d
 
-Config via env vars (all optional):
-  DICTATE_MODEL    faster-whisper model          (default small.en)
-  DICTATE_COMPUTE  ctranslate2 compute type      (default int8)
-  DICTATE_LANG     language                      (default en)
-  DICTATE_SOURCE   PipeWire/Pulse source name    (default: system default)
-  DICTATE_PROMPT   initial_prompt to bias vocab  (default: coding terms)
-  DICTATE_BEAM     beam size (1=fast, 5=accurate)(default 1)
-  DICTATE_LATENCY  parec latency ms (low=prompt) (default 50)
-  DICTATE_NOTIFY   desktop notifications 1/0     (default 1)
-  DICTATE_TEST_SECS seconds to record in --test  (default 5)
-
-Models: base.en (faster) · small.en (default, best balance) · distil-small.en
-  (fast English) · large-v3-turbo (most accurate, slower on CPU; multilingual,
-  so keep DICTATE_LANG=en).
+Config (env, all optional):
+  DICTATE_MODEL small.en · DICTATE_COMPUTE int8 · DICTATE_LANG en
+  DICTATE_SOURCE (mic) · DICTATE_PROMPT (bias) · DICTATE_BEAM 1
+  DICTATE_LATENCY 50 · DICTATE_NOTIFY 1 · DICTATE_TEST_SECS 5
+  DICTATE_TMUX_CMD claude · DICTATE_TMUX_TARGET (force a pane)
 """
 import os, sys, time, signal, shutil, subprocess
 
-MODEL    = os.environ.get("DICTATE_MODEL", "small.en")
-COMPUTE  = os.environ.get("DICTATE_COMPUTE", "int8")
-LANG     = os.environ.get("DICTATE_LANG", "en")
-SOURCE   = os.environ.get("DICTATE_SOURCE", "")
-BEAM     = int(os.environ.get("DICTATE_BEAM", "1"))
-LATENCY  = os.environ.get("DICTATE_LATENCY", "50")  # ms; low so parec flushes promptly
-NOTIFY   = os.environ.get("DICTATE_NOTIFY", "1") == "1"
-PROMPT   = os.environ.get(
+MODEL     = os.environ.get("DICTATE_MODEL", "small.en")
+COMPUTE   = os.environ.get("DICTATE_COMPUTE", "int8")
+LANG      = os.environ.get("DICTATE_LANG", "en")
+SOURCE    = os.environ.get("DICTATE_SOURCE", "")
+BEAM      = int(os.environ.get("DICTATE_BEAM", "1"))
+LATENCY   = os.environ.get("DICTATE_LATENCY", "50")  # ms; low so parec flushes promptly
+NOTIFY    = os.environ.get("DICTATE_NOTIFY", "1") == "1"
+TMUX_CMD  = os.environ.get("DICTATE_TMUX_CMD", "claude")
+TMUX_TGT  = os.environ.get("DICTATE_TMUX_TARGET", "")
+PROMPT    = os.environ.get(
     "DICTATE_PROMPT",
     "Dictation for a coding terminal. Terms: git, npm, Python, TypeScript, "
     "async, await, API, JSON, YAML, stdout, regex, Claude Code.",
 )
 RATE = 16000  # Whisper wants 16 kHz mono
 
-RUNTIME   = os.environ.get("XDG_RUNTIME_DIR") or f"/tmp/dictate-{os.getuid()}"
-PCM_FILE  = os.path.join(RUNTIME, "dictate.pcm")
-PID_FILE  = os.path.join(RUNTIME, "dictate.pid")
+RUNTIME  = os.environ.get("XDG_RUNTIME_DIR") or f"/tmp/dictate-{os.getuid()}"
+PCM_FILE = os.path.join(RUNTIME, "dictate.pcm")
+PID_FILE = os.path.join(RUNTIME, "dictate.pid")
 
 
 def log(*a):
@@ -69,79 +60,67 @@ def log(*a):
 
 
 def notify(msg):
-    # Best-effort desktop notification (the GNOME-shortcut path has no terminal).
-    if not NOTIFY or not shutil.which("notify-send"):
-        return
-    try:
+    if NOTIFY and shutil.which("notify-send"):
         subprocess.run(["notify-send", "-a", "dictate", "-t", "1500", "Dictate", msg],
                        check=False)
-    except Exception:
-        pass
 
 
-# ---- typing via a synthetic uinput keyboard ------------------------------
-import evdev
-from evdev import UInput, ecodes as e
+def require(cmd):
+    if not shutil.which(cmd):
+        log(f"{cmd} not found"); sys.exit(1)
 
 
-def build_keymap():  # US layout: char -> (keycode, needs_shift)
-    m = {}
-    for c in "abcdefghijklmnopqrstuvwxyz":
-        kc = getattr(e, f"KEY_{c.upper()}")
-        m[c] = (kc, False)
-        m[c.upper()] = (kc, True)
-    shifted_digits = ")!@#$%^&*("  # shift+0 .. shift+9
-    for i, c in enumerate("0123456789"):
-        kc = getattr(e, f"KEY_{c}")
-        m[c] = (kc, False)
-        m[shifted_digits[i]] = (kc, True)
-    pairs = {
-        " ": ("KEY_SPACE", False),      "\t": ("KEY_TAB", False),
-        "-": ("KEY_MINUS", False),      "_": ("KEY_MINUS", True),
-        "=": ("KEY_EQUAL", False),      "+": ("KEY_EQUAL", True),
-        "[": ("KEY_LEFTBRACE", False),  "{": ("KEY_LEFTBRACE", True),
-        "]": ("KEY_RIGHTBRACE", False), "}": ("KEY_RIGHTBRACE", True),
-        "\\": ("KEY_BACKSLASH", False), "|": ("KEY_BACKSLASH", True),
-        ";": ("KEY_SEMICOLON", False),  ":": ("KEY_SEMICOLON", True),
-        "'": ("KEY_APOSTROPHE", False), '"': ("KEY_APOSTROPHE", True),
-        "`": ("KEY_GRAVE", False),      "~": ("KEY_GRAVE", True),
-        ",": ("KEY_COMMA", False),      "<": ("KEY_COMMA", True),
-        ".": ("KEY_DOT", False),        ">": ("KEY_DOT", True),
-        "/": ("KEY_SLASH", False),      "?": ("KEY_SLASH", True),
-    }
-    for c, (name, sh) in pairs.items():
-        m[c] = (getattr(e, name), sh)
-    return m
+# ---- pick the tmux pane to type into -------------------------------------
+def tmux(*args):
+    return subprocess.run(["tmux", *args], capture_output=True, text=True)
 
 
-KEYMAP = build_keymap()
-
-NORMALIZE = str.maketrans({  # chars Whisper emits that aren't on a US keyboard
-    "’": "'", "‘": "'", "“": '"', "”": '"',
-    "–": "-", "—": "-", " ": " ", "…": "...",
-})
-
-
-def open_uinput():
-    keys = {e.KEY_LEFTSHIFT} | {kc for kc, _ in KEYMAP.values()}
-    return UInput({e.EV_KEY: sorted(keys)}, name="dictate-virtual-kbd")
+def panes():
+    fmt = "\t".join(["#{pane_id}", "#{pane_current_command}", "#{session_name}",
+                     "#{window_active}", "#{pane_active}", "#{window_activity}"])
+    r = tmux("list-panes", "-a", "-F", fmt)
+    keys = ["id", "cmd", "session", "wactive", "pactive", "wactivity"]
+    return [dict(zip(keys, line.split("\t")))
+            for line in r.stdout.splitlines() if line.count("\t") == 5]
 
 
-def type_text(ui, text):
-    for ch in text:
-        if ch == "\n":
-            ch = " "  # never press Enter: it could submit the prompt
-        km = KEYMAP.get(ch)
-        if km is None:
-            continue  # silently skip anything we can't map
-        kc, shift = km
-        if shift:
-            ui.write(e.EV_KEY, e.KEY_LEFTSHIFT, 1); ui.syn()
-        ui.write(e.EV_KEY, kc, 1); ui.syn()
-        ui.write(e.EV_KEY, kc, 0); ui.syn()
-        if shift:
-            ui.write(e.EV_KEY, e.KEY_LEFTSHIFT, 0); ui.syn()
-        time.sleep(0.004)  # let the compositor keep up
+def active_session():
+    """Session shown by the most-recently-active attached client."""
+    r = tmux("list-clients", "-F", "#{client_activity}\t#{client_session}")
+    rows = sorted((l.split("\t") for l in r.stdout.splitlines() if "\t" in l),
+                  key=lambda x: int(x[0] or 0), reverse=True)
+    return rows[0][1] if rows else None
+
+
+def resolve_target():
+    """(pane_id, label): the focused pane if it runs the app, else an app pane in
+    the focused session, else the most-recently-active app pane anywhere."""
+    if TMUX_TGT:
+        return TMUX_TGT, TMUX_TGT
+    ps = panes()
+    if not ps:
+        return None, None
+    session = active_session()
+    focused = next((p for p in ps if p["session"] == session
+                    and p["wactive"] == "1" and p["pactive"] == "1"), None)
+    if focused and focused["cmd"] == TMUX_CMD:
+        return focused["id"], label(focused)
+    for scope in (session, None):
+        apps = [p for p in ps if p["cmd"] == TMUX_CMD
+                and (scope is None or p["session"] == scope)]
+        if apps:
+            apps.sort(key=lambda p: int(p["wactivity"] or 0), reverse=True)
+            return apps[0]["id"], label(apps[0])
+    return (focused["id"], label(focused)) if focused else (None, None)
+
+
+def label(p):
+    return f"{p['id']} {p['session']} [{p['cmd']}]"
+
+
+def send_to_tmux(target, text):
+    # -l = literal text (not key names); -- guards text starting with '-'.
+    return tmux("send-keys", "-t", target, "-l", "--", text).returncode == 0
 
 
 # ---- transcription -------------------------------------------------------
@@ -159,21 +138,14 @@ def transcribe(model, np, pcm):
     if len(pcm) < RATE * 2 * 0.3:  # < 0.3 s of audio
         return ""
     audio = np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768.0
-    # condition_on_previous_text=False is the key anti-hallucination flag for
-    # dictation; vad_filter + faster-whisper's default logprob/compression/
-    # no_speech thresholds handle the rest.
+    # condition_on_previous_text=False + vad_filter are the anti-hallucination
+    # flags for dictation; faster-whisper's default thresholds handle the rest.
     segments, _ = model.transcribe(
         audio, language=LANG, initial_prompt=PROMPT, beam_size=BEAM,
         vad_filter=True, condition_on_previous_text=False,
     )
-    text = "".join(s.text for s in segments).translate(NORMALIZE)
-    return " ".join(text.split())  # collapse all whitespace incl. newlines
-
-
-def require_parec():
-    if not shutil.which("parec"):
-        log("parec not found (install pipewire-pulse / pulseaudio-utils)")
-        sys.exit(1)
+    text = "".join(s.text for s in segments)
+    return " ".join(text.split())  # collapse whitespace/newlines (never send Enter)
 
 
 # ---- recording (detached parec -> temp file; daemonless toggle state) ----
@@ -185,22 +157,7 @@ def parec_cmd():
     return cmd
 
 
-def recording_pid():
-    """Return the live parec pid if a recording is in progress, else None."""
-    try:
-        pid = int(open(PID_FILE).read().strip())
-    except (OSError, ValueError):
-        return None
-    try:
-        comm = open(f"/proc/{pid}/comm").read().strip()
-    except OSError:
-        _cleanup(); return None            # process gone -> stale state
-    if comm != "parec":
-        _cleanup(); return None            # pid reused by something else
-    return pid
-
-
-def _cleanup():
+def cleanup():
     for p in (PID_FILE, PCM_FILE):
         try:
             os.remove(p)
@@ -208,20 +165,30 @@ def _cleanup():
             pass
 
 
+def recording_pid():
+    try:
+        pid = int(open(PID_FILE).read().strip())
+        if open(f"/proc/{pid}/comm").read().strip() == "parec":
+            return pid
+    except (OSError, ValueError):
+        pass
+    cleanup()
+    return None
+
+
 def start_recording():
     os.makedirs(RUNTIME, exist_ok=True)
     f = open(PCM_FILE, "wb")
     p = subprocess.Popen(parec_cmd(), stdout=f, stderr=subprocess.DEVNULL,
                          start_new_session=True)  # survives this short-lived process
-    with open(PID_FILE, "w") as pf:
-        pf.write(str(p.pid))
+    open(PID_FILE, "w").write(str(p.pid))
     log("● recording (toggle again to stop)")
     notify("● Recording…")
 
 
-def stop_and_type(pid):
+def stop_and_send(pid):
     os.kill(pid, signal.SIGTERM)
-    for _ in range(50):                    # wait up to ~1s for parec to exit & flush
+    for _ in range(50):                        # wait up to ~1s for parec to exit & flush
         try:
             os.kill(pid, 0); time.sleep(0.02)
         except ProcessLookupError:
@@ -230,84 +197,61 @@ def stop_and_type(pid):
         pcm = open(PCM_FILE, "rb").read()
     except OSError:
         pcm = b""
-    _cleanup()
-    log(f"■ captured {len(pcm)} bytes ({len(pcm)/(RATE*2):.1f}s), transcribing…")
+    cleanup()
+    log(f"■ captured {len(pcm)/(RATE*2):.1f}s, transcribing…")
     notify("■ Transcribing…")
     model, np = load_model()
     text = transcribe(model, np, pcm)
     if not text:
         log("(no speech)"); notify("(no speech)"); return
-    log(f"→ {text!r}")
-    try:
-        ui = open_uinput()
-    except Exception as ex:
-        log(f"cannot open /dev/uinput ({ex}); run 'dictate-setup' + re-login.")
-        notify("⚠ Can't type — run dictate-setup, then log out/in")
-        return
-    time.sleep(0.05)                       # let the compositor register the device
-    type_text(ui, text)
-    ui.close()
+    target, lbl = resolve_target()
+    if not target:
+        log(f"no tmux pane found; transcript: {text!r}")
+        notify("⚠ No tmux pane found"); return
+    log(f"→ {lbl}: {text!r}")
+    if not send_to_tmux(target, text):
+        log("tmux send-keys failed"); notify("⚠ tmux send-keys failed")
 
 
-def do_toggle():
-    require_parec()
+def toggle():
+    require("parec")
     pid = recording_pid()
-    if pid is None:
-        start_recording()
-    else:
-        stop_and_type(pid)
+    (stop_and_send(pid) if pid else start_recording())
 
 
-# ---- GNOME custom shortcut wiring (user-level, no sudo) -------------------
-def _gs_get(schema, key, path=None):
-    tgt = f"{schema}:{path}" if path else schema
-    return subprocess.run(["gsettings", "get", tgt, key],
-                          capture_output=True, text=True).stdout.strip()
-
-
-def _gs_set(schema, key, value, path=None):
-    tgt = f"{schema}:{path}" if path else schema
-    subprocess.run(["gsettings", "set", tgt, key, value], check=True)
-
-
+# ---- GNOME custom shortcut (user-level, no sudo) -------------------------
 def install_shortcut(binding):
-    if not shutil.which("gsettings"):
-        log("gsettings not found — is this a GNOME session?"); sys.exit(1)
-    exe = os.path.realpath(shutil.which("dictate") or sys.argv[0])
-    command = f"{exe} --toggle"
-    base = "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/"
-    path = base + "dictate/"
-    schema = "org.gnome.settings-daemon.plugins.media-keys"
-    kb = schema + ".custom-keybinding"
-
+    require("gsettings")
     import ast
-    raw = _gs_get(schema, "custom-keybindings")
-    lst = [] if raw.startswith("@as") else ast.literal_eval(raw)
+    exe = os.path.realpath(shutil.which("dictate") or sys.argv[0])
+    path = "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/dictate/"
+    schema = "org.gnome.settings-daemon.plugins.media-keys"
+    kb = f"{schema}.custom-keybinding:{path}"
+
+    cur = subprocess.run(["gsettings", "get", schema, "custom-keybindings"],
+                         capture_output=True, text=True).stdout.strip()
+    lst = [] if cur.startswith("@as") else ast.literal_eval(cur)
     if path not in lst:
         lst.append(path)
-    _gs_set(schema, "custom-keybindings", str(lst))
-    _gs_set(kb, "name", "Dictate toggle", path)
-    _gs_set(kb, "command", command, path)
-    _gs_set(kb, "binding", binding, path)
-    log(f"bound {binding} -> {command}")
-    log("Change it in Settings ▸ Keyboard ▸ Custom Shortcuts, or re-run with a new BINDING.")
+    subprocess.run(["gsettings", "set", schema, "custom-keybindings", str(lst)], check=True)
+    for key, val in (("name", "Dictate toggle"), ("command", f"{exe} --toggle"),
+                     ("binding", binding)):
+        subprocess.run(["gsettings", "set", kb, key, val], check=True)
+    log(f"bound {binding} -> {exe} --toggle")
+    log("Change it in Settings ▸ Keyboard ▸ Custom Shortcuts.")
 
 
+# ---- checks --------------------------------------------------------------
 def check():
-    require_parec()
-    try:
-        ui = open_uinput(); ui.close()
-    except Exception as ex:
-        log(f"cannot open /dev/uinput ({ex}).")
-        log("Run 'dictate-setup', then log out/in (or: newgrp uinput).")
-        sys.exit(1)
-    os.makedirs(RUNTIME, exist_ok=True)
-    log(f"OK — /dev/uinput writable, parec present, runtime dir {RUNTIME} ok.")
-    log("Bind a key with 'dictate --install-shortcut', then press it to start/stop.")
+    require("parec"); require("tmux")
+    if not panes():
+        log("tmux has no panes — start tmux first."); sys.exit(1)
+    _, lbl = resolve_target()
+    log(f"OK — parec + tmux present. Transcript would go to: {lbl}")
 
 
 def self_test():
-    require_parec()
+    require("parec")
     secs = float(os.environ.get("DICTATE_TEST_SECS", "5"))
     model, np = load_model()
     os.makedirs(RUNTIME, exist_ok=True)
@@ -322,37 +266,36 @@ def self_test():
         p.kill()
     f.close()
     pcm = open(PCM_FILE, "rb").read(); os.remove(PCM_FILE)
-    log(f"■ captured {len(pcm)} bytes ({len(pcm)/(RATE*2):.1f}s), transcribing…")
-    t0 = time.time()
+    log("■ transcribing…")
     text = transcribe(model, np, pcm)
-    log(f"transcribed in {time.time() - t0:.2f}s")
     print("\nTRANSCRIPT:", repr(text))
 
 
-USAGE = """dictate — toggle-key local speech-to-text (Wayland/GNOME, CPU).
+USAGE = """dictate — toggle-key local speech-to-text into tmux (CPU, zero privilege).
 
   dictate --toggle                     start/stop (bind this to a key)
+  dictate --target                     show which pane the transcript goes to
   dictate --install-shortcut [BIND]    bind a GNOME key (default <Ctrl><Alt>d)
-  dictate --check                      verify /dev/uinput + parec
-  dictate --test                       record & print a transcript (no setup)
+  dictate --check                      verify parec + tmux
+  dictate --test                       record & print a transcript
 
-First-time setup:  dictate-setup  (sudo; dedicated 'uinput' group + udev rule)
 Docs: ~/dotfiles/dictate/README.md
 """
 
 
 def main():
-    args = sys.argv[1:]
-    if "--toggle" in args:
-        do_toggle()
-    elif "--test" in args:
+    arg = sys.argv[1] if len(sys.argv) > 1 else ""
+    if arg == "--toggle":
+        toggle()
+    elif arg == "--target":
+        require("tmux"); print(resolve_target()[1] or "(no tmux target found)")
+    elif arg == "--test":
         self_test()
-    elif "--check" in args:
+    elif arg == "--check":
         check()
-    elif "--install-shortcut" in args:
-        rest = [a for a in args if a != "--install-shortcut"]
-        binding = rest[0] if rest else os.environ.get("DICTATE_BINDING", "<Ctrl><Alt>d")
-        install_shortcut(binding)
+    elif arg == "--install-shortcut":
+        install_shortcut(sys.argv[2] if len(sys.argv) > 2
+                         else os.environ.get("DICTATE_BINDING", "<Ctrl><Alt>d"))
     else:
         print(USAGE)
 
