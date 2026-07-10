@@ -11,6 +11,8 @@ local, zero elevated privilege.
 - Runs entirely in userspace — no sudo, no groups, no `/dev/*` access. tmux owns the pane's pty, so writing to it is
   ordinary I/O.
 - Daemonless: each press is a short-lived invocation. The mic is open only between toggle-on and toggle-off.
+- Feedback: a red `● REC` badge shows in the tmux status bar while recording (a `@dictate` segment in the tmux
+  package's `status-left`); it clears the moment you toggle off.
 
 ## Targeting
 
@@ -20,8 +22,7 @@ session; otherwise the most-recently-active `claude` pane. Check it with `dictat
 
 ## Requirements
 
-`uv`, `tmux`, and `parec` (from `pipewire-pulse`/`pulseaudio-utils`). `notify-send` (libnotify) is optional, for
-recording feedback. First run downloads the model (~250 MB, cached).
+`uv`, `tmux`, and `parec` (from `pipewire-pulse`/`pulseaudio-utils`). First run downloads the model (~250 MB, cached).
 
 ## Setup
 
@@ -51,7 +52,6 @@ Dictated newlines are collapsed to spaces, so speech never submits a prompt — 
 | `DICTATE_PROMPT`      | coding terms   | `initial_prompt` to bias vocabulary          |
 | `DICTATE_BEAM`        | `1`            | beam size (1 = fast, 5 = more accurate)      |
 | `DICTATE_LATENCY`     | `50`           | `parec` latency ms (low = flush promptly)    |
-| `DICTATE_NOTIFY`      | `1`            | desktop notifications on record/transcribe   |
 | `DICTATE_TMUX_CMD`    | `claude`       | pane command treated as the target app       |
 | `DICTATE_TMUX_TARGET` | _(unset)_      | force a pane (pane id or `session:win.pane`) |
 | `DICTATE_TEST_SECS`   | `5`            | seconds recorded by `--test`                 |

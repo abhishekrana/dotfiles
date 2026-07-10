@@ -29,7 +29,7 @@ Commands:
 Config (env, all optional):
   DICTATE_MODEL small.en · DICTATE_COMPUTE int8 · DICTATE_LANG en
   DICTATE_SOURCE (mic) · DICTATE_PROMPT (bias) · DICTATE_BEAM 1
-  DICTATE_LATENCY 50 · DICTATE_NOTIFY 1 · DICTATE_TEST_SECS 5
+  DICTATE_LATENCY 50 · DICTATE_TEST_SECS 5
   DICTATE_TMUX_CMD claude · DICTATE_TMUX_TARGET (force a pane)
 """
 import os, sys, time, signal, shutil, subprocess
@@ -40,7 +40,6 @@ LANG      = os.environ.get("DICTATE_LANG", "en")
 SOURCE    = os.environ.get("DICTATE_SOURCE", "")
 BEAM      = int(os.environ.get("DICTATE_BEAM", "1"))
 LATENCY   = os.environ.get("DICTATE_LATENCY", "50")  # ms; low so parec flushes promptly
-NOTIFY    = os.environ.get("DICTATE_NOTIFY", "1") == "1"
 TMUX_CMD  = os.environ.get("DICTATE_TMUX_CMD", "claude")
 TMUX_TGT  = os.environ.get("DICTATE_TMUX_TARGET", "")
 PROMPT    = os.environ.get(
@@ -59,10 +58,14 @@ def log(*a):
     print("[dictate]", *a, file=sys.stderr, flush=True)
 
 
-def notify(msg):
-    if NOTIFY and shutil.which("notify-send"):
-        subprocess.run(["notify-send", "-a", "dictate", "-t", "1500", "Dictate", msg],
-                       check=False)
+def set_rec(text):
+    # red "● REC" badge in the tmux status bar (status-left reads @dictate)
+    tmux("set", "-g", "@dictate", text) if text else tmux("set", "-gu", "@dictate")
+    tmux("refresh-client", "-S")
+
+
+def flash(msg):
+    tmux("display-message", f"dictate: {msg}")
 
 
 def require(cmd):
@@ -182,11 +185,12 @@ def start_recording():
     p = subprocess.Popen(parec_cmd(), stdout=f, stderr=subprocess.DEVNULL,
                          start_new_session=True)  # survives this short-lived process
     open(PID_FILE, "w").write(str(p.pid))
+    set_rec("● REC")
     log("● recording (toggle again to stop)")
-    notify("● Recording…")
 
 
 def stop_and_send(pid):
+    set_rec("")                                # clear the REC badge immediately on toggle-off
     os.kill(pid, signal.SIGTERM)
     for _ in range(50):                        # wait up to ~1s for parec to exit & flush
         try:
@@ -199,18 +203,17 @@ def stop_and_send(pid):
         pcm = b""
     cleanup()
     log(f"■ captured {len(pcm)/(RATE*2):.1f}s, transcribing…")
-    notify("■ Transcribing…")
     model, np = load_model()
     text = transcribe(model, np, pcm)
     if not text:
-        log("(no speech)"); notify("(no speech)"); return
+        log("(no speech)"); flash("no speech"); return
     target, lbl = resolve_target()
     if not target:
         log(f"no tmux pane found; transcript: {text!r}")
-        notify("⚠ No tmux pane found"); return
+        flash("no tmux pane found"); return
     log(f"→ {lbl}: {text!r}")
     if not send_to_tmux(target, text):
-        log("tmux send-keys failed"); notify("⚠ tmux send-keys failed")
+        log("tmux send-keys failed"); flash("send-keys failed")
 
 
 def toggle():
