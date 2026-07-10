@@ -242,6 +242,7 @@ def stop_and_type(pid):
         ui = open_uinput()
     except Exception as ex:
         log(f"cannot open /dev/uinput ({ex}); run 'dictate-setup' + re-login.")
+        notify("⚠ Can't type — run dictate-setup, then log out/in")
         return
     time.sleep(0.05)                       # let the compositor register the device
     type_text(ui, text)
