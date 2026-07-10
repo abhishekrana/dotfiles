@@ -1,24 +1,20 @@
 {
-  "enabledPlugins": {
-    "gopls-lsp@claude-plugins-official": true,
-    "pyright-lsp@claude-plugins-official": true
-  },
   "hooks": {
     "Notification": [
       {
+        "matcher": "",
         "hooks": [
           {
-            "command": "bash $HOME/.claude/hooks/on-notification.sh",
-            "type": "command"
+            "type": "command",
+            "command": "bash $HOME/.claude/hooks/on-notification.sh"
           }
-        ],
-        "matcher": ""
+        ]
       },
       {
         "hooks": [
           {
-            "command": "[ -x \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true",
-            "type": "command"
+            "type": "command",
+            "command": "[ -x \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true"
           }
         ]
       }
@@ -27,46 +23,46 @@
       {
         "hooks": [
           {
-            "command": "[ -x \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true",
-            "type": "command"
+            "type": "command",
+            "command": "[ -x \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true"
           }
         ]
       }
     ],
     "PreToolUse": [
       {
+        "matcher": "",
         "hooks": [
           {
-            "command": "bash $HOME/.claude/hooks/on-pre-tool-use.sh",
-            "type": "command"
+            "type": "command",
+            "command": "bash $HOME/.claude/hooks/on-pre-tool-use.sh"
           }
-        ],
-        "matcher": ""
+        ]
       },
       {
         "hooks": [
           {
-            "command": "[ -x \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true",
-            "type": "command"
+            "type": "command",
+            "command": "[ -x \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true"
           }
         ]
       }
     ],
     "SessionEnd": [
       {
+        "matcher": "",
         "hooks": [
           {
-            "command": "bash $HOME/.claude/hooks/on-session-end.sh",
-            "type": "command"
+            "type": "command",
+            "command": "bash $HOME/.claude/hooks/on-session-end.sh"
           }
-        ],
-        "matcher": ""
+        ]
       },
       {
         "hooks": [
           {
-            "command": "[ -x \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true",
-            "type": "command"
+            "type": "command",
+            "command": "[ -x \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true"
           }
         ]
       }
@@ -75,27 +71,27 @@
       {
         "hooks": [
           {
-            "command": "[ -x \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true",
-            "type": "command"
+            "type": "command",
+            "command": "[ -x \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true"
           }
         ]
       }
     ],
     "Stop": [
       {
+        "matcher": "",
         "hooks": [
           {
-            "command": "bash $HOME/.claude/hooks/on-stop.sh",
-            "type": "command"
+            "type": "command",
+            "command": "bash $HOME/.claude/hooks/on-stop.sh"
           }
-        ],
-        "matcher": ""
+        ]
       },
       {
         "hooks": [
           {
-            "command": "[ -x \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true",
-            "type": "command"
+            "type": "command",
+            "command": "[ -x \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true"
           }
         ]
       }
@@ -104,8 +100,8 @@
       {
         "hooks": [
           {
-            "command": "[ -x \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true",
-            "type": "command"
+            "type": "command",
+            "command": "[ -x \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true"
           }
         ]
       }
@@ -114,35 +110,40 @@
       {
         "hooks": [
           {
-            "command": "[ -x \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true",
-            "type": "command"
+            "type": "command",
+            "command": "[ -x \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true"
           }
         ]
       }
     ],
     "UserPromptSubmit": [
       {
+        "matcher": "",
         "hooks": [
           {
-            "command": "bash $HOME/.claude/hooks/on-prompt-submit.sh",
-            "type": "command"
+            "type": "command",
+            "command": "bash $HOME/.claude/hooks/on-prompt-submit.sh"
           }
-        ],
-        "matcher": ""
+        ]
       },
       {
         "hooks": [
           {
-            "command": "[ -x \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true",
-            "type": "command"
+            "type": "command",
+            "command": "[ -x \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true"
           }
         ]
       }
     ]
   },
-  "skipAutoPermissionPrompt": true,
   "statusLine": {
-    "command": "bash $HOME/.claude/statusline-command.sh",
-    "type": "command"
-  }
+    "type": "command",
+    "command": "bash $HOME/.claude/statusline-command.sh"
+  },
+  "enabledPlugins": {
+    "gopls-lsp@claude-plugins-official": true,
+    "pyright-lsp@claude-plugins-official": true
+  },
+  "skipAutoPermissionPrompt": true,
+  "effortLevel": "xhigh"
 }
