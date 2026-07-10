@@ -16,7 +16,7 @@ otherwise a `claude` pane in your current session, otherwise the most-recent
 `claude` pane. Override with DICTATE_TMUX_TARGET (a pane id or session:win.pane).
 
 Setup:
-  dictate --install-shortcut     # bind Ctrl+Alt+D to `dictate --toggle`
+  dictate --install-shortcut     # bind Super+\ to `dictate --toggle`
   dictate --check                # verify parec + tmux
 
 Commands:
@@ -24,7 +24,7 @@ Commands:
   dictate --target       print the pane the transcript would go to
   dictate --check        verify parec + tmux
   dictate --test         record N s and print transcript
-  dictate --install-shortcut [BINDING]   default BINDING is <Ctrl><Alt>d
+  dictate --install-shortcut [BINDING]   default BINDING is <Super>backslash
 
 Config (env, all optional):
   DICTATE_MODEL small.en · DICTATE_COMPUTE int8 · DICTATE_LANG en
@@ -275,7 +275,7 @@ USAGE = """dictate — toggle-key local speech-to-text into tmux (CPU, zero priv
 
   dictate --toggle                     start/stop (bind this to a key)
   dictate --target                     show which pane the transcript goes to
-  dictate --install-shortcut [BIND]    bind a GNOME key (default <Ctrl><Alt>d)
+  dictate --install-shortcut [BIND]    bind a GNOME key (default <Super>backslash)
   dictate --check                      verify parec + tmux
   dictate --test                       record & print a transcript
 
@@ -295,7 +295,7 @@ def main():
         check()
     elif arg == "--install-shortcut":
         install_shortcut(sys.argv[2] if len(sys.argv) > 2
-                         else os.environ.get("DICTATE_BINDING", "<Ctrl><Alt>d"))
+                         else os.environ.get("DICTATE_BINDING", "<Super>backslash"))
     else:
         print(USAGE)
 

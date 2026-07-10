@@ -26,7 +26,7 @@ recording feedback. First run downloads the model (~250 MB, cached).
 ## Setup
 
 ```bash
-dictate --install-shortcut    # bind Ctrl+Alt+D to `dictate --toggle`
+dictate --install-shortcut    # bind Super+\ to `dictate --toggle`
 dictate --check               # verify parec + tmux, and show the target pane
 ```
 
