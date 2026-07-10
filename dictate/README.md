@@ -27,7 +27,7 @@ session; otherwise the most-recently-active `claude` pane. Check it with `dictat
 ## Setup
 
 ```bash
-dictate --install-shortcut    # bind Super+\ to `dictate --toggle`
+dictate --install-shortcut    # bind Super+\ and Super+Z to `dictate --toggle`
 dictate --check               # verify parec + tmux, and show the target pane
 ```
 

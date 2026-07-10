@@ -16,7 +16,7 @@ otherwise a `claude` pane in your current session, otherwise the most-recent
 `claude` pane. Override with DICTATE_TMUX_TARGET (a pane id or session:win.pane).
 
 Setup:
-  dictate --install-shortcut     # bind Super+\\ to `dictate --toggle`
+  dictate --install-shortcut     # bind Super+\\ and Super+Z to `dictate --toggle`
   dictate --check                # verify parec + tmux
 
 Commands:
@@ -24,7 +24,7 @@ Commands:
   dictate --target       print the pane the transcript would go to
   dictate --check        verify parec + tmux
   dictate --test         record N s and print transcript
-  dictate --install-shortcut [BINDING]   default BINDING is <Super>backslash
+  dictate --install-shortcut [KEYS...]   default: <Super>backslash + <Super>z
 
 Config (env, all optional):
   DICTATE_MODEL small.en · DICTATE_COMPUTE int8 · DICTATE_LANG en
@@ -223,25 +223,32 @@ def toggle():
 
 
 # ---- GNOME custom shortcut (user-level, no sudo) -------------------------
-def install_shortcut(binding):
+DEFAULT_BINDINGS = ["<Super>backslash", "<Super>z"]
+
+
+def install_shortcut(bindings):
     require("gsettings")
     import ast
+    bindings = bindings or DEFAULT_BINDINGS
     exe = os.path.realpath(shutil.which("dictate") or sys.argv[0])
-    path = "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/dictate/"
+    cmd = f"{exe} --toggle"
+    base = "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/"
     schema = "org.gnome.settings-daemon.plugins.media-keys"
-    kb = f"{schema}.custom-keybinding:{path}"
 
-    cur = subprocess.run(["gsettings", "get", schema, "custom-keybindings"],
+    raw = subprocess.run(["gsettings", "get", schema, "custom-keybindings"],
                          capture_output=True, text=True).stdout.strip()
-    lst = [] if cur.startswith("@as") else ast.literal_eval(cur)
-    if path not in lst:
-        lst.append(path)
-    subprocess.run(["gsettings", "set", schema, "custom-keybindings", str(lst)], check=True)
-    for key, val in (("name", "Dictate toggle"), ("command", f"{exe} --toggle"),
-                     ("binding", binding)):
-        subprocess.run(["gsettings", "set", kb, key, val], check=True)
-    log(f"bound {binding} -> {exe} --toggle")
-    log("Change it in Settings ▸ Keyboard ▸ Custom Shortcuts.")
+    lst = [] if raw.startswith("@as") else ast.literal_eval(raw)
+    keep = [p for p in lst if not p.rstrip("/").rsplit("/", 1)[-1].startswith("dictate")]
+    ours = []
+    for i, b in enumerate(bindings):
+        path = base + ("dictate" if i == 0 else f"dictate-{i}") + "/"
+        ours.append(path)
+        kb = f"{schema}.custom-keybinding:{path}"
+        for key, val in (("name", f"Dictate toggle {b}"), ("command", cmd), ("binding", b)):
+            subprocess.run(["gsettings", "set", kb, key, val], check=True)
+    subprocess.run(["gsettings", "set", schema, "custom-keybindings", str(keep + ours)], check=True)
+    log(f"bound {' + '.join(bindings)} -> {cmd}")
+    log("Change these in Settings ▸ Keyboard ▸ Custom Shortcuts.")
 
 
 # ---- checks --------------------------------------------------------------
@@ -278,7 +285,7 @@ USAGE = """dictate — toggle-key local speech-to-text into tmux (CPU, zero priv
 
   dictate --toggle                     start/stop (bind this to a key)
   dictate --target                     show which pane the transcript goes to
-  dictate --install-shortcut [BIND]    bind a GNOME key (default <Super>backslash)
+  dictate --install-shortcut [KEYS…]   bind GNOME keys (default <Super>backslash + <Super>z)
   dictate --check                      verify parec + tmux
   dictate --test                       record & print a transcript
 
@@ -297,8 +304,7 @@ def main():
     elif arg == "--check":
         check()
     elif arg == "--install-shortcut":
-        install_shortcut(sys.argv[2] if len(sys.argv) > 2
-                         else os.environ.get("DICTATE_BINDING", "<Super>backslash"))
+        install_shortcut(sys.argv[2:])
     else:
         print(USAGE)
 
