@@ -16,7 +16,7 @@ otherwise a `claude` pane in your current session, otherwise the most-recent
 `claude` pane. Override with DICTATE_TMUX_TARGET (a pane id or session:win.pane).
 
 Setup:
-  dictate --install-shortcut     # bind Super+\ to `dictate --toggle`
+  dictate --install-shortcut     # bind Super+\\ to `dictate --toggle`
   dictate --check                # verify parec + tmux
 
 Commands:
