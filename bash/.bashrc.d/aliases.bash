@@ -98,10 +98,32 @@ alias vimr='NVIM_RESTORE=1 nvim'
 ta() {
   local name="${1:-$(basename "$PWD")}"
   if [ -n "$TMUX" ]; then
+    # Already inside tmux: create-if-missing, then switch (never nest).
     tmux new-session -d -s "$name" 2>/dev/null
     tmux switch-client -t "$name"
-  else
+  elif tmux ls >/dev/null 2>&1; then
+    # Server already running: attach, creating the session if needed.
     tmux new-session -A -s "$name"
+  else
+    # Cold start (post-reboot): let tmux-continuum auto-restore populate the
+    # server first. Boot a throwaway 2-pane session so tmux-resurrect's
+    # "restore from scratch" (which fires only when the whole server has exactly
+    # one pane) does NOT absorb our launch pane into a restored session and
+    # scramble its layout. Then drop the scratch and attach to the target.
+    local i
+    tmux new-session -d -s _resurrect_boot -c "$HOME"
+    tmux split-window -t _resurrect_boot -c "$HOME"
+    for i in $(seq 1 60); do
+      tmux has-session -t "$name" 2>/dev/null && break
+      sleep 0.25
+    done
+    # Restore succeeded if any real session now exists; if so, drop the scratch.
+    if tmux ls -F '#{session_name}' 2>/dev/null | grep -qvx _resurrect_boot; then
+      tmux kill-session -t _resurrect_boot 2>/dev/null
+    fi
+    tmux attach -t "$name" 2>/dev/null \
+      || tmux attach 2>/dev/null \
+      || tmux new-session -A -s "$name"
   fi
 }
 

@@ -1,0 +1,14 @@
+[Unit]
+Description=Save tmux session state (tmux-resurrect), even while detached
+Documentation=https://github.com/tmux-plugins/tmux-resurrect
+# tmux-continuum only autosaves while a client is attached (its save hook rides
+# the status-bar redraw). This service closes that gap: it saves on a timer
+# regardless of attachment, so a reboot never restores a stale snapshot.
+
+[Service]
+Type=oneshot
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+# Guard wrapper normalises pane titles first (see tmux-resurrect-save-guarded.sh),
+# then calls resurrect's save.sh. "quiet" suppresses output. It exits 0 cleanly
+# when no tmux server is running.
+ExecStart=%h/.local/bin/tmux-resurrect-save-guarded.sh quiet

@@ -355,6 +355,25 @@ stow_packages() {
     fi
 }
 
+enable_tmux_resurrect_timer() {
+    # tmux-continuum only autosaves while a client is attached (its save hook
+    # rides the status-bar redraw), so a long detached stretch before a reboot
+    # loses everything since the last attached save. This user timer saves on a
+    # schedule regardless of attachment. Units ship with the tmux stow package.
+    if ! command -v systemctl &>/dev/null; then
+        return
+    fi
+    log "Enabling tmux-resurrect autosave timer (systemd --user)..."
+    systemctl --user daemon-reload 2>/dev/null || true
+    if systemctl --user enable --now tmux-resurrect-save.timer 2>/dev/null; then
+        ok "tmux-resurrect-save.timer enabled"
+    else
+        warn "Could not enable tmux-resurrect-save.timer (no user systemd session?)"
+    fi
+    # Keep the timer running even with no active login session.
+    loginctl enable-linger "$USER" 2>/dev/null || true
+}
+
 # =============================================================================
 # Patch ~/.bashrc
 # =============================================================================
@@ -418,6 +437,7 @@ install_tpm
 install_yazi
 install_zoxide
 stow_packages
+enable_tmux_resurrect_timer
 patch_bashrc
 create_notes_vault
 install_nvim_plugins
