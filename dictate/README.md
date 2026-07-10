@@ -11,8 +11,8 @@ local, zero elevated privilege.
 - Runs entirely in userspace — no sudo, no groups, no `/dev/*` access. tmux owns the pane's pty, so writing to it is
   ordinary I/O.
 - Daemonless: each press is a short-lived invocation. The mic is open only between toggle-on and toggle-off.
-- Feedback: a red `● REC` badge shows in the tmux status bar while recording (a `@dictate` segment in the tmux
-  package's `status-left`); it clears the moment you toggle off.
+- Feedback: a red `● REC` badge shows in the tmux status bar while recording (a fixed-width `@dictate` slot at the far
+  right of the tmux package's `status-right`, so no other content shifts); it clears the moment you toggle off.
 
 ## Targeting
 

@@ -59,7 +59,7 @@ def log(*a):
 
 
 def set_rec(text):
-    # red "● REC" badge in the tmux status bar (status-left reads @dictate)
+    # red "● REC" badge in the tmux status bar (fixed-width @dictate slot in status-right)
     tmux("set", "-g", "@dictate", text) if text else tmux("set", "-gu", "@dictate")
     tmux("refresh-client", "-S")
 
