@@ -9,7 +9,13 @@ dictate — toggle-key local speech-to-text into tmux, CPU-only.
 A GNOME shortcut runs `dictate --toggle`: first press records the mic, second
 press transcribes locally with faster-whisper and types the text into your
 active tmux pane via `tmux send-keys`. Runs entirely in userspace — no sudo, no
-groups, no device access. The mic opens only while recording; daemonless.
+groups, no device access. The mic opens only while recording.
+
+Transcription runs in a lazy model server: the first dictation spawns a
+background `dictate --serve` that loads the model once and keeps it resident, so
+later dictations skip the ~1 s model-load. The server self-exits after
+DICTATE_IDLE seconds of inactivity to free its RAM. If it can't be reached, the
+toggle falls back to loading the model in-process.
 
 Targeting: the transcript goes to the pane you're focused on if it runs Claude,
 otherwise a `claude` pane in your current session, otherwise the most-recent
@@ -22,17 +28,19 @@ Setup:
 Commands:
   dictate --toggle       start/stop (bind this to a key)
   dictate --target       print the pane the transcript would go to
-  dictate --check        verify parec + tmux
+  dictate --check        verify parec + tmux, report server state
   dictate --test         record N s and print transcript
+  dictate --serve        run the model server (spawned automatically; rarely by hand)
+  dictate --serve-stop   stop a running model server (e.g. to pick up new config)
   dictate --install-shortcut [KEYS...]   default: <Super>backslash + <Super>z
 
 Config (env, all optional):
   DICTATE_MODEL small.en · DICTATE_COMPUTE int8 · DICTATE_LANG en
   DICTATE_SOURCE (mic) · DICTATE_PROMPT (bias) · DICTATE_BEAM 1
-  DICTATE_LATENCY 50 · DICTATE_TEST_SECS 5
+  DICTATE_LATENCY 50 · DICTATE_TEST_SECS 5 · DICTATE_IDLE 300
   DICTATE_TMUX_CMD claude · DICTATE_TMUX_TARGET (force a pane)
 """
-import os, sys, time, signal, shutil, subprocess
+import os, sys, time, signal, shutil, socket, subprocess
 
 MODEL     = os.environ.get("DICTATE_MODEL", "small.en")
 COMPUTE   = os.environ.get("DICTATE_COMPUTE", "int8")
@@ -52,6 +60,11 @@ RATE = 16000  # Whisper wants 16 kHz mono
 RUNTIME  = os.environ.get("XDG_RUNTIME_DIR") or f"/tmp/dictate-{os.getuid()}"
 PCM_FILE = os.path.join(RUNTIME, "dictate.pcm")
 PID_FILE = os.path.join(RUNTIME, "dictate.pid")
+SOCK_FILE = os.path.join(RUNTIME, "dictate.sock")     # model-server socket
+SRV_PID  = os.path.join(RUNTIME, "dictate-serve.pid")
+IDLE     = float(os.environ.get("DICTATE_IDLE", "300"))  # server self-exits after this idle
+CHUNK    = 65536
+MIN_PCM  = int(RATE * 2 * 0.3)                         # < 0.3 s = stray tap, not speech
 
 
 def log(*a):
@@ -138,7 +151,7 @@ def load_model():
 
 
 def transcribe(model, np, pcm):
-    if len(pcm) < RATE * 2 * 0.3:  # < 0.3 s of audio
+    if len(pcm) < MIN_PCM:  # < 0.3 s of audio
         return ""
     audio = np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768.0
     # condition_on_previous_text=False + vad_filter are the anti-hallucination
@@ -149,6 +162,123 @@ def transcribe(model, np, pcm):
     )
     text = "".join(s.text for s in segments)
     return " ".join(text.split())  # collapse whitespace/newlines (never send Enter)
+
+
+# ---- lazy model server (spawned on first use, self-exits when idle) ------
+# The client (toggle-off) ships raw PCM over a Unix socket and reads back text,
+# so it never imports faster-whisper. Connecting only succeeds once the server
+# has finished loading the model — that doubles as the readiness signal.
+def server_up():
+    """True if a live server currently owns the socket."""
+    try:
+        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        s.settimeout(1.0)
+        s.connect(SOCK_FILE)
+        s.close()
+        return True
+    except OSError:
+        return False
+
+
+def serve():
+    """Load the model once, then transcribe PCM sent over SOCK_FILE until idle."""
+    os.makedirs(RUNTIME, exist_ok=True)
+    if server_up():
+        log("server already running; exiting"); return
+    if os.path.exists(SOCK_FILE):
+        try: os.remove(SOCK_FILE)          # stale socket left by a crashed server
+        except OSError: pass
+    model, np = load_model()               # the expensive bit — paid once, here
+    srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    try:
+        srv.bind(SOCK_FILE)                # binding only now => connect == ready
+    except OSError as e:                   # e.g. a racing server bound first
+        log(f"bind failed ({e}) — exiting"); return
+    srv.listen(8)
+    srv.settimeout(IDLE)
+    open(SRV_PID, "w").write(str(os.getpid()))
+
+    def _bye(*_):
+        for p in (SOCK_FILE, SRV_PID):
+            try: os.remove(p)
+            except OSError: pass
+        sys.exit(0)
+    signal.signal(signal.SIGTERM, _bye)
+    signal.signal(signal.SIGINT, _bye)
+
+    log(f"● serving on {SOCK_FILE} (idle-exit {IDLE:.0f}s)")
+    try:
+        while True:
+            try:
+                conn, _ = srv.accept()
+            except socket.timeout:
+                log("idle — exiting"); break
+            try:                                     # one bad client must not kill the server
+                conn.settimeout(30)
+                with conn:
+                    pcm = bytearray()
+                    while (chunk := conn.recv(CHUNK)):   # client half-closes to signal EOF
+                        pcm += chunk
+                    if not pcm:                      # liveness probe (e.g. --check): nothing to send
+                        continue
+                    t0 = time.time()
+                    text = transcribe(model, np, bytes(pcm))
+                    log(f"{len(pcm)/(RATE*2):.1f}s -> {text!r} in {time.time()-t0:.2f}s")
+                    conn.sendall(text.encode("utf-8"))
+            except OSError as e:
+                log(f"client error ({e}); continuing")
+    finally:
+        _bye()
+
+
+def spawn_server():
+    exe = os.path.realpath(shutil.which("dictate") or sys.argv[0])
+    subprocess.Popen([exe, "--serve"], stdout=subprocess.DEVNULL,
+                     stderr=subprocess.DEVNULL, start_new_session=True)
+
+
+def _connect():
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    s.connect(SOCK_FILE)                   # raises OSError if no server is listening
+    return s
+
+
+def transcribe_via_server(pcm):
+    """Send PCM to the server (spawning it if needed) and return the text.
+    Returns None if the server can't be reached, so the caller can fall back.
+    A single connection carries both the check and the request: try to connect,
+    and only spawn a server if that fails — no separate liveness probe."""
+    try:
+        s = _connect()
+    except OSError:
+        log("no server — spawning one (this first dictation warms the model)…")
+        spawn_server()
+        s = None
+        deadline = time.time() + 20        # cold start: model load + bind
+        while time.time() < deadline:
+            try:
+                s = _connect(); break
+            except OSError:
+                time.sleep(0.1)
+    if s is None:
+        return None
+    s.settimeout(60)
+    with s:
+        s.sendall(pcm)
+        s.shutdown(socket.SHUT_WR)         # EOF tells the server the clip is complete
+        buf = bytearray()
+        while (chunk := s.recv(CHUNK)):
+            buf += chunk
+    return buf.decode("utf-8")
+
+
+def serve_stop():
+    try:
+        pid = int(open(SRV_PID).read().strip())
+        os.kill(pid, signal.SIGTERM)
+        log(f"stopped model server (pid {pid})")
+    except (OSError, ValueError):
+        log("no running model server")
 
 
 # ---- recording (detached parec -> temp file; daemonless toggle state) ----
@@ -202,9 +332,16 @@ def stop_and_send(pid):
     except OSError:
         pcm = b""
     cleanup()
+    if len(pcm) < MIN_PCM:                       # stray tap — don't wake the server
+        log("(no speech)"); flash("no speech"); return
     log(f"■ captured {len(pcm)/(RATE*2):.1f}s, transcribing…")
-    model, np = load_model()
-    text = transcribe(model, np, pcm)
+    try:
+        text = transcribe_via_server(pcm)
+    except Exception as e:
+        log(f"server path failed ({e!r}); using in-process"); text = None
+    if text is None:                             # server unreachable → in-process
+        model, np = load_model()
+        text = transcribe(model, np, pcm)
     if not text:
         log("(no speech)"); flash("no speech"); return
     target, lbl = resolve_target()
@@ -258,6 +395,7 @@ def check():
         log("tmux has no panes — start tmux first."); sys.exit(1)
     _, lbl = resolve_target()
     log(f"OK — parec + tmux present. Transcript would go to: {lbl}")
+    log(f"model server: {'up' if server_up() else 'down (spawns on first dictation)'}")
 
 
 def self_test():
@@ -286,8 +424,9 @@ USAGE = """dictate — toggle-key local speech-to-text into tmux (CPU, zero priv
   dictate --toggle                     start/stop (bind this to a key)
   dictate --target                     show which pane the transcript goes to
   dictate --install-shortcut [KEYS…]   bind GNOME keys (default <Super>backslash + <Super>z)
-  dictate --check                      verify parec + tmux
+  dictate --check                      verify parec + tmux, report server state
   dictate --test                       record & print a transcript
+  dictate --serve-stop                 stop the model server (to pick up new config)
 
 Docs: ~/dotfiles/dictate/README.md
 """
@@ -301,6 +440,10 @@ def main():
         require("tmux"); print(resolve_target()[1] or "(no tmux target found)")
     elif arg == "--test":
         self_test()
+    elif arg == "--serve":
+        serve()
+    elif arg == "--serve-stop":
+        serve_stop()
     elif arg == "--check":
         check()
     elif arg == "--install-shortcut":

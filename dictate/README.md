@@ -6,11 +6,16 @@ local, zero elevated privilege.
 
 ## How it works
 
-- A GNOME custom shortcut runs `dictate --toggle`. First press records the mic via `parec`; second press transcribes
-  with faster-whisper and injects the text with `tmux send-keys`.
+- A GNOME custom shortcut runs `dictate --toggle`. First press records the mic via `parec`; second press ships the
+  clip to a local model server for transcription and injects the text with `tmux send-keys`.
 - Runs entirely in userspace — no sudo, no groups, no `/dev/*` access. tmux owns the pane's pty, so writing to it is
   ordinary I/O.
-- Daemonless: each press is a short-lived invocation. The mic is open only between toggle-on and toggle-off.
+- **Lazy model server:** the first dictation spawns a background `dictate --serve` that loads faster-whisper once and
+  keeps it resident, listening on a Unix socket in `$XDG_RUNTIME_DIR`. Later dictations reuse it and skip the ~1 s
+  model-load — the toggle just streams PCM in and reads text back, so it never imports faster-whisper itself. The
+  server self-exits after `DICTATE_IDLE` seconds of inactivity to free its RAM (~0.5–1 GB), and respawns on the next
+  dictation. If the server can't be reached, the toggle falls back to loading the model in-process, so dictation always
+  works. The mic is open only between toggle-on and toggle-off.
 - Feedback: a small status dot sits at the far right of the tmux package's `status-right` — grey when idle, red while
   recording (a fixed-width `@dictate` slot, so no other content ever shifts).
 
@@ -37,7 +42,11 @@ dictate --check               # verify parec + tmux, and show the target pane
 dictate --toggle              # start/stop (this is what the shortcut runs)
 dictate --target              # show which pane the transcript goes to
 dictate --test                # record 5 s and print the transcript
+dictate --serve-stop          # stop the model server (e.g. to pick up new config)
 ```
+
+The server picks up its config (model, prompt, etc.) at spawn time, so after changing a `DICTATE_*` env var run
+`dictate --serve-stop` (or wait for the idle timeout) so the next dictation starts a fresh server.
 
 Dictated newlines are collapsed to spaces, so speech never submits a prompt — you press Enter yourself.
 
@@ -47,6 +56,7 @@ Dictated newlines are collapsed to spaces, so speech never submits a prompt — 
 | --------------------- | -------------- | -------------------------------------------- |
 | `DICTATE_MODEL`       | `small.en`     | see models below                             |
 | `DICTATE_COMPUTE`     | `int8`         | ctranslate2 compute type                     |
+| `DICTATE_IDLE`        | `300`          | seconds before the model server self-exits   |
 | `DICTATE_LANG`        | `en`           | language                                     |
 | `DICTATE_SOURCE`      | system default | PipeWire/Pulse source name                   |
 | `DICTATE_PROMPT`      | coding terms   | `initial_prompt` to bias vocabulary          |
