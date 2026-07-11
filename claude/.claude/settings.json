@@ -142,10 +142,9 @@
   },
   "enabledPlugins": {
     "gopls-lsp@claude-plugins-official": true,
-    "pyright-lsp@claude-plugins-official": true
+    "pyright-lsp@claude-plugins-official": true,
+    "notion-workspace-plugin@notion-plugin-marketplace": true
   },
-  "effortLevel": "xhigh",
-  "skipAutoPermissionPrompt": true,
   "extraKnownMarketplaces": {
     "notion-plugin-marketplace": {
       "source": {
@@ -153,5 +152,33 @@
         "repo": "makenotion/claude-code-notion-plugin"
       }
     }
+  },
+  "effortLevel": "xhigh",
+  "skipAutoPermissionPrompt": true,
+  "permissions": {
+    "allow": [
+      "mcp__plugin_Notion_notion__notion-search",
+      "mcp__plugin_Notion_notion__notion-fetch",
+      "mcp__plugin_Notion_notion__notion-download-attachment",
+      "mcp__plugin_Notion_notion__notion-get-comments",
+      "mcp__plugin_Notion_notion__notion-get-async-task",
+      "mcp__plugin_Notion_notion__notion-get-teams",
+      "mcp__plugin_Notion_notion__notion-get-users",
+      "mcp__plugin_Notion_notion__notion-query-data-sources",
+      "mcp__plugin_Notion_notion__notion-query-database-view",
+      "mcp__plugin_Notion_notion__notion-query-meeting-notes"
+    ],
+    "deny": [
+      "mcp__plugin_Notion_notion__notion-create-pages",
+      "mcp__plugin_Notion_notion__notion-update-page",
+      "mcp__plugin_Notion_notion__notion-move-pages",
+      "mcp__plugin_Notion_notion__notion-duplicate-page",
+      "mcp__plugin_Notion_notion__notion-create-database",
+      "mcp__plugin_Notion_notion__notion-update-data-source",
+      "mcp__plugin_Notion_notion__notion-create-comment",
+      "mcp__plugin_Notion_notion__notion-create-attachment",
+      "mcp__plugin_Notion_notion__notion-create-view",
+      "mcp__plugin_Notion_notion__notion-update-view"
+    ]
   }
 }
