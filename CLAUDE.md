@@ -35,6 +35,17 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
 - `bootstrap.sh` must be idempotent (safe to re-run)
 - Keep lists alphabetically sorted (stow packages, apt packages, pinned versions, bootstrap calls, docs)
 
+## Deploy
+
+When I say "deploy": **first commit and push, then make it live** on the running system.
+
+1. **Commit & push** to `main` (run the secrets audit first).
+2. **Make it live:**
+   - **tmux** (`tmux/.tmux.conf`): `tmux source-file ~/.tmux.conf`. One server is shared by all sessions, so a single reload updates every existing session at once.
+   - **Stowed scripts** (symlinks — `dictate/`, `bash/`, etc.): live the moment the repo file is saved; no step needed.
+   - **New stow package or file**: `cd ~/dotfiles && stow <pkg>`, then reload the relevant tool.
+3. Always list any steps I must run by hand — things that can't be scripted (re-login, `gsettings`/GNOME shortcut install, `systemctl --user …`, opening a fresh shell).
+
 ## Commits
 
 - Do not add `Co-Authored-By` lines to commit messages
