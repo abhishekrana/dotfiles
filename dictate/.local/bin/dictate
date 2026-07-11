@@ -149,6 +149,15 @@ def send_to_tmux(target, text):
     return tmux("send-keys", "-t", target, "-l", "--", text).returncode == 0
 
 
+def send_enter():
+    # mouse "⏎ submit": press Enter in the pane a transcript would go to.
+    target, lbl = resolve_target()
+    if not target:
+        log("no tmux pane found"); flash("no pane to submit"); return
+    tmux("send-keys", "-t", target, "Enter")
+    log(f"⏎ → {lbl}")
+
+
 # ---- transcription -------------------------------------------------------
 def load_model():
     log(f"loading model {MODEL!r} (first run downloads it)…")
@@ -513,6 +522,8 @@ def main():
         toggle()
     elif arg == "--target":
         require("tmux"); print(resolve_target()[1] or "(no tmux target found)")
+    elif arg == "--send":
+        require("tmux"); send_enter()
     elif arg == "--test":
         self_test()
     elif arg == "--serve":

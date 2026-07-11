@@ -20,7 +20,8 @@ local, zero elevated privilege.
   `DICTATE_SILENCE` seconds of trailing silence (only once you've actually spoken), or the `DICTATE_MAXSECS` cap. A
   second press still stops early; set `DICTATE_SILENCE=0` for manual-only.
 - Feedback & mouse control: a clickable `● dictate` segment sits dead-centre in the tmux status bar — grey idle, red
-  recording, amber transcribing. Click it to toggle, same as the key. Same width in every state, so nothing shifts.
+  recording, amber transcribing. Click it to toggle, same as the key. Same width in every state, so nothing shifts. A
+  `⏎` button beside it submits — it presses Enter in the pane the transcript went to, so the whole loop is mouse-only.
 
 ## Targeting
 
@@ -51,7 +52,8 @@ dictate --serve-stop          # stop the model server (e.g. to pick up new confi
 The server picks up its config (model, prompt, etc.) at spawn time, so after changing a `DICTATE_*` env var run
 `dictate --serve-stop` (or wait for the idle timeout) so the next dictation starts a fresh server.
 
-Dictated newlines are collapsed to spaces, so speech never submits a prompt — you press Enter yourself.
+Dictated newlines are collapsed to spaces, so speech never submits a prompt — you press Enter yourself (or click the
+`⏎` button in the status bar).
 
 ## Config (env vars)
 
