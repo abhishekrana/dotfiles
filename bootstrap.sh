@@ -133,11 +133,22 @@ install_gitmux() {
 install_hunk() {
     if [ -x "$LOCAL_BIN/hunk" ] && "$LOCAL_BIN/hunk" --version 2>/dev/null | grep -q "$HUNK_VERSION"; then
         ok "hunk $HUNK_VERSION already installed"
-        return
+    else
+        log "Installing hunk $HUNK_VERSION..."
+        npm install -g --prefix "$HOME/.local" "hunkdiff@$HUNK_VERSION"
+        ok "hunk $HUNK_VERSION installed"
     fi
-    log "Installing hunk $HUNK_VERSION..."
-    npm install -g --prefix "$HOME/.local" "hunkdiff@$HUNK_VERSION"
-    ok "hunk $HUNK_VERSION installed"
+
+    # Expose hunk's bundled Claude Code review skill as a user skill, so agents
+    # can drive a live hunk review session. Symlinked (not copied) so it tracks
+    # the installed hunk version. Runs on every bootstrap, install or not.
+    local skill_md
+    skill_md="$("$LOCAL_BIN/hunk" skill path 2>/dev/null)" || return 0
+    if [ -f "$skill_md" ]; then
+        mkdir -p "$HOME/.claude/skills"
+        ln -sfn "$(dirname "$skill_md")" "$HOME/.claude/skills/hunk-review"
+        ok "hunk-review Claude skill linked"
+    fi
 }
 
 install_lazydocker() {
