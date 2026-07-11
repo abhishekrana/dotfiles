@@ -144,6 +144,14 @@
     "gopls-lsp@claude-plugins-official": true,
     "pyright-lsp@claude-plugins-official": true
   },
+  "effortLevel": "xhigh",
   "skipAutoPermissionPrompt": true,
-  "effortLevel": "xhigh"
+  "extraKnownMarketplaces": {
+    "notion-plugin-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "makenotion/claude-code-notion-plugin"
+      }
+    }
+  }
 }
