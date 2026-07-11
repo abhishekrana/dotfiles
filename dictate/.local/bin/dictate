@@ -71,9 +71,12 @@ def log(*a):
     print("[dictate]", *a, file=sys.stderr, flush=True)
 
 
-def set_rec(on):
-    # flips the status-right dot grey->red (a fixed-width @dictate slot in the tmux status bar)
-    tmux("set", "-g", "@dictate", "1") if on else tmux("set", "-gu", "@dictate")
+def set_state(state):
+    # drives the centred @dictate status segment: "rec" (red) | "work" (amber) | "" idle (grey)
+    if state:
+        tmux("set", "-g", "@dictate", state)
+    else:
+        tmux("set", "-gu", "@dictate")
     tmux("refresh-client", "-S")
 
 
@@ -315,42 +318,45 @@ def start_recording():
     p = subprocess.Popen(parec_cmd(), stdout=f, stderr=subprocess.DEVNULL,
                          start_new_session=True)  # survives this short-lived process
     open(PID_FILE, "w").write(str(p.pid))
-    set_rec(True)
+    set_state("rec")
     log("● recording (toggle again to stop)")
 
 
 def stop_and_send(pid):
-    set_rec(False)                             # back to the grey idle dot immediately on toggle-off
+    set_state("work")                          # amber: mic stopping, then transcribing
     os.kill(pid, signal.SIGTERM)
-    for _ in range(50):                        # wait up to ~1s for parec to exit & flush
+    try:
+        for _ in range(50):                    # wait up to ~1s for parec to exit & flush
+            try:
+                os.kill(pid, 0); time.sleep(0.02)
+            except ProcessLookupError:
+                break
         try:
-            os.kill(pid, 0); time.sleep(0.02)
-        except ProcessLookupError:
-            break
-    try:
-        pcm = open(PCM_FILE, "rb").read()
-    except OSError:
-        pcm = b""
-    cleanup()
-    if len(pcm) < MIN_PCM:                       # stray tap — don't wake the server
-        log("(no speech)"); flash("no speech"); return
-    log(f"■ captured {len(pcm)/(RATE*2):.1f}s, transcribing…")
-    try:
-        text = transcribe_via_server(pcm)
-    except Exception as e:
-        log(f"server path failed ({e!r}); using in-process"); text = None
-    if text is None:                             # server unreachable → in-process
-        model, np = load_model()
-        text = transcribe(model, np, pcm)
-    if not text:
-        log("(no speech)"); flash("no speech"); return
-    target, lbl = resolve_target()
-    if not target:
-        log(f"no tmux pane found; transcript: {text!r}")
-        flash("no tmux pane found"); return
-    log(f"→ {lbl}: {text!r}")
-    if not send_to_tmux(target, text):
-        log("tmux send-keys failed"); flash("send-keys failed")
+            pcm = open(PCM_FILE, "rb").read()
+        except OSError:
+            pcm = b""
+        cleanup()
+        if len(pcm) < MIN_PCM:                    # stray tap — don't wake the server
+            log("(no speech)"); flash("no speech"); return
+        log(f"■ captured {len(pcm)/(RATE*2):.1f}s, transcribing…")
+        try:
+            text = transcribe_via_server(pcm)
+        except Exception as e:
+            log(f"server path failed ({e!r}); using in-process"); text = None
+        if text is None:                          # server unreachable → in-process
+            model, np = load_model()
+            text = transcribe(model, np, pcm)
+        if not text:
+            log("(no speech)"); flash("no speech"); return
+        target, lbl = resolve_target()
+        if not target:
+            log(f"no tmux pane found; transcript: {text!r}")
+            flash("no tmux pane found"); return
+        log(f"→ {lbl}: {text!r}")
+        if not send_to_tmux(target, text):
+            log("tmux send-keys failed"); flash("send-keys failed")
+    finally:
+        set_state("")                          # back to idle grey, whatever happened
 
 
 def toggle():

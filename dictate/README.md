@@ -16,8 +16,8 @@ local, zero elevated privilege.
   server self-exits after `DICTATE_IDLE` seconds of inactivity to free its RAM (~0.5–1 GB), and respawns on the next
   dictation. If the server can't be reached, the toggle falls back to loading the model in-process, so dictation always
   works. The mic is open only between toggle-on and toggle-off.
-- Feedback: a small status dot sits at the far right of the tmux package's `status-right` — grey when idle, red while
-  recording (a fixed-width `@dictate` slot, so no other content ever shifts).
+- Feedback & mouse control: a clickable `● dictate` segment sits dead-centre in the tmux status bar — grey idle, red
+  recording, amber transcribing. Click it to toggle, same as the key. Same width in every state, so nothing shifts.
 
 ## Targeting
 
