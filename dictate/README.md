@@ -16,6 +16,9 @@ local, zero elevated privilege.
   server self-exits after `DICTATE_IDLE` seconds of inactivity to free its RAM (~0.5–1 GB), and respawns on the next
   dictation. If the server can't be reached, the toggle falls back to loading the model in-process, so dictation always
   works. The mic is open only between toggle-on and toggle-off.
+- **Auto-stop on silence:** while recording, a background `dictate --watch` samples the audio and stops for you after
+  `DICTATE_SILENCE` seconds of trailing silence (only once you've actually spoken), or the `DICTATE_MAXSECS` cap. A
+  second press still stops early; set `DICTATE_SILENCE=0` for manual-only.
 - Feedback & mouse control: a clickable `● dictate` segment sits dead-centre in the tmux status bar — grey idle, red
   recording, amber transcribing. Click it to toggle, same as the key. Same width in every state, so nothing shifts.
 
@@ -52,19 +55,22 @@ Dictated newlines are collapsed to spaces, so speech never submits a prompt — 
 
 ## Config (env vars)
 
-| Var                   | Default        | Notes                                        |
-| --------------------- | -------------- | -------------------------------------------- |
-| `DICTATE_MODEL`       | `small.en`     | see models below                             |
-| `DICTATE_COMPUTE`     | `int8`         | ctranslate2 compute type                     |
-| `DICTATE_IDLE`        | `300`          | seconds before the model server self-exits   |
-| `DICTATE_LANG`        | `en`           | language                                     |
-| `DICTATE_SOURCE`      | system default | PipeWire/Pulse source name                   |
-| `DICTATE_PROMPT`      | coding terms   | `initial_prompt` to bias vocabulary          |
-| `DICTATE_BEAM`        | `1`            | beam size (1 = fast, 5 = more accurate)      |
-| `DICTATE_LATENCY`     | `50`           | `parec` latency ms (low = flush promptly)    |
-| `DICTATE_TMUX_CMD`    | `claude`       | pane command treated as the target app       |
-| `DICTATE_TMUX_TARGET` | _(unset)_      | force a pane (pane id or `session:win.pane`) |
-| `DICTATE_TEST_SECS`   | `5`            | seconds recorded by `--test`                 |
+| Var                   | Default        | Notes                                                       |
+| --------------------- | -------------- | ----------------------------------------------------------- |
+| `DICTATE_MODEL`       | `small.en`     | see models below                                            |
+| `DICTATE_COMPUTE`     | `int8`         | ctranslate2 compute type                                    |
+| `DICTATE_IDLE`        | `300`          | seconds before the model server self-exits                  |
+| `DICTATE_LANG`        | `en`           | language                                                    |
+| `DICTATE_SOURCE`      | system default | PipeWire/Pulse source name                                  |
+| `DICTATE_PROMPT`      | coding terms   | `initial_prompt` to bias vocabulary                         |
+| `DICTATE_BEAM`        | `1`            | beam size (1 = fast, 5 = more accurate)                     |
+| `DICTATE_LATENCY`     | `50`           | `parec` latency ms (low = flush promptly)                   |
+| `DICTATE_SILENCE`     | `2.0`          | auto-stop after this much trailing silence (`0` = off)      |
+| `DICTATE_MAXSECS`     | `120`          | hard cap on a single recording                              |
+| `DICTATE_VAD_RMS`     | `300`          | int16 RMS above which audio counts as speech (tune per mic) |
+| `DICTATE_TMUX_CMD`    | `claude`       | pane command treated as the target app                      |
+| `DICTATE_TMUX_TARGET` | _(unset)_      | force a pane (pane id or `session:win.pane`)                |
+| `DICTATE_TEST_SECS`   | `5`            | seconds recorded by `--test`                                |
 
 Put per-machine overrides in `~/.bashrc.d/local.bash` (untracked), e.g. `export DICTATE_SOURCE=...`.
 

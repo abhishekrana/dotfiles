@@ -9,7 +9,9 @@ dictate — toggle-key local speech-to-text into tmux, CPU-only.
 A GNOME shortcut runs `dictate --toggle`: first press records the mic, second
 press transcribes locally with faster-whisper and types the text into your
 active tmux pane via `tmux send-keys`. Runs entirely in userspace — no sudo, no
-groups, no device access. The mic opens only while recording.
+groups, no device access. The mic opens only while recording. Recording also
+auto-stops after DICTATE_SILENCE seconds of trailing silence (or the DICTATE_MAXSECS
+cap), so a second press is optional; set DICTATE_SILENCE=0 for manual-only.
 
 Transcription runs in a lazy model server: the first dictation spawns a
 background `dictate --serve` that loads the model once and keeps it resident, so
@@ -38,6 +40,7 @@ Config (env, all optional):
   DICTATE_MODEL small.en · DICTATE_COMPUTE int8 · DICTATE_LANG en
   DICTATE_SOURCE (mic) · DICTATE_PROMPT (bias) · DICTATE_BEAM 1
   DICTATE_LATENCY 50 · DICTATE_TEST_SECS 5 · DICTATE_IDLE 300
+  DICTATE_SILENCE 2.0 · DICTATE_MAXSECS 120 · DICTATE_VAD_RMS 300
   DICTATE_TMUX_CMD claude · DICTATE_TMUX_TARGET (force a pane)
 """
 import os, sys, time, signal, shutil, socket, subprocess
@@ -62,7 +65,11 @@ PCM_FILE = os.path.join(RUNTIME, "dictate.pcm")
 PID_FILE = os.path.join(RUNTIME, "dictate.pid")
 SOCK_FILE = os.path.join(RUNTIME, "dictate.sock")     # model-server socket
 SRV_PID  = os.path.join(RUNTIME, "dictate-serve.pid")
+WATCH_PID = os.path.join(RUNTIME, "dictate-watch.pid")
 IDLE     = float(os.environ.get("DICTATE_IDLE", "300"))  # server self-exits after this idle
+SILENCE  = float(os.environ.get("DICTATE_SILENCE", "2.0"))  # auto-stop after this much trailing silence (0 = off)
+MAXSECS  = float(os.environ.get("DICTATE_MAXSECS", "120"))  # hard cap on one recording
+VAD_RMS  = float(os.environ.get("DICTATE_VAD_RMS", "300"))  # int16 RMS above this counts as speech
 CHUNK    = 65536
 MIN_PCM  = int(RATE * 2 * 0.3)                         # < 0.3 s = stray tap, not speech
 
@@ -294,7 +301,7 @@ def parec_cmd():
 
 
 def cleanup():
-    for p in (PID_FILE, PCM_FILE):
+    for p in (PID_FILE, PCM_FILE, WATCH_PID):
         try:
             os.remove(p)
         except OSError:
@@ -319,12 +326,21 @@ def start_recording():
                          start_new_session=True)  # survives this short-lived process
     open(PID_FILE, "w").write(str(p.pid))
     set_state("rec")
-    log("● recording (toggle again to stop)")
+    if SILENCE > 0:                            # spawn the silence watcher (auto-stop)
+        exe = os.path.realpath(shutil.which("dictate") or sys.argv[0])
+        subprocess.Popen([exe, "--watch", str(p.pid)], stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL, start_new_session=True)
+        log(f"● recording (auto-stops after {SILENCE:.0f}s silence; toggle to stop)")
+    else:
+        log("● recording (toggle again to stop)")
 
 
 def stop_and_send(pid):
     set_state("work")                          # amber: mic stopping, then transcribing
-    os.kill(pid, signal.SIGTERM)
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass
     try:
         for _ in range(50):                    # wait up to ~1s for parec to exit & flush
             try:
@@ -359,10 +375,63 @@ def stop_and_send(pid):
         set_state("")                          # back to idle grey, whatever happened
 
 
+# ---- silence watcher (auto-stop) -----------------------------------------
+def watch_pid():
+    try:
+        wpid = int(open(WATCH_PID).read().strip())
+        if "--watch" in open(f"/proc/{wpid}/cmdline").read():
+            return wpid
+    except (OSError, ValueError):
+        pass
+    return None
+
+
+def watch(pid):
+    """Auto-stop the parec recording after trailing silence (post-speech) or the cap."""
+    import numpy as np
+    open(WATCH_PID, "w").write(str(os.getpid()))
+    stop = []
+    signal.signal(signal.SIGTERM, lambda *_: stop.append(1))   # manual toggle-stop
+    signal.signal(signal.SIGINT, lambda *_: stop.append(1))
+    start = last_voice = time.time()
+    voiced = False
+    posn = 0
+    try:
+        while not stop:
+            time.sleep(0.15)
+            try:
+                alive = open(f"/proc/{pid}/comm").read().strip() == "parec"
+            except OSError:
+                alive = False
+            if not alive:
+                break                          # parec ended/crashed — finalise what we have
+            try:
+                with open(PCM_FILE, "rb") as fh:
+                    fh.seek(posn); data = fh.read(); posn = fh.tell()
+            except OSError:
+                data = b""
+            n = len(data) // 2 * 2
+            if n and np.sqrt(np.mean(np.frombuffer(data[:n], dtype=np.int16).astype(np.float32) ** 2)) >= VAD_RMS:
+                voiced = True; last_voice = time.time()
+            now = time.time()
+            if (voiced and now - last_voice >= SILENCE) or (now - start >= MAXSECS):
+                break
+        stop_and_send(pid)
+    finally:
+        try: os.remove(WATCH_PID)
+        except OSError: pass
+
+
 def toggle():
     require("parec")
     pid = recording_pid()
-    (stop_and_send(pid) if pid else start_recording())
+    if not pid:
+        start_recording(); return
+    wpid = watch_pid()
+    if wpid:
+        os.kill(wpid, signal.SIGTERM)          # let the watcher finalise (one stopper, no double-send)
+    else:
+        stop_and_send(pid)
 
 
 # ---- GNOME custom shortcut (user-level, no sudo) -------------------------
@@ -450,6 +519,8 @@ def main():
         serve()
     elif arg == "--serve-stop":
         serve_stop()
+    elif arg == "--watch":
+        watch(int(sys.argv[2]))
     elif arg == "--check":
         check()
     elif arg == "--install-shortcut":
