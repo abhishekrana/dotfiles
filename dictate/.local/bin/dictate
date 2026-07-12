@@ -9,7 +9,9 @@ dictate — toggle-key local speech-to-text into tmux, CPU-only.
 A GNOME shortcut runs `dictate --toggle`: first press records the mic, second
 press transcribes locally with faster-whisper and types the text into your
 active tmux pane via `tmux send-keys`. Runs entirely in userspace — no sudo, no
-groups, no device access. The mic opens only while recording. Recording also
+groups, no device access. The mic opens only while recording, during which other
+audio output is muted so the mic can't pick up your speakers (DICTATE_DUCK=0 to
+disable). Recording also
 auto-stops after DICTATE_SILENCE seconds of trailing silence (or the DICTATE_MAXSECS
 cap), so a second press is optional; set DICTATE_SILENCE=0 for manual-only.
 
@@ -40,7 +42,7 @@ Config (env, all optional):
   DICTATE_MODEL small.en · DICTATE_COMPUTE int8 · DICTATE_LANG en
   DICTATE_SOURCE (mic) · DICTATE_PROMPT (bias) · DICTATE_BEAM 1
   DICTATE_LATENCY 50 · DICTATE_TEST_SECS 5 · DICTATE_IDLE 300
-  DICTATE_SILENCE 2.0 · DICTATE_MAXSECS 120 · DICTATE_VAD_RMS 300
+  DICTATE_SILENCE 2.0 · DICTATE_MAXSECS 120 · DICTATE_VAD_RMS 300 · DICTATE_DUCK 1
   DICTATE_TMUX_CMD claude · DICTATE_TMUX_TARGET (force a pane)
 """
 import os, sys, time, signal, shutil, socket, subprocess
@@ -66,10 +68,12 @@ PID_FILE = os.path.join(RUNTIME, "dictate.pid")
 SOCK_FILE = os.path.join(RUNTIME, "dictate.sock")     # model-server socket
 SRV_PID  = os.path.join(RUNTIME, "dictate-serve.pid")
 WATCH_PID = os.path.join(RUNTIME, "dictate-watch.pid")
+DUCK_FILE = os.path.join(RUNTIME, "dictate-duck")     # pre-mute sink state, held while recording
 IDLE     = float(os.environ.get("DICTATE_IDLE", "300"))  # server self-exits after this idle
 SILENCE  = float(os.environ.get("DICTATE_SILENCE", "2.0"))  # auto-stop after this much trailing silence (0 = off)
 MAXSECS  = float(os.environ.get("DICTATE_MAXSECS", "120"))  # hard cap on one recording
 VAD_RMS  = float(os.environ.get("DICTATE_VAD_RMS", "300"))  # int16 RMS above this counts as speech
+DUCK     = os.environ.get("DICTATE_DUCK", "1").strip().lower()  # mute other audio while recording (0/off = don't)
 CHUNK    = 65536
 MIN_PCM  = int(RATE * 2 * 0.3)                         # < 0.3 s = stray tap, not speech
 
@@ -309,6 +313,41 @@ def parec_cmd():
     return cmd
 
 
+# ---- duck other audio while recording (mute default sink, restore on stop) ----
+def _pactl(*args):
+    try:
+        return subprocess.run(["pactl", *args], capture_output=True, text=True)
+    except OSError:                            # no pactl → skip ducking, never block recording
+        return None
+
+
+def duck_mute():
+    """Mute the default sink while recording. Saves prior state to DUCK_FILE so a
+    crashed run can't strand the audio muted — the next recording restores it first."""
+    if DUCK in ("0", "off", "no", "false", ""):
+        return
+    if not os.path.exists(DUCK_FILE):          # remember what to restore to (skip if a crash left one)
+        r = _pactl("get-sink-mute", "@DEFAULT_SINK@")
+        try:
+            open(DUCK_FILE, "w").write("1" if (r and "yes" in r.stdout) else "0")
+        except OSError:
+            return
+    _pactl("set-sink-mute", "@DEFAULT_SINK@", "1")
+
+
+def unduck():
+    """Restore the default sink's pre-recording mute state (no-op if never ducked)."""
+    try:
+        prior = open(DUCK_FILE).read().strip() or "0"
+    except OSError:
+        return
+    _pactl("set-sink-mute", "@DEFAULT_SINK@", prior)
+    try:
+        os.remove(DUCK_FILE)
+    except OSError:
+        pass
+
+
 def cleanup():
     for p in (PID_FILE, PCM_FILE, WATCH_PID):
         try:
@@ -330,6 +369,7 @@ def recording_pid():
 
 def start_recording():
     os.makedirs(RUNTIME, exist_ok=True)
+    duck_mute()                                # silence other audio so the mic hears only you
     f = open(PCM_FILE, "wb")
     p = subprocess.Popen(parec_cmd(), stdout=f, stderr=subprocess.DEVNULL,
                          start_new_session=True)  # survives this short-lived process
@@ -381,6 +421,7 @@ def stop_and_send(pid):
         if not send_to_tmux(target, text):
             log("tmux send-keys failed"); flash("send-keys failed")
     finally:
+        unduck()                               # restore the audio we muted at record start
         set_state("")                          # back to idle grey, whatever happened
 
 

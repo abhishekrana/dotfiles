@@ -19,6 +19,9 @@ local, zero elevated privilege.
 - **Auto-stop on silence:** while recording, a background `dictate --watch` samples the audio and stops for you after
   `DICTATE_SILENCE` seconds of trailing silence (only once you've actually spoken), or the `DICTATE_MAXSECS` cap. A
   second press still stops early; set `DICTATE_SILENCE=0` for manual-only.
+- **Mutes other audio while recording:** the default output sink is muted on toggle-on and restored on toggle-off, so
+  your speakers can't bleed into the mic; the prior state is saved so a crash can't leave it muted. `DICTATE_DUCK=0`
+  disables it.
 - Feedback & mouse control: a clickable `● dictate` segment sits dead-centre in the tmux status bar — grey idle, red
   recording, amber transcribing. Click it to toggle, same as the key. Same width in every state, so nothing shifts. A
   `⏎` button beside it submits — it presses Enter in the pane the transcript went to, so the whole loop is mouse-only.
@@ -70,6 +73,7 @@ Dictated newlines are collapsed to spaces, so speech never submits a prompt — 
 | `DICTATE_SILENCE`     | `2.0`          | auto-stop after this much trailing silence (`0` = off)      |
 | `DICTATE_MAXSECS`     | `120`          | hard cap on a single recording                              |
 | `DICTATE_VAD_RMS`     | `300`          | int16 RMS above which audio counts as speech (tune per mic) |
+| `DICTATE_DUCK`        | `1`            | mute other audio while recording (`0`/`off` disables)       |
 | `DICTATE_TMUX_CMD`    | `claude`       | pane command treated as the target app                      |
 | `DICTATE_TMUX_TARGET` | _(unset)_      | force a pane (pane id or `session:win.pane`)                |
 | `DICTATE_TEST_SECS`   | `5`            | seconds recorded by `--test`                                |
