@@ -1,4 +1,49 @@
 {
+  "permissions": {
+    "allow": [
+      "mcp__plugin_Notion_notion__notion-search",
+      "mcp__plugin_Notion_notion__notion-fetch",
+      "mcp__plugin_Notion_notion__notion-download-attachment",
+      "mcp__plugin_Notion_notion__notion-get-comments",
+      "mcp__plugin_Notion_notion__notion-get-async-task",
+      "mcp__plugin_Notion_notion__notion-get-teams",
+      "mcp__plugin_Notion_notion__notion-get-users",
+      "mcp__plugin_Notion_notion__notion-query-data-sources",
+      "mcp__plugin_Notion_notion__notion-query-database-view",
+      "mcp__plugin_Notion_notion__notion-query-meeting-notes",
+      "mcp__claude_ai_Slack__slack_read_channel",
+      "mcp__claude_ai_Slack__slack_read_thread",
+      "mcp__claude_ai_Slack__slack_read_canvas",
+      "mcp__claude_ai_Slack__slack_read_file",
+      "mcp__claude_ai_Slack__slack_read_user_profile",
+      "mcp__claude_ai_Slack__slack_get_reactions",
+      "mcp__claude_ai_Slack__slack_list_channel_members",
+      "mcp__claude_ai_Slack__slack_search_public",
+      "mcp__claude_ai_Slack__slack_search_public_and_private",
+      "mcp__claude_ai_Slack__slack_search_channels",
+      "mcp__claude_ai_Slack__slack_search_users",
+      "mcp__claude_ai_Slack__slack_search_emojis"
+    ],
+    "deny": [
+      "mcp__claude_ai_Slack__slack_send_message",
+      "mcp__claude_ai_Slack__slack_send_message_draft",
+      "mcp__claude_ai_Slack__slack_schedule_message",
+      "mcp__claude_ai_Slack__slack_add_reaction",
+      "mcp__claude_ai_Slack__slack_create_conversation",
+      "mcp__claude_ai_Slack__slack_create_canvas",
+      "mcp__claude_ai_Slack__slack_update_canvas",
+      "mcp__plugin_Notion_notion__notion-create-pages",
+      "mcp__plugin_Notion_notion__notion-update-page",
+      "mcp__plugin_Notion_notion__notion-move-pages",
+      "mcp__plugin_Notion_notion__notion-duplicate-page",
+      "mcp__plugin_Notion_notion__notion-create-database",
+      "mcp__plugin_Notion_notion__notion-update-data-source",
+      "mcp__plugin_Notion_notion__notion-create-comment",
+      "mcp__plugin_Notion_notion__notion-create-attachment",
+      "mcp__plugin_Notion_notion__notion-create-view",
+      "mcp__plugin_Notion_notion__notion-update-view"
+    ]
+  },
   "hooks": {
     "Notification": [
       {
@@ -143,7 +188,8 @@
   "enabledPlugins": {
     "gopls-lsp@claude-plugins-official": true,
     "pyright-lsp@claude-plugins-official": true,
-    "notion-workspace-plugin@notion-plugin-marketplace": true
+    "notion-workspace-plugin@notion-plugin-marketplace": true,
+    "slack@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "notion-plugin-marketplace": {
@@ -154,31 +200,5 @@
     }
   },
   "effortLevel": "xhigh",
-  "skipAutoPermissionPrompt": true,
-  "permissions": {
-    "allow": [
-      "mcp__plugin_Notion_notion__notion-search",
-      "mcp__plugin_Notion_notion__notion-fetch",
-      "mcp__plugin_Notion_notion__notion-download-attachment",
-      "mcp__plugin_Notion_notion__notion-get-comments",
-      "mcp__plugin_Notion_notion__notion-get-async-task",
-      "mcp__plugin_Notion_notion__notion-get-teams",
-      "mcp__plugin_Notion_notion__notion-get-users",
-      "mcp__plugin_Notion_notion__notion-query-data-sources",
-      "mcp__plugin_Notion_notion__notion-query-database-view",
-      "mcp__plugin_Notion_notion__notion-query-meeting-notes"
-    ],
-    "deny": [
-      "mcp__plugin_Notion_notion__notion-create-pages",
-      "mcp__plugin_Notion_notion__notion-update-page",
-      "mcp__plugin_Notion_notion__notion-move-pages",
-      "mcp__plugin_Notion_notion__notion-duplicate-page",
-      "mcp__plugin_Notion_notion__notion-create-database",
-      "mcp__plugin_Notion_notion__notion-update-data-source",
-      "mcp__plugin_Notion_notion__notion-create-comment",
-      "mcp__plugin_Notion_notion__notion-create-attachment",
-      "mcp__plugin_Notion_notion__notion-create-view",
-      "mcp__plugin_Notion_notion__notion-update-view"
-    ]
-  }
+  "skipAutoPermissionPrompt": true
 }
