@@ -202,85 +202,46 @@ current=$(tmux display-message -p '#S')
 sessions=$(ordered_session_names)
 [ -z "$sessions" ] && exit 0
 
-# Aggregated Claude state per tmux session, worst state wins.
-# Priority: question(3) > working(2) > done(1) > blank(0).
-# Liveness: a state file's tmux_pane must still exist; working files older
-# than 5 min are dropped (covers hung Claudes).
+# Aggregated Claude state per tmux session, worst state wins. State comes from
+# the @agent_* pane options the tmux-agent-sidebar hook stamps on each Claude
+# pane — the same source the sidebar itself reads, so picker and sidebar always
+# agree. Pane options die with the pane, so no staleness/liveness bookkeeping.
+# Priority: permission(4) > asking(3) > working(2) > done(1) > blank(0).
 declare -A STATE_BY_SESSION
 state_rank() {
   case $1 in
-    question) printf 3 ;;
-    working)  printf 2 ;;
-    done)     printf 1 ;;
-    *)        printf 0 ;;
+    permission) printf 4 ;;
+    question)   printf 3 ;;
+    working)    printf 2 ;;
+    done)       printf 1 ;;
+    *)          printf 0 ;;
   esac
 }
 
+# Icons mirror the sidebar's colours: red permission, orange asking,
+# yellow working, green done.
 icon_for() {
   case $1 in
-    question) printf '🔴' ;;
-    working)  printf '🟡' ;;
-    done)     printf '🟢' ;;
-    *)        printf '  ' ;;
+    permission) printf '🔴' ;;
+    question)   printf '🟠' ;;
+    working)    printf '🟡' ;;
+    done)       printf '🟢' ;;
+    *)          printf '  ' ;;
   esac
 }
 
-now=$(date +%s)
-stale_working_threshold=300
-
-# Live pane index + Claude-pane cwd fallback (used when a hook didn't
-# inherit TMUX_PANE and we have to match by cwd).
-declare -A LIVE_PANES CLAUDE_PANE_SESSION PATH_TO_CLAUDE_PANE
-while IFS=$'\t' read -r sess pid cmd path; do
-  LIVE_PANES[$pid]=1
-  case $cmd in claude|node)
-    CLAUDE_PANE_SESSION[$pid]=$sess
-    PATH_TO_CLAUDE_PANE[$path]=$pid
-  ;;
-  esac
-done < <(tmux list-panes -a -F $'#{session_name}\t#{pane_id}\t#{pane_current_command}\t#{pane_current_path}')
-
-# Pass 1: collapse state files to one (state, ts) per live pane, keeping the
-# most recent ts. Prevents a stale background-session file from beating a
-# fresh one when both cwd-resolve to the same pane.
-declare -A PANE_STATE PANE_TS PANE_SESSION
-shopt -s nullglob
-for f in /tmp/claude-sessions/*; do
-  jq -e . "$f" >/dev/null 2>&1 || continue
-  state=$(jq -r '.state' "$f")
-  ts=$(jq -r '.ts // 0' "$f")
-  tsess=$(jq -r '.tmux_session // ""' "$f")
-  tpane=$(jq -r '.tmux_pane // ""' "$f")
-  cwd=$(jq -r '.cwd // ""' "$f")
-
-  if [ -z "$tpane" ] || [ -z "${LIVE_PANES[$tpane]:-}" ]; then
-    tpane=${PATH_TO_CLAUDE_PANE[$cwd]:-}
-    [ -z "$tpane" ] && continue
-    tsess=${CLAUDE_PANE_SESSION[$tpane]:-}
-  fi
-  [ -z "$tsess" ] && continue
-
-  if [ "$state" = "working" ] && [ $((now - ts)) -gt "$stale_working_threshold" ]; then
-    continue
-  fi
-
-  if [ "$ts" -gt "${PANE_TS[$tpane]:-0}" ]; then
-    PANE_STATE[$tpane]=$state
-    PANE_TS[$tpane]=$ts
-    PANE_SESSION[$tpane]=$tsess
-  fi
-done
-shopt -u nullglob
-
-# Pass 2: aggregate worst state per session.
-for tpane in "${!PANE_STATE[@]}"; do
-  tsess=${PANE_SESSION[$tpane]}
-  state=${PANE_STATE[$tpane]}
-  prev=${STATE_BY_SESSION[$tsess]:-}
+# One pass over the server's panes: a pane is a live agent when the hook has
+# stamped @agent_present=1 and its foreground command is still claude/node
+# (guards a pane whose Claude died but left its options behind) — the same
+# filter the sidebar uses.
+while IFS=$'\t' read -r sess cmd present state; do
+  [ "$present" = 1 ] || continue
+  case $cmd in claude|node) ;; *) continue ;; esac
+  prev=${STATE_BY_SESSION[$sess]:-}
   if [ "$(state_rank "$state")" -gt "$(state_rank "$prev")" ]; then
-    STATE_BY_SESSION[$tsess]=$state
+    STATE_BY_SESSION[$sess]=$state
   fi
-done
+done < <(tmux list-panes -a -F $'#{session_name}\t#{pane_current_command}\t#{@agent_present}\t#{@agent_state}')
 
 # Render lines as "<name>TAB<display>" — fzf hides field 1 via --with-nth=2
 # but we use it for {1} placeholder substitution in binds.

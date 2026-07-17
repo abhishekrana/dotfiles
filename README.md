@@ -10,7 +10,7 @@ Personal development environment managed with [GNU Stow](https://www.gnu.org/sof
 | ------------ | ---------------------------------------------------------------------------- | -------------------------------- |
 | `bash`       | Shell customizations, aliases, direnv/fzf/zoxide hooks, vi mode              | `~/.bashrc.d/`                   |
 | `bat`        | Syntax highlighter theme                                                     | `~/.config/bat/`                 |
-| `claude`     | Claude Code hooks, statusline, and settings.json (hooks/statusLine wiring)   | `~/.claude/hooks/`, `~/.claude/` |
+| `claude`     | Claude Code settings.json (agent-sidebar hook + statusLine wiring) and statusline script | `~/.claude/` |
 | `dictate`    | Toggle-key local speech-to-text (faster-whisper) into tmux                   | `~/.local/bin/`                  |
 | `git`        | Git tool settings (delta pager, staging/blame, merge)                        | `~/.config/git/config`           |
 | `ghostty`    | Ghostty terminal config (Solarized Light, block cursor, cursor trail shader) | `~/.config/ghostty/`             |
@@ -145,11 +145,7 @@ dotfiles/
 │   ├── tools.bash
 │   └── zoxide.bash
 ├── claude/.claude/
-│   ├── hooks/
-│   │   ├── on-notification.sh   # 🔴 Claude needs your reply
-│   │   ├── on-prompt-submit.sh  # clears session indicator
-│   │   └── on-stop.sh           # 🟢 Claude finished
-│   ├── settings.json            # hooks + statusLine wiring (portable, uses $HOME)
+│   ├── settings.json            # agent-sidebar hook + statusLine wiring (portable, uses $HOME)
 │   └── statusline-command.sh
 ├── git/.config/git/config         # delta pager, staging/blame, merge settings
 ├── nvim/.config/nvim/

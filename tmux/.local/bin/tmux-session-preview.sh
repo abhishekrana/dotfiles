@@ -10,35 +10,19 @@ path=$(tmux display-message -p -t "$session" '#{pane_current_path}' 2>/dev/null)
 home_short=${path/#$HOME/\~}
 now=$(date +%s)
 
-# ---- Read Claude state files, key by tmux_pane (e.g. "%17") ----------------
-# Liveness: pane must still exist; working files older than 5 min are dropped.
-# Fall back to matching by cwd against claude panes when tmux_pane is empty.
-declare -A LIVE_PANES PATH_TO_CLAUDE_PANE
-while IFS=$'\t' read -r pid cmd path; do
-  LIVE_PANES[$pid]=1
-  case $cmd in claude|node) PATH_TO_CLAUDE_PANE[$path]=$pid ;; esac
-done < <(tmux list-panes -a -F $'#{pane_id}\t#{pane_current_command}\t#{pane_current_path}')
-
+# Per-pane Claude state from the @agent_* pane options the tmux-agent-sidebar
+# hook stamps — the same source the sidebar and picker read. @agent_since is
+# the unix time of the last state change; a pane counts as a live agent only
+# with @agent_present=1 and a claude/node foreground command. Only active
+# states are kept, so idle/registered panes show no state line.
 declare -A PANE_STATE PANE_TS
-shopt -s nullglob
-for f in /tmp/claude-sessions/*; do
-  jq -e . "$f" >/dev/null 2>&1 || continue
-  pane=$(jq -r '.tmux_pane // ""' "$f")
-  state=$(jq -r '.state' "$f")
-  ts=$(jq -r '.ts // 0' "$f")
-  cwd=$(jq -r '.cwd // ""' "$f")
-  if [ -z "$pane" ] || [ -z "${LIVE_PANES[$pane]:-}" ]; then
-    pane=${PATH_TO_CLAUDE_PANE[$cwd]:-}
-    [ -z "$pane" ] && continue
-  fi
-  if [ "$state" = "working" ] && [ $((now - ts)) -gt 300 ]; then continue; fi
-  # Keep the most recent ts per pane (stale background-session files lose).
-  if [ "$ts" -gt "${PANE_TS[$pane]:-0}" ]; then
-    PANE_STATE[$pane]=$state
-    PANE_TS[$pane]=$ts
-  fi
-done
-shopt -u nullglob
+while IFS=$'\t' read -r pid cmd present state since; do
+  [ "$present" = 1 ] || continue
+  case $cmd in claude|node) ;; *) continue ;; esac
+  case $state in working|permission|question|done) ;; *) continue ;; esac
+  PANE_STATE[$pid]=$state
+  PANE_TS[$pid]=${since:-0}
+done < <(tmux list-panes -a -F $'#{pane_id}\t#{pane_current_command}\t#{@agent_present}\t#{@agent_state}\t#{@agent_since}')
 
 fmt_ago() {
   local delta=$((now - $1))
@@ -50,11 +34,13 @@ fmt_ago() {
 }
 
 state_rank() {
-  case $1 in question) echo 3 ;; working) echo 2 ;; done) echo 1 ;; *) echo 0 ;; esac
+  case $1 in permission) echo 4 ;; question) echo 3 ;; working) echo 2 ;; done) echo 1 ;; *) echo 0 ;; esac
 }
 
+# Icons mirror the sidebar's colours: red permission, orange asking,
+# yellow working, green done.
 icon_for() {
-  case $1 in question) printf '🔴' ;; working) printf '🟡' ;; done) printf '🟢' ;; *) printf '  ' ;; esac
+  case $1 in permission) printf '🔴' ;; question) printf '🟠' ;; working) printf '🟡' ;; done) printf '🟢' ;; *) printf '  ' ;; esac
 }
 
 # ---- Aggregate state across all panes in this session ----------------------

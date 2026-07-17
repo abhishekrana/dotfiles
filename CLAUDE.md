@@ -8,7 +8,7 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
 
 - `bash/` → `~/.bashrc.d/` (shell customizations)
 - `bat/` → `~/.config/bat/`
-- `claude/` → `~/.claude/hooks/`, `~/.claude/settings.json`, `~/.claude/statusline-command.sh` (note: Claude Code does NOT load a user-level `~/.claude/settings.local.json` — hooks/settings there are silently ignored; anything that must take effect goes in `settings.json`)
+- `claude/` → `~/.claude/settings.json`, `~/.claude/statusline-command.sh` (settings.json wires the tmux-agent-sidebar hook on every Claude lifecycle event + the statusLine; agent state for both the sidebar and the `M-;` session picker comes from that plugin's `@agent_*` pane options, not local hook scripts. Note: Claude Code does NOT load a user-level `~/.claude/settings.local.json` — hooks/settings there are silently ignored; anything that must take effect goes in `settings.json`)
 - `dictate/` → `~/.local/bin/dictate` (toggle-key local Whisper dictation into tmux; opt-in)
 - `git/` → `~/.config/git/config` (delta pager, merge settings)
 - `ghostty/` → `~/.config/ghostty/` (Ghostty terminal config)

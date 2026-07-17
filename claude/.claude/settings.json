@@ -47,15 +47,6 @@
   "hooks": {
     "Notification": [
       {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash $HOME/.claude/hooks/on-notification.sh"
-          }
-        ]
-      },
-      {
         "hooks": [
           {
             "type": "command",
@@ -76,15 +67,6 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash $HOME/.claude/hooks/on-pre-tool-use.sh"
-          }
-        ]
-      },
-      {
         "hooks": [
           {
             "type": "command",
@@ -94,15 +76,6 @@
       }
     ],
     "SessionEnd": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash $HOME/.claude/hooks/on-session-end.sh"
-          }
-        ]
-      },
       {
         "hooks": [
           {
@@ -123,15 +96,6 @@
       }
     ],
     "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash $HOME/.claude/hooks/on-stop.sh"
-          }
-        ]
-      },
       {
         "hooks": [
           {
@@ -162,15 +126,6 @@
       }
     ],
     "UserPromptSubmit": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash $HOME/.claude/hooks/on-prompt-submit.sh"
-          }
-        ]
-      },
       {
         "hooks": [
           {
