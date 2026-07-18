@@ -50,7 +50,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -x \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true"
+            "command": "[ -x \"$HOME/dotfiles/apps/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/dotfiles/apps/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true"
           }
         ]
       }
@@ -60,7 +60,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -x \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true"
+            "command": "[ -x \"$HOME/dotfiles/apps/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/dotfiles/apps/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true"
           }
         ]
       }
@@ -70,7 +70,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -x \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true"
+            "command": "[ -x \"$HOME/dotfiles/apps/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/dotfiles/apps/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true"
           }
         ]
       }
@@ -80,7 +80,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -x \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true"
+            "command": "[ -x \"$HOME/dotfiles/apps/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/dotfiles/apps/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true"
           }
         ]
       }
@@ -90,7 +90,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -x \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true"
+            "command": "[ -x \"$HOME/dotfiles/apps/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/dotfiles/apps/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true"
           }
         ]
       }
@@ -100,7 +100,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -x \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true"
+            "command": "[ -x \"$HOME/dotfiles/apps/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/dotfiles/apps/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true"
           }
         ]
       }
@@ -110,7 +110,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -x \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true"
+            "command": "[ -x \"$HOME/dotfiles/apps/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/dotfiles/apps/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true"
           }
         ]
       }
@@ -120,7 +120,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -x \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true"
+            "command": "[ -x \"$HOME/dotfiles/apps/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/dotfiles/apps/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true"
           }
         ]
       }
@@ -130,7 +130,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -x \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true"
+            "command": "[ -x \"$HOME/dotfiles/apps/tmux-agent-sidebar/bin/tmux-agent-sidebar\" ] && \"$HOME/dotfiles/apps/tmux-agent-sidebar/bin/tmux-agent-sidebar\" hook || true"
           }
         ]
       }

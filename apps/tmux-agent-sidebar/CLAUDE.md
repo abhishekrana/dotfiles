@@ -56,18 +56,18 @@ every state (working/permission/asking/done/done-seen/idle) plus one multi-Claud
 - Mouse actions fire on release, not press.
 - Comments: one short line, only for what the code can't say.
 - After changing behavior, add or extend an e2e test that fails without the change.
-- The sidebar loads via TPM `@plugin` (portable across machines through the dotfiles) — never switch it to a
-  `run-shell` on a local checkout; that path isn't portable. So local changes reach a running sidebar only via
-  push → pull the TPM clone (`~/.tmux/plugins/tmux-agent-sidebar`) → `make build` → restart (`prefix+e` twice),
-  and the clone's HEAD must actually reach `origin/main` (`prefix+U` can silently skip the pull).
+- This project lives in the dotfiles monorepo at `apps/tmux-agent-sidebar/` and loads via a `run-shell` line in
+  `tmux/.tmux.conf` (not TPM) — it builds and runs straight from this checkout. Portability comes from the dotfiles
+  themselves: `bootstrap.sh` installs Go and runs `make build`. Local changes reach a running sidebar via
+  `make build` → reload tmux → restart (`prefix+e` twice); no push or clone-pull in the loop.
 
 ## Deploy
 
 "Deploy" (aka "make it live", "get it working on my system") means: get the change running in the user's
-**live tmux**, not just built or pushed. Do every step yourself except the last:
+**live tmux**, not just built. Do every step yourself except the last:
 
-1. Commit + push to `main`.
-2. Pull the TPM clone to `origin/main` and `make build` there — both filesystem, don't touch the live server.
-3. Verify the rebuilt binary headlessly (private-socket mockup) and confirm the clone HEAD reached `origin/main`.
+1. Commit to the dotfiles repo (push to its `main` only when the user asks).
+2. `make build` here — the binary lands in `bin/`, which both the `run-shell` entry and the Claude hooks point at.
+3. Verify the rebuilt binary headlessly (private-socket mockup) — never touch the live server.
 4. Then tell the user to restart the sidebars: **`prefix + e` twice**. This is the one manual step — the sidebar
    is a long-lived process and this project never drives the live tmux server. Always state it explicitly.

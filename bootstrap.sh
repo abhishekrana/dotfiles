@@ -10,6 +10,7 @@ DELTA_VERSION="0.19.2"
 FD_VERSION="10.4.2"
 FZF_VERSION="0.72.0"
 GITMUX_VERSION="0.11.5"
+GO_VERSION="1.25.0"
 HUNK_VERSION="0.17.0"
 LAZYDOCKER_VERSION="0.25.2"
 LAZYGIT_VERSION="0.61.1"
@@ -128,6 +129,25 @@ install_gitmux() {
     echo "$GITMUX_VERSION" >"$LOCAL_BIN/.gitmux-version"
     rm -rf "$tmp"
     ok "gitmux $GITMUX_VERSION installed"
+}
+
+# Toolchain for building apps/ (currently the Go tmux-agent-sidebar).
+install_go() {
+    if [ -x "$LOCAL_BIN/go" ] && "$LOCAL_BIN/go" version 2>/dev/null | grep -q "go${GO_VERSION} "; then
+        ok "Go $GO_VERSION already installed"
+        return
+    fi
+    log "Installing Go $GO_VERSION..."
+    rm -rf "$HOME/.local/go"
+    local url="https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz"
+    local tmp
+    tmp=$(mktemp -d)
+    curl -sSL "$url" | tar xz -C "$tmp"
+    mv "$tmp/go" "$HOME/.local/go"
+    ln -sf "$HOME/.local/go/bin/go" "$LOCAL_BIN/go"
+    ln -sf "$HOME/.local/go/bin/gofmt" "$LOCAL_BIN/gofmt"
+    rm -rf "$tmp"
+    ok "Go $GO_VERSION installed"
 }
 
 install_hunk() {
@@ -449,6 +469,40 @@ install_nvim_plugins() {
 }
 
 # =============================================================================
+# Apps (built from source under apps/)
+# =============================================================================
+
+build_apps() {
+    # Uniform contract for every project under apps/, regardless of language:
+    # a Makefile with a `build` target. Install its toolchain above (e.g. Go)
+    # and add nothing here. The built binary lives in the app's own bin/.
+    [ -d "$DOTFILES_DIR/apps" ] || return
+    local app name
+    for app in "$DOTFILES_DIR"/apps/*/; do
+        [ -f "$app/Makefile" ] || continue
+        name=$(basename "$app")
+        log "Building app: $name..."
+        if make -C "$app" build >/dev/null 2>&1; then
+            ok "Built $name"
+        else
+            warn "Build failed for $name (toolchain missing?)"
+        fi
+    done
+}
+
+remove_stale_sidebar_clone() {
+    # The sidebar loads from apps/ (run-shell in .tmux.conf). TPM also sources
+    # every *.tmux under ~/.tmux/plugins, so a clone there would load it twice.
+    # Drop it — but never a symlink the user set.
+    local clone="$HOME/.tmux/plugins/tmux-agent-sidebar"
+    if [ -d "$clone" ] && [ ! -L "$clone" ]; then
+        log "Removing stale TPM clone of tmux-agent-sidebar (now in apps/)..."
+        rm -rf "$clone"
+        ok "Stale sidebar TPM clone removed"
+    fi
+}
+
+# =============================================================================
 # Main
 # =============================================================================
 
@@ -462,6 +516,7 @@ install_fd
 install_fzf
 install_ghostty
 install_gitmux
+install_go
 install_hunk
 install_lazydocker
 install_lazygit
@@ -476,6 +531,8 @@ enable_tmux_resurrect_timer
 patch_bashrc
 create_notes_vault
 install_nvim_plugins
+build_apps
+remove_stale_sidebar_clone
 
 echo ""
 ok "Done! Restart your shell or run: source ~/.bashrc"

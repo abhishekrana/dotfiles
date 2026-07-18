@@ -21,6 +21,16 @@ Personal development environment managed with [GNU Stow](https://www.gnu.org/sof
 | `tmux`       | Tmux config, gitmux, CI status script                                                    | `~/.tmux.conf`, `~/.gitmux.conf` |
 | `yazi`       | Yazi file manager config with zoxide plugin                                              | `~/.config/yazi/`                |
 
+### Apps (built from source)
+
+Standalone projects that compile to a binary. They live under `apps/` — kept out of the stow-package namespace — and each is self-contained with its own `Makefile` exposing a uniform `make build` target (any language). `bootstrap.sh` installs the toolchain and builds them.
+
+| App                  | Description                                                          | Language |
+| -------------------- | -------------------------------------------------------------------- | -------- |
+| `tmux-agent-sidebar` | tmux sidebar showing every Claude Code agent's state across sessions | Go       |
+
+The sidebar loads from here via a `run-shell` line in `tmux/.tmux.conf`; edit it and reload tmux to pick up changes.
+
 ### System dependencies
 
 Installed via `bootstrap.sh` (apt + `~/.local/bin`):
@@ -33,6 +43,7 @@ Installed via `bootstrap.sh` (apt + `~/.local/bin`):
 - [Ghostty](https://ghostty.org/) — terminal emulator
 - [gitmux](https://github.com/arl/gitmux) — git status in tmux
 - [GNU Stow](https://www.gnu.org/software/stow/) — symlink manager
+- [Go](https://go.dev/) — toolchain for building `apps/` (tmux-agent-sidebar)
 - [hunk](https://github.com/modem-dev/hunk) — interactive diff viewer (via `gd`/`gds` aliases)
 - [JetBrainsMono Nerd Font](https://www.nerdfonts.com/) — terminal/editor font
 - [jq](https://github.com/jqlang/jq) — JSON processor
@@ -163,6 +174,8 @@ dotfiles/
 ├── terminator/.config/terminator/config
 ├── bat/.config/bat/config
 ├── hunk/.config/hunk/config.toml
+├── apps/                         # buildable projects (not stow packages)
+│   └── tmux-agent-sidebar/       # Go tmux plugin (cmd/ internal/ e2e/ Makefile)
 ├── bootstrap.sh
 ├── test/bootstrap-fresh.sh    # docker smoke test (fresh Ubuntu 24.04)
 ├── CHEATSHEET.md

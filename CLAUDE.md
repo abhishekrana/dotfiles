@@ -19,6 +19,12 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
 - `tmux/` → `~/.tmux.conf`, `~/.gitmux.conf`, `~/.local/bin/tmux-gitlab.sh` (GitLab issue/MR/CI status segments)
 - `yazi/` → `~/.config/yazi/` (yazi file manager config)
 
+## Apps (built from source)
+
+Buildable projects live under `apps/` — these are **not** stow packages and are never passed to `stow`. Each is self-contained with its own `Makefile` exposing a uniform `build` target, so `bootstrap.sh` builds any language the same way: `build_apps` loops over `apps/*/` running `make build`, and the toolchain gets a pinned `install_*` step (e.g. `install_go`). Add more apps by dropping a project with a `Makefile` under `apps/`.
+
+- `apps/tmux-agent-sidebar/` → Go tmux plugin (the Claude agent sidebar). Loaded by a `run-shell` line at the end of `tmux/.tmux.conf`, so it builds and runs straight from the repo. The Claude lifecycle hooks in `claude/.claude/settings.json` invoke its binary at `$HOME/dotfiles/apps/tmux-agent-sidebar/bin/tmux-agent-sidebar`. It has its own nested `CLAUDE.md` — read that before touching the code.
+
 ## Rules
 
 - **Never commit personal info**: no names, emails, IP addresses, work-specific paths, or company references (alpha-ignis, alpha-collection, etc.)
@@ -45,6 +51,7 @@ When I say "deploy": **first commit and push, then make it live** on the running
    - **tmux** (`tmux/.tmux.conf`): `tmux source-file ~/.tmux.conf`. One server is shared by all sessions, so a single reload updates every existing session at once.
    - **Stowed scripts** (symlinks — `dictate/`, `bash/`, etc.): live the moment the repo file is saved; no step needed.
    - **New stow package or file**: `cd ~/dotfiles && stow <pkg>`, then reload the relevant tool.
+   - **`apps/tmux-agent-sidebar`** (Go): `make -C ~/dotfiles/apps/tmux-agent-sidebar build`, then reload tmux (`tmux source-file ~/.tmux.conf`). The sidebar is a long-lived process, so restarting it is a manual step you must list: **`prefix + e` twice**. Hook-path edits to the stowed `settings.json` take effect on the next agent lifecycle event.
 3. Always list any steps I must run by hand — things that can't be scripted (re-login, `gsettings`/GNOME shortcut install, `systemctl --user …`, opening a fresh shell).
 
 ## Commits

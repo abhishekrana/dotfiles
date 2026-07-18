@@ -43,25 +43,36 @@ and the sidebar picks it up on its 1s tick.
 - git (for the branch line)
 - notify-send / libnotify (optional, only for desktop notifications)
 
-## Install (TPM)
+## Install
+
+This plugin lives in the dotfiles monorepo at `apps/tmux-agent-sidebar/` and the dotfiles wire it up end to end:
+
+- `bootstrap.sh` installs Go and runs `make build`.
+- `tmux/.tmux.conf` loads it (after TPM) with `run-shell '~/dotfiles/apps/tmux-agent-sidebar/agent-sidebar.tmux'`.
+- The Claude Code lifecycle hooks already live in the stowed `~/.claude/settings.json`, pointing at
+  `$HOME/dotfiles/apps/tmux-agent-sidebar/bin/tmux-agent-sidebar`.
+
+So a fresh machine gets the sidebar from `./bootstrap.sh` alone. Agents started before the hooks were installed
+are picked up on their next restart.
+
+### Standalone (outside the dotfiles)
+
+The plugin is self-contained, so you can also drop the directory anywhere and load it directly:
 
 ```tmux
-set -g @plugin 'abhishekrana/tmux-agent-sidebar'
+run-shell ~/path/to/tmux-agent-sidebar/agent-sidebar.tmux
 ```
 
-Press `prefix + I` to install. The plugin builds its binary on first load (requires Go), then wire up the Claude
-Code hooks once:
+Then wire up the Claude Code hooks once:
 
 ```bash
-~/.tmux/plugins/tmux-agent-sidebar/bin/tmux-agent-sidebar install-hooks
+~/path/to/tmux-agent-sidebar/bin/tmux-agent-sidebar install-hooks
 ```
 
 This appends the plugin's hook entries to `~/.claude/settings.json`. It is idempotent, preserves everything else in
 the file (including any hooks you already have — Claude runs all entries for an event), writes through symlinks
 (stow-safe), and uses `$HOME`-relative paths. Use `--target <file>` to write somewhere else, e.g. a project's
 `.claude/settings.local.json`.
-
-Agents started before the hooks were installed are picked up on their next restart.
 
 ## Use
 
