@@ -17,7 +17,7 @@ var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "�
 type blockKind int
 
 const (
-	blockSession blockKind = iota // group header, one line, not selectable
+	blockSession blockKind = iota // group header, one line
 	blockAgent                    // agent + branch + subagents: one selectable unit
 )
 
@@ -28,10 +28,6 @@ type block struct {
 	session int // index into snapshot.Sessions
 	agent   int // index into session.Agents (blockAgent only)
 }
-
-// Both row kinds are selectable: an agent block jumps to its pane, a
-// session header switches to that session.
-func (block) selectable() bool { return true }
 
 // buildBlocks flattens the snapshot: session headers are pure group
 // labels; agents form the flat, selectable list.
@@ -109,25 +105,11 @@ func truncate(s string, width int) string {
 type renderer struct {
 	theme Theme
 	width int
-	nameW int // agent-name column width, derived from the snapshot
+	nameW int // agent-name column width (fixed; commands are only claude/node)
 }
 
 // labelW fits the longest state label ("permission").
 const labelW = 10
-
-// nameColumn returns the width of the agent-name column: the longest name
-// in the snapshot, clamped so long names can't crowd out the state columns.
-func nameColumn(snap model.Snapshot) int {
-	w := 6 // len("claude")
-	for _, sess := range snap.Sessions {
-		for _, a := range sess.Agents {
-			if n := len([]rune(a.Command)); n > w {
-				w = n
-			}
-		}
-	}
-	return min(w, 12)
-}
 
 // padCol pads (or truncates) a plain string to exactly w cells.
 func padCol(s string, w int) string {

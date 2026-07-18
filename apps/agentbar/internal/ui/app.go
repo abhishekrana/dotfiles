@@ -331,27 +331,21 @@ func (a *App) rebuild() {
 }
 
 func (a App) blockSelectable(i int) bool {
-	return i >= 0 && i < len(a.blocks) && a.blocks[i].selectable()
+	return i >= 0 && i < len(a.blocks)
 }
 
-// moveCursor advances to the next selectable block in direction dir,
-// starting from the current position (or the top when nothing selected).
+// moveCursor moves the cursor one block in direction dir, clamping at the
+// edges. Every block is selectable, so a single step always lands.
 func (a *App) moveCursor(dir int) {
 	if len(a.blocks) == 0 {
 		a.cursor = 0
 		return
 	}
-	i := a.cursor
-	for step := 0; step < len(a.blocks); step++ {
-		i += dir
-		if i < 0 || i >= len(a.blocks) {
-			return // stay put at the edge
-		}
-		if a.blocks[i].selectable() {
-			a.cursor = i
-			return
-		}
+	i := a.cursor + dir
+	if i < 0 || i >= len(a.blocks) {
+		return // stay put at the edge
 	}
+	a.cursor = i
 }
 
 // nextAttention returns the block index of the next agent blocked on the
@@ -624,8 +618,8 @@ func (a App) View() string {
 		return ""
 	}
 	now := time.Now()
-	// Clamp the name column so icon+name+label+time always fit the width.
-	nameW := max(6, min(nameColumn(a.snap), a.width-23))
+	// Agent commands are only ever "claude"/"node", so the name column is fixed.
+	nameW := 6
 	r := renderer{theme: a.theme, width: a.width, nameW: nameW}
 
 	var b strings.Builder

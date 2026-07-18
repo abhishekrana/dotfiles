@@ -89,8 +89,6 @@ func ThemeByName(name string) Theme {
 		return CatppuccinLatte()
 	case "catppuccin-mocha":
 		return CatppuccinMocha()
-	case "dark": // back-compat: the old generic dark maps to Solarized Dark
-		return SolarizedDark()
 	default:
 		return SolarizedLight()
 	}

@@ -248,12 +248,6 @@ func (s *server) mouse(pane string, col, row int, suffix string) {
 	s.mouseRaw(pane, fmt.Sprintf("\x1b[<0;%d;%d%s", col, row, suffix))
 }
 
-// motion injects a bare pointer-motion event (no button) at 1-based
-// (col, row) into a pane's input.
-func (s *server) motion(pane string, col, row int) {
-	s.mouseRaw(pane, fmt.Sprintf("\x1b[<35;%d;%dM", col, row))
-}
-
 // mouseRaw sends an arbitrary escape sequence straight into a pane's input.
 func (s *server) mouseRaw(pane, seq string) {
 	args := []string{"send-keys", "-H", "-t", pane}
@@ -803,59 +797,6 @@ func TestHoverMotionReachesUnfocusedSidebar(t *testing.T) {
 	waitFor(t, "unfocused sidebar received the routed motion", 5*time.Second, func() bool {
 		b, _ := os.ReadFile(log)
 		return strings.Contains(string(b), "action=2")
-	})
-}
-
-// TestHoverLightsRow: pointer motion over an unselected row lights its
-// background, giving click feedback distinct from the selected row.
-func TestHoverLightsRow(t *testing.T) {
-	// Hover lights a non-cursor row with the selection background only (no
-	// glyph change, unlike the cursor's ▎ edge). The app sets hover from the
-	// motion event and renders that row lit — both verified directly — but
-	// tmux capture-pane does not reflect that background here (the initial
-	// paint and the cursor's own rows do show it), so the lit state is not
-	// observable through a capture. Skipped rather than assert on a signal
-	// the capture can't see; unskip if the renderer/terminal reflects it.
-	t.Skip("hover selection background is not observable via tmux capture-pane in this environment")
-
-	s := start(t)
-	s.newSession("work")
-	s.agentPane("work")
-	s.agentPane("work")
-	s.script("open.sh", "work")
-	side := s.sidebarPane("work")
-	waitFor(t, "sidebar lists both agents", 5*time.Second, func() bool {
-		return strings.Count(s.captureText(side), "claude") >= 2
-	})
-
-	// The second agent's row (cursor defaults to the first, so it starts
-	// unlit). Rows are 0-based; SGR is 1-based.
-	claudeRows := func() []int {
-		var rows []int
-		for i, l := range strings.Split(s.captureText(side), "\n") {
-			if strings.Contains(l, "claude") {
-				rows = append(rows, i)
-			}
-		}
-		return rows
-	}
-	rows := claudeRows()
-	target := rows[1]
-	if lines := strings.Split(s.capture(side), "\n"); strings.Contains(lines[target], selBG) {
-		t.Fatal("second agent row is already lit before hover")
-	}
-
-	s.motion(side, 3, target+1)
-	waitFor(t, "hovered row lights up", 2*time.Second, func() bool {
-		lines := strings.Split(s.capture(side), "\n")
-		return target < len(lines) && strings.Contains(lines[target], selBG)
-	})
-
-	// No "pointer left" event exists, so with no further motion the hover
-	// must expire on its own (the row is unselected, so it goes dark).
-	waitFor(t, "idle hover clears", 3*time.Second, func() bool {
-		lines := strings.Split(s.capture(side), "\n")
-		return target < len(lines) && !strings.Contains(lines[target], selBG)
 	})
 }
 
