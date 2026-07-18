@@ -352,15 +352,15 @@ stow_packages() {
     local packages=(bash bat claude dictate git ghostty hunk nvim theme tmux yazi)
 
     # Single files we own outright: back up the file itself.
-    backup_if_not_symlink "$HOME/.tmux.conf"                    "$DOTFILES_DIR/tmux/.tmux.conf"
-    backup_if_not_symlink "$HOME/.gitmux.conf"                  "$DOTFILES_DIR/tmux/.gitmux.conf"
-    backup_if_not_symlink "$HOME/.local/bin/tmux-gitlab.sh"     "$DOTFILES_DIR/tmux/.local/bin/tmux-gitlab.sh"
-    backup_if_not_symlink "$HOME/.claude/settings.json"         "$DOTFILES_DIR/claude/.claude/settings.json"
+    backup_if_not_symlink "$HOME/.tmux.conf" "$DOTFILES_DIR/tmux/.tmux.conf"
+    backup_if_not_symlink "$HOME/.gitmux.conf" "$DOTFILES_DIR/tmux/.gitmux.conf"
+    backup_if_not_symlink "$HOME/.local/bin/tmux-gitlab.sh" "$DOTFILES_DIR/tmux/.local/bin/tmux-gitlab.sh"
+    backup_if_not_symlink "$HOME/.claude/settings.json" "$DOTFILES_DIR/claude/.claude/settings.json"
     backup_if_not_symlink "$HOME/.claude/statusline-command.sh" "$DOTFILES_DIR/claude/.claude/statusline-command.sh"
 
     # Directories the user may share with their own files: back up only the
     # specific files we ship, leaving the rest of the directory intact.
-    backup_pkg_files "$DOTFILES_DIR/bash/.bashrc.d"          "$HOME/.bashrc.d"
+    backup_pkg_files "$DOTFILES_DIR/bash/.bashrc.d" "$HOME/.bashrc.d"
 
     # Directories we own outright: back up the whole directory.
     backup_if_not_symlink "$HOME/.config/nvim"
