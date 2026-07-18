@@ -142,6 +142,20 @@ apply_delta() {
 EOF
 }
 
+# nvim reads the flavor at startup from ~/.config/theme/nvim.lua (colorscheme + background).
+apply_nvim() {
+	local scheme bg
+	case "$1" in
+	solarized-light) scheme=solarized bg=light ;;
+	solarized-dark) scheme=solarized bg=dark ;;
+	catppuccin-latte) scheme=catppuccin-latte bg=light ;;
+	catppuccin-mocha) scheme=catppuccin-mocha bg=dark ;;
+	esac
+	cat >"$STATE_DIR/nvim.lua" <<EOF
+return { colorscheme = "$scheme", background = "$bg" }
+EOF
+}
+
 main() {
 	case "${1:-}" in
 	--list | -l)
@@ -166,7 +180,8 @@ main() {
 	apply_fzf "$flavor"
 	apply_env "$flavor"
 	apply_delta "$flavor"
-	echo "→ $flavor (accent $(palette_get "$flavor" accent)). Ghostty + tmux reloaded; new shells pick up fzf/bat; next git diff picks up delta; restart sidebars with prefix+e twice."
+	apply_nvim "$flavor"
+	echo "→ $flavor (accent $(palette_get "$flavor" accent)). Ghostty + tmux reload now; new shells pick up fzf/bat; next git diff / nvim launch picks up delta / nvim; restart sidebars with prefix+e twice."
 }
 
 main "$@"

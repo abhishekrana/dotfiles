@@ -1,11 +1,26 @@
+-- The `theme` switcher writes the active flavor to ~/.config/theme/nvim.lua
+-- ({ colorscheme, background }); default to Solarized Light when it's absent.
+local flavor = { colorscheme = "solarized", background = "light" }
+do
+  local ok, t = pcall(dofile, vim.fn.expand("~/.config/theme/nvim.lua"))
+  if ok and type(t) == "table" and t.colorscheme then
+    flavor = t
+  end
+end
+vim.o.background = flavor.background
+
 return {
-  -- Add the solarized plugin
+  -- Solarized (one scheme for light + dark, driven by vim.o.background).
   {
     "maxmx03/solarized.nvim",
     lazy = false,
     priority = 1000,
     opts = {
-      on_highlights = function(colors, color)
+      -- Tuned highlights only make sense on the light background.
+      on_highlights = function()
+        if vim.o.background ~= "light" then
+          return {}
+        end
         ---@type table<string, vim.api.keyset.highlight>
         return {
           Visual = { bg = "#eee8d5", fg = "#002b36" },
@@ -17,11 +32,12 @@ return {
     },
   },
 
-  -- Tell LazyVim to use it
+  -- Catppuccin (latte + mocha).
+  { "catppuccin/nvim", name = "catppuccin", lazy = false, priority = 1000 },
+
+  -- Tell LazyVim which colorscheme this flavor uses.
   {
     "LazyVim/LazyVim",
-    opts = {
-      colorscheme = "solarized",
-    },
+    opts = { colorscheme = flavor.colorscheme },
   },
 }
