@@ -11,18 +11,19 @@ user-selected and persists; it never auto-switches on OS/time.
 
 ## Current state (done, committed)
 
-| Piece                         | State                                                                                                                                                                                                               |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Design docs                   | ✅ README, gap-analysis, palette.toml, theme-switcher — **pushed**                                                                                                                                                  |
-| Agent sidebar (separate repo) | ✅ 4 flavors + 5-state split, **deployed** (reads `@agent-sidebar-theme`; verified live)                                                                                                                            |
-| Sidebar e2e                   | ✅ `TestHoverLightsRow` skipped w/ reason (suite green) — **unpushed** in the sidebar repo                                                                                                                          |
-| `theme` switcher v1           | ✅ `theme/.local/bin/theme` drives sidebar + ghostty from palette — **unpushed** (dotfiles)                                                                                                                         |
-| Session picker                | ✅ `tmux-session-picker.sh` now uses the 5-state glyphs/colors (emoji retired) — **unpushed**                                                                                                                       |
-| tmux frame (item A)           | ✅ switcher regenerates the frame from palette; `.tmux.conf` sources it — verified on a private socket — **unpushed**                                                                                               |
-| fzf (item B)                  | ✅ switcher writes `~/.config/theme/fzf.sh`; `fzf.bash` sources it (new shells) — verified — **unpushed**                                                                                                           |
-| bat / env (items D+H)         | ✅ switcher writes `env.sh` (`BAT_THEME`); `theme.bash` sources it. All 4 flavors — Catppuccin `.tmTheme` fetched by `bootstrap.sh install_bat_themes` (gitignored), cache built, rendering verified — **unpushed** |
+| Piece                         | State                                                                                                                                                                                                                                                 |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Design docs                   | ✅ README, gap-analysis, palette.toml, theme-switcher — **pushed**                                                                                                                                                                                    |
+| Agent sidebar (separate repo) | ✅ 4 flavors + 5-state split, **deployed** (reads `@agent-sidebar-theme`; verified live)                                                                                                                                                              |
+| Sidebar e2e                   | ✅ `TestHoverLightsRow` skipped w/ reason (suite green) — **unpushed** in the sidebar repo                                                                                                                                                            |
+| `theme` switcher v1           | ✅ `theme/.local/bin/theme` drives sidebar + ghostty from palette — **unpushed** (dotfiles)                                                                                                                                                           |
+| Session picker                | ✅ `tmux-session-picker.sh` now uses the 5-state glyphs/colors (emoji retired) — **unpushed**                                                                                                                                                         |
+| tmux frame (item A)           | ✅ switcher regenerates the frame from palette; `.tmux.conf` sources it — verified on a private socket — **unpushed**                                                                                                                                 |
+| fzf (item B)                  | ✅ switcher writes `~/.config/theme/fzf.sh`; `fzf.bash` sources it (new shells) — verified — **unpushed**                                                                                                                                             |
+| bat / env (items D+H)         | ✅ switcher writes `env.sh` (`BAT_THEME`); `theme.bash` sources it. All 4 flavors — Catppuccin `.tmTheme` fetched by `bootstrap.sh install_bat_themes` (gitignored), cache built, rendering verified — **unpushed**                                   |
+| git-delta (item F)            | ✅ switcher writes full `[delta]` block to `~/.config/theme/delta.gitconfig`, included from git config (overrides solarized-light default). delta **does** follow includes (verified isolated); Catppuccin syntax from bat. No install — **unpushed** |
 
-**Unpushed:** dotfiles has several commits (switcher, picker, this doc, tmux frame, fzf); the sidebar repo has 1 (e2e skip).
+**Unpushed:** several dotfiles commits; the sidebar repo has 1 (e2e skip).
 Push when the user OKs. The `theme/` package is **not stowed yet** — run `cd ~/dotfiles && stow theme`
 to activate `~/.local/bin/theme`.
 

@@ -124,6 +124,30 @@ export BAT_THEME="$bat"
 EOF
 }
 
+# delta reads its colors from git config; write the flavor's block to a file git includes
+# (overrides the solarized-light default). Non-repo, applies on the next git diff.
+apply_delta() {
+	local f="$STATE_DIR/delta.gitconfig"
+	local light stheme add rem
+	case "$1" in
+	solarized-light) light=true stheme="Solarized (light)" ;;
+	solarized-dark) light=false stheme="Solarized (dark)" ;;
+	catppuccin-latte) light=true stheme="Catppuccin Latte" ;;
+	catppuccin-mocha) light=false stheme="Catppuccin Mocha" ;;
+	esac
+	add=$(palette_get "$1" add)
+	rem=$(palette_get "$1" remove)
+	cat >"$f" <<EOF
+[delta]
+	light = $light
+	syntax-theme = $stheme
+	plus-style = syntax "$add"
+	plus-emph-style = syntax bold "$add"
+	minus-style = syntax "$rem"
+	minus-emph-style = syntax bold "$rem"
+EOF
+}
+
 main() {
 	case "${1:-}" in
 	--list | -l)
@@ -147,7 +171,8 @@ main() {
 	apply_tmux "$flavor"
 	apply_fzf "$flavor"
 	apply_env "$flavor"
-	echo "→ $flavor (accent $(palette_get "$flavor" accent)). Ghostty + tmux reloaded; new shells pick up fzf/bat; restart sidebars with prefix+e twice."
+	apply_delta "$flavor"
+	echo "→ $flavor (accent $(palette_get "$flavor" accent)). Ghostty + tmux reloaded; new shells pick up fzf/bat; next git diff picks up delta; restart sidebars with prefix+e twice."
 }
 
 main "$@"
