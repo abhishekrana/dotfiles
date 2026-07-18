@@ -15,6 +15,7 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
 - `hunk/` → `~/.config/hunk/` (hunk diff viewer config, Solarized Light theme)
 - `nvim/` → `~/.config/nvim/` (LazyVim config)
 - `terminator/` → `~/.config/terminator/`
+- `theme/` → `~/.local/bin/theme` (theme switcher; re-skins the terminal stack across the four flavors from `design/palette.toml`, writing per-tool files into `~/.config/theme/`)
 - `tmux/` → `~/.tmux.conf`, `~/.gitmux.conf`, `~/.local/bin/tmux-gitlab.sh` (GitLab issue/MR/CI status segments)
 - `yazi/` → `~/.config/yazi/` (yazi file manager config)
 

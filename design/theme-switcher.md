@@ -107,5 +107,7 @@ main "$@"
 
 ## Status
 
-Sketch. `palette.toml` (the source of truth) exists; the sidebar's four-flavor + five-state support
-is the next build step, then this switcher starting with the clean name-driven tools.
+**Implemented.** `theme/.local/bin/theme` drives sidebar, ghostty, tmux frame, fzf, bat (`BAT_THEME`),
+git-delta, and nvim from `palette.toml`; hunk follows via a `theme.bash` wrapper and yazi via auto
+light/dark. Per-tool results and the live-verification checklist are in
+[remaining-work.md](./remaining-work.md). This sketch is kept as the design rationale.

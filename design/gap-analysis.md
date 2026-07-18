@@ -12,6 +12,12 @@ _Solarized_ without hand-authoring (Catppuccin has org-backed ports; Solarized d
 larger problem — today there is no shared palette and the state language is already inconsistent
 between two of our own tools.
 
+> **Update (implemented):** this analysis is now built out — see [remaining-work.md](./remaining-work.md)
+> for the per-tool result. Two corrections to the analysis below: **hunk 0.17 _does_ ship a working
+> `solarized-light` theme** (verified live — the "hunk has no Solarized" claim was wrong), so no
+> hand-authored hunk theme was needed; and **git-delta follows git `[include]`**, so its Solarized
+> tints are switched via an included non-repo config rather than a hand-authored feature.
+
 ---
 
 ## Support matrix

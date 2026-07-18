@@ -1,6 +1,6 @@
 # Theme design language — remaining work (handoff)
 
-_Companion to [README.md](./README.md) (the design language), [gap-analysis.md](./gap-analysis.md), [palette.toml](./palette.toml) (the source of truth) and [theme-switcher.md](./theme-switcher.md) (the switcher sketch). This file lists everything still to do so another agent can finish it. Snapshot 2026-07-18._
+_Companion to [README.md](./README.md) (the design language), [gap-analysis.md](./gap-analysis.md), [palette.toml](./palette.toml) (the source of truth) and [theme-switcher.md](./theme-switcher.md). Started as a handoff list; all roadmap items are now implemented — kept as the build record + the short live-verification list. Snapshot 2026-07-18._
 
 ## Goal
 
@@ -22,10 +22,22 @@ user-selected and persists; it never auto-switches on OS/time.
 | fzf (item B)                  | ✅ switcher writes `~/.config/theme/fzf.sh`; `fzf.bash` sources it (new shells) — verified — **unpushed**                                                                                                                                             |
 | bat / env (items D+H)         | ✅ switcher writes `env.sh` (`BAT_THEME`); `theme.bash` sources it. All 4 flavors — Catppuccin `.tmTheme` fetched by `bootstrap.sh install_bat_themes` (gitignored), cache built, rendering verified — **unpushed**                                   |
 | git-delta (item F)            | ✅ switcher writes full `[delta]` block to `~/.config/theme/delta.gitconfig`, included from git config (overrides solarized-light default). delta **does** follow includes (verified isolated); Catppuccin syntax from bat. No install — **unpushed** |
+| ghostty (item C)              | ✅ default in tracked config; switcher writes `~/.config/theme/ghostty.conf` (optional `config-file` include, `~` expands, missing ignored — verified). No more per-switch repo churn — **unpushed**                                                  |
+| hunk (item E)                 | ✅ `hunk()` wrapper in `theme.bash` appends `--theme $THEME` for `hunk diff` only; hunk falls back gracefully on a flavor it lacks (e.g. solarized-dark). No install/no repo dirty — **unpushed**                                                     |
+| nvim (item G)                 | ✅ `catppuccin/nvim` installed; `colorscheme.lua` reads `~/.config/theme/nvim.lua`; solarized overrides made flavor-aware. All 4 flavors load headless — **unpushed**                                                                                 |
+| yazi (item I)                 | ✅ Catppuccin flavors (in `package.toml`, `ya pkg install` on bootstrap, dirs gitignored); `theme.toml` auto-picks Mocha/Latte by terminal light/dark — **unpushed**                                                                                  |
 
-**Unpushed:** several dotfiles commits; the sidebar repo has 1 (e2e skip).
-Push when the user OKs. The `theme/` package is **not stowed yet** — run `cd ~/dotfiles && stow theme`
-to activate `~/.local/bin/theme`.
+**Status: all roadmap items implemented.** The switcher (`theme/.local/bin/theme`) drives sidebar,
+ghostty, tmux frame, fzf, bat, delta, nvim; hunk + yazi follow via wrapper/auto. Sidebar unit + e2e
+suites pass (hover test skipped, documented).
+
+**Needs live verification** (couldn't be checked from a headless session — launch each and eyeball):
+nvim colorscheme colors per flavor · yazi flavor per light/dark · hunk render for solarized-dark /
+catppuccin. **Known limitation:** yazi has no first-class Solarized flavor, so on the Solarized
+flavors it shows Catppuccin (light/dark-matched), not true Solarized.
+
+**Activation on a fresh pull:** `cd ~/dotfiles && stow theme bash` (switcher + `theme.bash`), open a
+new shell, `bat cache --build` (or run `bootstrap.sh`), then `theme <flavor>`.
 
 ## The key insight (read this first)
 
@@ -43,15 +55,17 @@ works (v1); it's just being overpainted.
   The switcher has a `palette_get <flavor> <token>` awk reader.
 - **Switcher:** `~/dotfiles/theme/.local/bin/theme` (v1). Extend it — add an `apply_<tool>` per tool
   and call it from `main`. Generated per-flavor files should live in `~/.config/theme/` (NOT tracked
-  in dotfiles), so switching never dirties the repo. Done so far: `apply_sidebar`, `apply_ghostty`,
-  `apply_tmux`, `apply_fzf`.
+  in dotfiles), so switching never dirties the repo. Wired: `apply_sidebar`, `apply_ghostty`,
+  `apply_tmux`, `apply_fzf`, `apply_env` (bat), `apply_delta`, `apply_nvim` (hunk + yazi need no
+  per-switch write — wrapper / auto).
 - **Stow-symlink constraint (important):** `~/.config/ghostty`, `~/.config/hunk`, and `~/.config/yazi`
   are **directory symlinks into the dotfiles repo** — so rewriting those configs edits tracked files
   and dirties the repo (that's the ghostty `theme =` diff seen when switching). Prefer a **non-repo
   override** per tool: an env var (`BAT_THEME`, `FZF_DEFAULT_OPTS`), a sourced file, or a
   `config-file`/include that points at `~/.config/theme/…`. Only rewrite a tracked config if the tool
   offers no other mechanism — and expect a diff. tmux and fzf already avoid this via generated files
-  under `~/.config/theme/`. delta writes via `git config --global` (its target may also be tracked).
+  under `~/.config/theme/`. delta follows git `[include]` (verified), so its selection lives in an
+  included `~/.config/theme/delta.gitconfig`; ghostty uses a `config-file = ?~/.config/theme/…` include.
 - **Verified ghostty theme names** (`ghostty +list-themes`): `iTerm2 Solarized Light`,
   `iTerm2 Solarized Dark`, `Catppuccin Latte`, `Catppuccin Mocha`. (There is **no** plain
   "Solarized Light".) The switcher already maps these.
