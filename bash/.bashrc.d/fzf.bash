@@ -7,9 +7,9 @@ if command -v fd &>/dev/null; then
     export FZF_ALT_C_COMMAND='fd --type d --hidden --exclude .git'
 fi
 
-# Force Solarized Light for bat in fzf preview contexts (bat config isn't always
-# picked up when bat runs as a preview subprocess).
-export BAT_THEME='Solarized (light)'
+# Default bat theme for preview subprocesses (bat config isn't always picked up there).
+# theme.bash loads after this and overrides BAT_THEME with the selected flavor.
+export BAT_THEME="${BAT_THEME:-Solarized (light)}"
 
 # Global look + preview toggle. The color block defaults to Solarized Light; the
 # `theme` switcher overrides it via ~/.config/theme/fzf.sh so new shells follow the flavor.
@@ -25,7 +25,7 @@ unset _fzf_color
 # Ctrl-T: file picker with bat preview; Ctrl-Y copies file contents to wl-clipboard
 if command -v bat &>/dev/null && command -v wl-copy &>/dev/null; then
     export FZF_CTRL_T_OPTS="
-      --preview 'bat --color=always --theme=\"Solarized (light)\" --style=numbers --line-range=:200 {}'
+      --preview 'bat --color=always --style=numbers --line-range=:200 {}'
       --bind 'ctrl-y:execute-silent(wl-copy < {})+abort'
     "
 fi
@@ -49,7 +49,7 @@ if command -v rg &>/dev/null && command -v bat &>/dev/null; then
             --bind "change:reload:sleep 0.1; $rg_prefix {q} || :" \
             --bind "enter:become(nvim {1} +{2})" \
             --delimiter=: \
-            --preview 'bat --color=always --theme="Solarized (light)" --style=numbers --highlight-line {2} {1}' \
+            --preview 'bat --color=always --style=numbers --highlight-line {2} {1}' \
             --preview-window 'up,60%,border-bottom,+{2}+3/3'
     }
 fi

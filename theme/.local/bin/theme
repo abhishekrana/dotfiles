@@ -106,6 +106,24 @@ _fzf_color="--color=$mode --color=fg:$fg,bg:$bg,hl:$accent --color=fg+:$emph,bg+
 EOF
 }
 
+# Env-driven tools (bat via BAT_THEME, and anything reading $THEME) inherit the flavor
+# from a file sourced by ~/.bashrc.d/theme.bash, so new shells follow it. Catppuccin bat
+# themes need installing separately; until then bat falls back harmlessly.
+apply_env() {
+	local f="$STATE_DIR/env.sh"
+	local bat
+	case "$1" in
+	solarized-light) bat="Solarized (light)" ;;
+	solarized-dark) bat="Solarized (dark)" ;;
+	catppuccin-latte) bat="Catppuccin Latte" ;;
+	catppuccin-mocha) bat="Catppuccin Mocha" ;;
+	esac
+	cat >"$f" <<EOF
+export THEME="$1"
+export BAT_THEME="$bat"
+EOF
+}
+
 main() {
 	case "${1:-}" in
 	--list | -l)
@@ -128,7 +146,8 @@ main() {
 	apply_ghostty "$flavor"
 	apply_tmux "$flavor"
 	apply_fzf "$flavor"
-	echo "→ $flavor (accent $(palette_get "$flavor" accent)). Ghostty + tmux reloaded; new shells pick up fzf; restart sidebars with prefix+e twice."
+	apply_env "$flavor"
+	echo "→ $flavor (accent $(palette_get "$flavor" accent)). Ghostty + tmux reloaded; new shells pick up fzf/bat; restart sidebars with prefix+e twice."
 }
 
 main "$@"
