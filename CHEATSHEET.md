@@ -6,36 +6,38 @@ Commands and keys to internalize for this setup. Sorted by frequency of use.
 
 ## Shell (Bash + Tools)
 
-| Key / Command       | Action                                    |
-| ------------------- | ----------------------------------------- |
-| `cd <partial>`      | zoxide smart jump (learns from usage)     |
-| `cdi <partial>`     | zoxide interactive (pick from matches)    |
-| `Ctrl+R`            | fzf fuzzy search shell history            |
-| `Ctrl+T`            | fzf insert file path (bat preview)        |
-| `Alt+C`             | fzf cd into directory (powered by fd)     |
-| `rfv [query]`       | live ripgrep + fzf, opens nvim at line    |
-| `gs`                | git status                                |
-| `gd` / `gds`        | hunk: review working tree / latest commit |
-| `gdw`               | hunk working-tree review, auto-reload     |
-| `gl` / `gp` / `gf`  | git log / push / fetch                    |
-| `gb`                | git branches sorted by recent use         |
-| `gbr`               | remote branches + tip author (last 500)   |
-| `gdm`               | hunk: review merge request (vs main)      |
-| `gw`                | live git diff in tmux split pane          |
-| `gwta`              | add worktree: <dir> <branch>              |
-| `gwts`              | fzf-switch worktree (cd into pick)        |
-| `gwtm`              | ff worktree's own branch to origin/main   |
-| `gwtls`             | list worktrees                            |
-| `gwtrm`             | remove a worktree (not rm -rf)            |
-| `gwt`               | git worktree (raw passthrough)            |
-| `lazygit`           | terminal git UI                           |
-| `lazydocker`        | terminal docker UI                        |
-| `bat <file>`        | cat with syntax highlighting (paged)      |
-| `rg <pattern>`      | ripgrep — fast recursive search           |
-| `fd <pattern>`      | fast find files (respects .gitignore)     |
-| `fd -t d <pattern>` | find directories only                     |
-| `vim`               | nvim (clean start, no session restore)    |
-| `vimr`              | nvim, restore saved session for cwd       |
+| Key / Command       | Action                                       |
+| ------------------- | -------------------------------------------- |
+| `cd <partial>`      | zoxide smart jump (learns from usage)        |
+| `cdi <partial>`     | zoxide interactive (pick from matches)       |
+| `Ctrl+R`            | fzf fuzzy search shell history               |
+| `Ctrl+T`            | fzf insert file path (bat preview)           |
+| `Alt+C`             | fzf cd into directory (powered by fd)        |
+| `rfv [query]`       | live ripgrep + fzf, opens nvim at line       |
+| `gs`                | git status                                   |
+| `gd` / `gds`        | hunk: review working tree / latest commit    |
+| `gdw`               | hunk working-tree review, auto-reload        |
+| `gl` / `gp` / `gf`  | git log / push / fetch                       |
+| `gb`                | git branches sorted by recent use            |
+| `gbr`               | remote branches + tip author (last 500)      |
+| `gdm`               | hunk: review merge request (vs main)         |
+| `gw`                | live-watch `git diff --stat` (current shell) |
+| `gwta`              | add worktree: <dir> <branch>                 |
+| `gwts`              | fzf-switch worktree (cd into pick)           |
+| `gwtm`              | ff worktree's own branch to origin/main      |
+| `gwtls`             | list worktrees                               |
+| `gwtrm`             | remove a worktree (not rm -rf)               |
+| `gwt`               | git worktree (raw passthrough)               |
+| `lazygit`           | terminal git UI                              |
+| `lazydocker`        | terminal docker UI                           |
+| `bat <file>`        | cat with syntax highlighting (paged)         |
+| `rg <pattern>`      | ripgrep — fast recursive search              |
+| `fd <pattern>`      | fast find files (respects .gitignore)        |
+| `fd -t d <pattern>` | find directories only                        |
+| `vim`               | nvim (clean start, no session restore)       |
+| `vimr`              | nvim, restore saved session for cwd          |
+| `ta`                | attach/create tmux session named for cwd     |
+| `cheat`             | view this cheatsheet (bat)                   |
 
 ---
 
@@ -68,18 +70,21 @@ reviewer directly. delta also colors `git add -p` staging and `git blame`.
 
 ### Sessions & Windows
 
-| Key               | Action                              |
-| ----------------- | ----------------------------------- |
-| `prefix d`        | detach session                      |
-| `prefix c`        | new window (inherits cwd)           |
-| `prefix x`        | kill pane (no confirmation)         |
-| `prefix X`        | kill session                        |
-| `prefix ,`        | rename window                       |
-| `prefix $`        | rename session                      |
-| `Alt+1..9`        | switch to window 1-9 (no prefix!)   |
-| `Alt+j` / `Alt+k` | previous / next window (no prefix!) |
-| `prefix P`        | move window left                    |
-| `prefix N`        | move window right                   |
+| Key               | Action                                   |
+| ----------------- | ---------------------------------------- |
+| `prefix d`        | detach session                           |
+| `prefix c`        | new window (inherits cwd)                |
+| `prefix x`        | kill pane (no confirmation)              |
+| `prefix X`        | kill session                             |
+| `prefix ,`        | rename window                            |
+| `prefix $`        | rename session                           |
+| `Alt+1..9`        | switch to window 1-9 (no prefix!)        |
+| `Alt+j` / `Alt+k` | previous / next window (no prefix!)      |
+| `Alt+h` / `Alt+l` | previous / next session (no prefix!)     |
+| `Alt+'`           | last-used session (no prefix!)           |
+| `Alt+;`           | session picker (reorder/rename/kill/new) |
+| `prefix P`        | move window left                         |
+| `prefix N`        | move window right                        |
 
 ### Panes
 
@@ -170,7 +175,7 @@ reviewer directly. delta also colors `git add -p` staging and `git blame`.
 | Key                      | Action                   |
 | ------------------------ | ------------------------ |
 | `<leader>gg`             | open lazygit             |
-| `<leader>gB`             | git blame line           |
+| `<leader>gb`             | git blame line           |
 | `]h` / `[h`              | next / previous git hunk |
 | `:DiffviewOpen`          | side-by-side diff        |
 | `:DiffviewFileHistory %` | current file history     |
@@ -236,13 +241,12 @@ Images render inline in the buffer (image.nvim) and paste from the clipboard
 
 ## Ghostty
 
-| Key               | Action                   |
-| ----------------- | ------------------------ |
-| `Alt+h` / `Alt+l` | previous / next tab      |
-| `Ctrl+Shift+,`    | reload config            |
-| `Ctrl+Shift+C`    | copy to clipboard        |
-| `Ctrl+Shift+V`    | paste from clipboard     |
-| select text       | auto-copies to clipboard |
+| Key            | Action                   |
+| -------------- | ------------------------ |
+| `Ctrl+Shift+,` | reload config            |
+| `Ctrl+Shift+C` | copy to clipboard        |
+| `Ctrl+Shift+V` | paste from clipboard     |
+| select text    | auto-copies to clipboard |
 
 ---
 

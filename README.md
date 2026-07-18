@@ -12,8 +12,8 @@ Personal development environment managed with [GNU Stow](https://www.gnu.org/sof
 | `bat`     | Syntax highlighter theme                                                                 | `~/.config/bat/`                 |
 | `claude`  | Claude Code settings.json (agentbar hook + statusLine wiring) and statusline script      | `~/.claude/`                     |
 | `dictate` | Toggle-key local speech-to-text (faster-whisper) into tmux                               | `~/.local/bin/`                  |
-| `git`     | Git tool settings (delta pager, staging/blame, merge)                                    | `~/.config/git/config`           |
 | `ghostty` | Ghostty terminal config (Solarized Light, block cursor, cursor trail shader)             | `~/.config/ghostty/`             |
+| `git`     | Git tool settings (delta pager, staging/blame, merge)                                    | `~/.config/git/config`           |
 | `hunk`    | hunk diff viewer config (Solarized Light theme, side-by-side)                            | `~/.config/hunk/`                |
 | `nvim`    | Neovim config (LazyVim, LSP, plugins)                                                    | `~/.config/nvim/`                |
 | `theme`   | Theme switcher — re-skins the terminal stack across four flavors (`design/palette.toml`) | `~/.local/bin/theme`             |
@@ -152,6 +152,7 @@ dotfiles/
 │   ├── fzf.bash               # fzf + fd + Solarized opts, bat preview, `rfv` live-grep
 │   ├── python.bash            # pyright-init function
 │   ├── ssh-agent.bash
+│   ├── theme.bash             # sources ~/.config/theme/env.sh + hunk theme wrapper
 │   ├── tools.bash
 │   └── zoxide.bash
 ├── claude/.claude/
@@ -164,7 +165,8 @@ dotfiles/
 ├── tmux/
 │   ├── .tmux.conf
 │   ├── .gitmux.conf
-│   └── .local/bin/tmux-gitlab.sh
+│   ├── .local/bin/            # gitmux status, session picker, resurrect guard, yank
+│   └── .config/systemd/user/  # tmux-resurrect autosave timer
 ├── ghostty/.config/ghostty/
 │   ├── config
 │   └── shaders/                 # vendored cursor trail shaders

@@ -10,12 +10,12 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
 - `bat/` → `~/.config/bat/`
 - `claude/` → `~/.claude/settings.json`, `~/.claude/statusline-command.sh` (settings.json wires the agentbar hook on every Claude lifecycle event + the statusLine; agent state for both the sidebar and the `M-;` session picker comes from that plugin's `@agent_*` pane options, not local hook scripts. Note: Claude Code does NOT load a user-level `~/.claude/settings.local.json` — hooks/settings there are silently ignored; anything that must take effect goes in `settings.json`)
 - `dictate/` → `~/.local/bin/dictate` (toggle-key local Whisper dictation into tmux; opt-in)
-- `git/` → `~/.config/git/config` (delta pager, merge settings)
 - `ghostty/` → `~/.config/ghostty/` (Ghostty terminal config)
+- `git/` → `~/.config/git/config` (delta pager, merge settings)
 - `hunk/` → `~/.config/hunk/` (hunk diff viewer config, Solarized Light theme)
 - `nvim/` → `~/.config/nvim/` (LazyVim config)
 - `theme/` → `~/.local/bin/theme` (theme switcher; re-skins the terminal stack across the four flavors from `design/palette.toml`, writing per-tool files into `~/.config/theme/`)
-- `tmux/` → `~/.tmux.conf`, `~/.gitmux.conf`, `~/.local/bin/tmux-gitlab.sh` (GitLab issue/MR/CI status segments)
+- `tmux/` → `~/.tmux.conf`, `~/.gitmux.conf`, `~/.local/bin/` scripts (`tmux-gitlab.sh` GitLab status, session picker, resurrect guard, yank)
 - `yazi/` → `~/.config/yazi/` (yazi file manager config)
 
 ## Apps (built from source)
