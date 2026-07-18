@@ -218,15 +218,15 @@ state_rank() {
   esac
 }
 
-# Icons mirror the sidebar's colours: red permission, orange asking,
-# yellow working, green done.
+# Glyphs + colours match the sidebar's five-state language (Solarized Light):
+# ◔ blocked=red, ? asking=amber, ⠹ working=cyan, ✓ done=green. Needs fzf --ansi.
 icon_for() {
   case $1 in
-    permission) printf '🔴' ;;
-    question)   printf '🟠' ;;
-    working)    printf '🟡' ;;
-    done)       printf '🟢' ;;
-    *)          printf '  ' ;;
+    permission) printf '\033[38;2;220;50;47m◔\033[0m' ;;
+    question)   printf '\033[38;2;181;137;0m?\033[0m' ;;
+    working)    printf '\033[38;2;42;161;152m⠹\033[0m' ;;
+    done)       printf '\033[38;2;133;153;0m✓\033[0m' ;;
+    *)          printf ' ' ;;
   esac
 }
 
@@ -278,7 +278,7 @@ self=$(realpath "$0")
 # the cursor back to the original session after rename/move/kill/new.
 target=$(
   printf '%s\n' "$lines" \
-    | fzf --sync --reverse --no-input --highlight-line \
+    | fzf --ansi --sync --reverse --no-input --highlight-line \
           --header='? for help' --header-first \
           --delimiter=$'\t' --with-nth=2 \
           --preview "$HOME/.local/bin/tmux-session-preview.sh {1}" \
