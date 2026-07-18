@@ -165,6 +165,31 @@ done (seen) / idle**. The loudest thing in a group is what you see first.
 or alarm hue would keep the whole screen shouting and drown the exceptions that matter. Keeping it
 calm is what makes _asking_ and _blocked_ pop.
 
+### Where the states come from
+
+The five states are an abstraction over **Claude Code's own hook lifecycle** — they are stamped from
+real hook events, not guessed from screen scraping, so they line up with what Claude Code actually
+reports:
+
+| Claude Code signal                                                            | State       |
+| ----------------------------------------------------------------------------- | ----------- |
+| `SessionStart`                                                                | **idle**    |
+| `UserPromptSubmit`, `PreToolUse` (and tools running)                          | **working** |
+| `PermissionRequest` — a tool awaiting approval                                | **blocked** |
+| `PermissionRequest` (AskUserQuestion) · `Notification` (`elicitation_dialog`) | **asking**  |
+| `Stop` · `Notification` (`agent_completed`)                                   | **done**    |
+| `SessionEnd`                                                                  | _(cleared)_ |
+
+Three deliberate readings keep the abstraction honest:
+
+- **`Stop` means "this turn is finished," not "gone for good."** That is exactly _done_ — ready to
+  review — which is why _done_ fades to `muted` once seen rather than disappearing.
+- **Compaction is not its own state.** `PreCompact`/`PostCompact` bracket the agent doing work on its
+  own context, so it reads as **working** — the screen shouldn't sprout a new color for housekeeping.
+- **Noisy "waiting for input" nudges are ignored on purpose.** Claude's periodic idle/needs-input
+  notifications are dropped so a reviewed-_done_ agent doesn't flip back into a nagging state; the
+  reliable attention signals are the two above.
+
 ---
 
 ## Themes
