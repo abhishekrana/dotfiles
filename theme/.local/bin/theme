@@ -56,6 +56,36 @@ apply_ghostty() {
 	pkill -USR2 -x ghostty 2>/dev/null || true
 }
 
+# The tmux frame hardcodes colors that overpaint ghostty inside tmux; regenerate the
+# colour-carrying settings from the palette and source them into the running server.
+apply_tmux() {
+	command -v tmux >/dev/null || return 0
+	local f="$STATE_DIR/tmux.conf"
+	local bg surface fg muted accent block ask grn work
+	bg=$(palette_get "$1" bg)
+	surface=$(palette_get "$1" surface)
+	fg=$(palette_get "$1" fg)
+	muted=$(palette_get "$1" muted)
+	accent=$(palette_get "$1" accent)
+	block=$(palette_get "$1" blocked)
+	ask=$(palette_get "$1" asking)
+	grn=$(palette_get "$1" "done")
+	work=$(palette_get "$1" working)
+	cat >"$f" <<EOF
+set -g status-style "fg=$fg,bg=$surface"
+set -g window-style "fg=$fg,bg=$bg"
+set -g window-active-style "fg=$fg,bg=$bg"
+set -g pane-border-style "fg=$muted,bg=$bg"
+set -g pane-active-border-style "fg=$accent,bg=$bg"
+set -g status-left "#{@host_badge}#[fg=$bg,bg=$accent,bold] #S #[fg=$fg,bg=$surface] "
+set -g window-status-current-format "#[fg=$bg,bg=$accent,bold] #I:#W#{?window_zoomed_flag, Z,} "
+set -g window-status-format "#{?window_bell_flag,#[fg=$bg bg=$block bold],#[fg=$muted bg=$surface]} #I:#W "
+set -g @dictate_seg "#{?#{==:#{@dictate},rec},#[fg=$block bg=$surface] ● dictate ,#{?#{==:#{@dictate},work},#[fg=$ask bg=$surface] ● dictate ,#[fg=$muted bg=$surface] ● dictate }}"
+set -g @submit_seg "#{?@submit_flash,#[fg=$bg bg=$grn]   ⏎   ,#[fg=$work bg=$surface]   ⏎   }"
+EOF
+	tmux source-file "$f" 2>/dev/null || true
+}
+
 main() {
 	case "${1:-}" in
 	--list | -l)
@@ -76,7 +106,8 @@ main() {
 	echo "$flavor" >"$STATE_DIR/current"
 	apply_sidebar "$flavor"
 	apply_ghostty "$flavor"
-	echo "→ $flavor (accent $(palette_get "$flavor" accent)). Ghostty reloaded; restart sidebars with prefix+e twice."
+	apply_tmux "$flavor"
+	echo "→ $flavor (accent $(palette_get "$flavor" accent)). Ghostty + tmux reloaded; restart sidebars with prefix+e twice."
 }
 
 main "$@"

@@ -11,15 +11,16 @@ user-selected and persists; it never auto-switches on OS/time.
 
 ## Current state (done, committed)
 
-| Piece                         | State                                                                                         |
-| ----------------------------- | --------------------------------------------------------------------------------------------- |
-| Design docs                   | ✅ README, gap-analysis, palette.toml, theme-switcher — **pushed**                            |
-| Agent sidebar (separate repo) | ✅ 4 flavors + 5-state split, **deployed** (reads `@agent-sidebar-theme`; verified live)      |
-| Sidebar e2e                   | ✅ `TestHoverLightsRow` skipped w/ reason (suite green) — **unpushed** in the sidebar repo    |
-| `theme` switcher v1           | ✅ `theme/.local/bin/theme` drives sidebar + ghostty from palette — **unpushed** (dotfiles)   |
-| Session picker                | ✅ `tmux-session-picker.sh` now uses the 5-state glyphs/colors (emoji retired) — **unpushed** |
+| Piece                         | State                                                                                                                 |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Design docs                   | ✅ README, gap-analysis, palette.toml, theme-switcher — **pushed**                                                    |
+| Agent sidebar (separate repo) | ✅ 4 flavors + 5-state split, **deployed** (reads `@agent-sidebar-theme`; verified live)                              |
+| Sidebar e2e                   | ✅ `TestHoverLightsRow` skipped w/ reason (suite green) — **unpushed** in the sidebar repo                            |
+| `theme` switcher v1           | ✅ `theme/.local/bin/theme` drives sidebar + ghostty from palette — **unpushed** (dotfiles)                           |
+| Session picker                | ✅ `tmux-session-picker.sh` now uses the 5-state glyphs/colors (emoji retired) — **unpushed**                         |
+| tmux frame (item A)           | ✅ switcher regenerates the frame from palette; `.tmux.conf` sources it — verified on a private socket — **unpushed** |
 
-**Unpushed:** dotfiles has 2 commits (switcher, picker) + this doc; the sidebar repo has 1 (e2e skip).
+**Unpushed:** dotfiles has several commits (switcher, picker, this doc, tmux frame); the sidebar repo has 1 (e2e skip).
 Push when the user OKs. The `theme/` package is **not stowed yet** — run `cd ~/dotfiles && stow theme`
 to activate `~/.local/bin/theme`.
 
@@ -83,7 +84,12 @@ works (v1); it's just being overpainted.
 
 Ordered by impact. Do them one at a time, commit each, have the user test live.
 
-### A. tmux frame → palette (highest impact, no install)
+### A. tmux frame → palette (highest impact, no install) — ✅ DONE
+
+**Status:** implemented and committed. `apply_tmux` (below) is now in the switcher and `.tmux.conf`
+has the source-file hook. Verified on a private socket (tmux parses the generated file; window/status
+styles carry the flavor). Kept here for reference and in case the host badge / `tmux-gitlab.sh` polish
+is picked up later.
 
 **Why:** the "most things still Solarized inside tmux" bug (see key insight).
 
