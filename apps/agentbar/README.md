@@ -57,15 +57,15 @@ are picked up on their next restart.
 
 ## Use
 
-| key            | action                                       |
-| -------------- | -------------------------------------------- |
-| `prefix + e`     | toggle the sidebar in **all** sessions        |
-| `j`/`k`, wheel   | move between sessions and agents              |
-| `Enter`, click   | on an agent: jump to its pane; on a session name: switch to that session |
-| `g` / `G`        | first / last row                              |
-| `Tab`            | jump to the next agent waiting on you (permission/asking), cycling across sessions — the work queue |
-| `n`, click chip  | toggle desktop notifications (footer shows the state) |
-| `q`              | hide the sidebar everywhere (same as toggle)  |
+| key             | action                                                                                              |
+| --------------- | --------------------------------------------------------------------------------------------------- |
+| `prefix + e`    | toggle the sidebar in **all** sessions                                                              |
+| `j`/`k`, wheel  | move between sessions and agents                                                                    |
+| `Enter`, click  | on an agent: jump to its pane; on a session name: switch to that session                            |
+| `g` / `G`       | first / last row                                                                                    |
+| `Tab`           | jump to the next agent waiting on you (permission/asking), cycling across sessions — the work queue |
+| `n`, click chip | toggle desktop notifications (footer shows the state)                                               |
+| `q`             | hide the sidebar everywhere (same as toggle)                                                        |
 
 Clicking a session name switches to it — the one way to reach a session with no agents running (it just
 `switch-client`s, leaving the target's window and pane where you left them).
@@ -87,14 +87,14 @@ the pane, then gray) · `idle` (gray). Each agent shows its git branch and live 
 Off by default. Press `n` (or click the `notify` chip in the footer) to toggle desktop notifications for the whole
 server. When on, the instant any agent needs you — a permission prompt or a question — the plugin fires a
 `notify-send` notification (`Claude · permission` / `Claude · asking`, with the `session:window`). It rides the same
-Claude Code hooks as the sidebar (no pane scraping) and only fires on the transition *into* an attention state, so a
+Claude Code hooks as the sidebar (no pane scraping) and only fires on the transition _into_ an attention state, so a
 working agent never spams you. The footer chip mirrors the state (`notify on` / `notify off`), held in the global
 `@agent_notify` tmux option; it needs `notify-send` (libnotify) installed and no-ops harmlessly without it.
 
 ## Tip: window-tab clicks that need a second try
 
 Unrelated to this plugin but easy to blame on it — two stock-tmux reasons a status-line tab click gets dropped:
-rapid clicks chain into `SecondClick`/`TripleClick` events (unbound by default), and terminals eat the *press* of a
+rapid clicks chain into `SecondClick`/`TripleClick` events (unbound by default), and terminals eat the _press_ of a
 click that also focuses their window, delivering only the release. Make every click count:
 
 ```tmux
@@ -153,7 +153,7 @@ bin/agentbar mockup   # render the UI with fake data in any pane
 
 ### Checking the UI headlessly
 
-`mockup` needs a TTY, but you can render *and* inspect it without one — on a throwaway tmux server
+`mockup` needs a TTY, but you can render _and_ inspect it without one — on a throwaway tmux server
 (`tmux -L <socket> -f /dev/null`, the same isolation the e2e suite uses, so it never touches your live
 server). Drive it with `send-keys` and read it back with `capture-pane`; `-e` keeps the escape codes, so
 you can confirm colors and the full-width selection highlight, not just the text layout. This is the fast
@@ -190,10 +190,10 @@ Notes for hacking:
 - Anchor every tmux call explicitly (`-t`/`-c`): `run-shell` does not set `$TMUX_PANE`, and bare commands resolve
   against the attached client — the wrong session when triggered from elsewhere.
 - Only trim newlines from `list-panes` output; trimming whitespace eats trailing empty format fields of the last line.
-- Act on mouse *release*: terminals eat the press of a click that also focuses their window.
+- Act on mouse _release_: terminals eat the press of a click that also focuses their window.
 - Never wrap the sidebar in a plain `sh -c`: without job control the pane's `#{pane_current_command}` becomes `sh`
   and every liveness check breaks.
-- resurrect saves the pane shell's *child* command — for a pane whose root process is the program, that's empty
+- resurrect saves the pane shell's _child_ command — for a pane whose root process is the program, that's empty
   (hence the post-save hook). Its `restore.sh` only works from server context (`run-shell`).
 
 ## How it works

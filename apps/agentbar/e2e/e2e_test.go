@@ -722,7 +722,7 @@ func TestClickSessionSwitches(t *testing.T) {
 	// even with no agent to fall back to (the old bug left the highlight
 	// stuck on the previously-selected row).
 	waitFor(t, "bbb's session row is highlighted after the switch", 3*time.Second, func() bool {
-		for _, l := range strings.Split(s.capture(sideB), "\n") {
+		for l := range strings.SplitSeq(s.capture(sideB), "\n") {
 			if strings.Contains(l, "bbb") && strings.Contains(l, selBG) {
 				return true
 			}
@@ -1111,16 +1111,16 @@ func TestResurrectSaveHookClaudeResume(t *testing.T) {
 		"sid-empty": ":",
 		"sid-flags": ":claude --dangerously-skip-permissions --resume STALE-ID",
 	}
-	var body string
+	var body strings.Builder
 	wants := map[string]string{}
 	for sid, saved := range cases {
 		l, want := line(sid, saved)
-		body += l
+		body.WriteString(l)
 		wants[sid] = want
 	}
 
 	state := filepath.Join(t.TempDir(), "state.txt")
-	if err := os.WriteFile(state, []byte(body), 0o644); err != nil {
+	if err := os.WriteFile(state, []byte(body.String()), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
