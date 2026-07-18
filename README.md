@@ -2,6 +2,9 @@
 
 Personal development environment managed with [GNU Stow](https://www.gnu.org/software/stow/).
 
+> **Built for [Ghostty](https://ghostty.org/).** The tmux, theme switcher, and shaders assume it.
+> `bootstrap.sh` installs it; use it as your terminal. Other terminals work but aren't themed.
+
 ## What's included
 
 ### Configs (stow packages)
@@ -80,6 +83,11 @@ source ~/.bashrc
 
 Neovim plugins will auto-install on first launch via lazy.nvim.
 Run `prefix + I` in tmux to install tmux plugins.
+
+### 4. Switch to Ghostty
+
+Bootstrap installed it — open Ghostty and use it going forward; the configs are tuned for it.
+(`bootstrap.sh` itself runs from any terminal.)
 
 ## Managing configs
 
