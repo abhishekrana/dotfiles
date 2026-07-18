@@ -283,6 +283,23 @@ func highlightedAgentLine(capture string) (line string, lineNo int) {
 	return "", -1
 }
 
+// highlightBelowHeader reports whether the selection highlight in capture sits
+// on or below the header line for session name — i.e. on one of that session's
+// agent rows. False if nothing is highlighted or the header isn't shown.
+func highlightBelowHeader(capture, name string) bool {
+	_, lineNo := highlightedAgentLine(capture)
+	if lineNo < 0 {
+		return false
+	}
+	headerLine := -1
+	for i, l := range strings.Split(capture, "\n") {
+		if strings.Contains(l, name) {
+			headerLine = i
+		}
+	}
+	return headerLine >= 0 && lineNo >= headerLine
+}
+
 // --- tests ---
 
 // TestHookStateMachineLive drives the full Claude Code event sequence
@@ -496,18 +513,7 @@ func TestSelectionSyncAcrossSidebars(t *testing.T) {
 	// Both sidebars must adopt it well under the 1s snapshot tick.
 	waitFor(t, "highlight on bbb's agent in both sidebars", 700*time.Millisecond, func() bool {
 		for _, side := range []string{sideA, sideB} {
-			capture := s.capture(side)
-			_, lineNo := highlightedAgentLine(capture)
-			if lineNo < 0 {
-				return false
-			}
-			bbbLine := -1
-			for i, l := range strings.Split(capture, "\n") {
-				if strings.Contains(l, "bbb") {
-					bbbLine = i
-				}
-			}
-			if lineNo < bbbLine { // highlight must sit under the bbb header
+			if !highlightBelowHeader(s.capture(side), "bbb") {
 				return false
 			}
 		}
@@ -538,16 +544,7 @@ func TestJumpViaEnter(t *testing.T) {
 	})
 
 	// Attach a real client (pty via script) to aaa.
-	client := exec.Command("script", "-qfc", "tmux attach-session -t aaa", "/dev/null")
-	client.Env = s.env
-	if err := client.Start(); err != nil {
-		t.Fatalf("attach client: %v", err)
-	}
-	t.Cleanup(func() { _ = client.Process.Kill(); _, _ = client.Process.Wait() })
-	waitFor(t, "client attached", 5*time.Second, func() bool {
-		out, _ := s.tmuxErr("list-clients", "-F", "#{client_session}")
-		return strings.Contains(out, "aaa")
-	})
+	s.ptyClient("aaa")
 
 	// In aaa's sidebar: G selects the last agent (bbb's), Enter jumps.
 	s.tmux("send-keys", "-t", sideA, "G", "")
@@ -590,16 +587,7 @@ func TestTabJumpsToAttention(t *testing.T) {
 			strings.Contains(s.capture(sideA), "permission")
 	})
 
-	client := exec.Command("script", "-qfc", "tmux attach-session -t aaa", "/dev/null")
-	client.Env = s.env
-	if err := client.Start(); err != nil {
-		t.Fatalf("attach client: %v", err)
-	}
-	t.Cleanup(func() { _ = client.Process.Kill(); _, _ = client.Process.Wait() })
-	waitFor(t, "client attached", 5*time.Second, func() bool {
-		out, _ := s.tmuxErr("list-clients", "-F", "#{client_session}")
-		return strings.Contains(out, "aaa")
-	})
+	s.ptyClient("aaa")
 
 	// From aaa's sidebar (cursor on aaa's idle agent), Tab jumps past it to
 	// the only agent waiting on the user — bbb's.
@@ -631,16 +619,7 @@ func TestClickJump(t *testing.T) {
 			strings.Contains(s.capture(sideB), "bbb")
 	})
 
-	client := exec.Command("script", "-qfc", "tmux attach-session -t aaa", "/dev/null")
-	client.Env = s.env
-	if err := client.Start(); err != nil {
-		t.Fatalf("attach client: %v", err)
-	}
-	t.Cleanup(func() { _ = client.Process.Kill(); _, _ = client.Process.Wait() })
-	waitFor(t, "client attached", 5*time.Second, func() bool {
-		out, _ := s.tmuxErr("list-clients", "-F", "#{client_session}")
-		return strings.Contains(out, "aaa")
-	})
+	s.ptyClient("aaa")
 
 	// Find bbb's agent row in aaa's sidebar: the first claude line after
 	// the bbb session header (rows are 0-based, SGR is 1-based).
@@ -717,16 +696,7 @@ func TestClickSessionSwitches(t *testing.T) {
 		return strings.Contains(s.capture(sideA), "bbb")
 	})
 
-	client := exec.Command("script", "-qfc", "tmux attach-session -t aaa", "/dev/null")
-	client.Env = s.env
-	if err := client.Start(); err != nil {
-		t.Fatalf("attach client: %v", err)
-	}
-	t.Cleanup(func() { _ = client.Process.Kill(); _, _ = client.Process.Wait() })
-	waitFor(t, "client attached", 5*time.Second, func() bool {
-		out, _ := s.tmuxErr("list-clients", "-F", "#{client_session}")
-		return strings.Contains(out, "aaa")
-	})
+	s.ptyClient("aaa")
 
 	// bbb has no agent, so its only row is the session header.
 	lines := strings.Split(s.captureText(sideA), "\n")
@@ -1007,15 +977,7 @@ func TestSessionSwitchMovesHighlight(t *testing.T) {
 	s.tmux("switch-client", "-c", tty, "-t", "bbb")
 	waitFor(t, "both sidebars highlight bbb's agent", 700*time.Millisecond, func() bool {
 		for _, side := range []string{sideA, sideB} {
-			capture := s.capture(side)
-			_, lineNo := highlightedAgentLine(capture)
-			bbbLine := -1
-			for i, l := range strings.Split(capture, "\n") {
-				if strings.Contains(l, "bbb") {
-					bbbLine = i
-				}
-			}
-			if lineNo < 0 || lineNo < bbbLine {
+			if !highlightBelowHeader(s.capture(side), "bbb") {
 				return false
 			}
 		}
@@ -1050,15 +1012,7 @@ func TestAgentStartedAfterSwitchGetsHighlight(t *testing.T) {
 	s.agentPane("bbb")
 	waitFor(t, "late-started agent highlighted in both sidebars", 3*time.Second, func() bool {
 		for _, side := range []string{sideA, sideB} {
-			capture := s.capture(side)
-			_, lineNo := highlightedAgentLine(capture)
-			bbbLine := -1
-			for i, l := range strings.Split(capture, "\n") {
-				if strings.Contains(l, "bbb") {
-					bbbLine = i
-				}
-			}
-			if lineNo < 0 || lineNo < bbbLine {
+			if !highlightBelowHeader(s.capture(side), "bbb") {
 				return false
 			}
 		}

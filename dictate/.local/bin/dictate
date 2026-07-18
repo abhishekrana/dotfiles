@@ -29,21 +29,7 @@ Setup:
   dictate --install-shortcut     # bind Super+\\ and Super+Z to `dictate --toggle`
   dictate --check                # verify parec + tmux
 
-Commands:
-  dictate --toggle       start/stop (bind this to a key)
-  dictate --target       print the pane the transcript would go to
-  dictate --check        verify parec + tmux, report server state
-  dictate --test         record N s and print transcript
-  dictate --serve        run the model server (spawned automatically; rarely by hand)
-  dictate --serve-stop   stop a running model server (e.g. to pick up new config)
-  dictate --install-shortcut [KEYS...]   default: <Super>backslash + <Super>z
-
-Config (env, all optional):
-  DICTATE_MODEL small.en · DICTATE_COMPUTE int8 · DICTATE_LANG en
-  DICTATE_SOURCE (mic) · DICTATE_PROMPT (bias) · DICTATE_BEAM 1
-  DICTATE_LATENCY 50 · DICTATE_TEST_SECS 5 · DICTATE_IDLE 300
-  DICTATE_SILENCE 2.0 · DICTATE_MAXSECS 120 · DICTATE_VAD_RMS 300 · DICTATE_DUCK 1
-  DICTATE_TMUX_CMD claude · DICTATE_TMUX_TARGET (force a pane)
+Commands: run `dictate --help`. Env-var config (DICTATE_*): see dictate/README.md.
 """
 import os, sys, time, signal, shutil, socket, subprocess
 
