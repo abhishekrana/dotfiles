@@ -1,0 +1,91 @@
+# Palette — the single source of truth for the terminal design language.
+#
+# Every themed surface in this environment derives from these values. See ./README.md for what each
+# semantic role means and ./theme-switcher.md for how a switcher turns a theme name into per-tool
+# config. Editing a value here is the ONLY place a color should change; nothing downstream hardcodes.
+#
+# Roles (see README "Foundations · Color"):
+#   bg surface selection border   — surfaces & structure
+#   fg emphasis muted             — content
+#   accent                        — the one interactive/identity hue
+#   working asking blocked done   — the agent-state language (idle reuses `muted`)
+#   add remove                    — diff tints
+#
+# Solarized Light/Dark share the eight accent hues and only swap base tones, so accent + the four
+# state colors are identical across the two — the mood change lives in bg/surface/text.
+
+[meta]
+default = "solarized-light"
+order = ["solarized-light", "solarized-dark", "catppuccin-latte", "catppuccin-mocha"]
+
+[themes.solarized-light]
+name      = "Solarized Light"
+mode      = "light"
+bg        = "#fdf6e3"
+surface   = "#eee8d5"
+selection = "#eee8d5"
+border    = "#cabf9e"
+fg        = "#657b83"
+emphasis  = "#586e75"
+muted     = "#93a1a1"
+accent    = "#268bd2"
+working   = "#2aa198"
+asking    = "#b58900"
+blocked   = "#dc322f"
+done      = "#859900"
+add       = "#d8f0d8"
+remove    = "#f5d6d3"
+
+[themes.solarized-dark]
+name      = "Solarized Dark"
+mode      = "dark"
+bg        = "#002b36"
+surface   = "#073642"
+selection = "#073642"
+border    = "#0c3a46"
+fg        = "#839496"
+emphasis  = "#93a1a1"
+muted     = "#586e75"
+accent    = "#268bd2"
+working   = "#2aa198"
+asking    = "#b58900"
+blocked   = "#dc322f"
+done      = "#859900"
+add       = "#0f2e21"
+remove    = "#35211f"
+
+[themes.catppuccin-latte]
+name      = "Catppuccin Latte"
+mode      = "light"
+bg        = "#eff1f5"
+surface   = "#e6e9ef"
+selection = "#ccd0da"
+border    = "#bcc0cc"
+fg        = "#4c4f69"
+emphasis  = "#2e3047"
+muted     = "#8c8fa1"
+accent    = "#1e66f5"
+working   = "#179299"
+asking    = "#df8e1d"
+blocked   = "#d20f39"
+done      = "#40a02b"
+add       = "#dbebd6"
+remove    = "#f3d7dd"
+
+[themes.catppuccin-mocha]
+name      = "Catppuccin Mocha"
+mode      = "dark"
+bg        = "#1e1e2e"
+surface   = "#181825"
+selection = "#313244"
+border    = "#45475a"
+fg        = "#cdd6f4"
+emphasis  = "#eef1fb"
+muted     = "#6c7086"
+accent    = "#89b4fa"
+working   = "#94e2d5"
+asking    = "#fab387"
+blocked   = "#f38ba8"
+done      = "#a6e3a1"
+add       = "#24372c"
+remove    = "#3a2531"
