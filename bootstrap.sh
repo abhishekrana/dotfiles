@@ -412,6 +412,30 @@ create_notes_vault() {
     ok "notes vault ready at $vault"
 }
 
+install_bat_themes() {
+    # Vendored Catppuccin bat themes (gitignored — fetched here). bat's config dir is
+    # stowed; drop the .tmTheme files in and rebuild the cache. The `theme` switcher
+    # selects them via BAT_THEME. Idempotent. Must run after stow_packages.
+    command -v bat &>/dev/null || return
+    local dir changed=0 t enc
+    dir="$(bat --config-dir)/themes"
+    mkdir -p "$dir"
+    for t in "Catppuccin Latte" "Catppuccin Mocha"; do
+        [ -f "$dir/$t.tmTheme" ] && continue
+        enc="${t// /%20}"
+        if curl -sfL "https://raw.githubusercontent.com/catppuccin/bat/main/themes/${enc}.tmTheme" -o "$dir/$t.tmTheme"; then
+            changed=1
+        else
+            warn "Could not fetch bat theme: $t"
+            rm -f "$dir/$t.tmTheme"
+        fi
+    done
+    if [ "$changed" = 1 ]; then
+        bat cache --build >/dev/null 2>&1 || true
+    fi
+    ok "bat Catppuccin themes ready"
+}
+
 install_nvim_plugins() {
     # Pre-install plugins headlessly so the first interactive launch is ready.
     # Must run after the nvim config is stowed. Idempotent: `install` only
@@ -447,6 +471,7 @@ install_tpm
 install_yazi
 install_zoxide
 stow_packages
+install_bat_themes
 enable_tmux_resurrect_timer
 patch_bashrc
 create_notes_vault
