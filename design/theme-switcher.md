@@ -47,7 +47,6 @@ Tools that follow the flavor **without** being driven by the switcher:
   `hunk diff` (hunk falls back gracefully on a flavor it lacks).
 - **yazi** — a static `theme.toml` picks Mocha/Latte automatically by terminal light/dark.
 - **session picker & `tmux-gitlab.sh`** — still hardcode Solarized hexes (not yet palette-driven).
-- **terminator** — manual GUI profile switch.
 
 ## Where the choice lives
 

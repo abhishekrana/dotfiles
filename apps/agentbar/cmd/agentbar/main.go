@@ -23,8 +23,6 @@ commands:
   mockup [--theme <name>]       render the sidebar with fake data (visual preview)
   status                        print a status-line segment (⚠N ●N)
   hook                          Claude Code hook entry: stdin JSON -> pane options
-  install-hooks [--target f]    add hook entries to Claude settings (default:
-                                ~/.claude/settings.json); idempotent
 
 themes: solarized-light (default), solarized-dark, catppuccin-latte, catppuccin-mocha
 `
@@ -43,8 +41,6 @@ func main() {
 		fmt.Print(tmux.StatusSegment(tmux.Exec{}))
 	case "hook":
 		runHook()
-	case "install-hooks":
-		runInstallHooks(os.Args[2:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command %q\n%s", os.Args[1], usage)
 		os.Exit(2)
@@ -74,30 +70,6 @@ func runHook() {
 	notifyOpt, _ := r.Run("show-options", "-gqv", "@agent_notify")
 	if hook.ShouldNotify(prev, ef, notifyOpt) {
 		hook.Notify(r, pane, ef.State)
-	}
-}
-
-func runInstallHooks(args []string) {
-	target := hook.DefaultSettingsPath()
-	for i, a := range args {
-		if a == "--target" && i+1 < len(args) {
-			target = args[i+1]
-		}
-	}
-	bin, err := os.Executable()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
-		os.Exit(1)
-	}
-	changed, err := hook.Install(target, bin)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
-		os.Exit(1)
-	}
-	if changed {
-		fmt.Println("hooks installed in", target)
-	} else {
-		fmt.Println("hooks already installed in", target)
 	}
 }
 

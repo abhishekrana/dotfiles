@@ -33,9 +33,8 @@ every state (working/permission/asking/done/done-seen/idle) plus one multi-Claud
 
 ## Layout
 
-- `cmd/agentbar` — subcommands: `run`, `mockup`, `status`, `hook`, `install-hooks`
-- `internal/hook` — event JSON → `@agent_*` pane options; `Decide()` is pure, `Install()` merges into Claude
-  settings (symlink-safe)
+- `cmd/agentbar` — subcommands: `run`, `mockup`, `status`, `hook`
+- `internal/hook` — event JSON → `@agent_*` pane options; `Decide()` is pure
 - `internal/tmux` — exec wrapper, `list-panes -a` snapshot, branch cache, status segment
 - `internal/ui` — Bubble Tea TUI: `app.go` (state, mouse, selection sync), `render.go` (blocks, highlight), `theme.go`
 - `scripts/` — `toggle.sh` (global), `open.sh`, `follow.sh`, `resurrect-save.sh`

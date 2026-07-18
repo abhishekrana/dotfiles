@@ -1,4 +1,4 @@
-.PHONY: build test unit e2e install-hooks clean
+.PHONY: build test unit e2e clean
 
 build:
 	go build -o bin/agentbar ./cmd/agentbar
@@ -13,9 +13,6 @@ unit:
 # touches your live tmux). Needs tmux installed.
 e2e:
 	go test ./e2e/ -v -count=1
-
-install-hooks: build
-	./bin/agentbar install-hooks
 
 clean:
 	rm -rf bin

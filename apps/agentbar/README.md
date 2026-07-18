@@ -55,25 +55,6 @@ This plugin lives in the dotfiles monorepo at `apps/agentbar/` and the dotfiles 
 So a fresh machine gets the sidebar from `./bootstrap.sh` alone. Agents started before the hooks were installed
 are picked up on their next restart.
 
-### Standalone (outside the dotfiles)
-
-The plugin is self-contained, so you can also drop the directory anywhere and load it directly:
-
-```tmux
-run-shell ~/path/to/agentbar/agentbar.tmux
-```
-
-Then wire up the Claude Code hooks once:
-
-```bash
-~/path/to/agentbar/bin/agentbar install-hooks
-```
-
-This appends the plugin's hook entries to `~/.claude/settings.json`. It is idempotent, preserves everything else in
-the file (including any hooks you already have — Claude runs all entries for an event), writes through symlinks
-(stow-safe), and uses `$HOME`-relative paths. Use `--target <file>` to write somewhere else, e.g. a project's
-`.claude/settings.local.json`.
-
 ## Use
 
 | key            | action                                       |
@@ -217,8 +198,8 @@ Notes for hacking:
 
 ## How it works
 
-- `install-hooks` registers `agentbar hook` for the Claude Code lifecycle events (SessionStart,
-  UserPromptSubmit, PreToolUse, PermissionRequest, Notification, Stop, SubagentStart/Stop, SessionEnd).
+- The stowed `~/.claude/settings.json` registers `agentbar hook` for the Claude Code lifecycle events
+  (SessionStart, UserPromptSubmit, PreToolUse, PermissionRequest, Notification, Stop, SubagentStart/Stop, SessionEnd).
 - The hook reads the event JSON, finds its pane via `$TMUX_PANE`, and stamps pane-scoped user options
   (`@agent_state`, `@agent_since`, `@agent_subagents`, ...). Pane options die with the pane, so cleanup is
   automatic; a guard on the pane's current command filters zombies.

@@ -30,7 +30,7 @@ ok() { echo -e "\033[1;32m[dotfiles]\033[0m $*"; }
 install_apt_packages() {
     # chafa: image previews for yazi
     # imagemagick: convert/identify, used by image.nvim to render images in nvim
-    local pkgs=(bat build-essential chafa curl direnv fontconfig imagemagick jq ripgrep software-properties-common stow terminator tmux tree unzip wl-clipboard wget)
+    local pkgs=(bat build-essential chafa curl direnv fontconfig imagemagick jq ripgrep software-properties-common stow tmux tree unzip wl-clipboard wget)
     local to_install=()
     for pkg in "${pkgs[@]}"; do
         dpkg -s "$pkg" &>/dev/null || to_install+=("$pkg")
@@ -349,7 +349,7 @@ backup_pkg_files() {
 }
 
 stow_packages() {
-    local packages=(bash bat claude dictate git ghostty hunk nvim terminator theme tmux yazi)
+    local packages=(bash bat claude dictate git ghostty hunk nvim theme tmux yazi)
 
     # Single files we own outright: back up the file itself.
     backup_if_not_symlink "$HOME/.tmux.conf"                    "$DOTFILES_DIR/tmux/.tmux.conf"
@@ -364,7 +364,6 @@ stow_packages() {
 
     # Directories we own outright: back up the whole directory.
     backup_if_not_symlink "$HOME/.config/nvim"
-    backup_if_not_symlink "$HOME/.config/terminator"
     backup_if_not_symlink "$HOME/.config/bat"
     backup_if_not_symlink "$HOME/.config/ghostty"
     backup_if_not_symlink "$HOME/.config/hunk"
