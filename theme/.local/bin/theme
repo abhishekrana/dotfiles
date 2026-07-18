@@ -11,7 +11,7 @@
 # frame, fzf and the port-dependent tools land in later increments.
 set -euo pipefail
 
-PALETTE="${TAS_PALETTE:-$HOME/dotfiles/design/palette.toml}"
+PALETTE="${THEME_PALETTE:-$HOME/dotfiles/design/palette.toml}"
 STATE_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/theme"
 
 FLAVORS="solarized-light solarized-dark catppuccin-latte catppuccin-mocha"

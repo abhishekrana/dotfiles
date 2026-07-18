@@ -45,7 +45,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	shimDir, err = os.MkdirTemp("", "tas-e2e-shim")
+	shimDir, err = os.MkdirTemp("", "agentbar-e2e-shim")
 	if err != nil {
 		panic(err)
 	}
@@ -54,7 +54,7 @@ func TestMain(m *testing.M) {
 	// -f /dev/null keeps tests hermetic: the developer's ~/.tmux.conf
 	// (plugins, hooks, resurrect) must never leak into test servers.
 	realTmux, _ := exec.LookPath("tmux")
-	shim := "#!/bin/sh\nexec " + realTmux + " -L \"$TAS_TEST_SOCKET\" -f /dev/null \"$@\"\n"
+	shim := "#!/bin/sh\nexec " + realTmux + " -L \"$AGENTBAR_TEST_SOCKET\" -f /dev/null \"$@\"\n"
 	if err := os.WriteFile(filepath.Join(shimDir, "tmux"), []byte(shim), 0o755); err != nil {
 		panic(err)
 	}
@@ -85,20 +85,20 @@ func start(t *testing.T) *server {
 		t.Skip("e2e skipped with -short")
 	}
 	serverSeq++ // unique socket even for -count>1 reruns of one test
-	sock := fmt.Sprintf("tas-e2e-%d-%d-%s", os.Getpid(), serverSeq,
+	sock := fmt.Sprintf("agentbar-e2e-%d-%d-%s", os.Getpid(), serverSeq,
 		strings.NewReplacer("/", "-", " ", "-").Replace(t.Name()))
 	var env []string
 	for _, kv := range os.Environ() {
 		k, _, _ := strings.Cut(kv, "=")
 		switch k {
-		case "TMUX", "TMUX_PANE", "PATH", "TAS_TEST_SOCKET", "TERM":
+		case "TMUX", "TMUX_PANE", "PATH", "AGENTBAR_TEST_SOCKET", "TERM":
 		default:
 			env = append(env, kv)
 		}
 	}
 	env = append(env,
 		"PATH="+shimDir+":"+os.Getenv("PATH"),
-		"TAS_TEST_SOCKET="+sock,
+		"AGENTBAR_TEST_SOCKET="+sock,
 		"TERM=xterm-256color",
 	)
 	s := &server{t: t, env: env}

@@ -20,12 +20,12 @@ throwaway socket, capture. Never the live server. Pinning the width keeps an `at
 
 ```bash
 make build
-tmux -L tas-mock -f /dev/null kill-server 2>/dev/null
-tmux -L tas-mock -f /dev/null new-session -d -s v -x 36 -y 34 "$PWD/bin/agentbar mockup"
-tmux -L tas-mock -f /dev/null set -g window-size manual \; set -g status off \; resize-window -t v -x 36 -y 34
-tmux -L tas-mock -f /dev/null capture-pane -p -e -t v    # -e keeps colors; plain -p to eyeball layout
-tmux -L tas-mock -f /dev/null send-keys -t v G           # j/k/g/G navigate, Enter flashes the action
-tmux -L tas-mock attach -t v                             # optional live-test; detach C-b d, then kill-server
+tmux -L agentbar-mock -f /dev/null kill-server 2>/dev/null
+tmux -L agentbar-mock -f /dev/null new-session -d -s v -x 36 -y 34 "$PWD/bin/agentbar mockup"
+tmux -L agentbar-mock -f /dev/null set -g window-size manual \; set -g status off \; resize-window -t v -x 36 -y 34
+tmux -L agentbar-mock -f /dev/null capture-pane -p -e -t v    # -e keeps colors; plain -p to eyeball layout
+tmux -L agentbar-mock -f /dev/null send-keys -t v G           # j/k/g/G navigate, Enter flashes the action
+tmux -L agentbar-mock attach -t v                             # optional live-test; detach C-b d, then kill-server
 ```
 
 `NewMockup` (`internal/ui/app.go`) is the sample fixture — when you change the layout, keep it representative:

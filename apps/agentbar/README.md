@@ -160,7 +160,7 @@ you can confirm colors and the full-width selection highlight, not just the text
 loop for iterating on `render.go`:
 
 ```bash
-sock=tas-mock; bin=$PWD/bin/agentbar
+sock=agentbar-mock; bin=$PWD/bin/agentbar
 tmux -L $sock -f /dev/null new-session -d -s v -x 30 -y 24 "$bin mockup"   # -x 30 = default width
 sleep 1
 tmux -L $sock -f /dev/null send-keys -t v G                # navigate: j/k/g/G move, Enter flashes

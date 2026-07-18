@@ -48,4 +48,4 @@ awk -F'\t' -v OFS='\t' -v ids="$ids" '
         $11 = ":" cmd " --resume " id[$2, $3, $6]
     }
     { print }
-' "$state_file" >"$state_file.tas" && mv "$state_file.tas" "$state_file"
+' "$state_file" >"$state_file.tmp" && mv "$state_file.tmp" "$state_file"
