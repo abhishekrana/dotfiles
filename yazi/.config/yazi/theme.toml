@@ -1,0 +1,7 @@
+# yazi's flavor system is light/dark only (no first-class Solarized flavor), so it uses
+# Catppuccin and auto-picks by the terminal's background. The `theme` switcher sets the
+# terminal, so yazi follows it: dark flavors → Mocha, light flavors → Latte. Flavors are
+# installed from package.toml (`ya pkg install`, run by bootstrap.sh).
+[flavor]
+dark = "catppuccin-mocha"
+light = "catppuccin-latte"

@@ -3,5 +3,12 @@ use = "yazi-rs/plugins:zoxide"
 rev = "1962818"
 hash = "99aa06d3014798d86001c324468d497f"
 
-[flavor]
-deps = []
+[[flavor.deps]]
+use = "yazi-rs/flavors:catppuccin-mocha"
+rev = "4770a34"
+hash = "7dfe41c9c3d9be76da8a844263d0bbed"
+
+[[flavor.deps]]
+use = "yazi-rs/flavors:catppuccin-latte"
+rev = "4770a34"
+hash = "b8f46853c27707115f25f3423a47bd38"
