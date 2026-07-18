@@ -18,16 +18,10 @@ map("n", "L", "$", { desc = "End of line" })
 map("v", "H", "^", { desc = "Beginning of line" })
 map("v", "L", "$", { desc = "End of line" })
 
--- <leader>c to change inner word without yanking
-map("n", "<leader>c", '"_ciw', { desc = "Change word (no yank)" })
-
 -- LSP shortcuts (matching VS Code bindings)
 map("n", "<leader>d", vim.lsp.buf.definition, { desc = "Go to definition" })
 map("n", "<leader>r", vim.lsp.buf.references, { desc = "Go to references" })
 map("n", "<leader>i", vim.lsp.buf.implementation, { desc = "Go to implementation" })
-
--- Quit all (<leader>q)
-map("n", "<leader>qq", "<cmd>qa<CR>", { desc = "Quit all" })
 
 -- Buffer navigation (<leader>j/k)
 map("n", "<leader>j", "<cmd>bprevious<CR>", { desc = "Previous buffer" })

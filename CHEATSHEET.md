@@ -155,16 +155,15 @@ reviewer directly. delta also colors `git add -p` staging and `git blame`.
 
 ### LSP & Code
 
-| Key          | Action                        |
-| ------------ | ----------------------------- |
-| `<leader>d`  | go to definition              |
-| `<leader>r`  | go to references              |
-| `<leader>i`  | go to implementation          |
-| `<leader>c`  | change word (without yanking) |
-| `K`          | hover documentation           |
-| `<leader>ca` | code action                   |
-| `<leader>cr` | rename symbol                 |
-| `<leader>cf` | format file/selection         |
+| Key          | Action                |
+| ------------ | --------------------- |
+| `<leader>d`  | go to definition      |
+| `<leader>r`  | go to references      |
+| `<leader>i`  | go to implementation  |
+| `K`          | hover documentation   |
+| `<leader>ca` | code action           |
+| `<leader>cr` | rename symbol         |
+| `<leader>cf` | format file/selection |
 
 ### Git (in Neovim)
 
@@ -190,7 +189,7 @@ reviewer directly. delta also colors `git add -p` staging and `git blame`.
 
 | Key          | Action                     |
 | ------------ | -------------------------- |
-| `<leader>l`  | open Lazy plugin manager   |
+| `:Lazy`      | open Lazy plugin manager   |
 | `<leader>cm` | open Mason (LSP installer) |
 | `<leader>xx` | diagnostics list (trouble) |
 

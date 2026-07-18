@@ -57,13 +57,12 @@ values. The layout, the hierarchy, and the meaning of each color never move.
 
 **Surface & structure**
 
-| Token       | Intent                                                          |
-| ----------- | --------------------------------------------------------------- |
-| `bg`        | The base canvas — the terminal ground every surface sits on.    |
-| `surface`   | Raised or secondary areas: status bar, panels, card fills.      |
-| `overlay`   | Inset chips and buttons resting on `surface` (dictate, submit). |
-| `border`    | Hairlines and separators — the quietest structural line.        |
-| `selection` | The fill behind the selected or hovered row.                    |
+| Token       | Intent                                                       |
+| ----------- | ------------------------------------------------------------ |
+| `bg`        | The base canvas — the terminal ground every surface sits on. |
+| `surface`   | Raised or secondary areas: status bar, panels, card fills.   |
+| `border`    | Hairlines and separators — the quietest structural line.     |
+| `selection` | The fill behind the selected or hovered row.                 |
 
 **Content**
 
@@ -248,7 +247,7 @@ Described here as intent and anatomy — the shared parts every tool reuses, not
   It reports; the headline above it alarms.
 - **Selection & hover.** A `selection` fill plus a one-cell `accent` rail. Focus, not decoration.
 - **Status widgets.** The small indicators — dictate, notify toggle, agent tally, attention count —
-  are one family: an `overlay` chip, a state dot, a right-aligned value. Recording is the only place
+  are one family: a `surface` chip, a state dot, a right-aligned value. Recording is the only place
   red appears outside _blocked_; transcribing borrows the _asking_ amber.
 - **Status-bar segments.** Identity segments (host, session) keep their own colors; window tabs use
   `accent` for the active one and the state language for any window whose agent needs you.

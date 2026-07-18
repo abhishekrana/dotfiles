@@ -116,20 +116,19 @@ vim ~/.bashrc.d/local.bash
 
 ### Machine-specific Claude Code settings
 
-The dotfiles ship a minimal `~/.claude/settings.json` (hooks + statusline only).
-Machine-specific preferences — `theme`, `voiceEnabled`, `effortLevel`,
-`enabledPlugins`, `skipAutoPermissionPrompt`, etc. — belong in
-`~/.claude/settings.local.json`, which Claude Code merges on top of the shipped
-file and which stays out of the dotfiles repo.
+The committed `~/.claude/settings.json` is the **full baseline** — hooks (agentbar),
+`statusLine`, `permissions`, `enabledPlugins`, and preferences like `effortLevel` and
+`skipAutoPermissionPrompt`. Claude Code does **not** load a user-level
+`~/.claude/settings.local.json` (only a project's `.claude/settings.local.json` is read,
+for per-project overrides), so there is no user-level "local" layer that keeps
+preferences out of the repo.
 
-If you already have a `~/.claude/settings.json` with preferences when you run
-`bootstrap.sh`, it gets backed up to `~/.claude/settings.json.pre-dotfiles`.
-Migrate the keys you want to keep:
+Because the file is stowed as a symlink, anything you change at runtime (via `/config`
+or the UI) writes straight into `claude/.claude/settings.json` in this repo — commit the
+changes you want to keep, or `git checkout` to discard them.
 
-```bash
-jq '{autoCompactEnabled, theme, voiceEnabled, effortLevel, enabledPlugins, skipAutoPermissionPrompt}' \
-  ~/.claude/settings.json.pre-dotfiles > ~/.claude/settings.local.json
-```
+If you already have a `~/.claude/settings.json` when you run `bootstrap.sh`, it is backed
+up to `~/.claude/settings.json.pre-dotfiles` before the symlink is created.
 
 ### Edit a config
 

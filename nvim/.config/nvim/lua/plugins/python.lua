@@ -24,6 +24,8 @@ return {
     "neovim/nvim-lspconfig",
     opts = {
       servers = {
+        -- lang.python extra defaults to basedpyright; we use pyright below.
+        basedpyright = { enabled = false },
         ruff = {
           cmd = { "uvx", "ruff", "server" },
           mason = false,

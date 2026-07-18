@@ -29,7 +29,7 @@ ok() { echo -e "\033[1;32m[dotfiles]\033[0m $*"; }
 
 install_apt_packages() {
     # chafa: image previews for yazi
-    # imagemagick: convert/identify, used by snacks.image to render images in nvim
+    # imagemagick: convert/identify, used by image.nvim to render images in nvim
     local pkgs=(bat build-essential chafa curl direnv fontconfig imagemagick jq ripgrep software-properties-common stow terminator tmux tree unzip wl-clipboard wget)
     local to_install=()
     for pkg in "${pkgs[@]}"; do
@@ -426,9 +426,9 @@ EOF
 
 create_notes_vault() {
     # obsidian.nvim errors on startup if its workspace path is missing and does
-    # not create it itself. Layout matches nvim's obsidian.lua.
-    local vault="$HOME/notes"
-    mkdir -p "$vault/notes" "$vault/dailies" "$vault/templates"
+    # not create it itself. Paths match nvim's obsidian.lua (workspace + subdirs).
+    local vault="$HOME/vaults/personal"
+    mkdir -p "$vault/inbox" "$vault/dailies" "$vault/templates" "$vault/assets"
     ok "notes vault ready at $vault"
 }
 
