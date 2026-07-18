@@ -10,7 +10,7 @@ path=$(tmux display-message -p -t "$session" '#{pane_current_path}' 2>/dev/null)
 home_short=${path/#$HOME/\~}
 now=$(date +%s)
 
-# Per-pane Claude state from the @agent_* pane options the tmux-agent-sidebar
+# Per-pane Claude state from the @agent_* pane options the agentbar
 # hook stamps — the same source the sidebar and picker read. @agent_since is
 # the unix time of the last state change; a pane counts as a live agent only
 # with @agent_present=1 and a claude/node foreground command. Only active

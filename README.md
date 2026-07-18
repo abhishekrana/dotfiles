@@ -10,7 +10,7 @@ Personal development environment managed with [GNU Stow](https://www.gnu.org/sof
 | ------------ | ---------------------------------------------------------------------------------------- | -------------------------------- |
 | `bash`       | Shell customizations, aliases, direnv/fzf/zoxide hooks, vi mode                          | `~/.bashrc.d/`                   |
 | `bat`        | Syntax highlighter theme                                                                 | `~/.config/bat/`                 |
-| `claude`     | Claude Code settings.json (agent-sidebar hook + statusLine wiring) and statusline script | `~/.claude/`                     |
+| `claude`     | Claude Code settings.json (agentbar hook + statusLine wiring) and statusline script      | `~/.claude/`                     |
 | `dictate`    | Toggle-key local speech-to-text (faster-whisper) into tmux                               | `~/.local/bin/`                  |
 | `git`        | Git tool settings (delta pager, staging/blame, merge)                                    | `~/.config/git/config`           |
 | `ghostty`    | Ghostty terminal config (Solarized Light, block cursor, cursor trail shader)             | `~/.config/ghostty/`             |
@@ -25,9 +25,9 @@ Personal development environment managed with [GNU Stow](https://www.gnu.org/sof
 
 Standalone projects that compile to a binary. They live under `apps/` — kept out of the stow-package namespace — and each is self-contained with its own `Makefile` exposing a uniform `make build` target (any language). `bootstrap.sh` installs the toolchain and builds them.
 
-| App                  | Description                                                          | Language |
-| -------------------- | -------------------------------------------------------------------- | -------- |
-| `tmux-agent-sidebar` | tmux sidebar showing every Claude Code agent's state across sessions | Go       |
+| App        | Description                                                          | Language |
+| ---------- | -------------------------------------------------------------------- | -------- |
+| `agentbar` | tmux sidebar showing every Claude Code agent's state across sessions | Go       |
 
 The sidebar loads from here via a `run-shell` line in `tmux/.tmux.conf`; edit it and reload tmux to pick up changes.
 
@@ -43,7 +43,7 @@ Installed via `bootstrap.sh` (apt + `~/.local/bin`):
 - [Ghostty](https://ghostty.org/) — terminal emulator
 - [gitmux](https://github.com/arl/gitmux) — git status in tmux
 - [GNU Stow](https://www.gnu.org/software/stow/) — symlink manager
-- [Go](https://go.dev/) — toolchain for building `apps/` (tmux-agent-sidebar)
+- [Go](https://go.dev/) — toolchain for building `apps/` (agentbar)
 - [hunk](https://github.com/modem-dev/hunk) — interactive diff viewer (via `gd`/`gds` aliases)
 - [JetBrainsMono Nerd Font](https://www.nerdfonts.com/) — terminal/editor font
 - [jq](https://github.com/jqlang/jq) — JSON processor
@@ -157,7 +157,7 @@ dotfiles/
 │   ├── tools.bash
 │   └── zoxide.bash
 ├── claude/.claude/
-│   ├── settings.json            # agent-sidebar hook + statusLine wiring (portable, uses $HOME)
+│   ├── settings.json            # agentbar hook + statusLine wiring (portable, uses $HOME)
 │   └── statusline-command.sh
 ├── git/.config/git/config         # delta pager, staging/blame, merge settings
 ├── nvim/.config/nvim/
@@ -175,7 +175,7 @@ dotfiles/
 ├── bat/.config/bat/config
 ├── hunk/.config/hunk/config.toml
 ├── apps/                         # buildable projects (not stow packages)
-│   └── tmux-agent-sidebar/       # Go tmux plugin (cmd/ internal/ e2e/ Makefile)
+│   └── agentbar/       # Go tmux plugin (cmd/ internal/ e2e/ Makefile)
 ├── bootstrap.sh
 ├── test/bootstrap-fresh.sh    # docker smoke test (fresh Ubuntu 24.04)
 ├── CHEATSHEET.md

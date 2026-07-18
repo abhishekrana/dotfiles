@@ -131,7 +131,7 @@ install_gitmux() {
     ok "gitmux $GITMUX_VERSION installed"
 }
 
-# Toolchain for building apps/ (currently the Go tmux-agent-sidebar).
+# Toolchain for building apps/ (currently the Go agentbar).
 install_go() {
     if [ -x "$LOCAL_BIN/go" ] && "$LOCAL_BIN/go" version 2>/dev/null | grep -q "go${GO_VERSION} "; then
         ok "Go $GO_VERSION already installed"
@@ -490,18 +490,6 @@ build_apps() {
     done
 }
 
-remove_stale_sidebar_clone() {
-    # The sidebar loads from apps/ (run-shell in .tmux.conf). TPM also sources
-    # every *.tmux under ~/.tmux/plugins, so a clone there would load it twice.
-    # Drop it — but never a symlink the user set.
-    local clone="$HOME/.tmux/plugins/tmux-agent-sidebar"
-    if [ -d "$clone" ] && [ ! -L "$clone" ]; then
-        log "Removing stale TPM clone of tmux-agent-sidebar (now in apps/)..."
-        rm -rf "$clone"
-        ok "Stale sidebar TPM clone removed"
-    fi
-}
-
 # =============================================================================
 # Main
 # =============================================================================
@@ -532,7 +520,6 @@ patch_bashrc
 create_notes_vault
 install_nvim_plugins
 build_apps
-remove_stale_sidebar_clone
 
 echo ""
 ok "Done! Restart your shell or run: source ~/.bashrc"

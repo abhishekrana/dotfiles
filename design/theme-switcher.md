@@ -36,7 +36,7 @@ each tool's own identifier in the **adapter table** below.
 | **ghostty**        | named           | write `theme = <Name>` into the config                                 | `killall -SIGUSR2 ghostty` (Linux)        |
 | **tmux frame**     | hex → generated | emit `~/.config/theme/tmux-<id>.conf` (`status-style`, …) from palette | `tmux source-file …`                      |
 | **tmux plugin**    | named           | `@catppuccin_flavor` _or_ source `seebi` light/dark conf               | `tmux source-file …`                      |
-| **agent sidebar**  | option (id)     | `tmux set -g @agent-sidebar-theme <id>`                                | restart (`prefix + e` ×2) — see note      |
+| **agent sidebar**  | option (id)     | `tmux set -g @agentbar-theme <id>`                                | restart (`prefix + e` ×2) — see note      |
 | **nvim**           | named           | write `~/.config/theme/nvim.lua` (`colorscheme` + `background`)        | live `:colorscheme` / next launch         |
 | **fzf**            | hex → export    | rewrite the `--color` string in a sourced `theme-fzf.sh`               | new shells (re-`export FZF_DEFAULT_OPTS`) |
 | **bat**            | named           | set `BAT_THEME` in a sourced file                                      | next invocation                           |
@@ -56,7 +56,7 @@ The switcher just selects them; the definitions live in the repo.
   active."_
 - `~/.config/theme/env.sh` — sourced by `.bashrc.d`; exports `THEME`, `BAT_THEME`, `FZF_DEFAULT_OPTS`
   so new shells inherit the theme.
-- `tmux set -g @theme <id>` + `@agent-sidebar-theme <id>` — so tmux and the sidebar can read it.
+- `tmux set -g @theme <id>` + `@agentbar-theme <id>` — so tmux and the sidebar can read it.
 
 ## Skeleton
 
@@ -74,7 +74,7 @@ palette_get() { awk -v t="[themes.$1]" -v k="$2" '…'; "$PALETTE"; }
 
 apply_ghostty()  { set_kv "$GHOSTTY_CONF" theme "$(name_of "$1")"; reload_ghostty; }
 apply_tmux()     { render_tmux_conf "$1" > "$STATE/tmux.conf"; tmux source-file "$STATE/tmux.conf"; }
-apply_sidebar()  { tmux set -g @agent-sidebar-theme "$1"; }        # restart handled separately
+apply_sidebar()  { tmux set -g @agentbar-theme "$1"; }        # restart handled separately
 apply_fzf()      { render_fzf_colors "$1" > "$STATE/fzf.sh"; }     # picked up by new shells
 apply_bat()      { echo "export BAT_THEME='$(bat_name "$1")'" >> "$STATE/env.sh"; }
 apply_nvim()     { render_nvim_lua "$1" > "$STATE/nvim.lua"; }
@@ -94,7 +94,7 @@ main "$@"
 
 ## Open decisions
 
-- **Sidebar reload.** The sidebar is a long-lived process; `@agent-sidebar-theme` changes but the
+- **Sidebar reload.** The sidebar is a long-lived process; `@agentbar-theme` changes but the
   running instance needs `prefix + e` twice (the project never drives the live server). The switcher
   should print that reminder rather than try to restart it.
 - **base16 vs. bespoke.** [`tinty`](https://github.com/tinted-theming/tinty) could drive the

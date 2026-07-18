@@ -7,7 +7,7 @@
 #   theme <flavor>        switch everything to <flavor>
 #
 # Flavors: solarized-light (default) · solarized-dark · catppuccin-latte · catppuccin-mocha
-# v1 drives the sidebar (@agent-sidebar-theme) and ghostty (built-in themes); the tmux
+# v1 drives the sidebar (@agentbar-theme) and ghostty (built-in themes); the tmux
 # frame, fzf and the port-dependent tools land in later increments.
 set -euo pipefail
 
@@ -36,10 +36,10 @@ palette_get() {
 
 valid() { case " $FLAVORS " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 
-# The sidebar reads @agent-sidebar-theme at launch; running instances need a restart.
+# The sidebar reads @agentbar-theme at launch; running instances need a restart.
 apply_sidebar() {
 	command -v tmux >/dev/null || return 0
-	tmux set -g @agent-sidebar-theme "$1" 2>/dev/null || true
+	tmux set -g @agentbar-theme "$1" 2>/dev/null || true
 }
 
 # Ghostty applies a built-in theme by name. Write it to a non-repo file that the main

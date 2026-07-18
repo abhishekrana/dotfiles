@@ -38,7 +38,7 @@ Legend: ● built-in · ○ install a port/snippet · ⨯ hand-author
 
 \* bat's bundled Solarized is outdated / pink-heavy ([bat #941](https://github.com/sharkdp/bat/issues/941)).
 
-The **agent sidebar** (`tmux-agent-sidebar`) is not in the matrix because it is _ours_: it ships only
+The **agent sidebar** (`agentbar`) is not in the matrix because it is _ours_: it ships only
 two palettes today (`solarized-light` + a generic `dark`), compiled into the binary. It needs the
 four-flavor set and the five-state model added — expected work, not a blocker.
 

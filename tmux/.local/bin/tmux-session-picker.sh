@@ -203,7 +203,7 @@ sessions=$(ordered_session_names)
 [ -z "$sessions" ] && exit 0
 
 # Aggregated Claude state per tmux session, worst state wins. State comes from
-# the @agent_* pane options the tmux-agent-sidebar hook stamps on each Claude
+# the @agent_* pane options the agentbar hook stamps on each Claude
 # pane — the same source the sidebar itself reads, so picker and sidebar always
 # agree. Pane options die with the pane, so no staleness/liveness bookkeeping.
 # Priority: permission(4) > asking(3) > working(2) > done(1) > blank(0).

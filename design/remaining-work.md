@@ -14,7 +14,7 @@ user-selected and persists; it never auto-switches on OS/time.
 | Piece                         | State                                                                                                                                                                                                                                                 |
 | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Design docs                   | ✅ README, gap-analysis, palette.toml, theme-switcher — **pushed**                                                                                                                                                                                    |
-| Agent sidebar (separate repo) | ✅ 4 flavors + 5-state split, **deployed** (reads `@agent-sidebar-theme`; verified live)                                                                                                                                                              |
+| Agent sidebar (separate repo) | ✅ 4 flavors + 5-state split, **deployed** (reads `@agentbar-theme`; verified live)                                                                                                                                                              |
 | Sidebar e2e                   | ✅ `TestHoverLightsRow` skipped w/ reason (suite green) — **unpushed** in the sidebar repo                                                                                                                                                            |
 | `theme` switcher v1           | ✅ `theme/.local/bin/theme` drives sidebar + ghostty from palette — **unpushed** (dotfiles)                                                                                                                                                           |
 | Session picker                | ✅ `tmux-session-picker.sh` now uses the 5-state glyphs/colors (emoji retired) — **unpushed**                                                                                                                                                         |
@@ -69,11 +69,10 @@ works (v1); it's just being overpainted.
 - **Verified ghostty theme names** (`ghostty +list-themes`): `iTerm2 Solarized Light`,
   `iTerm2 Solarized Dark`, `Catppuccin Latte`, `Catppuccin Mocha`. (There is **no** plain
   "Solarized Light".) The switcher already maps these.
-- **Sidebar:** deployed and reads `@agent-sidebar-theme`; a running sidebar only re-themes after
+- **Sidebar:** deployed and reads `@agentbar-theme`; a running sidebar only re-themes after
   `prefix + e` twice (the sidebar project never drives the live tmux server). It has **no explicit bg
   fill** — it blends into the tmux pane background, so once the tmux frame is themed the sidebar sits
-  on the flavor's `bg` automatically. Sidebar deploy flow (separate repo): commit + push → in the TPM
-  clone `~/.tmux/plugins/tmux-agent-sidebar` fetch+reset to `origin/main` and `make build` → verify
+  on the flavor's `bg` automatically. Sidebar deploy flow: `make -C apps/agentbar build` → verify
   headlessly on a private socket → tell the user to `prefix + e` twice. (No sidebar code changes are
   needed for the remaining work.)
 - **hunk:** v0.17 **does** have a working `solarized-light` theme (verified live — renders real

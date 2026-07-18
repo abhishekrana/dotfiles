@@ -8,7 +8,7 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
 
 - `bash/` → `~/.bashrc.d/` (shell customizations)
 - `bat/` → `~/.config/bat/`
-- `claude/` → `~/.claude/settings.json`, `~/.claude/statusline-command.sh` (settings.json wires the tmux-agent-sidebar hook on every Claude lifecycle event + the statusLine; agent state for both the sidebar and the `M-;` session picker comes from that plugin's `@agent_*` pane options, not local hook scripts. Note: Claude Code does NOT load a user-level `~/.claude/settings.local.json` — hooks/settings there are silently ignored; anything that must take effect goes in `settings.json`)
+- `claude/` → `~/.claude/settings.json`, `~/.claude/statusline-command.sh` (settings.json wires the agentbar hook on every Claude lifecycle event + the statusLine; agent state for both the sidebar and the `M-;` session picker comes from that plugin's `@agent_*` pane options, not local hook scripts. Note: Claude Code does NOT load a user-level `~/.claude/settings.local.json` — hooks/settings there are silently ignored; anything that must take effect goes in `settings.json`)
 - `dictate/` → `~/.local/bin/dictate` (toggle-key local Whisper dictation into tmux; opt-in)
 - `git/` → `~/.config/git/config` (delta pager, merge settings)
 - `ghostty/` → `~/.config/ghostty/` (Ghostty terminal config)
@@ -23,7 +23,7 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
 
 Buildable projects live under `apps/` — these are **not** stow packages and are never passed to `stow`. Each is self-contained with its own `Makefile` exposing a uniform `build` target, so `bootstrap.sh` builds any language the same way: `build_apps` loops over `apps/*/` running `make build`, and the toolchain gets a pinned `install_*` step (e.g. `install_go`). Add more apps by dropping a project with a `Makefile` under `apps/`.
 
-- `apps/tmux-agent-sidebar/` → Go tmux plugin (the Claude agent sidebar). Loaded by a `run-shell` line at the end of `tmux/.tmux.conf`, so it builds and runs straight from the repo. The Claude lifecycle hooks in `claude/.claude/settings.json` invoke its binary at `$HOME/dotfiles/apps/tmux-agent-sidebar/bin/tmux-agent-sidebar`. It has its own nested `CLAUDE.md` — read that before touching the code.
+- `apps/agentbar/` → Go tmux plugin (the Claude agent sidebar). Loaded by a `run-shell` line at the end of `tmux/.tmux.conf`, so it builds and runs straight from the repo. The Claude lifecycle hooks in `claude/.claude/settings.json` invoke its binary at `$HOME/dotfiles/apps/agentbar/bin/agentbar`. It has its own nested `CLAUDE.md` — read that before touching the code.
 
 ## Rules
 
@@ -51,7 +51,7 @@ When I say "deploy": **first commit and push, then make it live** on the running
    - **tmux** (`tmux/.tmux.conf`): `tmux source-file ~/.tmux.conf`. One server is shared by all sessions, so a single reload updates every existing session at once.
    - **Stowed scripts** (symlinks — `dictate/`, `bash/`, etc.): live the moment the repo file is saved; no step needed.
    - **New stow package or file**: `cd ~/dotfiles && stow <pkg>`, then reload the relevant tool.
-   - **`apps/tmux-agent-sidebar`** (Go): `make -C ~/dotfiles/apps/tmux-agent-sidebar build`, then reload tmux (`tmux source-file ~/.tmux.conf`). The sidebar is a long-lived process, so restarting it is a manual step you must list: **`prefix + e` twice**. Hook-path edits to the stowed `settings.json` take effect on the next agent lifecycle event.
+   - **`apps/agentbar`** (Go): `make -C ~/dotfiles/apps/agentbar build`, then reload tmux (`tmux source-file ~/.tmux.conf`). The sidebar is a long-lived process, so restarting it is a manual step you must list: **`prefix + e` twice**. Hook-path edits to the stowed `settings.json` take effect on the next agent lifecycle event.
 3. Always list any steps I must run by hand — things that can't be scripted (re-login, `gsettings`/GNOME shortcut install, `systemctl --user …`, opening a fresh shell).
 
 ## Commits
