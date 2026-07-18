@@ -86,6 +86,26 @@ EOF
 	tmux source-file "$f" 2>/dev/null || true
 }
 
+# fzf reads its palette from FZF_DEFAULT_OPTS; write the flavor's --color block to a
+# file that fzf.bash sources, so new shells follow the flavor.
+apply_fzf() {
+	local f="$STATE_DIR/fzf.sh"
+	local mode bg fg accent emph sel muted work grn border
+	mode=$(palette_get "$1" mode)
+	bg=$(palette_get "$1" bg)
+	fg=$(palette_get "$1" fg)
+	accent=$(palette_get "$1" accent)
+	emph=$(palette_get "$1" emphasis)
+	sel=$(palette_get "$1" selection)
+	muted=$(palette_get "$1" muted)
+	work=$(palette_get "$1" working)
+	grn=$(palette_get "$1" "done")
+	border=$(palette_get "$1" border)
+	cat >"$f" <<EOF
+_fzf_color="--color=$mode --color=fg:$fg,bg:$bg,hl:$accent --color=fg+:$emph,bg+:$sel,hl+:$accent --color=info:$muted,prompt:$accent,pointer:$accent --color=marker:$grn,spinner:$work,header:$muted --color=border:$border,gutter:$bg"
+EOF
+}
+
 main() {
 	case "${1:-}" in
 	--list | -l)
@@ -107,7 +127,8 @@ main() {
 	apply_sidebar "$flavor"
 	apply_ghostty "$flavor"
 	apply_tmux "$flavor"
-	echo "→ $flavor (accent $(palette_get "$flavor" accent)). Ghostty + tmux reloaded; restart sidebars with prefix+e twice."
+	apply_fzf "$flavor"
+	echo "→ $flavor (accent $(palette_get "$flavor" accent)). Ghostty + tmux reloaded; new shells pick up fzf; restart sidebars with prefix+e twice."
 }
 
 main "$@"

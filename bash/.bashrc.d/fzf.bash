@@ -11,17 +11,16 @@ fi
 # picked up when bat runs as a preview subprocess).
 export BAT_THEME='Solarized (light)'
 
-# Global look + Solarized Light palette + preview toggle
-export FZF_DEFAULT_OPTS='
+# Global look + preview toggle. The color block defaults to Solarized Light; the
+# `theme` switcher overrides it via ~/.config/theme/fzf.sh so new shells follow the flavor.
+_fzf_color='--color=light --color=fg:#586e75,bg:#fdf6e3,hl:#268bd2 --color=fg+:#073642,bg+:#eee8d5,hl+:#cb4b16 --color=info:#b58900,prompt:#859900,pointer:#dc322f --color=marker:#dc322f,spinner:#b58900,header:#2aa198 --color=border:#93a1a1,gutter:#fdf6e3'
+[ -f ~/.config/theme/fzf.sh ] && . ~/.config/theme/fzf.sh
+export FZF_DEFAULT_OPTS="
   --height=80% --layout=reverse --border
   --bind ctrl-/:toggle-preview
-  --color=light
-  --color=fg:#586e75,bg:#fdf6e3,hl:#268bd2
-  --color=fg+:#073642,bg+:#eee8d5,hl+:#cb4b16
-  --color=info:#b58900,prompt:#859900,pointer:#dc322f
-  --color=marker:#dc322f,spinner:#b58900,header:#2aa198
-  --color=border:#93a1a1,gutter:#fdf6e3
-'
+  $_fzf_color
+"
+unset _fzf_color
 
 # Ctrl-T: file picker with bat preview; Ctrl-Y copies file contents to wl-clipboard
 if command -v bat &>/dev/null && command -v wl-copy &>/dev/null; then

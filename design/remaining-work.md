@@ -19,8 +19,9 @@ user-selected and persists; it never auto-switches on OS/time.
 | `theme` switcher v1           | ✅ `theme/.local/bin/theme` drives sidebar + ghostty from palette — **unpushed** (dotfiles)                           |
 | Session picker                | ✅ `tmux-session-picker.sh` now uses the 5-state glyphs/colors (emoji retired) — **unpushed**                         |
 | tmux frame (item A)           | ✅ switcher regenerates the frame from palette; `.tmux.conf` sources it — verified on a private socket — **unpushed** |
+| fzf (item B)                  | ✅ switcher writes `~/.config/theme/fzf.sh`; `fzf.bash` sources it (new shells) — verified — **unpushed**             |
 
-**Unpushed:** dotfiles has several commits (switcher, picker, this doc, tmux frame); the sidebar repo has 1 (e2e skip).
+**Unpushed:** dotfiles has several commits (switcher, picker, this doc, tmux frame, fzf); the sidebar repo has 1 (e2e skip).
 Push when the user OKs. The `theme/` package is **not stowed yet** — run `cd ~/dotfiles && stow theme`
 to activate `~/.local/bin/theme`.
 
@@ -40,7 +41,15 @@ works (v1); it's just being overpainted.
   The switcher has a `palette_get <flavor> <token>` awk reader.
 - **Switcher:** `~/dotfiles/theme/.local/bin/theme` (v1). Extend it — add an `apply_<tool>` per tool
   and call it from `main`. Generated per-flavor files should live in `~/.config/theme/` (NOT tracked
-  in dotfiles), so switching never dirties the repo.
+  in dotfiles), so switching never dirties the repo. Done so far: `apply_sidebar`, `apply_ghostty`,
+  `apply_tmux`, `apply_fzf`.
+- **Stow-symlink constraint (important):** `~/.config/ghostty`, `~/.config/hunk`, and `~/.config/yazi`
+  are **directory symlinks into the dotfiles repo** — so rewriting those configs edits tracked files
+  and dirties the repo (that's the ghostty `theme =` diff seen when switching). Prefer a **non-repo
+  override** per tool: an env var (`BAT_THEME`, `FZF_DEFAULT_OPTS`), a sourced file, or a
+  `config-file`/include that points at `~/.config/theme/…`. Only rewrite a tracked config if the tool
+  offers no other mechanism — and expect a diff. tmux and fzf already avoid this via generated files
+  under `~/.config/theme/`. delta writes via `git config --global` (its target may also be tracked).
 - **Verified ghostty theme names** (`ghostty +list-themes`): `iTerm2 Solarized Light`,
   `iTerm2 Solarized Dark`, `Catppuccin Latte`, `Catppuccin Mocha`. (There is **no** plain
   "Solarized Light".) The switcher already maps these.
