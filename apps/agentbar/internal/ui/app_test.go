@@ -24,20 +24,20 @@ func (f *fakeRunner) Run(args ...string) (string, error) {
 
 func twoSessionSnap() model.Snapshot {
 	return model.Snapshot{Sessions: []model.Session{
-		{Name: "alpha-1", Current: true, Agents: []model.Agent{
+		{Name: "api", Current: true, Agents: []model.Agent{
 			{PaneID: "%0", WindowIndex: 1, Branch: "main", State: model.StateIdle},
 		}},
-		{Name: "alpha-2", Agents: []model.Agent{
-			{PaneID: "%6", WindowIndex: 1, Branch: "alpha-2", State: model.StateIdle},
+		{Name: "blog", Agents: []model.Agent{
+			{PaneID: "%6", WindowIndex: 1, Branch: "blog", State: model.StateIdle},
 		}},
 	}}
 }
 
 // testApp builds a live-mode App around a fake runner with the two-session
-// snapshot already applied. Block layout: 0=alpha-1 header, 1=%0 agent,
-// 2=alpha-2 header, 3=%6 agent.
+// snapshot already applied. Block layout: 0=api header, 1=%0 agent,
+// 2=blog header, 3=%6 agent.
 func testApp(r *fakeRunner) App {
-	a := App{runner: r, current: "alpha-1"}
+	a := App{runner: r, current: "api"}
 	a.setSnapshot(twoSessionSnap())
 	return a
 }
@@ -61,7 +61,7 @@ func TestSnapMsgUnchangedSelectionKeepsLocalCursor(t *testing.T) {
 	a := testApp(&fakeRunner{})
 	a.lastSel = "%6" // already adopted earlier
 	a.cursor = 3
-	a.moveCursor(-1) // k: onto alpha-2's header (now selectable)
+	a.moveCursor(-1) // k: onto blog's header (now selectable)
 	a.moveCursor(-1) // k again: onto %0's agent block
 	if a.cursor != 1 {
 		t.Fatalf("moveCursor: cursor = %d, want 1", a.cursor)
@@ -131,7 +131,7 @@ func TestAttachedSessionChangeMovesHighlight(t *testing.T) {
 	m, _ := a.Update(snapMsg{snap: snap, sel: ""})
 	a = m.(App)
 	if a.cursor != 1 {
-		t.Fatalf("cursor = %d after alpha-1 attach, want 1", a.cursor)
+		t.Fatalf("cursor = %d after api attach, want 1", a.cursor)
 	}
 
 	snap = twoSessionSnap()
@@ -140,11 +140,11 @@ func TestAttachedSessionChangeMovesHighlight(t *testing.T) {
 	m, _ = a.Update(snapMsg{snap: snap, sel: ""})
 	a = m.(App)
 	if a.cursor != 3 {
-		t.Errorf("cursor = %d after switch to alpha-2, want 3", a.cursor)
+		t.Errorf("cursor = %d after switch to blog, want 3", a.cursor)
 	}
 
 	// No change: local j/k position must survive the next tick. Two k's
-	// step past alpha-2's now-selectable header onto %0's agent block.
+	// step past blog's now-selectable header onto %0's agent block.
 	a.moveCursor(-1)
 	a.moveCursor(-1)
 	m, _ = a.Update(snapMsg{snap: snap, sel: ""})
@@ -164,7 +164,7 @@ func TestAgentStartedAfterSwitchGetsHighlight(t *testing.T) {
 	m, _ := a.Update(snapMsg{snap: snap, sel: ""})
 	a = m.(App)
 	if a.cursor != 1 {
-		t.Fatalf("cursor = %d while alpha-2 has no agents, want 1", a.cursor)
+		t.Fatalf("cursor = %d while blog has no agents, want 1", a.cursor)
 	}
 
 	snap = twoSessionSnap()
@@ -179,7 +179,7 @@ func TestAgentStartedAfterSwitchGetsHighlight(t *testing.T) {
 func TestActivatePublishesSelectionAndSignals(t *testing.T) {
 	r := &fakeRunner{}
 	a := testApp(r)
-	a.cursor = 3 // alpha-2's agent
+	a.cursor = 3 // blog's agent
 	m, _ := a.activate()
 	a = m.(App)
 
@@ -192,8 +192,8 @@ func TestActivatePublishesSelectionAndSignals(t *testing.T) {
 	jump := strings.Join(r.calls[len(r.calls)-1], " ")
 	for _, want := range []string{
 		"switch-client",
-		"-t alpha-2",
-		"select-window -t alpha-2:1",
+		"-t blog",
+		"select-window -t blog:1",
 		"select-pane -t %6",
 		"set-option -g @sidebar_selected %6",
 		"wait-for -S " + refreshChannel,
@@ -211,7 +211,7 @@ func TestClickJumpsOnReleaseNotPress(t *testing.T) {
 	a := testApp(r)
 	a.width, a.height = 30, 20
 
-	// Body rows: 0-1 alpha-1 header, 2-3 agent %0, 4-5 alpha-2 header,
+	// Body rows: 0-1 api header, 2-3 agent %0, 4-5 blog header,
 	// 6-7 agent %6; screen y = body row + 2 header lines, so %6 is at y=8.
 	press := tea.MouseMsg{Action: tea.MouseActionPress, Button: tea.MouseButtonLeft, Y: 8}
 	m, _ := a.Update(press)
@@ -239,16 +239,16 @@ func TestClickSessionSpacerLineSwitches(t *testing.T) {
 	a := testApp(r)
 	a.width, a.height = 30, 20
 
-	// Body rows: 0-1 alpha-1 header (spacer, name), 2-3 agent %0,
-	// 4-5 alpha-2 header. alpha-2's spacer line is body row 4 -> screen y = 6.
+	// Body rows: 0-1 api header (spacer, name), 2-3 agent %0,
+	// 4-5 blog header. blog's spacer line is body row 4 -> screen y = 6.
 	release := tea.MouseMsg{Action: tea.MouseActionRelease, Button: tea.MouseButtonLeft, Y: 6}
 	m, _ := a.Update(release)
 	a = m.(App)
 	if a.cursor != 2 {
-		t.Fatalf("cursor = %d after clicking alpha-2's spacer line, want 2 (its header)", a.cursor)
+		t.Fatalf("cursor = %d after clicking blog's spacer line, want 2 (its header)", a.cursor)
 	}
-	if len(r.calls) == 0 || !strings.Contains(strings.Join(r.calls[len(r.calls)-1], " "), "-t alpha-2") {
-		t.Errorf("spacer-line click did not switch to alpha-2: calls %v", r.calls)
+	if len(r.calls) == 0 || !strings.Contains(strings.Join(r.calls[len(r.calls)-1], " "), "-t blog") {
+		t.Errorf("spacer-line click did not switch to blog: calls %v", r.calls)
 	}
 }
 
@@ -257,7 +257,7 @@ func TestMotionSetsHover(t *testing.T) {
 	a := testApp(&fakeRunner{})
 	a.width, a.height = 30, 20
 
-	// Body: 0-1 alpha-1 header, 2-3 agent %0, 4-5 alpha-2 header,
+	// Body: 0-1 api header, 2-3 agent %0, 4-5 blog header,
 	// 6-7 agent %6. Motion over %6's row is screen y=8.
 	m, _ := a.Update(tea.MouseMsg{Action: tea.MouseActionMotion, Y: 8})
 	a = m.(App)
@@ -289,14 +289,14 @@ func TestSetSnapshotKeepsSelectionByPane(t *testing.T) {
 // shifts block indices, just as an agent selection anchors by pane.
 func TestSetSnapshotKeepsSessionSelectionByName(t *testing.T) {
 	a := testApp(&fakeRunner{})
-	a.cursor = 2 // alpha-2's header
-	// A new agent under alpha-1 shifts every later block index down by one.
+	a.cursor = 2 // blog's header
+	// A new agent under api shifts every later block index down by one.
 	snap := twoSessionSnap()
 	snap.Sessions[0].Agents = append(snap.Sessions[0].Agents,
 		model.Agent{PaneID: "%2", WindowIndex: 2, State: model.StateWorking})
 	a.setSnapshot(snap)
 	b := a.blocks[a.cursor]
-	if b.kind != blockSession || snap.Sessions[b.session].Name != "alpha-2" {
+	if b.kind != blockSession || snap.Sessions[b.session].Name != "blog" {
 		t.Errorf("session selection drifted after refresh: block %+v", b)
 	}
 }
@@ -306,7 +306,7 @@ func TestSetSnapshotKeepsSessionSelectionByName(t *testing.T) {
 func TestActivateSessionSwitchesClient(t *testing.T) {
 	r := &fakeRunner{}
 	a := testApp(r)
-	a.cursor = 2 // alpha-2's header
+	a.cursor = 2 // blog's header
 	m, _ := a.activate()
 	a = m.(App)
 
@@ -317,8 +317,8 @@ func TestActivateSessionSwitchesClient(t *testing.T) {
 	// Switches, and publishes the session token so every sidebar highlights
 	// its row — but doesn't touch the target's window/pane selection.
 	for _, want := range []string{
-		"switch-client", "-t alpha-2",
-		"set-option -g @sidebar_selected =alpha-2",
+		"switch-client", "-t blog",
+		"set-option -g @sidebar_selected =blog",
 		"wait-for -S " + refreshChannel,
 	} {
 		if !strings.Contains(got, want) {
@@ -330,8 +330,8 @@ func TestActivateSessionSwitchesClient(t *testing.T) {
 			t.Errorf("session switch should not run %q:\n%s", absent, got)
 		}
 	}
-	if a.lastSel != "=alpha-2" {
-		t.Errorf("lastSel = %q, want =alpha-2 (own write must not be re-adopted)", a.lastSel)
+	if a.lastSel != "=blog" {
+		t.Errorf("lastSel = %q, want =blog (own write must not be re-adopted)", a.lastSel)
 	}
 }
 
@@ -339,10 +339,10 @@ func TestActivateSessionSwitchesClient(t *testing.T) {
 // another sidebar, just as a pane id highlights an agent.
 func TestSnapMsgAdoptsSessionToken(t *testing.T) {
 	a := testApp(&fakeRunner{})
-	m, _ := a.Update(snapMsg{snap: twoSessionSnap(), sel: "=alpha-2"})
+	m, _ := a.Update(snapMsg{snap: twoSessionSnap(), sel: "=blog"})
 	a = m.(App)
-	if b := a.blocks[a.cursor]; b.kind != blockSession || a.snap.Sessions[b.session].Name != "alpha-2" {
-		t.Errorf("cursor = %d (%+v) after adopting =alpha-2, want alpha-2's header", a.cursor, b)
+	if b := a.blocks[a.cursor]; b.kind != blockSession || a.snap.Sessions[b.session].Name != "blog" {
+		t.Errorf("cursor = %d (%+v) after adopting =blog, want blog's header", a.cursor, b)
 	}
 }
 
@@ -350,7 +350,7 @@ func TestSnapMsgAdoptsSessionToken(t *testing.T) {
 func TestActivateCurrentSessionIsNoop(t *testing.T) {
 	r := &fakeRunner{}
 	a := testApp(r)
-	a.cursor = 0 // alpha-1's header (current)
+	a.cursor = 0 // api's header (current)
 	if _, _ = a.activate(); len(r.calls) != 0 {
 		t.Errorf("activating the current session issued %v", r.calls)
 	}
