@@ -1,9 +1,20 @@
 # dotfiles
 
-Personal development environment managed with [GNU Stow](https://www.gnu.org/software/stow/).
+Development environment for Ubuntu 24.04 — shell, tmux, Neovim, terminal, and CLI tooling — managed
+with [GNU Stow](https://www.gnu.org/software/stow/) and reproducible on a fresh machine from a single
+`bootstrap.sh`.
 
 > **Built for [Ghostty](https://ghostty.org/).** The tmux, theme switcher, and shaders assume it.
 > `bootstrap.sh` installs it; use it as your terminal. Other terminals work but aren't themed.
+
+## Contents
+
+- [What's included](#whats-included)
+- [Setup on a new machine](#setup-on-a-new-machine)
+- [Usage](#usage)
+- [Managing configs](#managing-configs)
+- [Notes](#notes)
+- [License](#license)
 
 ## What's included
 
@@ -25,7 +36,7 @@ Personal development environment managed with [GNU Stow](https://www.gnu.org/sof
 
 ### Apps (built from source)
 
-Standalone projects that compile to a binary. They live under `apps/` — kept out of the stow-package namespace — and each is self-contained with its own `Makefile` exposing a uniform `make build` target (any language). `bootstrap.sh` installs the toolchain and builds them.
+Binaries built from source under `apps/` (not stow packages). Each has a `Makefile` with a `make build` target; `bootstrap.sh` installs the toolchain and builds them.
 
 | App        | Description                                                          | Language |
 | ---------- | -------------------------------------------------------------------- | -------- |
@@ -89,6 +100,13 @@ Run `prefix + I` in tmux to install tmux plugins.
 Bootstrap installed it — open Ghostty and use it going forward; the configs are tuned for it.
 (`bootstrap.sh` itself runs from any terminal.)
 
+## Usage
+
+Day-to-day keybindings and commands — shell aliases, tmux, Neovim (LazyVim), hunk, Ghostty — live in
+**[CHEATSHEET.md](CHEATSHEET.md)** (also viewable in the terminal via the `cheat` alias). Re-skin the
+whole terminal stack with `theme <flavor>` (`solarized-light` · `solarized-dark` · `catppuccin-latte` ·
+`catppuccin-mocha`); see [`design/theme-switcher.md`](design/theme-switcher.md).
+
 ## Managing configs
 
 ### Add a new config
@@ -123,23 +141,10 @@ vim ~/.bashrc.d/local.bash
 
 ### Machine-specific Claude Code settings
 
-The committed `~/.claude/settings.json` is the **full baseline** — hooks (agentbar),
-`statusLine`, `permissions`, `enabledPlugins`, and preferences like `effortLevel` and
-`skipAutoPermissionPrompt`. Claude Code does **not** load a user-level
-`~/.claude/settings.local.json` (only a project's `.claude/settings.local.json` is read,
-for per-project overrides), so there is no user-level "local" layer that keeps
-preferences out of the repo.
-
-Because the file is stowed as a symlink, anything you change at runtime (via `/config`
-or the UI) writes straight into `claude/.claude/settings.json` in this repo — commit the
-changes you want to keep, or `git checkout` to discard them.
-
-If you already have a `~/.claude/settings.json` when you run `bootstrap.sh`, it is backed
-up to `~/.claude/settings.json.pre-dotfiles` before the symlink is created.
-
-### Edit a config
-
-Edit files directly in `~/dotfiles/` — the symlinks mean changes take effect immediately.
+The committed `~/.claude/settings.json` is the full baseline — hooks, `statusLine`, `permissions`,
+plugins, and prefs. Claude Code has no user-level `settings.local.json` (only a project's is read), and
+the file is a stowed symlink, so runtime `/config` edits write into this repo: commit what you want to
+keep, or `git checkout` to discard. An existing file is backed up to `*.pre-dotfiles` on first bootstrap.
 
 ### Stow commands
 
@@ -149,51 +154,15 @@ stow -D <package>    # Unlink a package
 stow -R <package>    # Re-link (unlink + link)
 ```
 
-## Directory structure
-
-```
-dotfiles/
-├── bash/.bashrc.d/
-│   ├── 00-path.bash          # PATH (loads first)
-│   ├── aliases.bash           # shell options, git/docker aliases
-│   ├── direnv.bash
-│   ├── fzf.bash               # fzf + fd + Solarized opts, bat preview, `rfv` live-grep
-│   ├── python.bash            # pyright-init function
-│   ├── ssh-agent.bash
-│   ├── theme.bash             # sources ~/.config/theme/env.sh + hunk theme wrapper
-│   ├── tools.bash
-│   └── zoxide.bash
-├── claude/.claude/
-│   ├── settings.json            # agentbar hook + statusLine wiring (portable, uses $HOME)
-│   └── statusline-command.sh
-├── git/.config/git/config         # delta pager, staging/blame, merge settings
-├── nvim/.config/nvim/
-│   ├── init.lua
-│   └── lua/{config,plugins}/
-├── tmux/
-│   ├── .tmux.conf
-│   ├── .gitmux.conf
-│   ├── .local/bin/            # gitmux status, session picker, resurrect guard, yank
-│   └── .config/systemd/user/  # tmux-resurrect autosave timer
-├── ghostty/.config/ghostty/
-│   ├── config
-│   └── shaders/                 # vendored cursor trail shaders
-├── yazi/.config/yazi/
-├── bat/.config/bat/config
-├── hunk/.config/hunk/config.toml
-├── apps/                         # buildable projects (not stow packages)
-│   └── agentbar/       # Go tmux plugin (cmd/ internal/ e2e/ Makefile)
-├── bootstrap.sh
-├── test/bootstrap-fresh.sh    # docker smoke test (fresh Ubuntu 24.04)
-├── CHEATSHEET.md
-└── README.md
-```
-
 ## Notes
 
-- **System `.bashrc` is never overwritten.** All customizations live in `~/.bashrc.d/*.bash` and are sourced from the system `.bashrc`. The bootstrap script appends the sourcing loop with a backup.
-- **No personal info in repo.** Work-specific aliases go in `~/.bashrc.d/local.bash` (not tracked).
-- **Neovim plugins**: Managed by lazy.nvim. `lazy-lock.json` pins plugin versions — commit it to keep installs reproducible.
-- **Python venvs**: direnv auto-activates `.venv` per project directory.
-- **Idempotent**: `bootstrap.sh` is safe to re-run — it skips what's already installed.
-- **Smoke test**: `test/bootstrap-fresh.sh` runs the bootstrap in a clean Ubuntu 24.04 Docker container and verifies binaries, symlinks, and idempotency. Run before bumping pinned versions or touching bootstrap.
+- **System `.bashrc` is never overwritten** — customizations live in `~/.bashrc.d/*.bash`, sourced by a loop `bootstrap.sh` appends (with a backup).
+- **Private/work aliases** go in `~/.bashrc.d/local.bash` (not tracked).
+- **Neovim plugins**: `lazy-lock.json` pins versions — commit it to keep installs reproducible.
+- **Python venvs**: direnv auto-activates `.venv` per directory.
+- **Idempotent**: `bootstrap.sh` is safe to re-run (skips what's installed).
+- **Smoke test**: `test/bootstrap-fresh.sh` runs bootstrap in a clean Ubuntu 24.04 container (checks binaries, symlinks, idempotency); run before touching `bootstrap.sh`.
+
+## License
+
+[MIT](LICENSE).

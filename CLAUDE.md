@@ -60,3 +60,4 @@ When I say "deploy": **first commit and push, then make it live** on the running
 ## Formatting
 
 - Format markdown files with `npx prettier --write <file>.md`
+- Always use a plain hyphen (`-`), never em or en dashes
