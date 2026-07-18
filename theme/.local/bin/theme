@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# theme — re-skin the terminal environment from ~/dotfiles/design/palette.toml.
+#
+# Usage:
+#   theme                 print the current flavor
+#   theme --list          list the supported flavors
+#   theme <flavor>        switch everything to <flavor>
+#
+# Flavors: solarized-light (default) · solarized-dark · catppuccin-latte · catppuccin-mocha
+# v1 drives the sidebar (@agent-sidebar-theme) and ghostty (built-in themes); the tmux
+# frame, fzf and the port-dependent tools land in later increments.
+set -euo pipefail
+
+PALETTE="${TAS_PALETTE:-$HOME/dotfiles/design/palette.toml}"
+STATE_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/theme"
+GHOSTTY_CONF="${XDG_CONFIG_HOME:-$HOME/.config}/ghostty/config"
+
+FLAVORS="solarized-light solarized-dark catppuccin-latte catppuccin-mocha"
+
+# ghostty's built-in theme name per flavor (from `ghostty +list-themes`).
+ghostty_name() {
+	case "$1" in
+	solarized-light) echo "iTerm2 Solarized Light" ;;
+	solarized-dark) echo "iTerm2 Solarized Dark" ;;
+	catppuccin-latte) echo "Catppuccin Latte" ;;
+	catppuccin-mocha) echo "Catppuccin Mocha" ;;
+	esac
+}
+
+# palette_get <flavor> <token> — read one hex from palette.toml's [themes.<flavor>] table.
+palette_get() {
+	awk -v want="[themes.$1]" -v key="$2" '
+		/^\[/ { in_s = ($0 == want) }
+		in_s && $1 == key { gsub(/"/, "", $3); print $3; exit }
+	' "$PALETTE"
+}
+
+valid() { case " $FLAVORS " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
+
+# The sidebar reads @agent-sidebar-theme at launch; running instances need a restart.
+apply_sidebar() {
+	command -v tmux >/dev/null || return 0
+	tmux set -g @agent-sidebar-theme "$1" 2>/dev/null || true
+}
+
+# Ghostty applies a built-in theme by name; SIGUSR2 reloads a running instance (Linux).
+apply_ghostty() {
+	[ -f "$GHOSTTY_CONF" ] || return 0
+	local name
+	name="$(ghostty_name "$1")"
+	if grep -q '^theme = ' "$GHOSTTY_CONF"; then
+		sed -i "s|^theme = .*|theme = $name|" "$GHOSTTY_CONF"
+	else
+		printf 'theme = %s\n' "$name" >>"$GHOSTTY_CONF"
+	fi
+	pkill -USR2 -x ghostty 2>/dev/null || true
+}
+
+main() {
+	case "${1:-}" in
+	--list | -l)
+		echo "$FLAVORS" | tr ' ' '\n'
+		return 0
+		;;
+	"")
+		if [ -f "$STATE_DIR/current" ]; then cat "$STATE_DIR/current"; else echo "solarized-light (default)"; fi
+		return 0
+		;;
+	esac
+	local flavor="$1"
+	if ! valid "$flavor"; then
+		echo "theme: unknown flavor '$flavor' (try: theme --list)" >&2
+		return 2
+	fi
+	mkdir -p "$STATE_DIR"
+	echo "$flavor" >"$STATE_DIR/current"
+	apply_sidebar "$flavor"
+	apply_ghostty "$flavor"
+	echo "→ $flavor (accent $(palette_get "$flavor" accent)). Ghostty reloaded; restart sidebars with prefix+e twice."
+}
+
+main "$@"
