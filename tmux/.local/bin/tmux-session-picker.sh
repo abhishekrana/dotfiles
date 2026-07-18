@@ -204,7 +204,7 @@ sessions=$(ordered_session_names)
 
 # Aggregated Claude state per tmux session, worst state wins. State comes from
 # the @agent_* pane options the agentbar hook stamps on each Claude
-# pane — the same source the sidebar itself reads, so picker and sidebar always
+# pane - the same source the sidebar itself reads, so picker and sidebar always
 # agree. Pane options die with the pane, so no staleness/liveness bookkeeping.
 # Priority: permission(4) > asking(3) > working(2) > done(1) > blank(0).
 declare -A STATE_BY_SESSION
@@ -232,7 +232,7 @@ icon_for() {
 
 # One pass over the server's panes: a pane is a live agent when the hook has
 # stamped @agent_present=1 and its foreground command is still claude/node
-# (guards a pane whose Claude died but left its options behind) — the same
+# (guards a pane whose Claude died but left its options behind) - the same
 # filter the sidebar uses.
 while IFS=$'\t' read -r sess cmd present state; do
   [ "$present" = 1 ] || continue
@@ -243,7 +243,7 @@ while IFS=$'\t' read -r sess cmd present state; do
   fi
 done < <(tmux list-panes -a -F $'#{session_name}\t#{pane_current_command}\t#{@agent_present}\t#{@agent_state}')
 
-# Render lines as "<name>TAB<display>" — fzf hides field 1 via --with-nth=2
+# Render lines as "<name>TAB<display>" - fzf hides field 1 via --with-nth=2
 # but we use it for {1} placeholder substitution in binds.
 lines=$(
   while IFS= read -r name; do

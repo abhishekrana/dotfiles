@@ -1,18 +1,18 @@
-# Palette — the single source of truth for the terminal design language.
+# Palette - the single source of truth for the terminal design language.
 #
 # Every themed surface in this environment derives from these values. See ./README.md for what each
 # semantic role means and ./theme-switcher.md for how a switcher turns a theme name into per-tool
 # config. Editing a value here is the ONLY place a color should change; nothing downstream hardcodes.
 #
 # Roles (see README "Foundations · Color"):
-#   bg surface selection border   — surfaces & structure
-#   fg emphasis muted             — content
-#   accent                        — the one interactive/identity hue
-#   working asking blocked done   — the agent-state language (idle reuses `muted`)
-#   add remove                    — diff tints
+#   bg surface selection border   - surfaces & structure
+#   fg emphasis muted             - content
+#   accent                        - the one interactive/identity hue
+#   working asking blocked done   - the agent-state language (idle reuses `muted`)
+#   add remove                    - diff tints
 #
 # Solarized Light/Dark share the eight accent hues and only swap base tones, so accent + the four
-# state colors are identical across the two — the mood change lives in bg/surface/text.
+# state colors are identical across the two - the mood change lives in bg/surface/text.
 
 [meta]
 default = "solarized-light"

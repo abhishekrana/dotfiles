@@ -233,7 +233,7 @@ func TestClickJumpsOnReleaseNotPress(t *testing.T) {
 
 // The session header is two lines now: a leading spacer then the name.
 // Clicking the blank spacer row must still select and switch to that
-// session — the enlarged target is the whole point.
+// session - the enlarged target is the whole point.
 func TestClickSessionSpacerLineSwitches(t *testing.T) {
 	r := &fakeRunner{}
 	a := testApp(r)
@@ -315,7 +315,7 @@ func TestActivateSessionSwitchesClient(t *testing.T) {
 	}
 	got := strings.Join(r.calls[len(r.calls)-1], " ")
 	// Switches, and publishes the session token so every sidebar highlights
-	// its row — but doesn't touch the target's window/pane selection.
+	// its row - but doesn't touch the target's window/pane selection.
 	for _, want := range []string{
 		"switch-client", "-t blog",
 		"set-option -g @sidebar_selected =blog",
@@ -419,7 +419,7 @@ func TestTabStepsThroughAttention(t *testing.T) {
 	}
 }
 
-// With nobody waiting, tab does nothing — no move, no jump.
+// With nobody waiting, tab does nothing - no move, no jump.
 func TestTabNoAttentionIsNoop(t *testing.T) {
 	r := &fakeRunner{}
 	a := testApp(r) // both agents idle

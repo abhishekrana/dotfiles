@@ -14,10 +14,10 @@ type Theme struct {
 	Emphasis lipgloss.Color // session names, headlines
 	Accent   lipgloss.Color // selection rail, current marker
 	SelBg    lipgloss.Color // selected row background
-	Working  lipgloss.Color // calm, cool — the common case
-	Asking   lipgloss.Color // amber — a soft question needs you
-	Blocked  lipgloss.Color // red — a hard stop needs you
-	Done     lipgloss.Color // green — ready to review
+	Working  lipgloss.Color // calm, cool - the common case
+	Asking   lipgloss.Color // amber - a soft question needs you
+	Blocked  lipgloss.Color // red - a hard stop needs you
+	Done     lipgloss.Color // green - ready to review
 }
 
 // SolarizedLight is the default flavor.
@@ -95,7 +95,7 @@ func ThemeByName(name string) Theme {
 }
 
 // StateColor maps an agent state to its theme color. Permission is the hard red block;
-// question is the soft amber ask — the five-state language (idle reuses Muted).
+// question is the soft amber ask - the five-state language (idle reuses Muted).
 func (t Theme) StateColor(s model.AgentState) lipgloss.Color {
 	switch s {
 	case model.StateWorking:

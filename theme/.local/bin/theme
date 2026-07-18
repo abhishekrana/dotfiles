@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# theme — re-skin the terminal environment from ~/dotfiles/design/palette.toml.
+# theme - re-skin the terminal environment from ~/dotfiles/design/palette.toml.
 #
 # Usage:
 #   theme                 print the current flavor
@@ -26,7 +26,7 @@ ghostty_name() {
 	esac
 }
 
-# palette_get <flavor> <token> — read one hex from palette.toml's [themes.<flavor>] table.
+# palette_get <flavor> <token> - read one hex from palette.toml's [themes.<flavor>] table.
 palette_get() {
 	awk -v want="[themes.$1]" -v key="$2" '
 		/^\[/ { in_s = ($0 == want) }

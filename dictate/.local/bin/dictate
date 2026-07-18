@@ -4,11 +4,11 @@
 # dependencies = ["faster-whisper", "numpy"]
 # ///
 """
-dictate — toggle-key local speech-to-text into tmux, CPU-only.
+dictate - toggle-key local speech-to-text into tmux, CPU-only.
 
 A GNOME shortcut runs `dictate --toggle`: first press records the mic, second
 press transcribes locally with faster-whisper and types the text into your
-active tmux pane via `tmux send-keys`. Runs entirely in userspace — no sudo, no
+active tmux pane via `tmux send-keys`. Runs entirely in userspace - no sudo, no
 groups, no device access. The mic opens only while recording, during which other
 audio output is muted so the mic can't pick up your speakers (DICTATE_DUCK=0 to
 disable). Recording also
@@ -176,7 +176,7 @@ def transcribe(model, np, pcm):
 # ---- lazy model server (spawned on first use, self-exits when idle) ------
 # The client (toggle-off) ships raw PCM over a Unix socket and reads back text,
 # so it never imports faster-whisper. Connecting only succeeds once the server
-# has finished loading the model — that doubles as the readiness signal.
+# has finished loading the model - that doubles as the readiness signal.
 def server_up():
     """True if a live server currently owns the socket."""
     try:
@@ -197,12 +197,12 @@ def serve():
     if os.path.exists(SOCK_FILE):
         try: os.remove(SOCK_FILE)          # stale socket left by a crashed server
         except OSError: pass
-    model, np = load_model()               # the expensive bit — paid once, here
+    model, np = load_model()               # the expensive bit - paid once, here
     srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     try:
         srv.bind(SOCK_FILE)                # binding only now => connect == ready
     except OSError as e:                   # e.g. a racing server bound first
-        log(f"bind failed ({e}) — exiting"); return
+        log(f"bind failed ({e}) - exiting"); return
     srv.listen(8)
     srv.settimeout(IDLE)
     open(SRV_PID, "w").write(str(os.getpid()))
@@ -221,7 +221,7 @@ def serve():
             try:
                 conn, _ = srv.accept()
             except socket.timeout:
-                log("idle — exiting"); break
+                log("idle - exiting"); break
             try:                                     # one bad client must not kill the server
                 conn.settimeout(30)
                 with conn:
@@ -256,11 +256,11 @@ def transcribe_via_server(pcm):
     """Send PCM to the server (spawning it if needed) and return the text.
     Returns None if the server can't be reached, so the caller can fall back.
     A single connection carries both the check and the request: try to connect,
-    and only spawn a server if that fails — no separate liveness probe."""
+    and only spawn a server if that fails - no separate liveness probe."""
     try:
         s = _connect()
     except OSError:
-        log("no server — spawning one (this first dictation warms the model)…")
+        log("no server - spawning one (this first dictation warms the model)…")
         spawn_server()
         s = None
         deadline = time.time() + 20        # cold start: model load + bind
@@ -309,7 +309,7 @@ def _pactl(*args):
 
 def duck_mute():
     """Mute the default sink while recording. Saves prior state to DUCK_FILE so a
-    crashed run can't strand the audio muted — the next recording restores it first."""
+    crashed run can't strand the audio muted - the next recording restores it first."""
     if DUCK in ("0", "off", "no", "false", ""):
         return
     if not os.path.exists(DUCK_FILE):          # remember what to restore to (skip if a crash left one)
@@ -387,7 +387,7 @@ def stop_and_send(pid):
         except OSError:
             pcm = b""
         cleanup()
-        if len(pcm) < MIN_PCM:                    # stray tap — don't wake the server
+        if len(pcm) < MIN_PCM:                    # stray tap - don't wake the server
             log("(no speech)"); flash("no speech"); return
         log(f"■ captured {len(pcm)/(RATE*2):.1f}s, transcribing…")
         try:
@@ -440,7 +440,7 @@ def watch(pid):
             except OSError:
                 alive = False
             if not alive:
-                break                          # parec ended/crashed — finalise what we have
+                break                          # parec ended/crashed - finalise what we have
             try:
                 with open(PCM_FILE, "rb") as fh:
                     fh.seek(posn); data = fh.read(); posn = fh.tell()
@@ -503,9 +503,9 @@ def install_shortcut(bindings):
 def check():
     require("parec"); require("tmux")
     if not panes():
-        log("tmux has no panes — start tmux first."); sys.exit(1)
+        log("tmux has no panes - start tmux first."); sys.exit(1)
     _, lbl = resolve_target()
-    log(f"OK — parec + tmux present. Transcript would go to: {lbl}")
+    log(f"OK - parec + tmux present. Transcript would go to: {lbl}")
     log(f"model server: {'up' if server_up() else 'down (spawns on first dictation)'}")
 
 
@@ -516,7 +516,7 @@ def self_test():
     os.makedirs(RUNTIME, exist_ok=True)
     f = open(PCM_FILE, "wb")
     p = subprocess.Popen(parec_cmd(), stdout=f, stderr=subprocess.DEVNULL)
-    log(f"● recording {secs:.0f}s — speak now…")
+    log(f"● recording {secs:.0f}s - speak now…")
     time.sleep(secs)
     p.terminate()
     try:
@@ -530,7 +530,7 @@ def self_test():
     print("\nTRANSCRIPT:", repr(text))
 
 
-USAGE = """dictate — toggle-key local speech-to-text into tmux (CPU, zero privilege).
+USAGE = """dictate - toggle-key local speech-to-text into tmux (CPU, zero privilege).
 
   dictate --toggle                     start/stop (bind this to a key)
   dictate --target                     show which pane the transcript goes to

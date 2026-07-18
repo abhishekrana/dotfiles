@@ -222,14 +222,14 @@ func (s *server) ptyClient(session string) io.WriteCloser {
 }
 
 // clientClick types a left press+release at 1-based (col, row) into the
-// attached client — the same bytes a terminal sends for a single click.
+// attached client - the same bytes a terminal sends for a single click.
 func clientClick(stdin io.Writer, col, row int) {
 	fmt.Fprintf(stdin, "\x1b[<0;%d;%dM", col, row)
 	fmt.Fprintf(stdin, "\x1b[<0;%d;%dm", col, row)
 }
 
 // click injects a left mouse press+release at 1-based (col, row) into the
-// pane's input as raw SGR sequences — exactly the bytes a terminal sends,
+// pane's input as raw SGR sequences - exactly the bytes a terminal sends,
 // so the TUI's real mouse path runs.
 func (s *server) click(pane string, col, row int) {
 	s.t.Helper()
@@ -284,7 +284,7 @@ func highlightedAgentLine(capture string) (line string, lineNo int) {
 }
 
 // highlightBelowHeader reports whether the selection highlight in capture sits
-// on or below the header line for session name — i.e. on one of that session's
+// on or below the header line for session name - i.e. on one of that session's
 // agent rows. False if nothing is highlighted or the header isn't shown.
 func highlightBelowHeader(capture, name string) bool {
 	_, lineNo := highlightedAgentLine(capture)
@@ -490,7 +490,7 @@ func TestSidebarRendersAgentState(t *testing.T) {
 
 // TestSelectionSyncAcrossSidebars is the regression test for the click
 // bug: each session's sidebar is its own process, so a jump published in
-// one must move the highlight in all of them — immediately (wait-for
+// one must move the highlight in all of them - immediately (wait-for
 // signal), not on the next 1s tick.
 func TestSelectionSyncAcrossSidebars(t *testing.T) {
 	s := start(t)
@@ -563,7 +563,7 @@ func TestJumpViaEnter(t *testing.T) {
 	})
 }
 
-// TestTabJumpsToAttention: Tab is the work queue — it steps straight to an
+// TestTabJumpsToAttention: Tab is the work queue - it steps straight to an
 // agent waiting on the user (permission/asking) in another session and
 // switches the client there, skipping idle/working agents.
 func TestTabJumpsToAttention(t *testing.T) {
@@ -590,7 +590,7 @@ func TestTabJumpsToAttention(t *testing.T) {
 	s.ptyClient("aaa")
 
 	// From aaa's sidebar (cursor on aaa's idle agent), Tab jumps past it to
-	// the only agent waiting on the user — bbb's.
+	// the only agent waiting on the user - bbb's.
 	s.tmux("send-keys", "-t", sideA, "Tab", "")
 
 	waitFor(t, "Tab switched client to the waiting agent in bbb", 5*time.Second, func() bool {
@@ -646,8 +646,8 @@ func TestClickJump(t *testing.T) {
 		out, _ := s.tmuxErr("list-clients", "-F", "#{client_session}")
 		return strings.Contains(out, "bbb")
 	})
-	// Both sidebars — including bbb's, a separate process that never saw
-	// the click — must highlight the clicked agent, faster than the tick.
+	// Both sidebars - including bbb's, a separate process that never saw
+	// the click - must highlight the clicked agent, faster than the tick.
 	waitFor(t, "clicked agent highlighted in both sidebars", 700*time.Millisecond, func() bool {
 		for _, side := range []string{sideA, sideB} {
 			if _, lineNo := highlightedAgentLine(s.capture(side)); lineNo != row-1 {
@@ -678,7 +678,7 @@ func TestClickJump(t *testing.T) {
 }
 
 // TestClickSessionSwitches: clicking a session name (not an agent) must
-// switch-client to that session — including an agent-less one, which has
+// switch-client to that session - including an agent-less one, which has
 // no row to click today and is otherwise unreachable from the sidebar.
 func TestClickSessionSwitches(t *testing.T) {
 	if _, err := exec.LookPath("script"); err != nil {
@@ -718,7 +718,7 @@ func TestClickSessionSwitches(t *testing.T) {
 		out, _ := s.tmuxErr("list-clients", "-F", "#{client_session}")
 		return strings.Contains(out, "bbb")
 	})
-	// The clicked session's row must be highlighted in its own sidebar —
+	// The clicked session's row must be highlighted in its own sidebar -
 	// even with no agent to fall back to (the old bug left the highlight
 	// stuck on the previously-selected row).
 	waitFor(t, "bbb's session row is highlighted after the switch", 3*time.Second, func() bool {
@@ -771,7 +771,7 @@ func TestHoverMotionReachesUnfocusedSidebar(t *testing.T) {
 }
 
 // TestFollowKeepsColumnWidths: moving the sidebar in and out of a window
-// must not redistribute the other columns — tmux takes the inserted
+// must not redistribute the other columns - tmux takes the inserted
 // width proportionally from all panes but returns it to the leftmost
 // only, which drained the right column a bit per window switch.
 func TestFollowKeepsColumnWidths(t *testing.T) {
@@ -849,7 +849,7 @@ func TestFollowWindowAndSelfHeal(t *testing.T) {
 }
 
 // TestStatusBarTabClick: with Second/TripleClick1Status bound (stock
-// tmux drops chained rapid clicks — README tip), every tab click must
+// tmux drops chained rapid clicks - README tip), every tab click must
 // switch, even while the follow hook is moving the sidebar.
 func TestStatusBarTabClick(t *testing.T) {
 	s := start(t)
@@ -943,7 +943,7 @@ func TestResurrectOrphanAdoption(t *testing.T) {
 
 // TestSessionSwitchMovesHighlight: switching sessions outside the
 // sidebar (keys, session buttons) must move the highlight to the newly
-// attached session's agent — instantly via the client-session-changed
+// attached session's agent - instantly via the client-session-changed
 // signal, not on the next tick.
 func TestSessionSwitchMovesHighlight(t *testing.T) {
 	s := start(t)

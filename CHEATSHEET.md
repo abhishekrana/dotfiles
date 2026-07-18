@@ -31,7 +31,7 @@ Commands and keys to internalize for this setup. Sorted by frequency of use.
 | `lazygit`           | terminal git UI                              |
 | `lazydocker`        | terminal docker UI                           |
 | `bat <file>`        | cat with syntax highlighting (paged)         |
-| `rg <pattern>`      | ripgrep — fast recursive search              |
+| `rg <pattern>`      | ripgrep - fast recursive search              |
 | `fd <pattern>`      | fast find files (respects .gitignore)        |
 | `fd -t d <pattern>` | find directories only                        |
 | `vim`               | nvim (clean start, no session restore)       |
@@ -133,7 +133,7 @@ reviewer directly. delta also colors `git add -p` staging and `git blame`.
 | `Ctrl+o` / `Ctrl+i` | jump forward / back (swapped)         |
 | `ff` (insert)       | escape + save                         |
 | `ff` (normal)       | save file                             |
-| `s`                 | flash.nvim — jump to any visible text |
+| `s`                 | flash.nvim - jump to any visible text |
 
 ### Buffers & Windows
 

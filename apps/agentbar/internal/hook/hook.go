@@ -60,18 +60,18 @@ func Decide(ev Event) Effect {
 			// MCP server is prompting the user; genuinely blocked on them.
 			return Effect{State: model.StateQuestion}
 		case "elicitation_complete", "elicitation_response":
-			// The elicitation was answered — the agent is proceeding again.
+			// The elicitation was answered - the agent is proceeding again.
 			return Effect{State: model.StateWorking}
 		case "agent_completed":
 			// A background (agent-view) session finished its work.
 			return Effect{State: model.StateDone}
 		}
 		// Every other notification type is a false attention signal we ignore:
-		//   permission_prompt  — a tool-blind echo of PermissionRequest (which
+		//   permission_prompt  - a tool-blind echo of PermissionRequest (which
 		//     carries tool_name); acting on it would relabel an AskUserQuestion
 		//     "asking" as "permission".
-		//   idle_prompt        — Claude's periodic "waiting for input" nudge.
-		//   agent_needs_input  — fires for background sessions while agent view
+		//   idle_prompt        - Claude's periodic "waiting for input" nudge.
+		//   agent_needs_input  - fires for background sessions while agent view
 		//     is open and never pairs with a clear, so it strands the pane in
 		//     "asking" long after the agent moved on. The reliable "Claude asked
 		//     you" signal is PermissionRequest{AskUserQuestion}, kept above.

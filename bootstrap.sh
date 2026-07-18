@@ -288,7 +288,7 @@ install_tpm() {
     fi
     log "Installing TPM..."
     git clone https://github.com/tmux-plugins/tpm "$tpm_dir"
-    ok "TPM installed — run 'prefix + I' in tmux to install plugins"
+    ok "TPM installed - run 'prefix + I' in tmux to install plugins"
 }
 
 # =============================================================================
@@ -337,7 +337,7 @@ backup_if_not_symlink() {
 }
 
 # Per-file backup for directories shared with the user's own files.
-# Only backs up files we're about to stow in — user's other files stay put.
+# Only backs up files we're about to stow in - user's other files stay put.
 backup_pkg_files() {
     local pkg_src="$1" target_dir="$2"
     [ -d "$pkg_src" ] || return
@@ -432,7 +432,7 @@ create_notes_vault() {
 }
 
 install_bat_themes() {
-    # Vendored Catppuccin bat themes (gitignored — fetched here). bat's config dir is
+    # Vendored Catppuccin bat themes (gitignored - fetched here). bat's config dir is
     # stowed; drop the .tmTheme files in and rebuild the cache. The `theme` switcher
     # selects them via BAT_THEME. Idempotent. Must run after stow_packages.
     command -v bat &>/dev/null || return

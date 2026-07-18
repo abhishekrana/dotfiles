@@ -7,7 +7,7 @@ export EDITOR=nvim
 export TERM="tmux-256color"
 export BROWSER="firefox"
 
-# Git — gd/gds/gdw/gdm open hunk's interactive TUI; git's own pager is delta
+# Git - gd/gds/gdw/gdm open hunk's interactive TUI; git's own pager is delta
 alias gd='hunk diff'          # review working-tree changes (incl. untracked)
 alias gds='hunk show'         # review the latest commit
 alias gdw='hunk diff --watch' # working-tree review, auto-reload on change

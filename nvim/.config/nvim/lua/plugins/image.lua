@@ -13,7 +13,7 @@ return {
     integrations = {
       markdown = {
         enabled = true,
-        -- Render every image in the buffer, always — not just at the cursor.
+        -- Render every image in the buffer, always - not just at the cursor.
         only_render_image_at_cursor = false,
         -- Keep images visible while editing.
         clear_in_insert_mode = false,

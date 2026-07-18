@@ -13,7 +13,7 @@ theme <flavor>             # re-skin the whole stack
 
 Flavors: `solarized-light` (default) · `solarized-dark` · `catppuccin-latte` ·
 `catppuccin-mocha`. The choice **persists** (via `~/.config/theme/`) and applies to new
-shells, new windows, and the running tmux/ghostty. It is **explicit** — the switcher never
+shells, new windows, and the running tmux/ghostty. It is **explicit** - the switcher never
 picks a theme from the OS appearance or the time of day.
 
 ## Two kinds of tools
@@ -43,18 +43,18 @@ so switching never edits a tracked config.
 
 Tools that follow the flavor **without** being driven by the switcher:
 
-- **hunk** — a `hunk()` wrapper in `bash/.bashrc.d/theme.bash` appends `--theme $THEME` to
+- **hunk** - a `hunk()` wrapper in `bash/.bashrc.d/theme.bash` appends `--theme $THEME` to
   `hunk diff` (hunk falls back gracefully on a flavor it lacks).
-- **yazi** — a static `theme.toml` picks Mocha/Latte automatically by terminal light/dark.
-- **session picker & `tmux-gitlab.sh`** — still hardcode Solarized hexes (not yet palette-driven).
+- **yazi** - a static `theme.toml` picks Mocha/Latte automatically by terminal light/dark.
+- **session picker & `tmux-gitlab.sh`** - still hardcode Solarized hexes (not yet palette-driven).
 
 ## Where the choice lives
 
-- `~/.config/theme/current` — the selected flavor id (one line); read back by `theme` to
+- `~/.config/theme/current` - the selected flavor id (one line); read back by `theme` to
   print the active flavor.
-- `~/.config/theme/env.sh` — sourced by `bash/.bashrc.d/theme.bash`; exports `THEME` and
+- `~/.config/theme/env.sh` - sourced by `bash/.bashrc.d/theme.bash`; exports `THEME` and
   `BAT_THEME`. (fzf's colors are separate, in `fzf.sh`.)
-- `tmux set -g @agentbar-theme <flavor>` — so the sidebar can read the flavor at launch.
+- `tmux set -g @agentbar-theme <flavor>` - so the sidebar can read the flavor at launch.
 
 ## Operational notes
 
@@ -64,5 +64,5 @@ Tools that follow the flavor **without** being driven by the switcher:
 **Known limitation:** yazi has no first-class Solarized flavor, so on the Solarized flavors it
 shows Catppuccin (light/dark-matched), not true Solarized.
 
-**Needs live verification** (not checkable headless — launch and eyeball): nvim colorscheme per
+**Needs live verification** (not checkable headless - launch and eyeball): nvim colorscheme per
 flavor · yazi flavor per light/dark · hunk render for solarized-dark / catppuccin.

@@ -1,6 +1,6 @@
 # agentbar
 
-A left sidebar for tmux that shows every Claude Code agent across all your sessions and what state each one is in —
+A left sidebar for tmux that shows every Claude Code agent across all your sessions and what state each one is in -
 so you always know which agents are working, which need your attention, and which are done.
 
 ```
@@ -28,10 +28,10 @@ scratch             no agents
  j/k · tab ⚠ · ⏎ jump · q
 ```
 
-The row under the mouse lights up (hover), and the row you last clicked — session or agent — stays highlighted;
+The row under the mouse lights up (hover), and the row you last clicked - session or agent - stays highlighted;
 that highlight marks where you are, so there's no separate "here" tag.
 
-States are driven by Claude Code hooks — no pane scraping, no fragile regexes. The instant an agent changes state
+States are driven by Claude Code hooks - no pane scraping, no fragile regexes. The instant an agent changes state
 (starts working, hits a permission prompt, asks a question, finishes) the hook stamps the state onto its tmux pane,
 and the sidebar picks it up on its 1s tick.
 
@@ -63,11 +63,11 @@ are picked up on their next restart.
 | `j`/`k`, wheel  | move between sessions and agents                                                                    |
 | `Enter`, click  | on an agent: jump to its pane; on a session name: switch to that session                            |
 | `g` / `G`       | first / last row                                                                                    |
-| `Tab`           | jump to the next agent waiting on you (permission/asking), cycling across sessions — the work queue |
+| `Tab`           | jump to the next agent waiting on you (permission/asking), cycling across sessions - the work queue |
 | `n`, click chip | toggle desktop notifications (footer shows the state)                                               |
 | `q`             | hide the sidebar everywhere (same as toggle)                                                        |
 
-Clicking a session name switches to it — the one way to reach a session with no agents running (it just
+Clicking a session name switches to it - the one way to reach a session with no agents running (it just
 `switch-client`s, leaving the target's window and pane where you left them).
 
 The toggle is global: one press opens a sidebar in every session (and sessions created while it's on get one
@@ -76,7 +76,7 @@ moves the sidebar pane into the active window (one long-lived pane, so selection
 
 Every session runs its own sidebar, but the selection is shared: jump to an agent in another session and the
 sidebar you land in already highlights it (published via a global option, signalled over a `wait-for` channel so
-it's instant, not next-tick). Session switches made outside the sidebar move the highlight too — even to an agent
+it's instant, not next-tick). Session switches made outside the sidebar move the highlight too - even to an agent
 you only start after switching.
 
 Agent states: `working` (yellow, spinner) · `permission` (red) · `asking` (orange) · `done` (green until you visit
@@ -85,7 +85,7 @@ the pane, then gray) · `idle` (gray). Each agent shows its git branch and live 
 ## Notifications
 
 Off by default. Press `n` (or click the `notify` chip in the footer) to toggle desktop notifications for the whole
-server. When on, the instant any agent needs you — a permission prompt or a question — the plugin fires a
+server. When on, the instant any agent needs you - a permission prompt or a question - the plugin fires a
 `notify-send` notification (`Claude · permission` / `Claude · asking`, with the `session:window`). It rides the same
 Claude Code hooks as the sidebar (no pane scraping) and only fires on the transition _into_ an attention state, so a
 working agent never spams you. The footer chip mirrors the state (`notify on` / `notify off`), held in the global
@@ -93,7 +93,7 @@ working agent never spams you. The footer chip mirrors the state (`notify on` / 
 
 ## Tip: window-tab clicks that need a second try
 
-Unrelated to this plugin but easy to blame on it — two stock-tmux reasons a status-line tab click gets dropped:
+Unrelated to this plugin but easy to blame on it - two stock-tmux reasons a status-line tab click gets dropped:
 rapid clicks chain into `SecondClick`/`TripleClick` events (unbound by default), and terminals eat the _press_ of a
 click that also focuses their window, delivering only the release. Make every click count:
 
@@ -153,7 +153,7 @@ bin/agentbar mockup   # render the UI with fake data in any pane
 
 ### Checking the UI headlessly
 
-`mockup` needs a TTY, but you can render _and_ inspect it without one — on a throwaway tmux server
+`mockup` needs a TTY, but you can render _and_ inspect it without one - on a throwaway tmux server
 (`tmux -L <socket> -f /dev/null`, the same isolation the e2e suite uses, so it never touches your live
 server). Drive it with `send-keys` and read it back with `capture-pane`; `-e` keeps the escape codes, so
 you can confirm colors and the full-width selection highlight, not just the text layout. This is the fast
@@ -172,8 +172,8 @@ tmux -L $sock -f /dev/null kill-server                     # clean up
 
 The e2e suite (`e2e/`) spins up an isolated tmux server per test (`tmux -L <socket> -f /dev/null`, never your live
 server or config), fakes agents with a renamed sleep(1) so `#{pane_current_command}` matches, drives real `hook`
-events, and asserts against `capture-pane`. It injects raw SGR mouse sequences for real clicks — into panes for the
-sidebar and into a pty-attached client for status-line tabs — including the release-only click a terminal produces
+events, and asserts against `capture-pane`. It injects raw SGR mouse sequences for real clicks - into panes for the
+sidebar and into a pty-attached client for status-line tabs - including the release-only click a terminal produces
 when its focus click eats the press.
 
 For a local checkout instead of TPM, add to `~/.tmux.conf`:
@@ -184,16 +184,16 @@ run-shell ~/path/to/agentbar/agentbar.tmux
 
 Notes for hacking:
 
-- `hook` must never exit non-zero or block — Claude Code waits on it.
+- `hook` must never exit non-zero or block - Claude Code waits on it.
 - Hooks only load from `~/.claude/settings.json` (user level) or `.claude/settings{,.local}.json` (project level).
   A user-level `settings.local.json` is silently ignored by Claude Code.
 - Anchor every tmux call explicitly (`-t`/`-c`): `run-shell` does not set `$TMUX_PANE`, and bare commands resolve
-  against the attached client — the wrong session when triggered from elsewhere.
+  against the attached client - the wrong session when triggered from elsewhere.
 - Only trim newlines from `list-panes` output; trimming whitespace eats trailing empty format fields of the last line.
 - Act on mouse _release_: terminals eat the press of a click that also focuses their window.
 - Never wrap the sidebar in a plain `sh -c`: without job control the pane's `#{pane_current_command}` becomes `sh`
   and every liveness check breaks.
-- resurrect saves the pane shell's _child_ command — for a pane whose root process is the program, that's empty
+- resurrect saves the pane shell's _child_ command - for a pane whose root process is the program, that's empty
   (hence the post-save hook). Its `restore.sh` only works from server context (`run-shell`).
 
 ## How it works
@@ -209,7 +209,7 @@ Notes for hacking:
 - A `session-window-changed` hook moves the sidebar pane into whichever window becomes active (`join-pane -d`),
   with a re-entrancy guard and self-healing if the pane died.
 - A global `client-session-changed` hook signals the same channel, so the highlight follows session switches made
-  outside the sidebar — to the newly attached session's agent, or to the first agent started there afterwards.
+  outside the sidebar - to the newly attached session's agent, or to the first agent started there afterwards.
 - The TUI registers its own session options and follow hook at startup, so sidebars started outside `open.sh`
   (resurrect restores) just work, and `open.sh` adopts any pane already running the sidebar.
 

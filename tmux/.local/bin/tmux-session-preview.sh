@@ -11,7 +11,7 @@ home_short=${path/#$HOME/\~}
 now=$(date +%s)
 
 # Per-pane Claude state from the @agent_* pane options the agentbar
-# hook stamps — the same source the sidebar and picker read. @agent_since is
+# hook stamps - the same source the sidebar and picker read. @agent_since is
 # the unix time of the last state change; a pane counts as a live agent only
 # with @agent_present=1 and a claude/node foreground command. Only active
 # states are kept, so idle/registered panes show no state line.

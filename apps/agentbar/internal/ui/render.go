@@ -147,7 +147,7 @@ func (r renderer) leftEdge(bar bool) string {
 }
 
 // sessionMarker is the right-hand tag of a session header: "no agents" for
-// an empty session, nothing otherwise. (The current session isn't marked —
+// an empty session, nothing otherwise. (The current session isn't marked -
 // the selection highlight, which follows every click, shows where you are.)
 func (r renderer) sessionMarker(sess model.Session) string {
 	if len(sess.Agents) == 0 {

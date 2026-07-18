@@ -119,7 +119,7 @@ func Snapshot(r Runner, bc *BranchCache, currentSession string) model.Snapshot {
 // ClientFor picks the client tty a jump should switch: prefer a client
 // attached to the given session (whoever is looking at this sidebar),
 // else the first attached client. Empty when no clients (detached
-// server) — callers fall back to tmux's own "current client" guess.
+// server) - callers fall back to tmux's own "current client" guess.
 func ClientFor(r Runner, session string) string {
 	out, err := r.Run("list-clients", "-F", "#{client_tty}\t#{client_session}")
 	if err != nil || out == "" {

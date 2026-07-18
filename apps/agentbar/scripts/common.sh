@@ -3,7 +3,7 @@
 # Run an insert command (split/join of the sidebar), then re-apply pane
 # widths left-to-right so the whole cost lands on the leftmost pane.
 # tmux takes the inserted width proportionally from all columns but
-# returns it to the leftmost only — every move drained the others.
+# returns it to the leftmost only - every move drained the others.
 # Locals are prefixed: bash scoping leaks them into the called command.
 insert_keeping_widths() {
     local ikw_window=$1 ikw_inserted=$2; shift 2
