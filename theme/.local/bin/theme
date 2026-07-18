@@ -13,7 +13,6 @@ set -euo pipefail
 
 PALETTE="${TAS_PALETTE:-$HOME/dotfiles/design/palette.toml}"
 STATE_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/theme"
-GHOSTTY_CONF="${XDG_CONFIG_HOME:-$HOME/.config}/ghostty/config"
 
 FLAVORS="solarized-light solarized-dark catppuccin-latte catppuccin-mocha"
 
@@ -43,16 +42,11 @@ apply_sidebar() {
 	tmux set -g @agent-sidebar-theme "$1" 2>/dev/null || true
 }
 
-# Ghostty applies a built-in theme by name; SIGUSR2 reloads a running instance (Linux).
+# Ghostty applies a built-in theme by name. Write it to a non-repo file that the main
+# config includes (config-file = ?~/.config/theme/ghostty.conf), so switching never edits
+# the tracked config. SIGUSR2 reloads a running instance (Linux).
 apply_ghostty() {
-	[ -f "$GHOSTTY_CONF" ] || return 0
-	local name
-	name="$(ghostty_name "$1")"
-	if grep -q '^theme = ' "$GHOSTTY_CONF"; then
-		sed -i "s|^theme = .*|theme = $name|" "$GHOSTTY_CONF"
-	else
-		printf 'theme = %s\n' "$name" >>"$GHOSTTY_CONF"
-	fi
+	printf 'theme = %s\n' "$(ghostty_name "$1")" >"$STATE_DIR/ghostty.conf"
 	pkill -USR2 -x ghostty 2>/dev/null || true
 }
 

@@ -1,5 +1,7 @@
-# Theme
+# Theme (default). The `theme` switcher overrides it via this optional include,
+# so switching never edits this tracked file. Missing file = stays on the default.
 theme = iTerm2 Solarized Light
+config-file = ?~/.config/theme/ghostty.conf
 window-theme = ghostty
 
 # Font
