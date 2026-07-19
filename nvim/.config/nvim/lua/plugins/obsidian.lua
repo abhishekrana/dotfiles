@@ -61,18 +61,18 @@ return {
       },
     },
     config = function(_, opts)
-      -- obsidian.nvim v3.16.5 ships an in-process LSP (obsidian-ls) that force-enables
-      -- `didChangeWatchedFiles` - a capability Neovim disables on Linux for performance
-      -- - and registers a recursive `**/*.md` file watcher on the vault. Walking the
-      -- tree (incl. `.git/`) pegs CPU and hangs nvim on open/idle/quit. Neutralize LSP
-      -- file-watching so obsidian-ls still gives completion, follow-link and backlinks
-      -- without the watcher. (Neovim disables this watcher by default here anyway;
-      -- obsidian-ls is the outlier that forces it back on.)
-      pcall(function()
-        require("vim.lsp._watchfiles")._watchfunc = function()
-          return function() end
-        end
-      end)
+      -- Disable obsidian.nvim's in-process LSP (obsidian-ls). On v3.16.5 it force-enables
+      -- a recursive `**/*.md` file watcher (a capability Neovim disables on Linux for
+      -- performance) that walks the vault incl. `.git/` and hangs nvim on open/idle/quit.
+      -- We don't need a markdown language server: follow-link (<CR>/gf), backlinks, links,
+      -- tags, search, rename, daily notes and templates all run through obsidian's own
+      -- commands, which call the handlers directly + ripgrep. Only in-buffer [[link]]/#tag
+      -- autocompletion and LSP folding are lost. There is no config flag, so no-op the LSP
+      -- start function before setup registers its autocmd.
+      local ok, lsp = pcall(require, "obsidian.lsp")
+      if ok then
+        lsp.start = function() return nil end
+      end
       require("obsidian").setup(opts)
     end,
     keys = {
