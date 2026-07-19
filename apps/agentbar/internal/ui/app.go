@@ -12,6 +12,7 @@ import (
 
 	"github.com/abhishekrana/agentbar/internal/model"
 	"github.com/abhishekrana/agentbar/internal/tmux"
+	"github.com/abhishekrana/agentbar/internal/trace"
 )
 
 const (
@@ -56,22 +57,27 @@ type App struct {
 	runner   tmux.Runner
 	branches *tmux.BranchCache
 	current  string // session the sidebar pane lives in
-	debug    string // log file path (@agentbar-debug), "" = off
 	lastSel  string // last @sidebar_selected value we adopted
 	attached string // attachedKey of the last snapshot
+}
+
+// truthy reports whether a tmux option value means "on".
+func truthy(s string) bool {
+	s = strings.TrimSpace(s)
+	return s == "on" || s == "1" || s == "true"
 }
 
 // NewLive builds the sidebar against the real tmux server.
 func NewLive(theme Theme) App {
 	runner := tmux.Exec{}
-	debug, _ := runner.Run("show-option", "-gqv", "@agentbar-debug")
+	verbose, _ := runner.Run("show-option", "-gqv", "@agentbar-trace-verbose")
+	trace.SetVerbose(truthy(verbose))
 	app := App{
 		theme:    theme,
 		hover:    -1,
 		runner:   runner,
 		branches: tmux.NewBranchCache(),
 		current:  tmux.CurrentSession(runner),
-		debug:    strings.TrimSpace(debug),
 	}
 	app.setSnapshot(tmux.Snapshot(runner, app.branches, app.current))
 	app.attached = attachedKey(app.snap)
@@ -84,6 +90,7 @@ func NewLive(theme Theme) App {
 		app.notify = strings.TrimSpace(v) == "on"
 	}
 	app.register()
+	trace.Log("agentbar", "start", "pane", os.Getenv("TMUX_PANE"), "session", app.current)
 	return app
 }
 
@@ -128,20 +135,6 @@ func (a App) register() {
 		"set-hook", "-g", "client-session-changed",
 		"run-shell 'tmux wait-for -S "+refreshChannel+"'",
 	)
-}
-
-// debugf appends a timestamped line to the debug log when enabled via
-// `tmux set -g @agentbar-debug /path/to/log`.
-func (a App) debugf(format string, args ...any) {
-	if a.debug == "" {
-		return
-	}
-	f, err := os.OpenFile(a.debug, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return
-	}
-	defer f.Close()
-	fmt.Fprintf(f, time.Now().Format("15:04:05.000 ")+format+"\n", args...)
 }
 
 // setSnapshot swaps in fresh data, keeping the selection anchored across
@@ -201,6 +194,10 @@ func (a App) waitRefresh() tea.Cmd {
 func (a App) gather(signal bool) snapMsg {
 	sel, _ := a.runner.Run("show-option", "-gqv", "@sidebar_selected")
 	notify, _ := a.runner.Run("show-option", "-gqv", "@agent_notify")
+	// Re-read the verbose gate each poll so `tmux set -g @agentbar-trace-verbose
+	// on` takes effect within ~1s, no sidebar restart.
+	verbose, _ := a.runner.Run("show-option", "-gqv", "@agentbar-trace-verbose")
+	trace.SetVerbose(truthy(verbose))
 	return snapMsg{
 		snap:   tmux.Snapshot(a.runner, a.branches, a.current),
 		sel:    strings.TrimSpace(sel),
@@ -379,6 +376,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tickMsg:
 		a.frame++
+		trace.Logv("agentbar", "tick", "frame", a.frame)
 		if a.hover >= 0 && a.frame-a.hoverFrame >= hoverIdleFrames {
 			a.hover = -1 // pointer stopped moving (left the pane or came to rest)
 		}
@@ -450,7 +448,7 @@ func (a App) layout() layout {
 }
 
 func (a App) handleMouse(m tea.MouseMsg) (tea.Model, tea.Cmd) {
-	a.debugf("mouse action=%v button=%v x=%d y=%d cursor=%d", m.Action, m.Button, m.X, m.Y, a.cursor)
+	trace.Logv("agentbar", "mouse", "action", m.Action, "button", m.Button, "x", m.X, "y", m.Y, "cursor", a.cursor)
 	switch {
 	// Track the pointer so the row under it lights (any-motion tracking).
 	case m.Action == tea.MouseActionMotion:
@@ -463,11 +461,19 @@ func (a App) handleMouse(m tea.MouseMsg) (tea.Model, tea.Cmd) {
 	// Jump on release, not press: terminals eat the press of a click
 	// that also focuses their window, but always deliver the release.
 	case m.Action == tea.MouseActionRelease && m.Button == tea.MouseButtonLeft:
+		hit := a.blockAt(m.Y)
+		hitStr := "none"
+		if hit >= 0 {
+			hitStr = fmt.Sprint(hit)
+		}
+		// Always-on: a click that lands nowhere (hit=none) vs a hit whose
+		// jump then fails (see the jump `err`) are different bugs.
+		trace.Log("agentbar", "click", "x", m.X, "y", m.Y, "hit", hitStr)
 		if a.onNotifyChip(m.X, m.Y) {
 			return a.toggleNotify()
 		}
-		if b := a.blockAt(m.Y); b >= 0 {
-			a.cursor = b
+		if hit >= 0 {
+			a.cursor = hit
 			return a.activate()
 		}
 	}
@@ -516,8 +522,10 @@ func (a App) activate() (tea.Model, tea.Cmd) {
 		"wait-for", "-S", refreshChannel,
 	)
 	a.lastSel = ag.PaneID
+	start := time.Now()
 	_, err := a.runner.Run(args...)
-	a.debugf("jump session=%s window=%d pane=%s args=%v err=%v", sess.Name, ag.WindowIndex, ag.PaneID, args, err)
+	trace.Log("agentbar", "jump", "session", sess.Name, "window", ag.WindowIndex,
+		"pane", ag.PaneID, "ms", time.Since(start).Milliseconds(), "err", trace.Err(err))
 	if err != nil {
 		a.flash = "jump failed: " + err.Error()
 	}
@@ -548,8 +556,10 @@ func (a App) activateSession(sess model.Session) (tea.Model, tea.Cmd) {
 		"wait-for", "-S", refreshChannel,
 	)
 	a.lastSel = "=" + sess.Name
+	start := time.Now()
 	_, err := a.runner.Run(args...)
-	a.debugf("switch session=%s args=%v err=%v", sess.Name, args, err)
+	trace.Log("agentbar", "switch", "session", sess.Name,
+		"ms", time.Since(start).Milliseconds(), "err", trace.Err(err))
 	if err != nil {
 		a.flash = "switch failed: " + err.Error()
 	}

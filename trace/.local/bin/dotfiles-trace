@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# dotfiles-trace -- one shared, always-on, bounded trace log for the tmux/agent
+# stack. Callers record ACTION EDGES only (clicks, dispatches + outcome, errors)
+# so the evidence is already there when a bug happens; hot loops must never call
+# this. The Go `agentbar` binary writes the SAME file+format natively (see
+# apps/agentbar/internal/trace) -- keep the two in sync (ts, escaping, rotation).
+#
+# The log is local-only (~/.local/state, never committed). Don't pipe `show`
+# output anywhere public: it can contain repo paths, branch names, transcripts.
+#
+#   dotfiles-trace log <src> <evt> [k=v ...]   append one logfmt record
+#   dotfiles-trace tail [-f]                    last 100 lines (-f follows)
+#   dotfiles-trace show [--since T] [--src X] [--grep P]
+#   dotfiles-trace path                         print the log file path
+#   dotfiles-trace clear                        truncate the log (+ rotation)
+#
+# DOTFILES_TRACE=0 disables logging. This tool never fails its caller: `log`
+# always exits 0, so a `set -e` caller is safe even if the write fails.
+
+LOG="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/trace.log"
+CAP=1048576   # 1 MiB, then rotate to trace.log.1 (~2 MiB max on disk)
+
+# logfmt-escape one value: strip control chars (keeps one record per line),
+# cap at 200 chars, quote iff empty or containing space/=/"/backslash.
+esc() {
+  local v=$1
+  v=${v//$'\r'/ }; v=${v//$'\n'/ }; v=${v//$'\t'/ }
+  v=${v:0:200}
+  case $v in
+    ''|*' '*|*'='*|*'"'*|*'\'*)
+      v=${v//\\/\\\\}; v=${v//\"/\\\"}; v=\"$v\" ;;
+  esac
+  printf '%s' "$v"
+}
+
+# Rotate only when over the cap, guarded by flock so shell and Go writers
+# (same lock path) never double-rotate and clobber history.
+rotate_if_needed() {
+  local sz
+  sz=$(stat -c%s "$LOG" 2>/dev/null || echo 0)
+  [ "$sz" -ge "$CAP" ] || return 0
+  exec 9>"$LOG.lock" 2>/dev/null || return 0
+  if flock -n 9 2>/dev/null; then
+    sz=$(stat -c%s "$LOG" 2>/dev/null || echo 0)
+    [ "$sz" -ge "$CAP" ] && mv -f "$LOG" "$LOG.1" 2>/dev/null
+  fi
+  exec 9>&- 2>/dev/null
+  return 0
+}
+
+cmd_log() {
+  [ "${DOTFILES_TRACE:-1}" = "0" ] && exit 0
+  local src=${1:-} evt=${2:-}
+  [ $# -ge 2 ] && shift 2 || shift $#
+  mkdir -p "$(dirname "$LOG")" 2>/dev/null
+  local ts line kv key val
+  ts=$(date '+%Y-%m-%dT%H:%M:%S.%3N' 2>/dev/null)
+  line="ts=$ts src=$(esc "$src") evt=$(esc "$evt") pid=$$"
+  for kv in "$@"; do
+    key=${kv%%=*}
+    val=${kv#*=}
+    [ "$kv" = "$key" ] && val=""            # arg had no '='
+    line+=" $key=$(esc "$val")"
+  done
+  printf '%s\n' "$line" >> "$LOG" 2>/dev/null
+  rotate_if_needed
+  exit 0
+}
+
+cmd_tail() {
+  case ${1:-} in
+    -f) tail -F -n 100 "$LOG" 2>/dev/null ;;
+    *)  tail -n 100 "$LOG" 2>/dev/null ;;
+  esac
+}
+
+cmd_show() {
+  local since="" src="" pat=""
+  while [ $# -gt 0 ]; do
+    case $1 in
+      --since) since=${2:-}; shift 2 ;;
+      --src)   src=${2:-};   shift 2 ;;
+      --grep)  pat=${2:-};   shift 2 ;;
+      *) shift ;;
+    esac
+  done
+  { [ -f "$LOG.1" ] && cat "$LOG.1"; [ -f "$LOG" ] && cat "$LOG"; } 2>/dev/null \
+    | { [ -n "$src" ] && grep -F "src=$src " || cat; } \
+    | { [ -n "$pat" ] && grep -- "$pat" || cat; } \
+    | { if [ -n "$since" ]; then
+          t=$(date -d "$since" '+%Y-%m-%dT%H:%M:%S.%3N' 2>/dev/null)
+          [ -n "$t" ] && awk -v t="ts=$t" '$1 >= t' || cat
+        else cat; fi; }
+}
+
+case ${1:-} in
+  log)   shift; cmd_log "$@" ;;
+  tail)  shift; cmd_tail "$@" ;;
+  show)  shift; cmd_show "$@" ;;
+  path)  printf '%s\n' "$LOG" ;;
+  clear) : > "$LOG" 2>/dev/null; rm -f "$LOG.1" 2>/dev/null ;;
+  *) sed -n '3,20p' "$0" | sed 's/^# \{0,1\}//' ;;
+esac

@@ -767,6 +767,11 @@ func TestClickSessionSwitches(t *testing.T) {
 	}
 	s := start(t)
 	s.newSession("aaa")
+	// Route the shared trace log to a temp dir so we can assert the switch was
+	// recorded (always-on; no verbose needed). After the server exists.
+	state := t.TempDir()
+	s.tmux("set-environment", "-g", "XDG_STATE_HOME", state)
+	traceLog := filepath.Join(state, "dotfiles", "trace.log")
 	s.newSession("bbb") // deliberately no agent
 	s.agentPane("aaa")
 	s.tmux("set-option", "-g", "window-size", "manual")
@@ -810,6 +815,11 @@ func TestClickSessionSwitches(t *testing.T) {
 		}
 		return false
 	})
+	// The click-driven session switch must land in the shared trace log.
+	waitFor(t, "the session switch was traced", 3*time.Second, func() bool {
+		b, _ := os.ReadFile(traceLog)
+		return strings.Contains(string(b), "evt=switch") && strings.Contains(string(b), "session=bbb")
+	})
 }
 
 // TestHoverMotionReachesUnfocusedSidebar is the feasibility gate for a
@@ -825,9 +835,15 @@ func TestHoverMotionReachesUnfocusedSidebar(t *testing.T) {
 	// Build the window at the pty client's native 80x24 so client mouse
 	// coords map 1:1 onto the window (no resize, which redistributes panes).
 	s.tmux("new-session", "-d", "-s", "work", "-x", "80", "-y", "24")
+	// Route the shared trace log to a temp dir and enable verbose tracing, so
+	// the sidebar records mouse motion. Both are read from the tmux env at
+	// sidebar startup (set-environment -g reaches the spawned pane); it must run
+	// after the server exists (new-session above created it).
+	state := t.TempDir()
+	s.tmux("set-environment", "-g", "XDG_STATE_HOME", state)
+	s.tmux("set-environment", "-g", "DOTFILES_TRACE_VERBOSE", "1")
+	log := filepath.Join(state, "dotfiles", "trace.log")
 	s.agentPane("work")
-	log := filepath.Join(t.TempDir(), "dbg.log")
-	s.tmux("set-option", "-g", "@agentbar-debug", log) // read at sidebar startup
 	s.tmux("set-option", "-g", "mouse", "on")
 
 	s.script("open.sh", "work")
@@ -847,7 +863,7 @@ func TestHoverMotionReachesUnfocusedSidebar(t *testing.T) {
 	fmt.Fprintf(stdin, "\x1b[<35;4;5M")
 	waitFor(t, "unfocused sidebar received the routed motion", 5*time.Second, func() bool {
 		b, _ := os.ReadFile(log)
-		return strings.Contains(string(b), "action=2")
+		return strings.Contains(string(b), "evt=mouse") && strings.Contains(string(b), "action=2")
 	})
 }
 

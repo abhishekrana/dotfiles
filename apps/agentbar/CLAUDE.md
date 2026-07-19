@@ -37,6 +37,7 @@ every state (working/permission/asking/done/done-seen/idle) plus one multi-Claud
 - `internal/hook` - event JSON → `@agent_*` pane options; `Decide()` is pure
 - `internal/tmux` - exec wrapper, `list-panes -a` snapshot, branch cache, status segment
 - `internal/ui` - Bubble Tea TUI: `app.go` (state, mouse, selection sync), `render.go` (blocks, highlight), `theme.go`
+- `internal/trace` - writer for the shared dotfiles trace log; must match the `dotfiles-trace` CLI byte-for-byte on ts/escaping/rotation
 - `scripts/` - `toggle.sh` (global), `open.sh`, `follow.sh`, `resurrect-save.sh`, `common.sh` (shared helpers)
 - `agentbar.tmux` - TPM entry point
 
@@ -53,6 +54,7 @@ every state (working/permission/asking/done/done-seen/idle) plus one multi-Claud
 - Sidebar liveness is `#{pane_current_command} == agentbar` everywhere; never wrap the binary in a shell
   (breaks it).
 - Mouse actions fire on release, not press.
+- Trace action edges via `internal/trace` (`start`/`click`/`jump`/`switch` + latency, hook `event`/`drop`) - always-on, best-effort, never fails the hook. Never trace hot paths (`Snapshot`, `StatusSegment`, the 200ms tick, mouse motion); motion + ticks are `Logv` (verbose-gated via `@agentbar-trace-verbose`). See the repo-root CLAUDE.md "Debugging" section.
 - Comments: one short line, only for what the code can't say.
 - After changing behavior, add or extend an e2e test that fails without the change.
 - This project lives in the dotfiles monorepo at `apps/agentbar/` and loads via a `run-shell` line in

@@ -139,6 +139,7 @@ do_kill() {
     return 0
   fi
   remove_in_order "$name"
+  "$HOME/.local/bin/dotfiles-trace" log picker kill name="$name" 2>/dev/null || true
 }
 
 do_new() {
@@ -163,6 +164,7 @@ do_new() {
     return 0
   fi
   pin_last_in_order "$name"
+  "$HOME/.local/bin/dotfiles-trace" log picker new name="$name" dir="$dir" 2>/dev/null || true
 }
 
 do_rename() {
@@ -181,6 +183,7 @@ do_rename() {
     return 0
   fi
   rename_in_order "$old" "$new"
+  "$HOME/.local/bin/dotfiles-trace" log picker rename from="$old" to="$new" 2>/dev/null || true
 }
 
 # ---- Subcommand dispatch ---------------------------------------------------
@@ -296,4 +299,7 @@ target=$(
     | cut -f1
 ) || exit 0
 
-[ -n "$target" ] && tmux switch-client -t "$target"
+if [ -n "$target" ]; then
+  tmux switch-client -t "$target"
+  "$HOME/.local/bin/dotfiles-trace" log picker switch target="$target" 2>/dev/null || true
+fi

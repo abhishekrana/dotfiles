@@ -37,3 +37,4 @@ tmux set-option -t "$session" -q @sidebar_moving 1
 join() { tmux join-pane -dhbf -l "$width" -s "$pane" -t "$curwin" 2>/dev/null || true; }
 insert_keeping_widths "$curwin" "$width" join
 tmux set-option -t "$session" -uq @sidebar_moving
+"$HOME/.local/bin/dotfiles-trace" log sidebar follow session="$session" pane="$pane" 2>/dev/null || true

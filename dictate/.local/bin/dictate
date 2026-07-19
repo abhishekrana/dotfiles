@@ -68,6 +68,22 @@ def log(*a):
     print("[dictate]", *a, file=sys.stderr, flush=True)
 
 
+def trace(evt, **kv):
+    # Fire-and-forget edge into the shared dotfiles trace log. dictate's stderr
+    # log() is discarded in every real launch context (run-shell -b, GNOME
+    # shortcut, serve/watch DEVNULL), so this is the only durable record.
+    # Never call inside watch()/serve loops. Args go as argv (no shell); the CLI
+    # escapes + caps values.
+    try:
+        subprocess.run(
+            [os.path.expanduser("~/.local/bin/dotfiles-trace"), "log", "dictate", evt]
+            + [f"{k}={v}" for k, v in kv.items()],
+            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL, timeout=1, check=False)
+    except Exception:
+        pass
+
+
 def set_state(state):
     # drives the centred @dictate status segment: "rec" (red) | "work" (amber) | "" idle (grey)
     if state:
@@ -143,9 +159,11 @@ def send_enter():
     # mouse "⏎ enter": press Enter in the pane a transcript would go to.
     target, lbl = resolve_target()
     if not target:
-        log("no tmux pane found"); flash("no pane to submit"); return
+        log("no tmux pane found"); flash("no pane to submit")
+        trace("send", kind="enter", ok=0); return
     tmux("send-keys", "-t", target, "Enter")
     log(f"⏎ → {lbl}")
+    trace("send", kind="enter", ok=1)
 
 
 def send_text(text):
@@ -154,11 +172,13 @@ def send_text(text):
     # ingest the pasted text before Enter submits it.
     target, lbl = resolve_target()
     if not target:
-        log("no tmux pane found"); flash("no pane to submit"); return
+        log("no tmux pane found"); flash("no pane to submit")
+        trace("send", kind="text", ok=0, chars=len(text)); return
     send_to_tmux(target, text)
     time.sleep(0.12)
     tmux("send-keys", "-t", target, "Enter")
     log(f"{text!r} ⏎ → {lbl}")
+    trace("send", kind="text", ok=1, chars=len(text))
 
 
 # ---- transcription -------------------------------------------------------
@@ -374,6 +394,7 @@ def start_recording():
                          start_new_session=True)  # survives this short-lived process
     open(PID_FILE, "w").write(str(p.pid))
     set_state("rec")
+    trace("rec", action="start")
     if SILENCE > 0:                            # spawn the silence watcher (auto-stop)
         exe = os.path.realpath(shutil.which("dictate") or sys.argv[0])
         subprocess.Popen([exe, "--watch", str(p.pid)], stdout=subprocess.DEVNULL,
@@ -385,6 +406,7 @@ def start_recording():
 
 def stop_and_send(pid):
     set_state("work")                          # amber: mic stopping, then transcribing
+    t_start = time.time()
     try:
         os.kill(pid, signal.SIGTERM)
     except ProcessLookupError:
@@ -401,8 +423,10 @@ def stop_and_send(pid):
             pcm = b""
         cleanup()
         if len(pcm) < MIN_PCM:                    # stray tap - don't wake the server
-            log("(no speech)"); flash("no speech"); return
+            log("(no speech)"); flash("no speech")
+            trace("result", outcome="no-speech"); return
         log(f"■ captured {len(pcm)/(RATE*2):.1f}s, transcribing…")
+        trace("transcribe", secs=round(len(pcm)/(RATE*2), 1))
         try:
             text = transcribe_via_server(pcm)
         except Exception as e:
@@ -411,14 +435,19 @@ def stop_and_send(pid):
             model, np = load_model()
             text = transcribe(model, np, pcm)
         if not text:
-            log("(no speech)"); flash("no speech"); return
+            log("(no speech)"); flash("no speech")
+            trace("result", outcome="empty", ms=int((time.time() - t_start) * 1000)); return
         target, lbl = resolve_target()
         if not target:
             log(f"no tmux pane found; transcript: {text!r}")
-            flash("no tmux pane found"); return
+            flash("no tmux pane found")
+            trace("result", outcome="no-pane", chars=len(text)); return
         log(f"→ {lbl}: {text!r}")
-        if not send_to_tmux(target, text):
+        ok = send_to_tmux(target, text)
+        if not ok:
             log("tmux send-keys failed"); flash("send-keys failed")
+        trace("result", outcome=("sent" if ok else "send-failed"),
+              chars=len(text), ms=int((time.time() - t_start) * 1000))
     finally:
         unduck()                               # restore the audio we muted at record start
         set_state("")                          # back to idle grey, whatever happened
@@ -475,11 +504,14 @@ def toggle():
     require("parec")
     pid = recording_pid()
     if not pid:
+        trace("toggle", branch="start")
         start_recording(); return
     wpid = watch_pid()
     if wpid:
+        trace("toggle", branch="stop-watch")
         os.kill(wpid, signal.SIGTERM)          # let the watcher finalise (one stopper, no double-send)
     else:
+        trace("toggle", branch="stop")
         stop_and_send(pid)
 
 

@@ -34,4 +34,11 @@ while IFS=$'\t' read -r pane_id title; do
 	esac
 done < <(tmux list-panes -a -F "#{pane_id}"$'\t'"#{pane_title}" 2>/dev/null)
 
+# Trace manual saves only (prefix + C-s). Continuum autosave and the systemd
+# timer pass "quiet" -- they're periodic, not user actions, so skip them.
+case "$*" in
+	*quiet*) : ;;
+	*) "$HOME/.local/bin/dotfiles-trace" log resurrect save trigger=manual 2>/dev/null || true ;;
+esac
+
 exec "$RESURRECT_SAVE" "$@"

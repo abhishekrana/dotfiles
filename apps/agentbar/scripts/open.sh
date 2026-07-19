@@ -23,6 +23,7 @@ if [ -n "$alive" ]; then
     tmux set-option -t "$session" -q @sidebar_on 1
     tmux set-hook -t "$session" session-window-changed \
         "run-shell '$PLUGIN_DIR/scripts/follow.sh #{session_name}'"
+    "$HOME/.local/bin/dotfiles-trace" log sidebar open session="$session" action=adopt pane="$alive" 2>/dev/null || true
     exit 0
 fi
 
@@ -33,6 +34,7 @@ split() { new=$(tmux split-window -dhbf -l "$width" -t "$active" -P -F '#{pane_i
 insert_keeping_widths "$curwin" "$width" split
 tmux set-option -t "$session" -q @sidebar_pane "$new"
 tmux set-option -t "$session" -q @sidebar_on 1
+"$HOME/.local/bin/dotfiles-trace" log sidebar open session="$session" action=spawn pane="$new" 2>/dev/null || true
 
 focus=$(tmux show-option -gqv @agentbar-focus)
 if [ "$focus" = "on" ]; then

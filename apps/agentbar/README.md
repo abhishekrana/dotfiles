@@ -174,7 +174,11 @@ tmux -L $sock -f /dev/null capture-pane -p -e -t v         # -p text, -e keeps c
 tmux -L $sock -f /dev/null kill-server                     # clean up
 ```
 
-`tmux set -g @agentbar-debug /path/to/log` makes newly started sidebars log mouse events and jumps there.
+Tracing: agentbar always records action edges (start, click, jump/switch + latency, hook events, dropped hook
+events) to the shared dotfiles trace log at `${XDG_STATE_HOME:-~/.local/state}/dotfiles/trace.log` (view with
+`dotfiles-trace tail -f`). `tmux set -g @agentbar-trace-verbose on` additionally logs mouse motion + spinner
+ticks; it takes effect within ~1s (no restart) and `off` stops them again. `DOTFILES_TRACE=0` disables all
+tracing.
 
 The e2e suite (`e2e/`) spins up an isolated tmux server per test (`tmux -L <socket> -f /dev/null`, never your live
 server or config), fakes agents with a renamed sleep(1) so `#{pane_current_command}` matches, drives real `hook`

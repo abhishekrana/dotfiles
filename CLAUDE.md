@@ -16,6 +16,7 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
 - `nvim/` → `~/.config/nvim/` (LazyVim config)
 - `theme/` → `~/.local/bin/theme` (theme switcher; re-skins the terminal stack across the four flavors from `design/palette.toml`, writing per-tool files into `~/.config/theme/`)
 - `tmux/` → `~/.tmux.conf`, `~/.gitmux.conf`, `~/.local/bin/` scripts (`tmux-gitlab.sh` GitLab status, session picker, resurrect guard, yank)
+- `trace/` → `~/.local/bin/dotfiles-trace` (shared always-on trace log for the tmux/agent stack; see "Debugging" below)
 - `yazi/` → `~/.config/yazi/` (yazi file manager config)
 
 ## Apps (built from source)
@@ -23,6 +24,18 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
 Buildable projects live under `apps/` - these are **not** stow packages and are never passed to `stow`. Each is self-contained with its own `Makefile` exposing a uniform `build` target, so `bootstrap.sh` builds any language the same way: `build_apps` loops over `apps/*/` running `make build`, and the toolchain gets a pinned `install_*` step (e.g. `install_go`). Add more apps by dropping a project with a `Makefile` under `apps/`.
 
 - `apps/agentbar/` → Go tmux plugin (the Claude agent sidebar). Loaded by a `run-shell` line at the end of `tmux/.tmux.conf`, so it builds and runs straight from the repo. The Claude lifecycle hooks in `claude/.claude/settings.json` invoke its binary at `$HOME/dotfiles/apps/agentbar/bin/agentbar`. It has its own nested `CLAUDE.md` - read that before touching the code.
+
+## Debugging (trace log)
+
+**When something in the tmux/agent workflow misbehaves - a status-bar click didn't register, the sidebar shows the wrong agent state, a session switch felt slow, dictation went nowhere - look at the trace log first.** It is always on and records action *edges* across the whole interactive stack:
+
+- **Where:** `${XDG_STATE_HOME:-~/.local/state}/dotfiles/trace.log` (outside the repo, never committed). Size-capped at 1 MiB with one rotation (`trace.log.1`).
+- **View:** `dotfiles-trace tail -f`, or `dotfiles-trace show --since 5m --src <tmux|agentbar|hook|sidebar|picker|dictate|resurrect|yank> --grep <pat>`. `dotfiles-trace path` prints the file.
+- **Format:** logfmt - `ts=<iso ms> src=… evt=… pid=… k=v …`. The on-screen status clock is `%H:%M:%S`, so a screenshot anchors to a log window.
+- **Reading the flaky-click case:** a `src=tmux evt=click range=…` line means tmux *received* the click (so any failure is downstream - our bug); *no* line for a click you made means the terminal dropped the event before tmux (the known Ghostty+tmux status-click bug, not fixable here).
+- **Reading state drift:** `src=hook evt=event name=… prev=… new=…` is ground truth of what Claude told the sidebar; `src=hook evt=drop reason=…` flags events that never landed.
+- **Two writers, one format:** the `dotfiles-trace` CLI (`trace/`, used by all shell/tmux callers) and the Go `apps/agentbar/internal/trace` package (used by the sidebar + hook) - keep them in sync on timestamp, escaping, and rotation. **Log edges only, never hot loops** (mouse motion, ticks, status redraws, the dictate silence poll, fzf preview/list, statusline) - that keeps it free.
+- **Toggles:** `tmux set -g @agentbar-trace-verbose on` adds the noisy sidebar events (mouse motion, ticks) for a live hunt (effect within ~1s, no restart). `DOTFILES_TRACE=0` disables entirely; for tmux `run-shell` children use `tmux set-environment -g DOTFILES_TRACE 0`.
 
 ## Vault template
 

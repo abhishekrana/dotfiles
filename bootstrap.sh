@@ -349,7 +349,7 @@ backup_pkg_files() {
 }
 
 stow_packages() {
-    local packages=(bash bat claude dictate git ghostty hunk nvim theme tmux yazi)
+    local packages=(bash bat claude dictate git ghostty hunk nvim theme tmux trace yazi)
 
     # Single files we own outright: back up the file itself.
     backup_if_not_symlink "$HOME/.tmux.conf" "$DOTFILES_DIR/tmux/.tmux.conf"

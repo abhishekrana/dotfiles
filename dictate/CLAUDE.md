@@ -29,6 +29,14 @@ is for hacking on the script. Keep it a single file - do not split it into a pac
   state string or a range means editing `tmux.conf` too. The `@*_seg` chips are also regenerated per-flavor by
   `theme/.local/bin/theme` (`apply_tmux`), so relabel/recolor a chip in both. Chip colors also appear in `design/*.md`.
 
+## Tracing
+
+- `log()` prints to stderr, which is **discarded** in every real launch context (tmux `run-shell -b`, the GNOME
+  shortcut, `--serve`/`--watch` DEVNULL). The `trace(evt, **kv)` helper is the only durable record: it fires
+  edges (`toggle`, `rec`, `transcribe`, `send`, `result` with outcome/chars/ms) into the shared dotfiles trace log
+  (`dotfiles-trace`). Call it at action edges only - **never** in `watch()` (150ms poll) or the `--serve` loop. View
+  with `dotfiles-trace show --src dictate`; see the repo-root CLAUDE.md "Debugging" section.
+
 ## Config, deploy, smoke test
 
 - All config is `DICTATE_*` env vars, read at **process start**. The server captures its config at spawn, and a running

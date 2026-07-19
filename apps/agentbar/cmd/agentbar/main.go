@@ -13,6 +13,7 @@ import (
 
 	"github.com/abhishekrana/agentbar/internal/hook"
 	"github.com/abhishekrana/agentbar/internal/tmux"
+	"github.com/abhishekrana/agentbar/internal/trace"
 	"github.com/abhishekrana/agentbar/internal/ui"
 )
 
@@ -51,26 +52,34 @@ func main() {
 func runHook() {
 	pane := os.Getenv("TMUX_PANE")
 	if pane == "" {
-		return // agent not running inside tmux
+		trace.Log("hook", "drop", "reason", "no_pane") // agent not running inside tmux
+		return
 	}
 	data, err := io.ReadAll(os.Stdin)
 	if err != nil {
+		trace.Log("hook", "drop", "reason", "read_err", "err", trace.Err(err))
 		return
 	}
 	var ev hook.Event
 	if err := json.Unmarshal(data, &ev); err != nil {
+		trace.Log("hook", "drop", "reason", "json_err", "err", trace.Err(err))
 		return
 	}
 	r := tmux.Exec{}
 	ef := hook.Decide(ev)
 	prev := tmux.PaneOption(r, pane, "@agent_state") // state before Apply, for transition detection
-	if err := hook.Apply(r, pane, ev, ef, time.Now()); err != nil {
-		fmt.Fprintln(os.Stderr, "agentbar:", err)
+	applyErr := hook.Apply(r, pane, ev, ef, time.Now())
+	if applyErr != nil {
+		fmt.Fprintln(os.Stderr, "agentbar:", applyErr)
 	}
 	notifyOpt, _ := r.Run("show-options", "-gqv", "@agent_notify")
 	if hook.ShouldNotify(prev, ef, notifyOpt) {
 		hook.Notify(r, pane, ef.State)
 	}
+	// Ground truth for state-drift debugging: every event Claude sent us, the
+	// state it moved the pane to, and whether the write failed.
+	trace.Log("hook", "event", "name", ev.Name, "prev", prev,
+		"new", string(ef.State), "pane", pane, "err", trace.Err(applyErr))
 }
 
 func themeFlag(args []string) ui.Theme {
