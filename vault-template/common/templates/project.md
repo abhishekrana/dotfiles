@@ -5,7 +5,6 @@ title:
 created: "{{date}}"
 updated: "{{date}}"
 tags: []
-summary:
 ---
 
 # {{title}}
