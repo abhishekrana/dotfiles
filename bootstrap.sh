@@ -453,14 +453,13 @@ seed_vault() {
         copy_if_absent "$f" "$vault/templates/$(basename "$f")"
     done
     copy_if_absent "$tpl/common/.claude/settings.json" "$vault/.claude/settings.json"
-    for f in "$tpl"/common/.claude/commands/*.md; do
-        copy_if_absent "$f" "$vault/.claude/commands/$(basename "$f")"
-    done
+    copy_if_absent "$tpl/common/.claude/vault-check.sh" "$vault/.claude/vault-check.sh"
     for f in "$tpl"/common/.claude/hooks/*.sh; do
         copy_if_absent "$f" "$vault/.claude/hooks/$(basename "$f")"
     done
     copy_if_absent "$tpl/common/.githooks/pre-commit" "$vault/.githooks/pre-commit"
-    chmod +x "$vault/.claude/hooks/"*.sh "$vault/.githooks/pre-commit" 2>/dev/null || true
+    # vault-check.sh must be +x - the pre-commit runs it only under `[ -x ]`, else integrity is silently skipped.
+    chmod +x "$vault/.claude/vault-check.sh" "$vault/.claude/hooks/"*.sh "$vault/.githooks/pre-commit" 2>/dev/null || true
     # git ignores empty dirs, so a fresh skeleton has nothing to commit and the first
     # push fails. Keep each still-empty capture dir trackable with a .gitkeep.
     for d in archive areas assets dailies inbox projects resources templates; do
