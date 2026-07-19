@@ -41,19 +41,22 @@ return {
       -- `type: note`; obsidian's own id/aliases/tags and any manually-set fields
       -- (e.g. the daily template's `type: daily`) are preserved. /inbox-triage
       -- refines the type (project/area/resource/...) when it files the note.
-      note_frontmatter_func = function(note)
-        local out = { id = note.id, aliases = note.aliases, tags = note.tags }
-        if note.metadata ~= nil and not vim.tbl_isempty(note.metadata) then
-          for k, v in pairs(note.metadata) do
-            out[k] = v
+      frontmatter = {
+        func = function(note)
+          local out = { id = note.id, aliases = note.aliases, tags = note.tags }
+          if note.metadata ~= nil and not vim.tbl_isempty(note.metadata) then
+            for k, v in pairs(note.metadata) do
+              out[k] = v
+            end
           end
-        end
-        out.type = out.type or "note"
-        return out
-      end,
-      -- LazyVim's completion engine is blink.cmp.
+          out.type = out.type or "note"
+          return out
+        end,
+      },
+      -- Completion is served by obsidian.nvim's built-in LSP (obsidian-ls), which
+      -- LazyVim's blink.cmp surfaces as an LSP source; the old `completion.blink`
+      -- flag is gone. `min_chars` still gates the ref/tag/new-note sources.
       completion = {
-        blink = true,
         min_chars = 2,
       },
     },
