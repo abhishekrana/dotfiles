@@ -424,50 +424,65 @@ EOF
 }
 
 create_personal_vault() {
-    # Personal knowledge vault. obsidian.nvim errors on startup if its workspace
-    # path is missing and won't create it (subdirs match obsidian.lua). Once the
-    # skeleton exists, if it isn't a git repo yet, print the one-time remote-wiring
-    # steps - we never create the remote or bake identity into these public
-    # dotfiles, so the user wires it to its PRIVATE remote himself. Idempotent.
+    # Personal knowledge vault. obsidian.nvim errors on startup if its workspace path
+    # is missing and won't create it (subdirs match obsidian.lua). If the vault isn't
+    # a git repo yet, just flag it - the wiring steps are shown together at the very
+    # end (print_vault_sync_hints) so they aren't buried mid-run. Idempotent.
     local vault="$HOME/vaults/personal"
     mkdir -p "$vault/inbox" "$vault/dailies" "$vault/templates" "$vault/assets"
     if [ -d "$vault/.git" ]; then
         ok "personal vault ready at $vault"
-        return
+    else
+        ok "personal vault skeleton ready at $vault (not synced to a remote)"
+        PERSONAL_VAULT_UNWIRED=1
     fi
-    ok "personal vault skeleton ready at $vault"
-    warn "personal vault has no git remote yet - finish setup yourself:"
-    cat <<'EOF'
-    1. Create a PRIVATE repo on your Git host (e.g. <user>/vaults-personal).
-    2. cd ~/vaults/personal
-       git init -b main
-       git remote add origin <private-remote-url>
-       git add -A && git commit -m "Initialize personal vault"
-       git push -u origin main
-EOF
 }
 
 create_work_vault() {
     # Work knowledge vault, an independent sibling of the personal vault on its own
-    # separate PRIVATE remote. Same skeleton; if it isn't a git repo yet, print the
-    # one-time remote-wiring steps rather than baking identity into these public
-    # dotfiles, so the user wires it himself. Idempotent.
+    # separate remote. Same skeleton; if it isn't a git repo yet, flag it for the
+    # end-of-run hints rather than printing steps mid-run. Idempotent.
     local vault="$HOME/vaults/work"
     mkdir -p "$vault/inbox" "$vault/dailies" "$vault/templates" "$vault/assets"
     if [ -d "$vault/.git" ]; then
         ok "work vault ready at $vault"
-        return
+    else
+        ok "work vault skeleton ready at $vault (not synced to a remote)"
+        WORK_VAULT_UNWIRED=1
     fi
-    ok "work vault skeleton ready at $vault"
-    warn "work vault has no git remote yet - finish setup yourself:"
-    cat <<'EOF'
-    1. Create a PRIVATE repo on your Git host (e.g. <user>/vaults-work).
-    2. cd ~/vaults/work
-       git init -b main
-       git remote add origin <private-remote-url>
-       git add -A && git commit -m "Initialize work vault"
-       git push -u origin main
+}
+
+print_vault_sync_hints() {
+    # Printed at the very end so it isn't buried in the build logs. Optional: a vault
+    # works locally without a remote; this only shows how to back one up / sync it.
+    # We never create the remote or store identity here (these dotfiles are public),
+    # so the user runs the steps himself. One independent block per vault by design.
+    [ -n "${PERSONAL_VAULT_UNWIRED:-}" ] || [ -n "${WORK_VAULT_UNWIRED:-}" ] || return
+    echo ""
+    warn "Optional - notes vault(s) not yet synced to a git remote."
+    warn "Set up only the ones you want backed up / synced (run these yourself):"
+    if [ -n "${PERSONAL_VAULT_UNWIRED:-}" ]; then
+        cat <<'EOF'
+
+  personal vault -> your PRIVATE personal remote:
+    cd ~/vaults/personal
+    git init -b main
+    git remote add origin <private-remote-url>   # e.g. a private <user>/vaults-personal
+    git add -A && git commit -m "Initialize personal vault"
+    git push -u origin main
 EOF
+    fi
+    if [ -n "${WORK_VAULT_UNWIRED:-}" ]; then
+        cat <<'EOF'
+
+  work vault -> your PRIVATE work remote:
+    cd ~/vaults/work
+    git init -b main
+    git remote add origin <private-remote-url>   # e.g. a private <user>/vaults-work
+    git add -A && git commit -m "Initialize work vault"
+    git push -u origin main
+EOF
+    fi
 }
 
 install_bat_themes() {
@@ -562,3 +577,4 @@ build_apps
 
 echo ""
 ok "Done! Restart your shell or run: source ~/.bashrc"
+print_vault_sync_hints

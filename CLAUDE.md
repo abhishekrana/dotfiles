@@ -39,7 +39,7 @@ Buildable projects live under `apps/` - these are **not** stow packages and are 
 - Each tool init file guards with `command -v tool &>/dev/null || return`
 - Private/work-specific config goes in `~/.bashrc.d/local.bash` (not tracked)
 - `bootstrap.sh` must be idempotent (safe to re-run)
-- `bootstrap.sh` scaffolds two independent notes-vault skeletons - `~/vaults/personal` and `~/vaults/work` (`create_personal_vault` / `create_work_vault`); each echoes its git-remote wiring steps but never creates the remote or stores identity, keeping both out of this public repo
+- `bootstrap.sh` scaffolds two independent notes-vault skeletons - `~/vaults/personal` and `~/vaults/work` (`create_personal_vault` / `create_work_vault`); any vault without a git remote is reported once at the very end (`print_vault_sync_hints`, optional) instead of mid-run, and the remote/identity are never created or stored here, keeping both out of this public repo
 - Keep lists alphabetically sorted (stow packages, apt packages, pinned versions, bootstrap calls, docs)
 
 ## Deploy
