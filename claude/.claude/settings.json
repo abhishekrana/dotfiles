@@ -24,8 +24,7 @@
       "mcp__claude_ai_Slack__slack_search_users",
       "mcp__claude_ai_Slack__slack_search_emojis",
       "Read(~/vaults/**)",
-      "Edit(~/vaults/**)",
-      "Write(~/vaults/**)"
+      "Edit(~/vaults/**)"
     ],
     "deny": [
       "mcp__claude_ai_Slack__slack_send_message",
