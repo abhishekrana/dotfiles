@@ -160,6 +160,17 @@ func (s *server) script(name string, args ...string) {
 	}
 }
 
+// plugin sources the .tmux entry point against this server, exactly as TPM
+// would at server start (binds the key, wires hooks, runs autostart).
+func (s *server) plugin() {
+	s.t.Helper()
+	cmd := exec.Command("bash", filepath.Join(repoRoot, "agentbar.tmux"))
+	cmd.Env = s.env
+	if out, err := cmd.CombinedOutput(); err != nil {
+		s.t.Fatalf("agentbar.tmux: %v\n%s", err, out)
+	}
+}
+
 func (s *server) paneOption(pane, name string) string {
 	out, _ := s.tmuxErr("show-option", "-pqv", "-t", pane, name)
 	return out
@@ -456,6 +467,76 @@ func TestGlobalToggleLifecycle(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	if s.sidebarAlive("eee") {
 		t.Error("session created after toggle-off got a sidebar")
+	}
+}
+
+// TestAutostartLifecycle: sourcing the plugin at server start opens a sidebar
+// in the existing session, installs the session-created hook so later sessions
+// get one too, and wires resurrect's restore-coordination hooks.
+func TestAutostartLifecycle(t *testing.T) {
+	s := start(t)
+	s.newSession("aaa")
+	s.plugin() // @agentbar-autostart defaults to on
+
+	waitFor(t, "autostart sidebar in aaa", 5*time.Second, func() bool {
+		return s.sidebarAlive("aaa")
+	})
+	if hook := s.tmux("show-hooks", "-g"); !strings.Contains(hook, "session-created") {
+		t.Error("session-created hook not installed at server start")
+	}
+	// Auto-open is suspended during a restore and re-run (adopting) after.
+	if got := s.tmux("show-option", "-gqv", "@resurrect-hook-pre-restore-all"); !strings.Contains(got, "session-created") {
+		t.Errorf("pre-restore hook does not suspend auto-open: %q", got)
+	}
+	if got := s.tmux("show-option", "-gqv", "@resurrect-hook-post-restore-all"); !strings.Contains(got, "on.sh") {
+		t.Errorf("post-restore hook does not re-run on.sh: %q", got)
+	}
+
+	// A session born after start gets a sidebar automatically.
+	s.newSession("bbb")
+	waitFor(t, "auto sidebar in new session", 5*time.Second, func() bool {
+		return s.sidebarAlive("bbb")
+	})
+}
+
+// TestAutostartDisabled: @agentbar-autostart 'off' starts closed - no sidebar
+// and no session-created hook.
+func TestAutostartDisabled(t *testing.T) {
+	s := start(t)
+	s.newSession("aaa")
+	s.tmux("set-option", "-g", "@agentbar-autostart", "off")
+	s.plugin()
+
+	time.Sleep(1 * time.Second)
+	if s.sidebarAlive("aaa") {
+		t.Error("autostart off still opened a sidebar")
+	}
+	if hook := s.tmux("show-hooks", "-g"); strings.Contains(hook, "open.sh") {
+		t.Error("autostart off still installed the session-created hook")
+	}
+}
+
+// TestOnAdoptsExistingSidebar: on.sh is idempotent - a second run adopts the
+// live sidebar rather than opening a second one. This is the post-restore
+// re-run path (a restored sidebar must be adopted, not duplicated).
+func TestOnAdoptsExistingSidebar(t *testing.T) {
+	s := start(t)
+	s.newSession("aaa")
+
+	s.script("on.sh")
+	waitFor(t, "sidebar in aaa", 5*time.Second, func() bool {
+		return s.sidebarAlive("aaa")
+	})
+	first := s.sidebarPane("aaa")
+
+	s.script("on.sh")
+	time.Sleep(500 * time.Millisecond)
+	if got := s.sidebarPane("aaa"); got != first {
+		t.Errorf("second on.sh replaced the sidebar pane: %q -> %q", first, got)
+	}
+	panes := s.tmux("list-panes", "-s", "-t", "aaa", "-F", "#{pane_current_command}")
+	if n := strings.Count(panes, "agentbar"); n != 1 {
+		t.Errorf("want exactly one sidebar pane, got %d:\n%s", n, panes)
 	}
 }
 

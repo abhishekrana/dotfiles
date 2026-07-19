@@ -7,6 +7,8 @@
 #   @agentbar-theme   solarized-light|solarized-dark|catppuccin-latte|catppuccin-mocha
 #                          (default: solarized-light)
 #   @agentbar-focus   'on' to focus the sidebar when opening
+#   @agentbar-autostart 'off' to skip opening the sidebar at server start
+#                          (default: on - every session gets one, so do new ones)
 set -euo pipefail
 
 CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -50,3 +52,23 @@ for side in status-left status-right; do
         ;;
     esac
 done
+
+# Autostart: turn the sidebar on at server start so every session has one and
+# every session born later gets one via the session-created hook. Toggle it
+# off with prefix+key like normal; set @agentbar-autostart 'off' to opt out.
+autostart=$(tmux show-option -gqv @agentbar-autostart)
+autostart=${autostart:-on}
+if [ "$autostart" = "on" ]; then
+    # tmux-continuum recreates saved sessions ~1s after start (a backgrounded
+    # restore). Opening a sidebar into a session mid-restore fights the layout
+    # restore and races the whitelisted sidebar pane, so suspend auto-open for
+    # the duration and re-run it after (on.sh adopts the restored sidebars).
+    # Don't clobber a user-set hook.
+    if [ -z "$(tmux show-option -gqv @resurrect-hook-pre-restore-all)" ]; then
+        tmux set-option -g @resurrect-hook-pre-restore-all "tmux set-hook -gu session-created"
+    fi
+    if [ -z "$(tmux show-option -gqv @resurrect-hook-post-restore-all)" ]; then
+        tmux set-option -g @resurrect-hook-post-restore-all "$CURRENT_DIR/scripts/on.sh"
+    fi
+    "$CURRENT_DIR/scripts/on.sh"
+fi

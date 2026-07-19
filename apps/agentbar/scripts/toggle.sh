@@ -36,9 +36,5 @@ if any_alive; then
         close_in "$session"
     done < <(tmux list-sessions -F '#{session_name}')
 else
-    while IFS= read -r session; do
-        "$PLUGIN_DIR/scripts/open.sh" "$session"
-    done < <(tmux list-sessions -F '#{session_name}')
-    tmux set-hook -g session-created \
-        "run-shell '$PLUGIN_DIR/scripts/open.sh #{hook_session_name}'"
+    "$PLUGIN_DIR/scripts/on.sh"
 fi

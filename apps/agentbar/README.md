@@ -70,9 +70,10 @@ are picked up on their next restart.
 Clicking a session name switches to it - the one way to reach a session with no agents running (it just
 `switch-client`s, leaving the target's window and pane where you left them).
 
-The toggle is global: one press opens a sidebar in every session (and sessions created while it's on get one
-automatically); the next press closes them all. While on, each session's sidebar follows you: switching windows
-moves the sidebar pane into the active window (one long-lived pane, so selection and scroll position survive).
+The sidebar is on by default: it opens in every session at tmux server start, and any session created while it's on
+gets one automatically (set `@agentbar-autostart 'off'` to start closed). The toggle is global: one press closes them
+all everywhere, the next reopens them. While on, each session's sidebar follows you: switching windows moves the
+sidebar pane into the active window (one long-lived pane, so selection and scroll position survive).
 
 Every session runs its own sidebar, but the selection is shared: jump to an agent in another session and the
 sidebar you land in already highlights it (published via a global option, signalled over a `wait-for` channel so
@@ -118,6 +119,10 @@ resurrect's post-save hook to stamp the command into each save; on restore the w
 sidebar re-registers its own options and follow hook. Without the whitelist, the restored slot is a dead shell pane
 you can close.
 
+Autostart also sets resurrect's pre/post-restore hooks: auto-open is suspended while a restore runs (so a
+freshly-recreated session doesn't get a second sidebar racing the restored one, nor a corrupted layout) and re-run
+afterwards, adopting the restored sidebars.
+
 The same post-save hook rewrites each saved `claude` pane into `claude --resume <session-id>`, using the id the hook
 already stamped on the pane (`@agent_session_id`). With `"~claude"` whitelisted, a restore reopens the conversation
 where you left it instead of a blank prompt; a pane whose id wasn't captured falls back to a plain `claude`.
@@ -139,6 +144,7 @@ set -g @agentbar-key 'e'                # toggle key (after prefix)
 set -g @agentbar-width '30'             # sidebar width in columns
 set -g @agentbar-theme 'solarized-light' # or 'dark'
 set -g @agentbar-focus 'off'            # 'on' focuses sidebar on open
+set -g @agentbar-autostart 'on'         # 'off' starts with the sidebar closed
 ```
 
 ## Development
