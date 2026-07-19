@@ -1,6 +1,6 @@
 ---
 name: vault-manager
-description: Creates, updates, files, reorganizes, links, and prunes notes in the user's plain-markdown notes vault (~/vaults/work or ~/vaults/personal), keeping the knowledge base coherent. Use when the user wants to add or capture knowledge ("save this to my vault", "capture this", "worth remembering"), update or correct existing notes ("update my notes on X", "this is wrong, fix it"), or maintain the vault ("clean up", "reorganize", "dedupe", "file this"). Searches the vault first, follows the target vault's CLAUDE.md rules, records source provenance, and never commits.
+description: Manages the user's plain-markdown notes vault (~/vaults/work or ~/vaults/personal) - adds, updates, files, links, and prunes notes, keeping it coherent. Use only when the user explicitly asks to put something in their vault or notes, e.g. "save this to my vault" or "add this to my notes". Searches the vault first, follows the target vault's CLAUDE.md rules, records source provenance, and never commits.
 ---
 
 # Vault manager
