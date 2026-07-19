@@ -26,7 +26,7 @@ Buildable projects live under `apps/` - these are **not** stow packages and are 
 
 ## Vault template
 
-`vault-template/` holds the boilerplate for the two notes vaults (`~/vaults/personal`, `~/vaults/work`). Like `apps/`, it is **not** a stow package and is never passed to `stow` - `bootstrap.sh` copies it into each vault as **real files** (via `seed_vault`), so the scaffolding gets committed into that vault's own private repo and stays portable and self-contained. `common/` is shared by both vaults (the folder skeleton, `Home.md`, note templates, the `.claude/` slash commands + guardrail hooks, and the `.githooks/` secrets guard); `personal/` and `work/` carry the vault-specific `CLAUDE.md` + `README.md`. Copies are seed-if-missing (`copy_if_absent`), so re-running bootstrap never clobbers live edits. Vault *content* (the notes themselves) never lives here - this repo is public.
+`vault-template/` holds the boilerplate for the two notes vaults (`~/vaults/personal`, `~/vaults/work`). Like `apps/`, it is **not** a stow package and is never passed to `stow` - `bootstrap.sh` copies it into each vault as **real files** (via `seed_vault`), so the scaffolding gets committed into that vault's own private repo and stays portable and self-contained. `common/` is shared by both vaults (the folder skeleton, `Home.md`, note templates, the `.claude/` guardrail hooks + the `vault-check` integrity script, and the `.githooks/` pre-commit guard (integrity + secrets)); `personal/` and `work/` carry the vault-specific `CLAUDE.md` + `README.md`. Copies are seed-if-missing (`copy_if_absent`), so re-running bootstrap never clobbers live edits. Vault _content_ (the notes themselves) never lives here - this repo is public.
 
 ## Rules
 

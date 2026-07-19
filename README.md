@@ -20,19 +20,19 @@ with [GNU Stow](https://www.gnu.org/software/stow/) and reproducible on a fresh 
 
 ### Configs (stow packages)
 
-| Package   | Description                                                                              | Target                           |
-| --------- | ---------------------------------------------------------------------------------------- | -------------------------------- |
-| `bash`    | Shell customizations, aliases, direnv/fzf/zoxide hooks, vi mode                          | `~/.bashrc.d/`                   |
-| `bat`     | Syntax highlighter theme                                                                 | `~/.config/bat/`                 |
-| `claude`  | Claude Code settings.json (agentbar hook + statusLine wiring) and statusline script      | `~/.claude/`                     |
-| `dictate` | Toggle-key local speech-to-text (faster-whisper) into tmux                               | `~/.local/bin/`                  |
-| `ghostty` | Ghostty terminal config (Solarized Light, block cursor, cursor trail shader)             | `~/.config/ghostty/`             |
-| `git`     | Git tool settings (delta pager, staging/blame, merge)                                    | `~/.config/git/config`           |
-| `hunk`    | hunk diff viewer config (Solarized Light theme, side-by-side)                            | `~/.config/hunk/`                |
-| `nvim`    | Neovim config (LazyVim, LSP, plugins)                                                    | `~/.config/nvim/`                |
-| `theme`   | Theme switcher - re-skins the terminal stack across four flavors (`design/palette.toml`) | `~/.local/bin/theme`             |
-| `tmux`    | Tmux config, gitmux, CI status script                                                    | `~/.tmux.conf`, `~/.gitmux.conf` |
-| `yazi`    | Yazi file manager config with zoxide plugin                                              | `~/.config/yazi/`                |
+| Package   | Description                                                                                                                | Target                           |
+| --------- | -------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| `bash`    | Shell customizations, aliases, direnv/fzf/zoxide hooks, vi mode                                                            | `~/.bashrc.d/`                   |
+| `bat`     | Syntax highlighter theme                                                                                                   | `~/.config/bat/`                 |
+| `claude`  | Claude Code settings.json (agentbar hook, statusLine, permissions), statusline script, and shared skills (`vault-manager`) | `~/.claude/`                     |
+| `dictate` | Toggle-key local speech-to-text (faster-whisper) into tmux                                                                 | `~/.local/bin/`                  |
+| `ghostty` | Ghostty terminal config (Solarized Light, block cursor, cursor trail shader)                                               | `~/.config/ghostty/`             |
+| `git`     | Git tool settings (delta pager, staging/blame, merge)                                                                      | `~/.config/git/config`           |
+| `hunk`    | hunk diff viewer config (Solarized Light theme, side-by-side)                                                              | `~/.config/hunk/`                |
+| `nvim`    | Neovim config (LazyVim, LSP, plugins)                                                                                      | `~/.config/nvim/`                |
+| `theme`   | Theme switcher - re-skins the terminal stack across four flavors (`design/palette.toml`)                                   | `~/.local/bin/theme`             |
+| `tmux`    | Tmux config, gitmux, CI status script                                                                                      | `~/.tmux.conf`, `~/.gitmux.conf` |
+| `yazi`    | Yazi file manager config with zoxide plugin                                                                                | `~/.config/yazi/`                |
 
 ### Apps (built from source)
 
@@ -158,7 +158,7 @@ stow -R <package>    # Re-link (unlink + link)
 
 - **System `.bashrc` is never overwritten** - customizations live in `~/.bashrc.d/*.bash`, sourced by a loop `bootstrap.sh` appends (with a backup).
 - **Private/work aliases** go in `~/.bashrc.d/local.bash` (not tracked).
-- **Notes vaults**: `bootstrap.sh` scaffolds two Obsidian vault skeletons (`~/vaults/personal`, `~/vaults/work`) and, at the end, prints optional git-remote wiring steps for any not yet synced; each vault's contents live in its own private repo, never here.
+- **Notes vaults**: `bootstrap.sh` seeds two plain-markdown PARA vault skeletons (`~/vaults/personal`, `~/vaults/work`) from `vault-template/`, each with an agent layer - the global `vault-manager` skill adds and maintains notes, and a deterministic `.claude/vault-check.sh` integrity gate runs in the git pre-commit hook (which also blocks secrets). It prints optional git-remote wiring steps for any not yet synced; each vault's contents live in its own private repo, never here.
 - **Neovim plugins**: `lazy-lock.json` pins versions - commit it to keep installs reproducible.
 - **Python venvs**: direnv auto-activates `.venv` per directory.
 - **Idempotent**: `bootstrap.sh` is safe to re-run (skips what's installed).
