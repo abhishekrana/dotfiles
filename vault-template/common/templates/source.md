@@ -15,6 +15,6 @@ summary:
 
 ## Distilled
 
-<!-- Atomic claims to promote into resources/ via /distill. -->
+<!-- Atomic claims worth promoting into resources/. -->
 
 -

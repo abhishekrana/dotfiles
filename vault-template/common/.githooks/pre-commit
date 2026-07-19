@@ -1,13 +1,22 @@
 #!/usr/bin/env bash
-# Vault pre-commit guard: refuse to commit obvious secrets or credentials.
-#
-# Notes must reference secrets in a password manager, never paste the values. This
-# guards every commit in the vault (yours and any agent's). Wired by bootstrap via
-# `git config core.hooksPath .githooks`. Bypass a false positive with
-# `git commit --no-verify`.
+# Vault pre-commit guard: block on integrity errors and on obvious secrets. Wired by
+# bootstrap via `git config core.hooksPath .githooks`. Bypass a false positive or an
+# intentional work-in-progress with `git commit --no-verify`.
 set -euo pipefail
 
-# Added lines only (ignore the +++ file header).
+# --- Integrity (deterministic) ---
+# vault-check blocks on hard errors (broken frontmatter, empty notes, duplicate names);
+# warnings (unresolved links, missing type) print but do not block.
+check="$(git rev-parse --show-toplevel)/.claude/vault-check.sh"
+if [ -x "$check" ]; then
+  "$check" || {
+    echo "pre-commit: vault-check found hard errors above. Fix them, or bypass with: git commit --no-verify" >&2
+    exit 1
+  }
+fi
+
+# --- Secrets ---
+# Notes must reference secrets in a password manager, never paste the values.
 added="$(git diff --cached --no-color -U0 | grep -E '^\+' | grep -vE '^\+\+\+' || true)"
 [ -z "$added" ] && exit 0
 
