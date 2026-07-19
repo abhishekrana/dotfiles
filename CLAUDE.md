@@ -30,8 +30,8 @@ Buildable projects live under `apps/` - these are **not** stow packages and are 
 
 ## Rules
 
-- **Never commit personal info**: no names, emails, IP addresses, work-specific paths, or company references (alpha-ignis, alpha-collection, etc.)
-- **Audit before committing**: `git diff --cached | grep -iE '10\.\d+\.\d+|172\.\d+|abhishek|alpha'` must return empty
+- **Never commit personal info**: no names, emails, IP addresses, work-specific paths, or employer / product / project names
+- **Audit before committing**: `git diff --cached | grep -iE '10\.\d+\.\d+|172\.\d+'` must return empty, and eyeball the diff for your name, employer, and project names
 - **Only track customizations**: don't add stock Ubuntu defaults (prompt, bash-completion, color aliases) - those belong in the system `.bashrc`
 - **Prefer `~/.local/bin`** for tool installations over system-wide installs
 - **Keep it simple**: no unnecessary abstractions, no over-engineering
