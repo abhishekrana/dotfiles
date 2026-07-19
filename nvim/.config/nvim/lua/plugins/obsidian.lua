@@ -60,6 +60,21 @@ return {
         min_chars = 2,
       },
     },
+    config = function(_, opts)
+      -- obsidian.nvim v3.16.5 ships an in-process LSP (obsidian-ls) that force-enables
+      -- `didChangeWatchedFiles` - a capability Neovim disables on Linux for performance
+      -- - and registers a recursive `**/*.md` file watcher on the vault. Walking the
+      -- tree (incl. `.git/`) pegs CPU and hangs nvim on open/idle/quit. Neutralize LSP
+      -- file-watching so obsidian-ls still gives completion, follow-link and backlinks
+      -- without the watcher. (Neovim disables this watcher by default here anyway;
+      -- obsidian-ls is the outlier that forces it back on.)
+      pcall(function()
+        require("vim.lsp._watchfiles")._watchfunc = function()
+          return function() end
+        end
+      end)
+      require("obsidian").setup(opts)
+    end,
     keys = {
       { "<leader>o", "", desc = "+obsidian/notes", ft = "markdown" },
       { "<leader>on", "<cmd>Obsidian new<cr>", desc = "New note" },
