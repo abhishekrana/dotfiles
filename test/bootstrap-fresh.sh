@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Fresh-install smoke test: runs bootstrap.sh in a clean Ubuntu 24.04 container,
-# verifies all binaries install and stow targets get symlinked, then runs
+# fails if the first run exits non-zero, verifies binaries + stow symlinks AND the
+# post-stow steps (bashrc patch, vaults, agentbar, nvim plugins), then runs
 # bootstrap a second time to confirm idempotency. ~5 min on first run; cached
 # subsequent runs are faster.
 #
@@ -21,7 +22,9 @@ echo "test ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 cp -r /dotfiles /home/test/dotfiles
 chown -R test:test /home/test/dotfiles
 
-su - test -c "cd ~/dotfiles && ./bootstrap.sh 2>&1 | tail -40"
+su - test -c "cd ~/dotfiles && ./bootstrap.sh" 2>&1 | tail -60
+rc=${PIPESTATUS[0]}
+[ "$rc" -eq 0 ] || { echo "FAIL: first bootstrap run exited $rc (must be 0 on a fresh machine)"; exit 1; }
 
 su - test -c "
 export PATH=\$HOME/.local/bin:\$PATH
@@ -43,6 +46,14 @@ for f in ~/.tmux.conf ~/.gitmux.conf ~/.bashrc.d ~/.config/nvim ~/.local/bin/tmu
   if [ -L \"\$f\" ]; then printf \"OK   %s\n\" \"\$f\"
   else printf \"MISS %s\n\" \"\$f\"; fail=1; fi
 done
+
+echo
+echo \"--- post-stow steps (skipped entirely if bootstrap aborted early) ---\"
+grep -q \"Load dotfiles shell customizations\" ~/.bashrc && printf \"OK   %s\n\" \".bashrc patched\" || { printf \"MISS %s\n\" \".bashrc patch\"; fail=1; }
+for d in ~/vaults/personal ~/vaults/work ~/.local/share/nvim/lazy; do
+  if [ -d \"\$d\" ]; then printf \"OK   %s\n\" \"\$d\"; else printf \"MISS %s\n\" \"\$d\"; fail=1; fi
+done
+if [ -x ~/dotfiles/apps/agentbar/bin/agentbar ]; then printf \"OK   %s\n\" \"agentbar built\"; else printf \"MISS %s\n\" \"agentbar\"; fail=1; fi
 
 echo
 echo \"--- 2nd run (idempotency) ---\"

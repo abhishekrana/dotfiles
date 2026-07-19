@@ -638,6 +638,9 @@ fi
 
 log "Starting dotfiles bootstrap..."
 mkdir -p "$LOCAL_BIN"
+# ~/.local/bin isn't on a fresh machine's PATH yet (login adds it only if it already
+# exists); put it there so this run's `command -v` guards + Go build see our installs.
+export PATH="$LOCAL_BIN:$PATH"
 
 install_apt_packages
 install_nodejs
