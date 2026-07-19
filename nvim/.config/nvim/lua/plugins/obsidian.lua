@@ -36,6 +36,21 @@ return {
       attachments = {
         folder = "assets",
       },
+      -- Stamp a `type` on every note's frontmatter so the vault stays greppable
+      -- (`rg '^type:'`) and legible to Claude Code. New captures default to
+      -- `type: note`; obsidian's own id/aliases/tags and any manually-set fields
+      -- (e.g. the daily template's `type: daily`) are preserved. /inbox-triage
+      -- refines the type (project/area/resource/...) when it files the note.
+      note_frontmatter_func = function(note)
+        local out = { id = note.id, aliases = note.aliases, tags = note.tags }
+        if note.metadata ~= nil and not vim.tbl_isempty(note.metadata) then
+          for k, v in pairs(note.metadata) do
+            out[k] = v
+          end
+        end
+        out.type = out.type or "note"
+        return out
+      end,
       -- LazyVim's completion engine is blink.cmp.
       completion = {
         blink = true,

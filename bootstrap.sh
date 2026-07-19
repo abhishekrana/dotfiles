@@ -423,18 +423,63 @@ EOF
     ok "~/.bashrc patched (backup at ~/.bashrc.pre-dotfiles)"
 }
 
-create_personal_vault() {
-    # Personal knowledge vault. obsidian.nvim errors on startup if its workspace path
-    # is missing and won't create it (subdirs match obsidian.lua). If the vault isn't
-    # a git repo yet, just flag it - the wiring steps are shown together at the very
-    # end (print_vault_sync_hints) so they aren't buried mid-run. Idempotent.
-    local vault="$HOME/vaults/personal" d
-    mkdir -p "$vault/inbox" "$vault/dailies" "$vault/templates" "$vault/assets"
+copy_if_absent() {
+    # copy_if_absent SRC DEST - seed a file only when it doesn't exist yet, so a re-run
+    # never clobbers edits the user (or an agent) has made in the live vault.
+    local src="$1" dest="$2"
+    if [ -e "$dest" ]; then return; fi
+    mkdir -p "$(dirname "$dest")"
+    cp "$src" "$dest"
+}
+
+seed_vault() {
+    # Seed one notes vault from vault-template/ as REAL files (not stow symlinks): the
+    # scaffolding is committed into the vault's own private repo, so it stays portable
+    # and self-contained on any machine. obsidian.nvim errors on startup if the
+    # workspace path is missing, so the PARA + capture folders are always ensured;
+    # everything else is copy-if-absent - idempotent, never overwriting live edits.
+    # Never commits (that stays the user's call, same as the sync hints below).
+    local vault="$1" type="$2"
+    local tpl="$DOTFILES_DIR/vault-template" d f
+    for d in archive areas assets dailies inbox projects resources templates; do
+        mkdir -p "$vault/$d"
+    done
+    copy_if_absent "$tpl/common/.gitignore"  "$vault/.gitignore"
+    copy_if_absent "$tpl/common/.prettierrc" "$vault/.prettierrc"
+    copy_if_absent "$tpl/common/Home.md"     "$vault/Home.md"
+    copy_if_absent "$tpl/$type/CLAUDE.md"    "$vault/CLAUDE.md"
+    copy_if_absent "$tpl/$type/README.md"    "$vault/README.md"
+    for f in "$tpl"/common/templates/*; do
+        copy_if_absent "$f" "$vault/templates/$(basename "$f")"
+    done
+    copy_if_absent "$tpl/common/.claude/settings.json" "$vault/.claude/settings.json"
+    for f in "$tpl"/common/.claude/commands/*.md; do
+        copy_if_absent "$f" "$vault/.claude/commands/$(basename "$f")"
+    done
+    for f in "$tpl"/common/.claude/hooks/*.sh; do
+        copy_if_absent "$f" "$vault/.claude/hooks/$(basename "$f")"
+    done
+    copy_if_absent "$tpl/common/.githooks/pre-commit" "$vault/.githooks/pre-commit"
+    chmod +x "$vault/.claude/hooks/"*.sh "$vault/.githooks/pre-commit" 2>/dev/null || true
     # git ignores empty dirs, so a fresh skeleton has nothing to commit and the first
     # push fails. Keep each still-empty capture dir trackable with a .gitkeep.
-    for d in inbox dailies templates assets; do
+    for d in archive areas assets dailies inbox projects resources templates; do
         [ -n "$(ls -A "$vault/$d" 2>/dev/null)" ] || touch "$vault/$d/.gitkeep"
     done
+    # Route git hooks at the tracked .githooks/ dir (the secrets pre-commit guard).
+    # Harmless to set repeatedly; only applies once the vault is a git repo. Kept as an
+    # if (not `&&`) so a not-yet-a-repo vault leaves the function returning 0 under set -e.
+    if [ -d "$vault/.git" ]; then
+        git -C "$vault" config core.hooksPath .githooks
+    fi
+}
+
+create_personal_vault() {
+    # Personal knowledge vault (private GitHub). If it isn't a git repo yet, just flag
+    # it - the wiring steps are shown together at the very end (print_vault_sync_hints)
+    # so they aren't buried mid-run. Idempotent.
+    local vault="$HOME/vaults/personal"
+    seed_vault "$vault" personal
     if [ -d "$vault/.git" ]; then
         ok "personal vault ready at $vault"
     else
@@ -444,16 +489,11 @@ create_personal_vault() {
 }
 
 create_work_vault() {
-    # Work knowledge vault, an independent sibling of the personal vault on its own
-    # separate remote. Same skeleton; if it isn't a git repo yet, flag it for the
-    # end-of-run hints rather than printing steps mid-run. Idempotent.
-    local vault="$HOME/vaults/work" d
-    mkdir -p "$vault/inbox" "$vault/dailies" "$vault/templates" "$vault/assets"
-    # git ignores empty dirs, so a fresh skeleton has nothing to commit and the first
-    # push fails. Keep each still-empty capture dir trackable with a .gitkeep.
-    for d in inbox dailies templates assets; do
-        [ -n "$(ls -A "$vault/$d" 2>/dev/null)" ] || touch "$vault/$d/.gitkeep"
-    done
+    # Work knowledge vault, an independent sibling on its own separate remote (private
+    # GitLab). Same skeleton; if it isn't a git repo yet, flag it for the end-of-run
+    # hints rather than printing steps mid-run. Idempotent.
+    local vault="$HOME/vaults/work"
+    seed_vault "$vault" work
     if [ -d "$vault/.git" ]; then
         ok "work vault ready at $vault"
     else

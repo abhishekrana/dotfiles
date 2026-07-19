@@ -24,6 +24,10 @@ Buildable projects live under `apps/` - these are **not** stow packages and are 
 
 - `apps/agentbar/` → Go tmux plugin (the Claude agent sidebar). Loaded by a `run-shell` line at the end of `tmux/.tmux.conf`, so it builds and runs straight from the repo. The Claude lifecycle hooks in `claude/.claude/settings.json` invoke its binary at `$HOME/dotfiles/apps/agentbar/bin/agentbar`. It has its own nested `CLAUDE.md` - read that before touching the code.
 
+## Vault template
+
+`vault-template/` holds the boilerplate for the two notes vaults (`~/vaults/personal`, `~/vaults/work`). Like `apps/`, it is **not** a stow package and is never passed to `stow` - `bootstrap.sh` copies it into each vault as **real files** (via `seed_vault`), so the scaffolding gets committed into that vault's own private repo and stays portable and self-contained. `common/` is shared by both vaults (the folder skeleton, `Home.md`, note templates, the `.claude/` slash commands + guardrail hooks, and the `.githooks/` secrets guard); `personal/` and `work/` carry the vault-specific `CLAUDE.md` + `README.md`. Copies are seed-if-missing (`copy_if_absent`), so re-running bootstrap never clobbers live edits. Vault *content* (the notes themselves) never lives here - this repo is public.
+
 ## Rules
 
 - **Never commit personal info**: no names, emails, IP addresses, work-specific paths, or company references (alpha-ignis, alpha-collection, etc.)
@@ -39,7 +43,7 @@ Buildable projects live under `apps/` - these are **not** stow packages and are 
 - Each tool init file guards with `command -v tool &>/dev/null || return`
 - Private/work-specific config goes in `~/.bashrc.d/local.bash` (not tracked)
 - `bootstrap.sh` must be idempotent (safe to re-run)
-- `bootstrap.sh` scaffolds two independent notes-vault skeletons - `~/vaults/personal` and `~/vaults/work` (`create_personal_vault` / `create_work_vault`); any vault without a git remote is reported once at the very end (`print_vault_sync_hints`, optional) instead of mid-run, and the remote/identity are never created or stored here, keeping both out of this public repo
+- `bootstrap.sh` scaffolds two independent notes vaults - `~/vaults/personal` and `~/vaults/work` (`create_personal_vault` / `create_work_vault`, both calling `seed_vault` to copy `vault-template/` in as real files); any vault without a git remote is reported once at the very end (`print_vault_sync_hints`, optional) instead of mid-run, and the remote/identity are never created or stored here, keeping both out of this public repo
 - Keep lists alphabetically sorted (stow packages, apt packages, pinned versions, bootstrap calls, docs)
 
 ## Deploy
