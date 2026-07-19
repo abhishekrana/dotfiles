@@ -428,8 +428,13 @@ create_personal_vault() {
     # is missing and won't create it (subdirs match obsidian.lua). If the vault isn't
     # a git repo yet, just flag it - the wiring steps are shown together at the very
     # end (print_vault_sync_hints) so they aren't buried mid-run. Idempotent.
-    local vault="$HOME/vaults/personal"
+    local vault="$HOME/vaults/personal" d
     mkdir -p "$vault/inbox" "$vault/dailies" "$vault/templates" "$vault/assets"
+    # git ignores empty dirs, so a fresh skeleton has nothing to commit and the first
+    # push fails. Keep each still-empty capture dir trackable with a .gitkeep.
+    for d in inbox dailies templates assets; do
+        [ -n "$(ls -A "$vault/$d" 2>/dev/null)" ] || touch "$vault/$d/.gitkeep"
+    done
     if [ -d "$vault/.git" ]; then
         ok "personal vault ready at $vault"
     else
@@ -442,8 +447,13 @@ create_work_vault() {
     # Work knowledge vault, an independent sibling of the personal vault on its own
     # separate remote. Same skeleton; if it isn't a git repo yet, flag it for the
     # end-of-run hints rather than printing steps mid-run. Idempotent.
-    local vault="$HOME/vaults/work"
+    local vault="$HOME/vaults/work" d
     mkdir -p "$vault/inbox" "$vault/dailies" "$vault/templates" "$vault/assets"
+    # git ignores empty dirs, so a fresh skeleton has nothing to commit and the first
+    # push fails. Keep each still-empty capture dir trackable with a .gitkeep.
+    for d in inbox dailies templates assets; do
+        [ -n "$(ls -A "$vault/$d" 2>/dev/null)" ] || touch "$vault/$d/.gitkeep"
+    done
     if [ -d "$vault/.git" ]; then
         ok "work vault ready at $vault"
     else
@@ -468,7 +478,8 @@ print_vault_sync_hints() {
     cd ~/vaults/personal
     git init -b main
     git remote add origin <private-remote-url>   # e.g. a private <user>/vaults-personal
-    git add -A && git commit -m "Initialize personal vault"
+    git add -A
+    git commit -m "Initialize personal vault"
     git push -u origin main
 EOF
     fi
@@ -479,7 +490,8 @@ EOF
     cd ~/vaults/work
     git init -b main
     git remote add origin <private-remote-url>   # e.g. a private <user>/vaults-work
-    git add -A && git commit -m "Initialize work vault"
+    git add -A
+    git commit -m "Initialize work vault"
     git push -u origin main
 EOF
     fi
