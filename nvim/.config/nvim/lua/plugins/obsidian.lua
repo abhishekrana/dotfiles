@@ -1,6 +1,8 @@
--- Obsidian-style markdown notes: a ~/vaults/personal vault with [[wiki-links]],
--- backlinks, tags, daily notes and templates. Inline image rendering is
--- handled by image.nvim (see image.lua); clipboard paste by img-clip.
+-- Obsidian-style markdown notes across two vaults - ~/vaults/personal and
+-- ~/vaults/work - with [[wiki-links]], backlinks, tags, daily notes and templates.
+-- obsidian.nvim auto-activates the workspace owning the open file (defaulting to
+-- work); <leader>ow switches manually. Inline image rendering is handled by
+-- image.nvim (see image.lua); clipboard paste by img-clip.
 return {
   {
     "obsidian-nvim/obsidian.nvim",
@@ -15,6 +17,10 @@ return {
       -- leave it off. Image rendering (image.nvim) is independent of this.
       ui = { enable = false },
       workspaces = {
+        -- Activates the workspace whose path owns the current buffer; when neither
+        -- matches it falls back to the first entry, so work is the default. Both
+        -- vaults share the subdir layout configured below, so one config serves both.
+        { name = "work", path = "~/vaults/work" },
         { name = "personal", path = "~/vaults/personal" },
       },
       notes_subdir = "inbox",
@@ -40,6 +46,7 @@ return {
       { "<leader>o", "", desc = "+obsidian/notes", ft = "markdown" },
       { "<leader>on", "<cmd>Obsidian new<cr>", desc = "New note" },
       { "<leader>oo", "<cmd>Obsidian quick_switch<cr>", desc = "Quick switch note" },
+      { "<leader>ow", "<cmd>Obsidian workspace<cr>", desc = "Switch workspace (personal/work)" },
       { "<leader>os", "<cmd>Obsidian search<cr>", desc = "Search notes (grep)" },
       { "<leader>ot", "<cmd>Obsidian today<cr>", desc = "Today's daily note" },
       { "<leader>oy", "<cmd>Obsidian yesterday<cr>", desc = "Yesterday's daily note" },

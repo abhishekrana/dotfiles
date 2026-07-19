@@ -423,12 +423,51 @@ EOF
     ok "~/.bashrc patched (backup at ~/.bashrc.pre-dotfiles)"
 }
 
-create_notes_vault() {
-    # obsidian.nvim errors on startup if its workspace path is missing and does
-    # not create it itself. Paths match nvim's obsidian.lua (workspace + subdirs).
+create_personal_vault() {
+    # Personal knowledge vault. obsidian.nvim errors on startup if its workspace
+    # path is missing and won't create it (subdirs match obsidian.lua). Once the
+    # skeleton exists, if it isn't a git repo yet, print the one-time remote-wiring
+    # steps - we never create the remote or bake identity into these public
+    # dotfiles, so the user wires it to its PRIVATE remote himself. Idempotent.
     local vault="$HOME/vaults/personal"
     mkdir -p "$vault/inbox" "$vault/dailies" "$vault/templates" "$vault/assets"
-    ok "notes vault ready at $vault"
+    if [ -d "$vault/.git" ]; then
+        ok "personal vault ready at $vault"
+        return
+    fi
+    ok "personal vault skeleton ready at $vault"
+    warn "personal vault has no git remote yet - finish setup yourself:"
+    cat <<'EOF'
+    1. Create a PRIVATE repo on your Git host (e.g. <user>/vaults-personal).
+    2. cd ~/vaults/personal
+       git init -b main
+       git remote add origin <private-remote-url>
+       git add -A && git commit -m "Initialize personal vault"
+       git push -u origin main
+EOF
+}
+
+create_work_vault() {
+    # Work knowledge vault, an independent sibling of the personal vault on its own
+    # separate PRIVATE remote. Same skeleton; if it isn't a git repo yet, print the
+    # one-time remote-wiring steps rather than baking identity into these public
+    # dotfiles, so the user wires it himself. Idempotent.
+    local vault="$HOME/vaults/work"
+    mkdir -p "$vault/inbox" "$vault/dailies" "$vault/templates" "$vault/assets"
+    if [ -d "$vault/.git" ]; then
+        ok "work vault ready at $vault"
+        return
+    fi
+    ok "work vault skeleton ready at $vault"
+    warn "work vault has no git remote yet - finish setup yourself:"
+    cat <<'EOF'
+    1. Create a PRIVATE repo on your Git host (e.g. <user>/vaults-work).
+    2. cd ~/vaults/work
+       git init -b main
+       git remote add origin <private-remote-url>
+       git add -A && git commit -m "Initialize work vault"
+       git push -u origin main
+EOF
 }
 
 install_bat_themes() {
@@ -516,7 +555,8 @@ stow_packages
 install_bat_themes
 enable_tmux_resurrect_timer
 patch_bashrc
-create_notes_vault
+create_personal_vault
+create_work_vault
 install_nvim_plugins
 build_apps
 
