@@ -158,6 +158,7 @@ stow -R <package>    # Re-link (unlink + link)
 
 - **System `.bashrc` is never overwritten** - customizations live in `~/.bashrc.d/*.bash`, sourced by a loop `bootstrap.sh` appends (with a backup).
 - **Private/work aliases** go in `~/.bashrc.d/local.bash` (not tracked).
+- **Notes vaults**: `bootstrap.sh` scaffolds two Obsidian vault skeletons (`~/vaults/personal`, `~/vaults/work`) and, at the end, prints optional git-remote wiring steps for any not yet synced; each vault's contents live in its own private repo, never here.
 - **Neovim plugins**: `lazy-lock.json` pins versions - commit it to keep installs reproducible.
 - **Python venvs**: direnv auto-activates `.venv` per directory.
 - **Idempotent**: `bootstrap.sh` is safe to re-run (skips what's installed).
