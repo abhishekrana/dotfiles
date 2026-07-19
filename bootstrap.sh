@@ -596,8 +596,46 @@ build_apps() {
 }
 
 # =============================================================================
+# Opt-in: dictate deps (uv + parec/pactl)
+# =============================================================================
+
+# Not part of the default run - the dictate package is opt-in. Install its
+# non-stock deps only when asked:  ./bootstrap.sh dictate-deps
+install_dictate_deps() {
+    mkdir -p "$LOCAL_BIN"
+    # uv runs the PEP 723 dictate script. Unpinned (latest): opt-in convenience,
+    # self-updating, and tolerant of the script's inline deps.
+    if command -v uv &>/dev/null; then
+        ok "uv already installed"
+    else
+        log "Installing uv..."
+        curl -LsSf https://astral.sh/uv/install.sh \
+            | env UV_INSTALL_DIR="$LOCAL_BIN" INSTALLER_NO_MODIFY_PATH=1 sh
+        ok "uv installed"
+    fi
+    # parec (record) + pactl (audio ducking), both from pulseaudio-utils. Absent
+    # on a fresh Ubuntu base, usually present on the desktop. Guarded = no-op when
+    # already there.
+    if command -v parec &>/dev/null && command -v pactl &>/dev/null; then
+        ok "parec/pactl already installed"
+    else
+        log "Installing pulseaudio-utils (parec + pactl)..."
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq pulseaudio-utils
+        ok "pulseaudio-utils installed"
+    fi
+}
+
+# =============================================================================
 # Main
 # =============================================================================
+
+# Opt-in extras (run a single named step, then exit):
+#   ./bootstrap.sh dictate-deps   # uv + pulseaudio-utils for the dictate package
+if [ "${1:-}" = "dictate-deps" ]; then
+    install_dictate_deps
+    exit 0
+fi
 
 log "Starting dotfiles bootstrap..."
 mkdir -p "$LOCAL_BIN"

@@ -34,7 +34,13 @@ session; otherwise the most-recently-active `claude` pane. Check it with `dictat
 
 ## Requirements
 
-`uv`, `tmux`, and `parec` (from `pipewire-pulse`/`pulseaudio-utils`). First run downloads the model (~250 MB, cached).
+`uv`, `tmux`, and `parec` + `pactl` (both from `pulseaudio-utils`). First run downloads the model (~250 MB, cached).
+
+`tmux` ships with the default bootstrap; the rest are opt-in, like the package itself. Install them in one step:
+
+```bash
+cd ~/dotfiles && ./bootstrap.sh dictate-deps
+```
 
 ## Setup
 

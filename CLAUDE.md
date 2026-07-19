@@ -9,7 +9,7 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
 - `bash/` → `~/.bashrc.d/` (shell customizations)
 - `bat/` → `~/.config/bat/`
 - `claude/` → `~/.claude/settings.json`, `~/.claude/statusline-command.sh`, `~/.claude/skills/` (settings.json wires the agentbar hook on every Claude lifecycle event + the statusLine; `~/.claude/skills/` ships shared, dotfiles-owned skills like `vault-manager`, distinct from personal skills which live in a private branch; agent state for both the sidebar and the `M-;` session picker comes from that plugin's `@agent_*` pane options, not local hook scripts. Note: Claude Code does NOT load a user-level `~/.claude/settings.local.json` - hooks/settings there are silently ignored; anything that must take effect goes in `settings.json`)
-- `dictate/` → `~/.local/bin/dictate` (toggle-key local Whisper dictation into tmux; opt-in)
+- `dictate/` → `~/.local/bin/dictate` (toggle-key local Whisper dictation into tmux; opt-in. Has its own nested `CLAUDE.md` - read it before touching the script. Its deps are opt-in too: `./bootstrap.sh dictate-deps`)
 - `ghostty/` → `~/.config/ghostty/` (Ghostty terminal config)
 - `git/` → `~/.config/git/config` (delta pager, merge settings)
 - `hunk/` → `~/.config/hunk/` (hunk diff viewer config, Solarized Light theme)
