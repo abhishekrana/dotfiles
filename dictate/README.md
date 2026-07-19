@@ -24,7 +24,9 @@ local, zero elevated privilege.
   disables it.
 - Feedback & mouse control: a clickable `● dictate` segment sits dead-centre in the tmux status bar - grey idle, red
   recording, amber transcribing. Click it to toggle, same as the key. Same width in every state, so nothing shifts. A
-  `⏎` button beside it submits - it presses Enter in the pane the transcript went to, so the whole loop is mouse-only.
+  `⏎ enter` button beside it submits - it presses Enter in the pane the transcript went to, so the whole loop is
+  mouse-only. A `⇡ commit+push` button beside that types "commit and push" + Enter into the same pane, a one-click way
+  to tell the agent to commit and push.
 
 ## Targeting
 

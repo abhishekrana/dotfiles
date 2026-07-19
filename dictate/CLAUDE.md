@@ -24,9 +24,10 @@ is for hacking on the script. Keep it a single file - do not split it into a pac
 ## tmux coupling (change both sides together)
 
 - The script sets `@dictate` to `"rec"` (red) / `"work"` (amber) / unset (idle grey). `tmux/.tmux.conf` renders that via
-  `@dictate_seg`, and its status bar defines the mouse ranges `dictate` -> `dictate --toggle` and `submit` ->
-  `dictate --send`. Renaming a state string or a range means editing `tmux.conf` too. Chip colors also appear in
-  `design/*.md`.
+  `@dictate_seg`, and its status bar defines the mouse ranges `dictate` -> `dictate --toggle`, `submit` ->
+  `dictate --send` (⏎ enter), and `push` -> `dictate --type 'commit and push'` (types the phrase + Enter). Renaming a
+  state string or a range means editing `tmux.conf` too. The `@*_seg` chips are also regenerated per-flavor by
+  `theme/.local/bin/theme` (`apply_tmux`), so relabel/recolor a chip in both. Chip colors also appear in `design/*.md`.
 
 ## Config, deploy, smoke test
 

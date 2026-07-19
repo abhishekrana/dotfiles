@@ -75,7 +75,8 @@ set -g status-left "#{@host_badge}#[fg=$bg,bg=$accent,bold] #S #[fg=$fg,bg=$surf
 set -g window-status-current-format "#[fg=$bg,bg=$accent,bold] #I:#W#{?window_zoomed_flag, Z,} "
 set -g window-status-format "#{?window_bell_flag,#[fg=$bg bg=$block bold],#[fg=$muted bg=$surface]} #I:#W "
 set -g @dictate_seg "#{?#{==:#{@dictate},rec},#[fg=$block bg=$surface] ● dictate ,#{?#{==:#{@dictate},work},#[fg=$ask bg=$surface] ● dictate ,#[fg=$muted bg=$surface] ● dictate }}"
-set -g @submit_seg "#{?@submit_flash,#[fg=$bg bg=$grn]   ⏎   ,#[fg=$work bg=$surface]   ⏎   }"
+set -g @submit_seg "#{?@submit_flash,#[fg=$bg bg=$grn]  ⏎ enter  ,#[fg=$work bg=$surface]  ⏎ enter  }"
+set -g @push_seg "#{?@push_flash,#[fg=$bg bg=$grn]  ⇡ commit+push  ,#[fg=$accent bg=$surface]  ⇡ commit+push  }"
 EOF
 	tmux source-file "$f" 2>/dev/null || true
 }

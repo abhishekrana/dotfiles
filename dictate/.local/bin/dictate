@@ -140,12 +140,25 @@ def send_to_tmux(target, text):
 
 
 def send_enter():
-    # mouse "⏎ submit": press Enter in the pane a transcript would go to.
+    # mouse "⏎ enter": press Enter in the pane a transcript would go to.
     target, lbl = resolve_target()
     if not target:
         log("no tmux pane found"); flash("no pane to submit"); return
     tmux("send-keys", "-t", target, "Enter")
     log(f"⏎ → {lbl}")
+
+
+def send_text(text):
+    # mouse quick-phrase button (e.g. "commit and push"): type TEXT then Enter
+    # into the same pane a transcript would go to. The short sleep lets the TUI
+    # ingest the pasted text before Enter submits it.
+    target, lbl = resolve_target()
+    if not target:
+        log("no tmux pane found"); flash("no pane to submit"); return
+    send_to_tmux(target, text)
+    time.sleep(0.12)
+    tmux("send-keys", "-t", target, "Enter")
+    log(f"{text!r} ⏎ → {lbl}")
 
 
 # ---- transcription -------------------------------------------------------
@@ -551,6 +564,8 @@ def main():
         require("tmux"); print(resolve_target()[1] or "(no tmux target found)")
     elif arg == "--send":
         require("tmux"); send_enter()
+    elif arg == "--type":
+        require("tmux"); send_text(sys.argv[2] if len(sys.argv) > 2 else "")
     elif arg == "--test":
         self_test()
     elif arg == "--serve":

@@ -35,7 +35,7 @@ so switching never edits a tracked config.
 | -------------- | --------------- | ------------------------------------------------------------ | --------------------------------- |
 | agent sidebar  | option (id)     | `tmux set -g @agentbar-theme <flavor>`                       | restart (`prefix + e` ×2)         |
 | ghostty        | named           | `theme = <Name>` → `ghostty.conf` (a `config-file` include)  | `pkill -USR2 -x ghostty`          |
-| tmux frame     | hex → generated | `tmux.conf` (status/window/pane + dictate/submit chips)      | `tmux source-file` (immediate)    |
+| tmux frame     | hex → generated | `tmux.conf` (status/window/pane + dictate/submit/push chips)      | `tmux source-file` (immediate)    |
 | fzf            | hex → export    | `fzf.sh` (`_fzf_color` `--color` block, sourced by fzf.bash) | new shells                        |
 | bat / `$THEME` | named           | `env.sh` (`export THEME`, `export BAT_THEME`)                | new shells                        |
 | git-delta      | hex + named     | `delta.gitconfig` (a `[delta]` block, git-included)          | next `git` invocation             |
