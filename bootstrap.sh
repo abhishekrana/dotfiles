@@ -11,7 +11,7 @@ FD_VERSION="10.4.2"
 FZF_VERSION="0.74.1"
 GITMUX_VERSION="0.11.5"
 GO_VERSION="1.26.5"
-HUNK_VERSION="0.17.1"
+HUNK_VERSION="0.17.3"
 LAZYDOCKER_VERSION="0.25.2"
 LAZYGIT_VERSION="0.63.1"
 NEOVIM_VERSION="0.12.4"
@@ -506,7 +506,7 @@ print_vault_sync_hints() {
     # works locally without a remote; this only shows how to back one up / sync it.
     # We never create the remote or store identity here (these dotfiles are public),
     # so the user runs the steps himself. One independent block per vault by design.
-    [ -n "${PERSONAL_VAULT_UNWIRED:-}" ] || [ -n "${WORK_VAULT_UNWIRED:-}" ] || return
+    [ -n "${PERSONAL_VAULT_UNWIRED:-}" ] || [ -n "${WORK_VAULT_UNWIRED:-}" ] || return 0
     echo ""
     warn "Optional - notes vault(s) not yet synced to a git remote."
     warn "Set up only the ones you want backed up / synced (run these yourself):"
