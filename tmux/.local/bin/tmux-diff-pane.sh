@@ -109,22 +109,35 @@ cmd_ensure() {
 }
 
 # Runs INSIDE the diff pane: show the diff, then fall back to a shell on quit.
-# Mirrors the hunk() wrapper in theme.bash: carry the current flavor via --theme
-# on the `diff` subcommand (env.sh may be newer than tmux's inherited THEME).
+# Carries the current flavor (--theme, like theme.bash's hunk() wrapper) and the
+# chosen layout (--mode split|stack from @diff_layout). env.sh may hold a newer
+# THEME than tmux inherited; hunk >=0.17 accepts --theme/--mode on diff and show.
 cmd_run() {
-  local mode="${1:-work}" hunk
+  local mode="${1:-work}" layout hunk
   export PATH="$HOME/.local/bin:$PATH"
   [ -f "$HOME/.config/theme/env.sh" ] && . "$HOME/.config/theme/env.sh"
   set_mode_args "$mode" || exec bash -i
+  layout=$(tmux show -gv @diff_layout 2>/dev/null)   # unset -> hunk's config default
+  [ -n "$layout" ] && MARGS+=(--mode "$layout")
+  [ -n "${THEME:-}" ] && MARGS+=(--theme "$THEME")
   hunk=$(hunk_bin)
-  if [ -n "$hunk" ]; then
-    if [ -n "${THEME:-}" ] && [ "${MARGS[0]}" = diff ]; then
-      "$hunk" "${MARGS[@]}" --theme "$THEME"
-    else
-      "$hunk" "${MARGS[@]}"
-    fi
-  fi
+  [ -n "$hunk" ] && "$hunk" "${MARGS[@]}"
   exec bash -i
+}
+
+# Flip @diff_layout split<->stack and re-run the current mode with it.
+cmd_flip_layout() {
+  local cur new mode diff
+  cur=$(tmux show -gv @diff_layout 2>/dev/null); [ -n "$cur" ] || cur=split  # config default
+  case "$cur" in stack) new=split ;; *) new=stack ;; esac
+  tmux set -g @diff_layout "$new"
+  mode=$(tmux show -gv @diff_mode 2>/dev/null)
+  diff=$(tmux show -gv @diff_pane 2>/dev/null)
+  if [ -n "$mode" ] && pane_alive "$diff"; then
+    cmd_ensure "$mode"                              # respawn picks up the new @diff_layout
+  else
+    tmux display-message "diff: layout -> $new (applies when you open a diff)"
+  fi
 }
 
 cmd_focus() {
@@ -148,7 +161,8 @@ cmd_close() {
 case "${1:-}" in
   --run)                  shift; cmd_run "${1:-work}" ;;
   work|staged|main|last)  cmd_ensure "$1" ;;
+  layout)                 cmd_flip_layout ;;
   focus)                  cmd_focus ;;
   close)                  cmd_close ;;
-  *)                      tmux display-message "diff: usage: work|staged|main|last|focus|close" 2>/dev/null ;;
+  *)                      tmux display-message "diff: usage: work|staged|main|last|layout|focus|close" 2>/dev/null ;;
 esac
