@@ -87,14 +87,19 @@ cmd_ensure() {
   hunk=$(hunk_bin)
   [ -n "$hunk" ] || { tmux display-message "diff: hunk not on PATH"; trace mode="$mode" ok=0 why=nohunk; return 0; }
 
+  # hunk probes the terminal on startup (mode reports, OSC 52). tmux routes those
+  # replies to the ACTIVE pane, so launching hunk in a background pane leaks the
+  # replies as junk input into the agent pane. Launch/relaunch it FOCUSED instead.
   if [ -n "$diff" ]; then
+    tmux select-pane -t "$diff"
     tmux respawn-pane -k -c "$REPO" -t "$diff" "$SELF" --run "$mode"
     trace mode="$mode" action=respawn pane="$diff"
   else
     # Unzoom the source window first, or the split gets swallowed.
     [ "$(tmux display-message -p -t "$SRC_PANE" '#{window_zoomed_flag}' 2>/dev/null)" = "1" ] \
       && tmux resize-pane -Z -t "$SRC_PANE"
-    diff=$(tmux split-window -h -d -l "$PANE_SIZE" -c "$REPO" -t "$SRC_PANE" \
+    # No -d: the new pane becomes active, so hunk's startup queries route to it.
+    diff=$(tmux split-window -h -l "$PANE_SIZE" -c "$REPO" -t "$SRC_PANE" \
             -P -F '#{pane_id}' "$SELF" --run "$mode")
     tmux set -g @diff_pane "$diff"
     trace mode="$mode" action=create pane="$diff"
