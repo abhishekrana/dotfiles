@@ -140,15 +140,6 @@ cmd_flip_layout() {
   fi
 }
 
-cmd_focus() {
-  local diff; diff=$(tmux show -gv @diff_pane 2>/dev/null)
-  if pane_alive "$diff"; then
-    tmux select-pane -t "$diff"
-  else
-    tmux display-message "diff: no diff pane yet (pick a mode first)"
-  fi
-}
-
 cmd_close() {
   local diff; diff=$(tmux show -gv @diff_pane 2>/dev/null)
   pane_alive "$diff" && tmux kill-pane -t "$diff"
@@ -162,7 +153,6 @@ case "${1:-}" in
   --run)                  shift; cmd_run "${1:-work}" ;;
   work|staged|main|last)  cmd_ensure "$1" ;;
   layout)                 cmd_flip_layout ;;
-  focus)                  cmd_focus ;;
   close)                  cmd_close ;;
-  *)                      tmux display-message "diff: usage: work|staged|main|last|layout|focus|close" 2>/dev/null ;;
+  *)                      tmux display-message "diff: usage: work|staged|main|last|layout|close" 2>/dev/null ;;
 esac
