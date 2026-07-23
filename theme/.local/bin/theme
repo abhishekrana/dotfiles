@@ -77,6 +77,7 @@ set -g window-status-format "#{?window_bell_flag,#[fg=$bg bg=$block bold],#[fg=$
 set -g @dictate_seg "#{?#{==:#{@dictate},rec},#[fg=$block bg=$surface] ● dictate ,#{?#{==:#{@dictate},work},#[fg=$ask bg=$surface] ● dictate ,#[fg=$muted bg=$surface] ● dictate }}"
 set -g @submit_seg "#{?@submit_flash,#[fg=$bg bg=$grn]  ⏎ enter  ,#[fg=$work bg=$surface]  ⏎ enter  }"
 set -g @push_seg "#{?@push_flash,#[fg=$bg bg=$grn]  ⇡ commit+push  ,#[fg=$accent bg=$surface]  ⇡ commit+push  }"
+set -g @diff_seg "#[fg=#6c71c4 bg=$surface] ◧ diff#{?@diff_mode,:#{@diff_mode},} "
 EOF
 	tmux source-file "$f" 2>/dev/null || true
 }
