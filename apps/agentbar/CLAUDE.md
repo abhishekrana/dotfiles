@@ -13,6 +13,7 @@ make e2e                # full lifecycle against throwaway tmux servers
 make test               # everything
 go test ./e2e/ -run TestName -v -count=1   # single e2e test
 bin/agentbar mockup              # UI preview with fake data (needs a TTY)
+bin/agentbar doctor              # audit live Claude panes vs the hook trace for state desync
 ```
 
 Preview loop for `render.go`/`theme.go` - build, render `mockup` (fake data, no live sessions read) on a

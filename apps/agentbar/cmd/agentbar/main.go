@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/abhishekrana/agentbar/internal/doctor"
 	"github.com/abhishekrana/agentbar/internal/hook"
 	"github.com/abhishekrana/agentbar/internal/tmux"
 	"github.com/abhishekrana/agentbar/internal/trace"
@@ -24,6 +26,7 @@ commands:
   mockup [--theme <name>]       render the sidebar with fake data (visual preview)
   status                        print a status-line segment (⚠N ●N)
   hook                          Claude Code hook entry: stdin JSON -> pane options
+  doctor                        audit Claude panes vs the hook trace for state desync
 
 themes: solarized-light (default), solarized-dark, catppuccin-latte, catppuccin-mocha
 `
@@ -42,6 +45,8 @@ func main() {
 		fmt.Print(tmux.StatusSegment(tmux.Exec{}))
 	case "hook":
 		runHook()
+	case "doctor":
+		runDoctor()
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command %q\n%s", os.Args[1], usage)
 		os.Exit(2)
@@ -98,6 +103,31 @@ func runHook() {
 	}
 	fields = append(fields, "err", trace.Err(applyErr))
 	trace.Log("hook", "event", fields...)
+}
+
+// runDoctor prints a one-shot health audit: every Claude pane's stamped state
+// cross-referenced against recent hook drops/recoveries in the trace, so a
+// stale sidebar (paneless hooks from resumed/daemon sessions) is one command
+// to spot instead of an investigation.
+func runDoctor() {
+	panesOut, _ := tmux.Exec{}.Run("list-panes", "-a", "-F", doctor.PaneFormat)
+	fmt.Print(doctor.Render(
+		doctor.ParsePanes(panesOut),
+		doctor.ParseHealth(traceHook("1h")),
+		time.Now().Unix(),
+	))
+}
+
+// traceHook returns recent `src=hook` lines via the dotfiles-trace CLI (the
+// trace log's query tool); empty if it isn't reachable, so doctor degrades to
+// the pane audit alone.
+func traceHook(since string) string {
+	bin := "dotfiles-trace"
+	if _, err := exec.LookPath(bin); err != nil {
+		bin = os.Getenv("HOME") + "/.local/bin/dotfiles-trace"
+	}
+	out, _ := exec.Command(bin, "show", "--src", "hook", "--since", since).Output()
+	return string(out)
 }
 
 func themeFlag(args []string) ui.Theme {

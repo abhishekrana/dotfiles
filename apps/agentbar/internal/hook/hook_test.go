@@ -95,13 +95,13 @@ func (f *fakeRunner) Run(args ...string) (string, error) {
 // ResolvePane matches a paneless hook's cwd to a Claude pane; a bash pane in
 // the same dir is ignored, and an empty/absent cwd is unresolvable.
 func TestResolvePane(t *testing.T) {
-	panes := "%3\tclaude\t/ws/alpha-1\tOLDSID\n" +
-		"%9\tclaude\t/ws/alpha-2\tsid2\n" +
-		"%40\tbash\t/ws/alpha-1\t\n" // same dir, not an agent -> ignored
+	panes := "%3\tclaude\t/ws/api\tOLDSID\n" +
+		"%9\tclaude\t/ws/web\tsid2\n" +
+		"%40\tbash\t/ws/api\t\n" // same dir, not an agent -> ignored
 	r := &fakeRunner{panes: panes}
 
 	// A resumed session (new sid) still resolves by cwd alone.
-	if p, via := ResolvePane(r, Event{Cwd: "/ws/alpha-1", SessionID: "NEWSID"}); p != "%3" || via != "cwd" {
+	if p, via := ResolvePane(r, Event{Cwd: "/ws/api", SessionID: "NEWSID"}); p != "%3" || via != "cwd" {
 		t.Errorf("cwd match = (%q,%q), want (%%3, cwd)", p, via)
 	}
 	if p, _ := ResolvePane(r, Event{Cwd: "/nowhere"}); p != "" {
