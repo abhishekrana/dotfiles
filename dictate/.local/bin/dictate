@@ -422,6 +422,10 @@ def stop_and_send(pid):
         except OSError:
             pcm = b""
         cleanup()
+        unduck()                                  # parec is dead + PCM captured -> mic closed,
+                                                  # buffer frozen: restore audio now, not after
+                                                  # the slow transcribe. Removes DUCK_FILE, so
+                                                  # every path below is already unmuted.
         if len(pcm) < MIN_PCM:                    # stray tap - don't wake the server
             log("(no speech)"); flash("no speech")
             trace("result", outcome="no-speech"); return
@@ -449,7 +453,6 @@ def stop_and_send(pid):
         trace("result", outcome=("sent" if ok else "send-failed"),
               chars=len(text), ms=int((time.time() - t_start) * 1000))
     finally:
-        unduck()                               # restore the audio we muted at record start
         set_state("")                          # back to idle grey, whatever happened
 
 
