@@ -29,6 +29,7 @@ type block struct {
 	session int    // index into snapshot.Sessions
 	agent   int    // index into session.Agents (blockAgent only)
 	label   string // blockSection only; "" means a bare rule
+	pad     bool   // blockSection only: render a blank line above the divider
 }
 
 // buildBlocks flattens the snapshot: a band divider heads each group of
@@ -52,7 +53,10 @@ func buildBlocks(snap model.Snapshot) []block {
 		band := sess.Band()
 		if band != prev {
 			if label, ok := sectionHeader(band, nP, nA, nD); ok {
-				blocks = append(blocks, block{kind: blockSection, label: label})
+				// A labelled divider mid-list gets a blank line above it so it
+				// breathes; the top divider (first block) stays tight under the
+				// header, and bare rules never pad.
+				blocks = append(blocks, block{kind: blockSection, label: label, pad: label != "" && len(blocks) > 0})
 			}
 			prev = band
 		}
@@ -377,7 +381,10 @@ func (r renderer) agentBlock(sess model.Session, idx int, lit, bar bool, frame i
 // blockLineCount mirrors each block's rendered line count without rendering.
 func blockLineCount(b block, snap model.Snapshot) int {
 	if b.kind == blockSection {
-		return 1 // one divider line
+		if b.pad {
+			return 2 // leading blank + divider line
+		}
+		return 1
 	}
 	if b.kind == blockSession {
 		if snap.Sessions[b.session].Band() == 2 {

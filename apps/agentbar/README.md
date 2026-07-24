@@ -26,6 +26,7 @@ so you always know which agents are working, which need your attention, and whic
  blog
  draft/tmux-agents-post
    ✓ claude  done        12m
+
  dormant ·2 ──────────────────
  notes
  scratch

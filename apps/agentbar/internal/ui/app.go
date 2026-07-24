@@ -729,6 +729,9 @@ func (a App) View() string {
 		lit, bar := i == a.cursor || i == a.hover, i == a.cursor
 		switch blk.kind {
 		case blockSection:
+			if blk.pad {
+				body = append(body, "")
+			}
 			body = append(body, r.sectionRow(blk.label))
 		case blockSession:
 			sess := a.snap.Sessions[blk.session]

@@ -39,6 +39,44 @@ func TestBuildBlocksDividers(t *testing.T) {
 	}
 }
 
+// A labelled divider mid-list (dormant) gets a blank line above it; the top
+// divider (pinned, first block) stays tight under the header.
+func TestBandDividerSpacing(t *testing.T) {
+	snap := model.Snapshot{Sessions: model.Arrange([]model.Session{
+		{Name: "act", Agents: []model.Agent{{PaneID: "%2"}}},
+		{Name: "dead"}, // dormant
+		{Name: "pin", Agents: []model.Agent{{PaneID: "%1"}}},
+	}, map[string]bool{"pin": true})}
+	var pinned, dormant block
+	var havePinned, haveDormant bool
+	for _, b := range buildBlocks(snap) {
+		if b.kind != blockSection {
+			continue
+		}
+		switch {
+		case strings.HasPrefix(b.label, "★"):
+			pinned, havePinned = b, true
+		case strings.HasPrefix(b.label, "dormant"):
+			dormant, haveDormant = b, true
+		}
+	}
+	if !havePinned || !haveDormant {
+		t.Fatal("expected both a pinned and a dormant divider")
+	}
+	if pinned.pad {
+		t.Error("top pinned divider must stay tight (no leading blank)")
+	}
+	if !dormant.pad {
+		t.Error("dormant divider must have a leading blank above it")
+	}
+	if got := blockLineCount(dormant, snap); got != 2 {
+		t.Errorf("padded dormant divider = %d lines, want 2 (blank + rule)", got)
+	}
+	if got := blockLineCount(pinned, snap); got != 1 {
+		t.Errorf("unpadded pinned divider = %d lines, want 1", got)
+	}
+}
+
 // A dormant session renders as a single dimmed line (no spacer, no "no agents"
 // tag); an active session keeps its two-line block.
 func TestDormantSessionIsOneDimLine(t *testing.T) {
