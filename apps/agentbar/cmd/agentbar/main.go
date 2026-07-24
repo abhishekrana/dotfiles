@@ -82,9 +82,16 @@ func runHook() {
 		hook.Notify(r, pane, ef.State)
 	}
 	// Ground truth for state-drift debugging: every event Claude sent us, the
-	// state it moved the pane to, and whether the write failed.
-	trace.Log("hook", "event", "name", ev.Name, "prev", prev,
-		"new", string(ef.State), "pane", pane, "err", trace.Err(applyErr))
+	// state it moved the pane to, and whether the write failed. sid ties a line
+	// to its session (so a resume/fork that swaps session id is visible), and
+	// SessionStart's source (resume/fork/compact/…) flags how it began.
+	fields := []any{"name", ev.Name, "prev", prev, "new", string(ef.State),
+		"pane", pane, "sid", ev.SessionID}
+	if ev.Source != "" {
+		fields = append(fields, "source", ev.Source)
+	}
+	fields = append(fields, "err", trace.Err(applyErr))
+	trace.Log("hook", "event", fields...)
 }
 
 func themeFlag(args []string) ui.Theme {
