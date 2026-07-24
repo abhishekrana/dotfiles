@@ -1,7 +1,10 @@
 // Package model holds the agent/session tree the sidebar renders.
 package model
 
-import "time"
+import (
+	"sort"
+	"time"
+)
 
 // AgentState is the lifecycle state of one Claude Code agent, as stamped
 // onto its tmux pane by the `hook` subcommand.
@@ -59,11 +62,44 @@ type Session struct {
 	Name     string
 	Current  bool // the session the sidebar pane lives in
 	Attached bool // a client is attached to this session
+	Pinned   bool // user-pinned: floats to the top band (see Arrange)
 	Agents   []Agent
 }
 
-// Snapshot is everything the sidebar shows; sessions are ordered
-// alphabetically by name.
+// Band orders sessions into the three sidebar groups: pinned (0),
+// active with agents (1), dormant/no-agents (2).
+func (s Session) Band() int {
+	switch {
+	case s.Pinned:
+		return 0
+	case len(s.Agents) == 0:
+		return 2
+	default:
+		return 1
+	}
+}
+
+// Arrange returns a copy of sessions grouped into bands (pinned, active,
+// dormant) and alphabetical within each, stamping Pinned from the given set.
+// Positions only move when the pin set changes - never on agent state - so
+// the list stays predictable.
+func Arrange(sessions []Session, pinned map[string]bool) []Session {
+	out := make([]Session, len(sessions))
+	copy(out, sessions)
+	for i := range out {
+		out[i].Pinned = pinned[out[i].Name]
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		if bi, bj := out[i].Band(), out[j].Band(); bi != bj {
+			return bi < bj
+		}
+		return out[i].Name < out[j].Name
+	})
+	return out
+}
+
+// Snapshot is everything the sidebar shows. tmux.Snapshot delivers sessions
+// alphabetically; the UI runs them through Arrange to group into bands.
 type Snapshot struct {
 	Sessions []Session
 }

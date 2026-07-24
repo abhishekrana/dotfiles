@@ -356,6 +356,69 @@ func TestActivateCurrentSessionIsNoop(t *testing.T) {
 	}
 }
 
+// Pressing p pins the selected session: it floats above the active band
+// (behind a divider), the cursor rides along with it, the divider is not
+// selectable, j/k skip it, and the set persists to @agentbar-pins.
+func TestPinFloatsRegroupsAndPersists(t *testing.T) {
+	r := &fakeRunner{}
+	a := testApp(r)
+	a.cursor = 2 // blog's header (blocks: 0 api-hdr, 1 %0, 2 blog-hdr, 3 %6)
+
+	m, _ := a.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}})
+	a = m.(App)
+
+	// Persisted to the shared option.
+	var joined string
+	for _, c := range r.calls {
+		joined += strings.Join(c, " ") + " | "
+	}
+	if !strings.Contains(joined, "set-option -g @agentbar-pins blog") {
+		t.Errorf("pin not written to @agentbar-pins: %s", joined)
+	}
+	// blog floated to the top band, pinned.
+	if a.snap.Sessions[0].Name != "blog" || !a.snap.Sessions[0].Pinned {
+		t.Fatalf("blog did not float pinned-first: %v", a.snap.Sessions)
+	}
+	// Cursor rode along to blog's header (now behind the pinned divider).
+	if b := a.blocks[a.cursor]; b.kind != blockSession || a.snap.Sessions[b.session].Name != "blog" {
+		t.Fatalf("cursor left blog after pin: block %+v", b)
+	}
+	// A divider now heads the list and cannot be selected or landed on.
+	if a.blocks[0].kind != blockSection {
+		t.Fatalf("want a section divider at block 0, got %+v", a.blocks[0])
+	}
+	if a.blockSelectable(0) {
+		t.Error("section divider must not be selectable")
+	}
+	// Stepping down from blog's header skips the active-band divider onto api.
+	a.moveCursor(1) // onto blog's %6 agent
+	a.moveCursor(1) // skip the bare-rule divider, land on api's header
+	if b := a.blocks[a.cursor]; b.kind != blockSession || a.snap.Sessions[b.session].Name != "api" {
+		t.Errorf("j did not skip the divider onto api: block %+v cursor %d", b, a.cursor)
+	}
+}
+
+// A click that lands on a section divider is a no-op (dividers aren't jumps).
+func TestClickOnDividerIsNoop(t *testing.T) {
+	r := &fakeRunner{}
+	// One pinned + one active session => a "★ pinned" divider at body row 0.
+	a := App{runner: r, current: "api", pins: map[string]bool{"blog": true}}
+	snap := twoSessionSnap()
+	snap.Sessions = model.Arrange(snap.Sessions, a.pins)
+	a.setSnapshot(snap)
+	a.width, a.height = 30, 20
+
+	// Body row 0 is the divider; screen y = 0 + 2 header lines = 2.
+	release := tea.MouseMsg{Action: tea.MouseActionRelease, Button: tea.MouseButtonLeft, Y: 2}
+	m, _ := a.Update(release)
+	a = m.(App)
+	for _, c := range r.calls {
+		if len(c) > 0 && c[0] == "switch-client" {
+			t.Errorf("click on a divider switched sessions: %v", c)
+		}
+	}
+}
+
 // attnSnap: an idle agent, a permission agent, and an asking agent across
 // three sessions. Blocks: 0=a, 1=%0(working), 2=b, 3=%2(idle),
 // 4=%3(permission), 5=c, 6=%4(question).

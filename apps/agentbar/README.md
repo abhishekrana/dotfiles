@@ -4,28 +4,34 @@ A left sidebar for tmux that shows every Claude Code agent across all your sessi
 so you always know which agents are working, which need your attention, and which are done.
 
 ```
- tmux agents            2/5 ⠼
+ tmux agents            1/5 ⠼
 ──────────────────────────────
+ ★ pinned ·2 ─────────────────
 
-api-server
-   ⠼ claude  working      2m
-     feat/rate-limit-rollout
-     ⤷ 2 subagents
-   ◔ claude  permission  40s
-     fix/csrf-rotation
-
-blog
-   ✓ claude  done        12m
-     draft/tmux-agents-post
-
-dotfiles
+ dotfiles
+ main
    ? claude  asking       4m
-     main
 
-scratch             no agents
+ payments
+ 2091-refund-idempotency-keys
+   ◔ claude  permission  40s
+   ✓ claude  done        11m
+ ─────────────────────────────
+
+ api-server
+ feat/rate-limit-rollout
+   ⠼ claude  working      2m
+     ⤷ 2 subagents
+
+ blog
+ draft/tmux-agents-post
+   ✓ claude  done        12m
+ dormant ·2 ──────────────────
+ notes
+ scratch
 ──────────────────────────────
  ⚠ 2 need attention
- j/k · tab ⚠ · ⏎ jump · q
+ j/k · tab ⚠ · p pin · q
 ```
 
 The row under the mouse lights up (hover), and the row you last clicked - session or agent - stays highlighted;
@@ -64,11 +70,26 @@ are picked up on their next restart.
 | `Enter`, click  | on an agent: jump to its pane; on a session name: switch to that session                            |
 | `g` / `G`       | first / last row                                                                                    |
 | `Tab`           | jump to the next agent waiting on you (permission/asking), cycling across sessions - the work queue |
+| `p`             | pin / unpin the selected session - pinned sessions float to a band at the top                       |
 | `n`, click chip | toggle desktop notifications (footer shows the state)                                               |
 | `q`             | hide the sidebar everywhere (same as toggle)                                                        |
 
 Clicking a session name switches to it - the one way to reach a session with no agents running (it just
 `switch-client`s, leaving the target's window and pane where you left them).
+
+## Bands & pinning
+
+Sessions are grouped into three bands so your working set stays together and dead sessions get out of the way:
+
+- **`★ pinned`** - sessions you pinned with `p`, floated to the top.
+- **active** - the rest of the sessions that have a Claude running.
+- **`dormant`** - sessions with no agents, dimmed and sunk to the bottom (one compact line each).
+
+A labelled divider heads each band, but only when more than one band is present - a single-band list shows no
+dividers. Within every band sessions stay **alphabetical**, so positions never shuffle as agents change state; they
+move only when you pin or unpin. Pins live in the global `@agentbar-pins` option (space-separated session names), so
+every session's sidebar shows the same bands at once, and they survive a config reload (a full tmux server restart
+clears them - re-pin in a keypress).
 
 The sidebar is on by default: it opens in every session at tmux server start, and any session created while it's on
 gets one automatically (set `@agentbar-autostart 'off'` to start closed). The toggle is global: one press closes them

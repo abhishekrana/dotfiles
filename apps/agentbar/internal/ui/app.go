@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -32,9 +33,10 @@ type tickMsg time.Time
 
 type snapMsg struct {
 	snap   model.Snapshot
-	sel    string // global @sidebar_selected at snapshot time
-	notify bool   // global @agent_notify at snapshot time
-	signal bool   // woken by the wait-for channel, not the 1s tick
+	sel    string          // global @sidebar_selected at snapshot time
+	notify bool            // global @agent_notify at snapshot time
+	pins   map[string]bool // global @agentbar-pins at snapshot time
+	signal bool            // woken by the wait-for channel, not the 1s tick
 }
 
 // App is the Bubble Tea model for the sidebar. In mockup mode the
@@ -51,7 +53,8 @@ type App struct {
 	height     int
 	flash      string
 	mockup     bool
-	notify     bool // desktop-notification toggle (@agent_notify), mirrored for the footer
+	notify     bool            // desktop-notification toggle (@agent_notify), mirrored for the footer
+	pins       map[string]bool // pinned session names (@agentbar-pins), used to regroup on `p`
 
 	// live-mode plumbing (nil in mockup mode)
 	runner   tmux.Runner
@@ -78,8 +81,11 @@ func NewLive(theme Theme) App {
 		runner:   runner,
 		branches: tmux.NewBranchCache(),
 		current:  tmux.CurrentSession(runner),
+		pins:     readPins(runner),
 	}
-	app.setSnapshot(tmux.Snapshot(runner, app.branches, app.current))
+	snap := tmux.Snapshot(runner, app.branches, app.current)
+	snap.Sessions = model.Arrange(snap.Sessions, app.pins)
+	app.setSnapshot(snap)
 	app.attached = attachedKey(app.snap)
 	// Selection is shared across sidebars via the global @sidebar_selected.
 	if sel, err := runner.Run("show-option", "-gqv", "@sidebar_selected"); err == nil {
@@ -198,12 +204,38 @@ func (a App) gather(signal bool) snapMsg {
 	// on` takes effect within ~1s, no sidebar restart.
 	verbose, _ := a.runner.Run("show-option", "-gqv", "@agentbar-trace-verbose")
 	trace.SetVerbose(truthy(verbose))
+	pins := readPins(a.runner)
+	snap := tmux.Snapshot(a.runner, a.branches, a.current)
+	snap.Sessions = model.Arrange(snap.Sessions, pins)
 	return snapMsg{
-		snap:   tmux.Snapshot(a.runner, a.branches, a.current),
+		snap:   snap,
 		sel:    strings.TrimSpace(sel),
 		notify: strings.TrimSpace(notify) == "on",
+		pins:   pins,
 		signal: signal,
 	}
+}
+
+// readPins loads the pinned-session set from the global @agentbar-pins option
+// (space-separated names). Empty/unset yields an empty set.
+func readPins(r tmux.Runner) map[string]bool {
+	out, _ := r.Run("show-option", "-gqv", "@agentbar-pins")
+	pins := map[string]bool{}
+	for name := range strings.FieldsSeq(out) {
+		pins[name] = true
+	}
+	return pins
+}
+
+// pinList serializes a pin set back to the sorted, space-separated value
+// stored in @agentbar-pins.
+func pinList(pins map[string]bool) string {
+	names := make([]string, 0, len(pins))
+	for name := range pins {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return strings.Join(names, " ")
 }
 
 // focusNewlyAttached selects the agent of a session newly in the
@@ -270,7 +302,11 @@ func (a *App) selectPane(pane string) {
 // layout and palette can be previewed in any pane.
 func NewMockup(theme Theme) App {
 	now := time.Now()
-	// Sessions in alphabetical order, as the real snapshot delivers them.
+	// Representative data covering every state and all three bands: two pinned
+	// sessions on top, an active band in the middle, dormant (no-agent)
+	// sessions sunk to the bottom. Listed alphabetically, as tmux delivers it;
+	// Arrange (below) groups it exactly as the live sidebar does.
+	pins := map[string]bool{"dotfiles": true, "payments": true}
 	snap := model.Snapshot{Sessions: []model.Session{
 		// One workspace = one checked-out branch, so a session's Claudes all
 		// share it (here a single Claude, working, with two subagents).
@@ -282,10 +318,15 @@ func NewMockup(theme Theme) App {
 			{PaneID: "%7", WindowIndex: 1, Command: "claude", Branch: "draft/tmux-agents-post",
 				State: model.StateDone, Since: now.Add(-12 * time.Minute)},
 		}},
+		{Name: "cli", Agents: []model.Agent{
+			{PaneID: "%3", WindowIndex: 1, Command: "claude", Branch: "chore/flag-parsing",
+				State: model.StateIdle, Since: now.Add(-8 * time.Minute)},
+		}},
 		{Name: "dotfiles", Agents: []model.Agent{
 			{PaneID: "%5", WindowIndex: 1, Command: "claude", Branch: "main",
 				State: model.StateQuestion, Since: now.Add(-4 * time.Minute)},
 		}},
+		{Name: "notes"},
 		// Three Claudes on one branch: the branch shows once, colored by the
 		// most-urgent of them (here the one waiting on a permission).
 		{Name: "payments", Agents: []model.Agent{
@@ -302,11 +343,13 @@ func NewMockup(theme Theme) App {
 				State: model.StateDone, Seen: true, Since: now.Add(-33 * time.Minute)},
 		}},
 	}}
+	snap.Sessions = model.Arrange(snap.Sessions, pins)
 	app := App{
 		theme:  theme,
 		hover:  -1,
 		snap:   snap,
 		mockup: true,
+		pins:   pins,
 	}
 	app.rebuild()
 	return app
@@ -317,9 +360,16 @@ func (a *App) rebuild() {
 	if a.cursor >= 0 && a.cursor < len(a.blocks) && a.blocks[a.cursor].kind == blockAgent {
 		return // keep an explicit agent selection; setSnapshot re-anchors headers
 	}
-	// Default to the first agent; a session-only view lands on the first row.
+	// Default to the first agent; a session-only view lands on the first
+	// selectable row (a section divider is never a landing spot).
 	for i, b := range a.blocks {
 		if b.kind == blockAgent {
+			a.cursor = i
+			return
+		}
+	}
+	for i := range a.blocks {
+		if a.blockSelectable(i) {
 			a.cursor = i
 			return
 		}
@@ -328,21 +378,23 @@ func (a *App) rebuild() {
 }
 
 func (a App) blockSelectable(i int) bool {
-	return i >= 0 && i < len(a.blocks)
+	return i >= 0 && i < len(a.blocks) && a.blocks[i].kind != blockSection
 }
 
-// moveCursor moves the cursor one block in direction dir, clamping at the
-// edges. Every block is selectable, so a single step always lands.
+// moveCursor moves the cursor to the next selectable block in direction dir,
+// skipping section dividers and clamping at the edges.
 func (a *App) moveCursor(dir int) {
 	if len(a.blocks) == 0 {
 		a.cursor = 0
 		return
 	}
-	i := a.cursor + dir
-	if i < 0 || i >= len(a.blocks) {
-		return // stay put at the edge
+	for i := a.cursor + dir; i >= 0 && i < len(a.blocks); i += dir {
+		if a.blockSelectable(i) {
+			a.cursor = i
+			return
+		}
 	}
-	a.cursor = i
+	// no selectable block that way: stay put at the edge
 }
 
 // nextAttention returns the block index of the next agent blocked on the
@@ -384,6 +436,9 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case snapMsg:
 		a.setSnapshot(msg.snap)
 		a.notify = msg.notify
+		if msg.pins != nil {
+			a.pins = msg.pins
+		}
 		key := attachedKey(a.snap)
 		switch {
 		case msg.sel != a.lastSel: // explicit jump wins
@@ -596,8 +651,40 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			a.cursor = i
 			return a.activate()
 		}
+	case "p":
+		return a.togglePin()
 	case "n":
 		return a.toggleNotify()
+	}
+	return a, nil
+}
+
+// togglePin pins or unpins the selected session, regrouping the list right
+// away (the cursor rides along with the session as it moves bands) and
+// persisting the set to @agentbar-pins so every sidebar picks it up.
+func (a App) togglePin() (tea.Model, tea.Cmd) {
+	if !a.blockSelectable(a.cursor) {
+		return a, nil
+	}
+	name := a.snap.Sessions[a.blocks[a.cursor].session].Name
+	pins := map[string]bool{}
+	for k := range a.pins {
+		pins[k] = true
+	}
+	if pins[name] {
+		delete(pins, name)
+	} else {
+		pins[name] = true
+	}
+	a.pins = pins
+	snap := a.snap
+	snap.Sessions = model.Arrange(a.snap.Sessions, pins)
+	a.setSnapshot(snap) // captures the current selection, re-anchors it after regroup
+	if !a.mockup {
+		_, _ = a.runner.Run(
+			"set-option", "-g", "@agentbar-pins", pinList(pins), ";",
+			"wait-for", "-S", refreshChannel,
+		)
 	}
 	return a, nil
 }
@@ -638,13 +725,16 @@ func (a App) View() string {
 
 	var body []string
 	for i, blk := range a.blocks {
-		sess := a.snap.Sessions[blk.session]
 		// lit fills the row (hover or selection); bar is the selection's edge.
 		lit, bar := i == a.cursor || i == a.hover, i == a.cursor
 		switch blk.kind {
+		case blockSection:
+			body = append(body, r.sectionRow(blk.label))
 		case blockSession:
-			body = append(body, r.sessionBlock(sess, lit, bar)...)
+			sess := a.snap.Sessions[blk.session]
+			body = append(body, r.sessionBlock(sess, sess.Band() == 2, lit, bar)...)
 		case blockAgent:
+			sess := a.snap.Sessions[blk.session]
 			body = append(body, r.agentBlock(sess, blk.agent, lit, bar, a.frame, now)...)
 		}
 	}

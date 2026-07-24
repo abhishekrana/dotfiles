@@ -1,12 +1,60 @@
 package ui
 
 import (
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/abhishekrana/agentbar/internal/model"
 )
+
+// A single-band list (all active) shows no dividers; a pinned+active+dormant
+// list shows the pinned label, a bare rule before active, then the dormant label.
+func TestBuildBlocksDividers(t *testing.T) {
+	single := model.Snapshot{Sessions: []model.Session{
+		{Name: "a", Agents: []model.Agent{{PaneID: "%1"}}},
+		{Name: "b", Agents: []model.Agent{{PaneID: "%2"}}},
+	}}
+	for _, bl := range buildBlocks(single) {
+		if bl.kind == blockSection {
+			t.Fatalf("single band must have no section dividers, got label %q", bl.label)
+		}
+	}
+
+	three := model.Snapshot{Sessions: model.Arrange([]model.Session{
+		{Name: "act", Agents: []model.Agent{{PaneID: "%2"}}},
+		{Name: "dead"}, // dormant
+		{Name: "pin", Agents: []model.Agent{{PaneID: "%1"}}},
+	}, map[string]bool{"pin": true})}
+	var labels []string
+	for _, bl := range buildBlocks(three) {
+		if bl.kind == blockSection {
+			labels = append(labels, bl.label)
+		}
+	}
+	want := []string{"★ pinned ·1", "", "dormant ·1"}
+	if !slices.Equal(labels, want) {
+		t.Errorf("dividers = %q, want %q", labels, want)
+	}
+}
+
+// A dormant session renders as a single dimmed line (no spacer, no "no agents"
+// tag); an active session keeps its two-line block.
+func TestDormantSessionIsOneDimLine(t *testing.T) {
+	r := testRenderer()
+	dormant := r.sessionBlock(model.Session{Name: "dead"}, true, false, false)
+	if len(dormant) != 1 {
+		t.Fatalf("dormant session must be 1 line, got %d: %q", len(dormant), dormant)
+	}
+	if strings.Contains(dormant[0], "no agents") {
+		t.Errorf("dormant row must drop the 'no agents' tag: %q", dormant[0])
+	}
+	active := r.sessionBlock(model.Session{Name: "live", Agents: []model.Agent{{}}}, false, false, false)
+	if len(active) != 2 {
+		t.Errorf("active session must be 2 lines (spacer + name), got %d", len(active))
+	}
+}
 
 func testRenderer() renderer {
 	return renderer{theme: SolarizedLight(), width: 36, nameW: 6}

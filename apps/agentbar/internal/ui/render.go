@@ -19,27 +19,70 @@ type blockKind int
 const (
 	blockSession blockKind = iota // group header, one line
 	blockAgent                    // agent + branch + subagents: one selectable unit
+	blockSection                  // band divider (pinned/active/dormant): label only, not selectable
 )
 
 // block is one navigation unit; an agent block renders as 1-3 lines that
 // select, highlight, and click together.
 type block struct {
 	kind    blockKind
-	session int // index into snapshot.Sessions
-	agent   int // index into session.Agents (blockAgent only)
+	session int    // index into snapshot.Sessions
+	agent   int    // index into session.Agents (blockAgent only)
+	label   string // blockSection only; "" means a bare rule
 }
 
-// buildBlocks flattens the snapshot: session headers are pure group
-// labels; agents form the flat, selectable list.
+// buildBlocks flattens the snapshot: a band divider heads each group of
+// sessions (only when more than one band is present), session headers are
+// pure group labels, and agents form the flat, selectable list.
 func buildBlocks(snap model.Snapshot) []block {
+	var nP, nA, nD int
+	for _, s := range snap.Sessions {
+		switch s.Band() {
+		case 0:
+			nP++
+		case 1:
+			nA++
+		default:
+			nD++
+		}
+	}
 	var blocks []block
+	prev := -1
 	for si, sess := range snap.Sessions {
+		band := sess.Band()
+		if band != prev {
+			if label, ok := sectionHeader(band, nP, nA, nD); ok {
+				blocks = append(blocks, block{kind: blockSection, label: label})
+			}
+			prev = band
+		}
 		blocks = append(blocks, block{kind: blockSession, session: si})
 		for ai := range sess.Agents {
 			blocks = append(blocks, block{kind: blockAgent, session: si, agent: ai})
 		}
 	}
 	return blocks
+}
+
+// sectionHeader returns the divider that heads band, and whether to draw one.
+// A divider only appears when it actually separates two non-empty bands, so a
+// single-band list (the common case today) shows no headers at all.
+func sectionHeader(band, nP, nA, nD int) (string, bool) {
+	switch band {
+	case 0: // pinned
+		if nP > 0 && nA+nD > 0 {
+			return "★ pinned ·" + strconv.Itoa(nP), true
+		}
+	case 1: // active: a bare rule, only to divide it from a pinned band above
+		if nA > 0 && nP > 0 {
+			return "", true
+		}
+	case 2: // dormant
+		if nD > 0 && nP+nA > 0 {
+			return "dormant ·" + strconv.Itoa(nD), true
+		}
+	}
+	return "", false
 }
 
 func stateIcon(s model.AgentState, frame int) string {
@@ -124,6 +167,25 @@ func (r renderer) sep() string {
 	return lipgloss.NewStyle().Foreground(r.theme.Muted).Render(strings.Repeat("─", r.width))
 }
 
+// sectionRow renders a band divider: a muted label with a trailing rule, the
+// pinned band's ★ in gold. An empty label is a bare full-width rule. Never
+// selectable, never lit.
+func (r renderer) sectionRow(label string) string {
+	mut := lipgloss.NewStyle().Foreground(r.theme.Muted)
+	if label == "" {
+		return mut.Render(" " + strings.Repeat("─", max(r.width-1, 0)))
+	}
+	used := 1 + len([]rune(label)) + 1 // leading space + label + a space before the rule
+	rule := mut.Render(" " + strings.Repeat("─", max(r.width-used, 0)))
+	body := label
+	star := ""
+	if rest, ok := strings.CutPrefix(label, "★"); ok {
+		star = lipgloss.NewStyle().Foreground(r.theme.Asking).Render("★") // Asking == gold
+		body = rest
+	}
+	return " " + star + mut.Render(body) + rule
+}
+
 func (r renderer) header(snap model.Snapshot, frame int) string {
 	title := lipgloss.NewStyle().Foreground(r.theme.Emphasis).Bold(true).Render(" tmux agents")
 	count := fmt.Sprintf("%d/%d", snap.Working(), snap.Total())
@@ -158,17 +220,25 @@ func (r renderer) sessionMarker(sess model.Session) string {
 
 // sessionRow is the session's single name line, indented one column so the
 // selection's accent edge has a place to sit. When lit (hovered or
-// selected) it fills; the selected row also shows the edge.
-func (r renderer) sessionRow(sess model.Session, lit, bar bool) string {
+// selected) it fills; the selected row also shows the edge. A dormant row is
+// dimmed and drops its "no agents" tag (the dormant divider already says it).
+func (r renderer) sessionRow(sess model.Session, dim, lit, bar bool) string {
 	marker := r.sessionMarker(sess)
+	if dim {
+		marker = ""
+	}
+	nameColor := r.theme.Emphasis
+	if dim && !lit {
+		nameColor = r.theme.Muted
+	}
 	if lit {
 		contentW := max(r.width-1, 0) // column 0 is the edge
 		gap := max(contentW-lipgloss.Width(sess.Name)-lipgloss.Width(marker), 0)
 		plain := sess.Name + strings.Repeat(" ", gap) + marker
-		return r.leftEdge(bar) + lipgloss.NewStyle().Foreground(r.theme.Emphasis).
+		return r.leftEdge(bar) + lipgloss.NewStyle().Foreground(nameColor).
 			Background(r.theme.SelBg).Render(padCol(plain, contentW))
 	}
-	name := lipgloss.NewStyle().Foreground(r.theme.Emphasis).Render(sess.Name)
+	name := lipgloss.NewStyle().Foreground(nameColor).Render(sess.Name)
 	right := ""
 	if marker != "" {
 		right = lipgloss.NewStyle().Foreground(r.theme.Muted).Render(marker)
@@ -177,9 +247,13 @@ func (r renderer) sessionRow(sess model.Session, lit, bar bool) string {
 }
 
 // sessionBlock is a blank spacer (groups the sessions) above the name line.
-// Both lines select the session; only the name lights.
-func (r renderer) sessionBlock(sess model.Session, lit, bar bool) []string {
-	return []string{"", r.sessionRow(sess, lit, bar)}
+// Both lines select the session; only the name lights. Dormant sessions pack
+// tight - just the dimmed name, no spacer - so the sunk band stays compact.
+func (r renderer) sessionBlock(sess model.Session, dim, lit, bar bool) []string {
+	if dim {
+		return []string{r.sessionRow(sess, true, lit, bar)}
+	}
+	return []string{"", r.sessionRow(sess, false, lit, bar)}
 }
 
 // stateColor is an agent's state color, muted once a finished agent has
@@ -300,10 +374,16 @@ func (r renderer) agentBlock(sess model.Session, idx int, lit, bar bool, frame i
 	return lines
 }
 
-// blockLineCount mirrors agentBlock's line count without rendering.
+// blockLineCount mirrors each block's rendered line count without rendering.
 func blockLineCount(b block, snap model.Snapshot) int {
+	if b.kind == blockSection {
+		return 1 // one divider line
+	}
 	if b.kind == blockSession {
-		return 2 // name + summary line
+		if snap.Sessions[b.session].Band() == 2 {
+			return 1 // dormant: dimmed name only, no spacer
+		}
+		return 2 // spacer + name
 	}
 	sess := snap.Sessions[b.session]
 	a := sess.Agents[b.agent]
@@ -325,9 +405,9 @@ func (r renderer) footer(snap model.Snapshot, notify bool) string {
 	} else {
 		status = lipgloss.NewStyle().Foreground(r.theme.Muted).Render(" all quiet")
 	}
-	help := " j/k · ⏎ · n notify · q hide"
+	help := " j/k · ⏎ · p pin · n · q"
 	if snap.Attention() > 0 {
-		help = " j/k · tab ⚠ · ⏎ jump · q" // tab steps through agents waiting on you
+		help = " j/k · tab ⚠ · p pin · q" // tab steps through agents waiting on you
 	}
 	hint := lipgloss.NewStyle().Foreground(r.theme.Muted).Render(help)
 	return r.sep() + "\n" + line(status, r.notifyChip(notify), r.width) + "\n" + hint
