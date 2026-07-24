@@ -31,15 +31,15 @@ flavor to each tool's own identifier.
 Everything the switcher touches writes into `~/.config/theme/` and is consumed from there,
 so switching never edits a tracked config.
 
-| Tool           | Themed by       | What the switcher writes                                                 | Reload                            |
-| -------------- | --------------- | ------------------------------------------------------------------------ | --------------------------------- |
-| agent sidebar  | option (id)     | `tmux set -g @agentbar-theme <flavor>`                                   | restart (`prefix + e` ×2)         |
-| ghostty        | named           | `theme = <Name>` → `ghostty.conf` (a `config-file` include)              | `pkill -USR2 -x ghostty`          |
-| tmux frame     | hex → generated | `tmux.conf` (status/window/pane + agents/dictate/submit/push/diff chips) | `tmux source-file` (immediate)    |
-| fzf            | hex → export    | `fzf.sh` (`_fzf_color` `--color` block, sourced by fzf.bash)             | new shells                        |
-| bat / `$THEME` | named           | `env.sh` (`export THEME`, `export BAT_THEME`)                            | new shells                        |
-| git-delta      | hex + named     | `delta.gitconfig` (a `[delta]` block, git-included)                      | next `git` invocation             |
-| nvim           | named           | `nvim.lua` (`colorscheme` + `background`)                                | live `:colorscheme` / next launch |
+| Tool           | Themed by       | What the switcher writes                                          | Reload                            |
+| -------------- | --------------- | ----------------------------------------------------------------- | --------------------------------- |
+| agent sidebar  | option (id)     | `tmux set -g @agentbar-theme <flavor>`                            | restart (`prefix + e` ×2)         |
+| ghostty        | named           | `theme = <Name>` → `ghostty.conf` (a `config-file` include)       | `pkill -USR2 -x ghostty`          |
+| tmux frame     | hex → generated | `tmux.conf` (status/window/pane + dictate/submit/push/diff chips) | `tmux source-file` (immediate)    |
+| fzf            | hex → export    | `fzf.sh` (`_fzf_color` `--color` block, sourced by fzf.bash)      | new shells                        |
+| bat / `$THEME` | named           | `env.sh` (`export THEME`, `export BAT_THEME`)                     | new shells                        |
+| git-delta      | hex + named     | `delta.gitconfig` (a `[delta]` block, git-included)               | next `git` invocation             |
+| nvim           | named           | `nvim.lua` (`colorscheme` + `background`)                         | live `:colorscheme` / next launch |
 
 Tools that follow the flavor **without** being driven by the switcher:
 
