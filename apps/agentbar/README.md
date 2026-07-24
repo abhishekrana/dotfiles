@@ -84,9 +84,9 @@ Clicking a session name switches to it - the one way to reach a session with no 
 
 Sessions are grouped into three bands so your working set stays together and dead sessions get out of the way:
 
-- **`pinned`** - sessions you pinned with `p`, floated to the top.
+- **`pinned`** - sessions you pinned with `p`, floated to the top; the label reads gold.
 - **active** - the rest of the sessions that have a Claude running.
-- **`dormant`** - sessions with no agents, dimmed and sunk to the bottom (one compact line each).
+- **`dormant`** - sessions with no agents, dimmed grey and sunk to the bottom (one compact line each).
 
 A labelled divider heads each band, but only when more than one band is present - a single-band list shows no
 dividers. Within every band sessions stay **alphabetical**, so positions never shuffle as agents change state; they
@@ -104,7 +104,7 @@ sidebar you land in already highlights it (published via a global option, signal
 it's instant, not next-tick). Session switches made outside the sidebar move the highlight too - even to an agent
 you only start after switching.
 
-Agent states: `working` (yellow, spinner) · `permission` (red) · `asking` (orange) · `done` (green until you visit
+Agent states: `working` (teal spinner) · `permission` (red) · `asking` (amber) · `done` (green until you visit
 the pane, then gray) · `idle` (gray). Each agent shows its git branch and live subagent count.
 
 ## Notifications
@@ -179,6 +179,7 @@ make unit           # unit tests (hook state machine, installer, snapshot, selec
 make e2e            # end-to-end: real tmux servers on throwaway sockets
 make test           # everything
 bin/agentbar mockup   # render the UI with fake data in any pane
+bin/agentbar doctor   # audit live Claude panes vs the hook trace for state desync
 ```
 
 ### Checking the UI headlessly
@@ -202,7 +203,9 @@ Tracing: agentbar always records action edges (start, click, jump/switch + laten
 events) to the shared dotfiles trace log at `${XDG_STATE_HOME:-~/.local/state}/dotfiles/trace.log` (view with
 `dotfiles-trace tail -f`). `tmux set -g @agentbar-trace-verbose on` additionally logs mouse motion + spinner
 ticks; it takes effect within ~1s (no restart) and `off` stops them again. `DOTFILES_TRACE=0` disables all
-tracing.
+tracing. Hook events carry the session id (and `source` on SessionStart); a paneless drop logs the `cwd`/`sid`
+it carried, and a pane recovered via the cwd fallback is tagged `via=cwd`. `bin/agentbar doctor` rolls all this
+into a per-pane health check - the fast way to spot a stale sidebar.
 
 The e2e suite (`e2e/`) spins up an isolated tmux server per test (`tmux -L <socket> -f /dev/null`, never your live
 server or config), fakes agents with a renamed sleep(1) so `#{pane_current_command}` matches, drives real `hook`
@@ -234,12 +237,13 @@ Notes for hacking:
 
 - The stowed `~/.claude/settings.json` registers `agentbar hook` for the Claude Code lifecycle events
   (SessionStart, UserPromptSubmit, PreToolUse, PermissionRequest, Notification, Stop, SubagentStart/Stop, SessionEnd).
-- The hook reads the event JSON, finds its pane via `$TMUX_PANE`, and stamps pane-scoped user options
-  (`@agent_state`, `@agent_since`, `@agent_subagents`, ...). Pane options die with the pane, so cleanup is
-  automatic; a guard on the pane's current command filters zombies.
-- The sidebar TUI (Go, Bubble Tea) snapshots `list-panes -a` once a second and renders sessions alphabetically with
-  the current one marked. Jumping runs `switch-client` + `select-window` + `select-pane`, publishes the selection,
-  and signals a `wait-for` channel every sidebar blocks on.
+- The hook reads the event JSON and finds its pane via `$TMUX_PANE`, falling back to matching the event's `cwd`
+  to a Claude pane when it's absent - resumed / `claude daemon run` sessions fire hooks with no `TMUX_PANE`. It
+  stamps pane-scoped user options (`@agent_state`, `@agent_since`, `@agent_subagents`, ...); pane options die with
+  the pane, so cleanup is automatic, and a guard on the pane's current command filters zombies.
+- The sidebar TUI (Go, Bubble Tea) snapshots `list-panes -a` once a second and renders sessions in three bands -
+  pinned, active, dormant - alphabetical within each. Jumping runs `switch-client` + `select-window` +
+  `select-pane`, publishes the selection, and signals a `wait-for` channel every sidebar blocks on.
 - A `session-window-changed` hook moves the sidebar pane into whichever window becomes active (`join-pane -d`),
   with a re-entrancy guard and self-healing if the pane died.
 - A global `client-session-changed` hook signals the same channel, so the highlight follows session switches made

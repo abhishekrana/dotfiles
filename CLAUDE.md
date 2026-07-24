@@ -27,13 +27,13 @@ Buildable projects live under `apps/` - these are **not** stow packages and are 
 
 ## Debugging (trace log)
 
-**When something in the tmux/agent workflow misbehaves - a status-bar click didn't register, the sidebar shows the wrong agent state, a session switch felt slow, dictation went nowhere - look at the trace log first.** It is always on and records action *edges* across the whole interactive stack:
+**When something in the tmux/agent workflow misbehaves - a status-bar click didn't register, the sidebar shows the wrong agent state, a session switch felt slow, dictation went nowhere - look at the trace log first.** It is always on and records action _edges_ across the whole interactive stack:
 
 - **Where:** `${XDG_STATE_HOME:-~/.local/state}/dotfiles/trace.log` (outside the repo, never committed). Size-capped at 1 MiB with one rotation (`trace.log.1`).
 - **View:** `dotfiles-trace tail -f`, or `dotfiles-trace show --since 5m --src <tmux|agentbar|hook|sidebar|picker|dictate|resurrect|yank> --grep <pat>`. `dotfiles-trace path` prints the file.
 - **Format:** logfmt - `ts=<iso ms> src=… evt=… pid=… k=v …`. The on-screen status clock is `%H:%M:%S`, so a screenshot anchors to a log window.
-- **Reading the flaky-click case:** a `src=tmux evt=click range=…` line means tmux *received* the click (so any failure is downstream - our bug); *no* line for a click you made means the terminal dropped the event before tmux (the known Ghostty+tmux status-click bug, not fixable here).
-- **Reading state drift:** `src=hook evt=event name=… prev=… new=…` is ground truth of what Claude told the sidebar; `src=hook evt=drop reason=…` flags events that never landed.
+- **Reading the flaky-click case:** a `src=tmux evt=click range=…` line means tmux _received_ the click (so any failure is downstream - our bug); _no_ line for a click you made means the terminal dropped the event before tmux (the known Ghostty+tmux status-click bug, not fixable here).
+- **Reading state drift:** `src=hook evt=event name=… prev=… new=… sid=…` is ground truth of what Claude told the sidebar (`via=cwd` means the pane was recovered by the cwd fallback - a resumed / `claude daemon run` session that fired the hook with no `$TMUX_PANE`); `src=hook evt=drop reason=no_pane cwd=… sid=…` flags a hook that arrived with no pane to land on. `agentbar doctor` (run `$HOME/dotfiles/apps/agentbar/bin/agentbar doctor`) rolls this into a per-pane health check - the one-command way to spot a stale sidebar.
 - **Two writers, one format:** the `dotfiles-trace` CLI (`trace/`, used by all shell/tmux callers) and the Go `apps/agentbar/internal/trace` package (used by the sidebar + hook) - keep them in sync on timestamp, escaping, and rotation. **Log edges only, never hot loops** (mouse motion, ticks, status redraws, the dictate silence poll, fzf preview/list, statusline) - that keeps it free.
 - **Toggles:** `tmux set -g @agentbar-trace-verbose on` adds the noisy sidebar events (mouse motion, ticks) for a live hunt (effect within ~1s, no restart). `DOTFILES_TRACE=0` disables entirely; for tmux `run-shell` children use `tmux set-environment -g DOTFILES_TRACE 0`.
 
