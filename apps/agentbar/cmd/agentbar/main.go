@@ -50,11 +50,10 @@ func main() {
 
 // runHook never exits non-zero: a broken sidebar must not block Claude.
 func runHook() {
-	pane := os.Getenv("TMUX_PANE")
-	if pane == "" {
-		trace.Log("hook", "drop", "reason", "no_pane") // agent not running inside tmux
-		return
-	}
+	// Parse before the pane check so a paneless drop can log what the event
+	// carried. Resumed/`claude daemon run` sessions fire hooks without
+	// TMUX_PANE; recording their name/session/cwd here is the data a fallback
+	// pane resolver will be built on.
 	data, err := io.ReadAll(os.Stdin)
 	if err != nil {
 		trace.Log("hook", "drop", "reason", "read_err", "err", trace.Err(err))
@@ -63,6 +62,12 @@ func runHook() {
 	var ev hook.Event
 	if err := json.Unmarshal(data, &ev); err != nil {
 		trace.Log("hook", "drop", "reason", "json_err", "err", trace.Err(err))
+		return
+	}
+	pane := os.Getenv("TMUX_PANE")
+	if pane == "" {
+		trace.Log("hook", "drop", "reason", "no_pane", "name", ev.Name,
+			"sid", ev.SessionID, "cwd", ev.Cwd, "proj", os.Getenv("CLAUDE_PROJECT_DIR"))
 		return
 	}
 	r := tmux.Exec{}

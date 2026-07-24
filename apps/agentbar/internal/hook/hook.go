@@ -28,6 +28,7 @@ type Event struct {
 	SessionID        string `json:"session_id"`
 	NotificationType string `json:"notification_type"`
 	ToolName         string `json:"tool_name"`
+	Cwd              string `json:"cwd"` // session working dir; a pane-resolution fallback when TMUX_PANE is absent
 }
 
 // Effect is what an event should do to the pane options.
