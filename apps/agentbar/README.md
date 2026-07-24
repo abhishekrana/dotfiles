@@ -6,7 +6,7 @@ so you always know which agents are working, which need your attention, and whic
 ```
  tmux agents            1/5 ⠼
 ──────────────────────────────
- ★ pinned ·2 ─────────────────
+ pinned ·2 ───────────────────
 
  dotfiles
  main
@@ -16,6 +16,7 @@ so you always know which agents are working, which need your attention, and whic
  2091-refund-idempotency-keys
    ◔ claude  permission  40s
    ✓ claude  done        11m
+
  ─────────────────────────────
 
  api-server
@@ -28,6 +29,7 @@ so you always know which agents are working, which need your attention, and whic
    ✓ claude  done        12m
 
  dormant ·2 ──────────────────
+
  notes
  scratch
 ──────────────────────────────
@@ -82,7 +84,7 @@ Clicking a session name switches to it - the one way to reach a session with no 
 
 Sessions are grouped into three bands so your working set stays together and dead sessions get out of the way:
 
-- **`★ pinned`** - sessions you pinned with `p`, floated to the top.
+- **`pinned`** - sessions you pinned with `p`, floated to the top.
 - **active** - the rest of the sessions that have a Claude running.
 - **`dormant`** - sessions with no agents, dimmed and sunk to the bottom (one compact line each).
 

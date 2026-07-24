@@ -33,47 +33,61 @@ func TestBuildBlocksDividers(t *testing.T) {
 			labels = append(labels, bl.label)
 		}
 	}
-	want := []string{"★ pinned ·1", "", "dormant ·1"}
+	want := []string{"pinned ·1", "", "dormant ·1"}
 	if !slices.Equal(labels, want) {
 		t.Errorf("dividers = %q, want %q", labels, want)
 	}
 }
 
-// A labelled divider mid-list (dormant) gets a blank line above it; the top
-// divider (pinned, first block) stays tight under the header.
+// The top pinned divider stays tight under the header rule; every divider
+// below it gets a blank line above, and the dormant one also gets a blank
+// below (its sessions pack tight). Line counts: pinned = 1, bare = 2, dormant = 3.
 func TestBandDividerSpacing(t *testing.T) {
 	snap := model.Snapshot{Sessions: model.Arrange([]model.Session{
 		{Name: "act", Agents: []model.Agent{{PaneID: "%2"}}},
 		{Name: "dead"}, // dormant
 		{Name: "pin", Agents: []model.Agent{{PaneID: "%1"}}},
 	}, map[string]bool{"pin": true})}
-	var pinned, dormant block
-	var havePinned, haveDormant bool
+	var pinned, bare, dormant block
+	var havePinned, haveBare, haveDormant bool
 	for _, b := range buildBlocks(snap) {
 		if b.kind != blockSection {
 			continue
 		}
 		switch {
-		case strings.HasPrefix(b.label, "★"):
+		case strings.HasPrefix(b.label, "pinned"):
 			pinned, havePinned = b, true
 		case strings.HasPrefix(b.label, "dormant"):
 			dormant, haveDormant = b, true
+		case b.label == "":
+			bare, haveBare = b, true
 		}
 	}
-	if !havePinned || !haveDormant {
-		t.Fatal("expected both a pinned and a dormant divider")
+	if !havePinned || !haveBare || !haveDormant {
+		t.Fatal("expected pinned, bare-rule, and dormant dividers")
 	}
+	// The top pinned divider is tight; every divider below it has a blank above.
 	if pinned.pad {
-		t.Error("top pinned divider must stay tight (no leading blank)")
+		t.Error("top pinned divider must stay tight (no blank above it)")
 	}
-	if !dormant.pad {
-		t.Error("dormant divider must have a leading blank above it")
+	if !bare.pad || !dormant.pad {
+		t.Error("dividers below the top must have a blank line above them")
 	}
-	if got := blockLineCount(dormant, snap); got != 2 {
-		t.Errorf("padded dormant divider = %d lines, want 2 (blank + rule)", got)
+	// Only the dormant divider adds a blank below itself.
+	if pinned.gapAfter || bare.gapAfter {
+		t.Error("only the dormant divider adds a blank below itself")
+	}
+	if !dormant.gapAfter {
+		t.Error("dormant divider must add a blank below itself")
 	}
 	if got := blockLineCount(pinned, snap); got != 1 {
-		t.Errorf("unpadded pinned divider = %d lines, want 1", got)
+		t.Errorf("pinned divider = %d lines, want 1 (tight rule)", got)
+	}
+	if got := blockLineCount(bare, snap); got != 2 {
+		t.Errorf("bare rule = %d lines, want 2 (blank + rule)", got)
+	}
+	if got := blockLineCount(dormant, snap); got != 3 {
+		t.Errorf("dormant divider = %d lines, want 3 (blank + rule + blank)", got)
 	}
 }
 

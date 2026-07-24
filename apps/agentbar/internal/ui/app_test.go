@@ -401,14 +401,15 @@ func TestPinFloatsRegroupsAndPersists(t *testing.T) {
 // A click that lands on a section divider is a no-op (dividers aren't jumps).
 func TestClickOnDividerIsNoop(t *testing.T) {
 	r := &fakeRunner{}
-	// One pinned + one active session => a "★ pinned" divider at body row 0.
+	// One pinned + one active session => a tight "pinned" divider rule at body
+	// row 0 (the top divider gets no leading blank).
 	a := App{runner: r, current: "api", pins: map[string]bool{"blog": true}}
 	snap := twoSessionSnap()
 	snap.Sessions = model.Arrange(snap.Sessions, a.pins)
 	a.setSnapshot(snap)
 	a.width, a.height = 30, 20
 
-	// Body row 0 is the divider; screen y = 0 + 2 header lines = 2.
+	// Body row 0 is the divider rule; screen y = 0 + 2 header lines = 2.
 	release := tea.MouseMsg{Action: tea.MouseActionRelease, Button: tea.MouseButtonLeft, Y: 2}
 	m, _ := a.Update(release)
 	a = m.(App)

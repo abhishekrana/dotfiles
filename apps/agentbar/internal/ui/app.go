@@ -733,6 +733,9 @@ func (a App) View() string {
 				body = append(body, "")
 			}
 			body = append(body, r.sectionRow(blk.label))
+			if blk.gapAfter {
+				body = append(body, "")
+			}
 		case blockSession:
 			sess := a.snap.Sessions[blk.session]
 			body = append(body, r.sessionBlock(sess, sess.Band() == 2, lit, bar)...)

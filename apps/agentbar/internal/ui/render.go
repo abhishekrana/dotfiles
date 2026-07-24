@@ -25,11 +25,12 @@ const (
 // block is one navigation unit; an agent block renders as 1-3 lines that
 // select, highlight, and click together.
 type block struct {
-	kind    blockKind
-	session int    // index into snapshot.Sessions
-	agent   int    // index into session.Agents (blockAgent only)
-	label   string // blockSection only; "" means a bare rule
-	pad     bool   // blockSection only: render a blank line above the divider
+	kind     blockKind
+	session  int    // index into snapshot.Sessions
+	agent    int    // index into session.Agents (blockAgent only)
+	label    string // blockSection only; "" means a bare rule
+	pad      bool   // blockSection only: render a blank line above the divider
+	gapAfter bool   // blockSection only: render a blank line below (dormant packs tight)
 }
 
 // buildBlocks flattens the snapshot: a band divider heads each group of
@@ -53,10 +54,17 @@ func buildBlocks(snap model.Snapshot) []block {
 		band := sess.Band()
 		if band != prev {
 			if label, ok := sectionHeader(band, nP, nA, nD); ok {
-				// A labelled divider mid-list gets a blank line above it so it
-				// breathes; the top divider (first block) stays tight under the
-				// header, and bare rules never pad.
-				blocks = append(blocks, block{kind: blockSection, label: label, pad: label != "" && len(blocks) > 0})
+				// Every divider below the top one gets a blank line above it so
+				// the band boundaries breathe; the top divider (pinned) stays
+				// tight under the header rule. Non-dormant bands get their blank
+				// below from the next session's leading spacer; dormant sessions
+				// pack tight, so its divider adds the gap below itself.
+				blocks = append(blocks, block{
+					kind:     blockSection,
+					label:    label,
+					pad:      len(blocks) > 0,
+					gapAfter: band == 2,
+				})
 			}
 			prev = band
 		}
@@ -75,7 +83,7 @@ func sectionHeader(band, nP, nA, nD int) (string, bool) {
 	switch band {
 	case 0: // pinned
 		if nP > 0 && nA+nD > 0 {
-			return "★ pinned ·" + strconv.Itoa(nP), true
+			return "pinned ·" + strconv.Itoa(nP), true
 		}
 	case 1: // active: a bare rule, only to divide it from a pinned band above
 		if nA > 0 && nP > 0 {
@@ -171,9 +179,9 @@ func (r renderer) sep() string {
 	return lipgloss.NewStyle().Foreground(r.theme.Muted).Render(strings.Repeat("─", r.width))
 }
 
-// sectionRow renders a band divider: a muted label with a trailing rule, the
-// pinned band's ★ in gold. An empty label is a bare full-width rule. Never
-// selectable, never lit.
+// sectionRow renders a band divider: the label then a trailing rule. The
+// pinned label reads gold, dormant stays muted grey. An empty label is a
+// bare full-width rule. Never selectable, never lit.
 func (r renderer) sectionRow(label string) string {
 	mut := lipgloss.NewStyle().Foreground(r.theme.Muted)
 	if label == "" {
@@ -181,13 +189,13 @@ func (r renderer) sectionRow(label string) string {
 	}
 	used := 1 + len([]rune(label)) + 1 // leading space + label + a space before the rule
 	rule := mut.Render(" " + strings.Repeat("─", max(r.width-used, 0)))
-	body := label
-	star := ""
-	if rest, ok := strings.CutPrefix(label, "★"); ok {
-		star = lipgloss.NewStyle().Foreground(r.theme.Asking).Render("★") // Asking == gold
-		body = rest
+	// The pinned label reads warm/gold so your working set pops; dormant stays
+	// muted grey so it recedes. Rules are quiet hairlines for both bands.
+	labelColor := r.theme.Muted
+	if strings.HasPrefix(label, "pinned") {
+		labelColor = r.theme.Asking // gold
 	}
-	return " " + star + mut.Render(body) + rule
+	return " " + lipgloss.NewStyle().Foreground(labelColor).Render(label) + rule
 }
 
 func (r renderer) header(snap model.Snapshot, frame int) string {
@@ -381,10 +389,14 @@ func (r renderer) agentBlock(sess model.Session, idx int, lit, bar bool, frame i
 // blockLineCount mirrors each block's rendered line count without rendering.
 func blockLineCount(b block, snap model.Snapshot) int {
 	if b.kind == blockSection {
+		n := 1 // the divider line
 		if b.pad {
-			return 2 // leading blank + divider line
+			n++ // leading blank
 		}
-		return 1
+		if b.gapAfter {
+			n++ // trailing blank
+		}
+		return n
 	}
 	if b.kind == blockSession {
 		if snap.Sessions[b.session].Band() == 2 {
