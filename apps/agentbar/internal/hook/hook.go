@@ -2,7 +2,9 @@
 //
 // Claude Code runs `agentbar hook` for each lifecycle event;
 // the event JSON arrives on stdin and $TMUX_PANE identifies the pane the
-// agent lives in (inherited from the pane's environment). State is
+// agent lives in (inherited from the pane's environment). Resumed and
+// `claude daemon run` sessions fire hooks without TMUX_PANE, so ResolvePane
+// falls back to matching the event's cwd to a Claude pane. State is
 // stamped as pane-scoped user options, which die with the pane:
 //
 //	@agent_present    "1" while a Claude session is registered
@@ -15,7 +17,9 @@ package hook
 
 import (
 	"os/exec"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/abhishekrana/agentbar/internal/model"
@@ -88,6 +92,49 @@ func Decide(ev Event) Effect {
 		return Effect{ClearAll: true}
 	}
 	return Effect{}
+}
+
+// isAgentCommand mirrors tmux's agent-pane test: Claude runs as claude
+// (native) or node (npm install).
+func isAgentCommand(cmd string) bool { return cmd == "claude" || cmd == "node" }
+
+// ResolvePane finds the pane a paneless hook belongs to. Resumed and
+// `claude daemon run` sessions fire hooks with no TMUX_PANE; this matches the
+// event's cwd to a Claude pane's current path - the reliable signal, since a
+// resume swaps the session id so it no longer matches what's stamped. When
+// several Claude panes share that path it prefers the one whose stamped
+// session id matches, else the first by pane id. Returns ("","") when nothing
+// matches. via names the signal used, for the trace.
+func ResolvePane(r tmux.Runner, ev Event) (pane, via string) {
+	if ev.Cwd == "" {
+		return "", ""
+	}
+	out, err := r.Run("list-panes", "-a", "-F",
+		"#{pane_id}\t#{pane_current_command}\t#{pane_current_path}\t#{@agent_session_id}")
+	if err != nil || out == "" {
+		return "", ""
+	}
+	type match struct{ id, sid string }
+	var matches []match
+	for ln := range strings.SplitSeq(out, "\n") {
+		f := strings.Split(ln, "\t")
+		if len(f) < 4 || !isAgentCommand(f[1]) || f[2] != ev.Cwd {
+			continue
+		}
+		matches = append(matches, match{f[0], f[3]})
+	}
+	if len(matches) == 0 {
+		return "", ""
+	}
+	if len(matches) > 1 {
+		for _, m := range matches {
+			if m.sid == ev.SessionID {
+				return m.id, "cwd+sid"
+			}
+		}
+		sort.Slice(matches, func(i, j int) bool { return matches[i].id < matches[j].id })
+	}
+	return matches[0].id, "cwd"
 }
 
 // allOptions is everything Apply may set; ClearAll unsets each.

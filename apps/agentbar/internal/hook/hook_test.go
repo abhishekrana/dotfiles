@@ -73,9 +73,11 @@ func TestShouldNotify(t *testing.T) {
 	}
 }
 
-// fakeRunner records tmux invocations and serves canned option reads.
+// fakeRunner records tmux invocations and serves canned option reads and a
+// canned list-panes fixture.
 type fakeRunner struct {
 	options map[string]string // option name -> value for show-options
+	panes   string            // list-panes -F output
 	calls   []string
 }
 
@@ -84,7 +86,45 @@ func (f *fakeRunner) Run(args ...string) (string, error) {
 	if len(args) > 0 && args[0] == "show-options" {
 		return f.options[args[len(args)-1]], nil
 	}
+	if len(args) > 0 && args[0] == "list-panes" {
+		return f.panes, nil
+	}
 	return "", nil
+}
+
+// ResolvePane matches a paneless hook's cwd to a Claude pane; a bash pane in
+// the same dir is ignored, and an empty/absent cwd is unresolvable.
+func TestResolvePane(t *testing.T) {
+	panes := "%3\tclaude\t/ws/alpha-1\tOLDSID\n" +
+		"%9\tclaude\t/ws/alpha-2\tsid2\n" +
+		"%40\tbash\t/ws/alpha-1\t\n" // same dir, not an agent -> ignored
+	r := &fakeRunner{panes: panes}
+
+	// A resumed session (new sid) still resolves by cwd alone.
+	if p, via := ResolvePane(r, Event{Cwd: "/ws/alpha-1", SessionID: "NEWSID"}); p != "%3" || via != "cwd" {
+		t.Errorf("cwd match = (%q,%q), want (%%3, cwd)", p, via)
+	}
+	if p, _ := ResolvePane(r, Event{Cwd: "/nowhere"}); p != "" {
+		t.Errorf("no Claude pane at cwd should be unresolvable, got %q", p)
+	}
+	if p, _ := ResolvePane(r, Event{Cwd: ""}); p != "" {
+		t.Errorf("empty cwd should be unresolvable, got %q", p)
+	}
+}
+
+// When several Claude panes share a cwd, the session id breaks the tie; with
+// no match it falls back to a deterministic (lowest) pane id.
+func TestResolvePaneSharedCwd(t *testing.T) {
+	panes := "%6\tclaude\t/ws/shared\tsidB\n" +
+		"%5\tclaude\t/ws/shared\tsidA\n"
+	r := &fakeRunner{panes: panes}
+
+	if p, via := ResolvePane(r, Event{Cwd: "/ws/shared", SessionID: "sidB"}); p != "%6" || via != "cwd+sid" {
+		t.Errorf("sid tiebreak = (%q,%q), want (%%6, cwd+sid)", p, via)
+	}
+	if p, via := ResolvePane(r, Event{Cwd: "/ws/shared", SessionID: "unknown"}); p != "%5" || via != "cwd" {
+		t.Errorf("no sid match = (%q,%q), want (%%5, cwd) deterministic", p, via)
+	}
 }
 
 var now = time.Unix(1700000000, 0)

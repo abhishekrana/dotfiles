@@ -50,10 +50,10 @@ func main() {
 
 // runHook never exits non-zero: a broken sidebar must not block Claude.
 func runHook() {
-	// Parse before the pane check so a paneless drop can log what the event
-	// carried. Resumed/`claude daemon run` sessions fire hooks without
-	// TMUX_PANE; recording their name/session/cwd here is the data a fallback
-	// pane resolver will be built on.
+	// Parse before the pane check so a paneless hook can be recovered (and, if
+	// not, dropped with detail). Resumed/`claude daemon run` sessions fire
+	// hooks without TMUX_PANE; fall back to matching the event's cwd to a
+	// Claude pane so their state still tracks.
 	data, err := io.ReadAll(os.Stdin)
 	if err != nil {
 		trace.Log("hook", "drop", "reason", "read_err", "err", trace.Err(err))
@@ -64,13 +64,16 @@ func runHook() {
 		trace.Log("hook", "drop", "reason", "json_err", "err", trace.Err(err))
 		return
 	}
-	pane := os.Getenv("TMUX_PANE")
+	r := tmux.Exec{}
+	pane, via := os.Getenv("TMUX_PANE"), "env"
+	if pane == "" {
+		pane, via = hook.ResolvePane(r, ev)
+	}
 	if pane == "" {
 		trace.Log("hook", "drop", "reason", "no_pane", "name", ev.Name,
 			"sid", ev.SessionID, "cwd", ev.Cwd, "proj", os.Getenv("CLAUDE_PROJECT_DIR"))
 		return
 	}
-	r := tmux.Exec{}
 	ef := hook.Decide(ev)
 	prev := tmux.PaneOption(r, pane, "@agent_state") // state before Apply, for transition detection
 	applyErr := hook.Apply(r, pane, ev, ef, time.Now())
@@ -87,6 +90,9 @@ func runHook() {
 	// SessionStart's source (resume/fork/compact/…) flags how it began.
 	fields := []any{"name", ev.Name, "prev", prev, "new", string(ef.State),
 		"pane", pane, "sid", ev.SessionID}
+	if via != "env" { // pane recovered via the cwd fallback, not TMUX_PANE
+		fields = append(fields, "via", via)
+	}
 	if ev.Source != "" {
 		fields = append(fields, "source", ev.Source)
 	}
