@@ -32,22 +32,46 @@ if command -v wl-copy &>/dev/null; then
     backend=wl-copy
     if [ "$sel" = primary ]; then
         wl-copy --primary <"$buf" || rc=$?
+        paste_cmd=(wl-paste -n --primary)
     else
         wl-copy <"$buf" || rc=$?
+        paste_cmd=(wl-paste -n)
     fi
 elif command -v xclip &>/dev/null; then
     backend=xclip
     xclip -selection "$sel" <"$buf" || rc=$?
+    paste_cmd=(xclip -selection "$sel" -o)
 elif command -v pbcopy &>/dev/null; then
     backend=pbcopy
     # No primary selection here; the clipboard call already carried the text.
     [ "$sel" = primary ] || pbcopy <"$buf" || rc=$?
+    paste_cmd=(pbpaste)
 else
     trace nobackend sel="$sel" bytes="$bytes"
     echo "clip: no clipboard backend found (wl-copy, xclip or pbcopy)" >&2
     exit 1
 fi
 
-trace copy backend="$backend" sel="$sel" bytes="$bytes" rc="$rc" \
+sum=$(cksum <"$buf" | cut -d' ' -f1)
+trace copy backend="$backend" sel="$sel" bytes="$bytes" sum="$sum" rc="$rc" \
     wl="${WAYLAND_DISPLAY:--}" dsp="${DISPLAY:--}"
+
+# rc=0 only means the backend started - wl-copy forks a daemon to serve the
+# selection and exits immediately - so read it back and log only a mismatch.
+# Detached and after a beat, so a copy is never slowed or failed by the check.
+verify() {
+    sleep 0.3
+    local t got sum2
+    t=$(mktemp) || return 0
+    "${paste_cmd[@]}" >"$t" 2>/dev/null
+    got=$(wc -c <"$t" | tr -d ' ')
+    sum2=$(cksum <"$t" | cut -d' ' -f1)
+    rm -f "$t"
+    [ "$got" = "$bytes" ] && [ "$sum2" = "$sum" ] && return 0
+    trace mismatch backend="$backend" sel="$sel" bytes="$bytes" read="$got" sum="$sum" sum_read="$sum2"
+}
+if [ "$bytes" -gt 0 ] && [ "${DOTFILES_TRACE:-1}" != "0" ]; then
+    (verify &) >/dev/null 2>&1
+fi
+
 exit "$rc"
