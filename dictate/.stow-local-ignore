@@ -1,0 +1,5 @@
+# stow reads this file from inside the package (the repo-root one does not apply
+# per-package). Without it, `stow dictate` links these docs into $HOME, where
+# Claude Code then reads CLAUDE.md as global project instructions.
+^CLAUDE\.md$
+^README\.md$
