@@ -91,6 +91,12 @@ records action _edges_ across the whole interactive stack:
   drag - nothing was selected, so nothing was copied; **`rc` non-zero** means the backend itself failed, and
   `wl=`/`dsp=` say why - a long-lived tmux server keeps the `WAYLAND_DISPLAY` it started with, so after a re-login
   `wl-copy` cannot reach the compositor and every copy fails until the server is restarted or its environment updated.
+- **Reading a drifted layout:** the sidebar squeezed to a few columns or a split far off 50/50 is a screen change - tmux
+  takes a shrink evenly from every pane, and it has no fixed-size pane. `src=sidebar evt=pin` is the `window-resized`
+  hook putting the width back on its own; `prefix + R` (`src=tmux evt=reset … changed=N`) resets the whole layout, with
+  one `src=tmux evt=layout win=… before=… after=…` per window it changed. `changed=0` and no `evt=layout` lines mean
+  everything was already at its default. `resized>0` alongside `changed=0` is normal - the column pass corrects the
+  equal share `select-layout -E` just handed the sidebar.
 - **Reading state drift:** `src=hook evt=event name=… prev=… new=… sid=…` is ground truth of what Claude told the
   sidebar (`via=cwd` means the pane was recovered by the cwd fallback - a resumed / `claude daemon run` session that
   fired the hook with no `$TMUX_PANE`); `src=hook evt=drop reason=no_pane cwd=… sid=…` flags a hook that arrived with no
@@ -160,10 +166,13 @@ When I say "deploy": **first commit and push, then make it live** on the running
    - **tmux** (`tmux/.tmux.conf`): `tmux source-file ~/.tmux.conf`. One server is shared by all sessions, so a single
      reload updates every existing session at once.
    - **Stowed scripts** (symlinks - `dictate/`, `bash/`, etc.): live the moment the repo file is saved; no step needed.
-   - **New stow package or file**: `cd ~/dotfiles && stow <pkg>`, then reload the relevant tool.
-   - **`apps/agentbar`** (Go): `task agentbar:build`, then reload tmux (`tmux source-file ~/.tmux.conf`). The sidebar is
-     a long-lived process, so restarting it is a manual step you must list: **`prefix + e` twice**. Hook-path edits to
-     the stowed `settings.json` take effect on the next agent lifecycle event.
+   - **New stow package or file**: `cd ~/dotfiles && stow <pkg>`, then reload the relevant tool. This includes a **new
+     file inside an already-stowed package** - it has no symlink until you re-stow, so anything referencing it through
+     `~/.local/bin` silently does nothing (a `run-shell -b` of a missing path fails quietly).
+   - **`apps/agentbar`** (Go): `task agentbar:build`, then **`prefix + R`** in each session that should pick up the new
+     binary - it reloads the config and restarts that session's sidebar in place. **`prefix + e` twice** restarts them
+     all at once, at the cost of the render storm. Hook-path edits to the stowed `settings.json` take effect on the next
+     agent lifecycle event.
 3. Always list any steps I must run by hand - things that can't be scripted (re-login, `gsettings`/GNOME shortcut
    install, `systemctl --user …`, opening a fresh shell).
 

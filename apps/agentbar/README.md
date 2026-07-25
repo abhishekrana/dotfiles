@@ -69,6 +69,7 @@ picked up on their next restart.
 | key             | action                                                                                              |
 | --------------- | --------------------------------------------------------------------------------------------------- |
 | `prefix + e`    | toggle the sidebar in **all** sessions                                                              |
+| `prefix + R`    | refresh this session's sidebar and reset the window layout (dotfiles' UI reset)                     |
 | `j`/`k`, wheel  | move between sessions and agents                                                                    |
 | `Enter`, click  | on an agent: jump to its pane; on a session name: switch to that session                            |
 | `g` / `G`       | first / last row                                                                                    |
@@ -245,6 +246,10 @@ Notes for hacking:
   the selection, and signals a `wait-for` channel every sidebar blocks on.
 - A `session-window-changed` hook moves the sidebar pane into whichever window becomes active (`join-pane -d`), with a
   re-entrancy guard and self-healing if the pane died.
+- A `window-resized` hook (`scripts/pin.sh`) holds the sidebar at `@agentbar-width`. tmux has no fixed-size pane and
+  takes a shrink evenly from every pane in the row rather than in proportion, so the narrow sidebar is the first thing
+  it loses - moving to a smaller screen would leave it a few columns wide. Width only, so pane sizes you set by hand are
+  left alone. (It is a window hook, so it only shows up under `show-hooks -gw`.)
 - A global `client-session-changed` hook signals the same channel, so the highlight follows session switches made
   outside the sidebar - to the newly attached session's agent, or to the first agent started there afterwards.
 - The TUI registers its own session options and follow hook at startup, so sidebars started outside `open.sh` (resurrect

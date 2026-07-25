@@ -116,6 +116,7 @@ launch hunk's native interactive reviewer directly. delta also colors `git add -
 | ---------- | ------------------------------------------------------------------- |
 | `prefix r` | reload tmux config                                                  |
 | `prefix R` | reset the UI - reload, refresh sidebar, even the panes (keeps work) |
+| `prefix e` | toggle the agent sidebar in all sessions                            |
 | `prefix I` | install TPM plugins                                                 |
 
 ---

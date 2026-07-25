@@ -32,7 +32,7 @@ Development environment for Ubuntu 24.04 - shell, tmux, Neovim, terminal, and CL
 | `hunk`    | hunk diff viewer config (Solarized Light theme, side-by-side)                                                              | `~/.config/hunk/`                |
 | `nvim`    | Neovim config (LazyVim, LSP, plugins)                                                                                      | `~/.config/nvim/`                |
 | `theme`   | Theme switcher - re-skins the terminal stack across four flavors (`design/palette.toml`)                                   | `~/.local/bin/theme`             |
-| `tmux`    | Tmux config, gitmux, CI status script                                                                                      | `~/.tmux.conf`, `~/.gitmux.conf` |
+| `tmux`    | Tmux config, gitmux, CI status script, `prefix + R` UI reset                                                               | `~/.tmux.conf`, `~/.gitmux.conf` |
 | `trace`   | Shared always-on trace log for the tmux/agent stack                                                                        | `~/.local/bin/dotfiles-trace`    |
 | `yazi`    | Yazi file manager config with zoxide plugin                                                                                | `~/.config/yazi/`                |
 
@@ -45,7 +45,8 @@ Binaries built from source under `apps/` (not stow packages). Each has a `Makefi
 | ---------- | -------------------------------------------------------------------- | -------- |
 | `agentbar` | tmux sidebar showing every Claude Code agent's state across sessions | Go       |
 
-The sidebar loads from here via a `run-shell` line in `tmux/.tmux.conf`; edit it and reload tmux to pick up changes.
+The sidebar loads from here via a `run-shell` line in `tmux/.tmux.conf`. `prefix + R` picks up changes: it reloads the
+config, rebuilds the binary if the source moved, and restarts that session's sidebar.
 
 ### System dependencies
 
