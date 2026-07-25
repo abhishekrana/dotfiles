@@ -27,18 +27,18 @@ export FZF_DEFAULT_OPTS="
 "
 unset _fzf_color
 
-# Ctrl-T: file picker with bat preview; Ctrl-Y copies file contents to wl-clipboard
-if command -v bat &>/dev/null && command -v wl-copy &>/dev/null; then
+# Ctrl-T: file picker with bat preview; Ctrl-Y copies file contents to the clipboard
+if command -v bat &>/dev/null && command -v clip &>/dev/null; then
     export FZF_CTRL_T_OPTS="
       --preview 'bat --color=always --style=numbers --line-range=:200 {}'
-      --bind 'ctrl-y:execute-silent(wl-copy < {})+abort'
+      --bind 'ctrl-y:execute-silent(clip < {})+abort'
     "
 fi
 
 # Ctrl-R: history search; Ctrl-Y copies the command (fields 2..) without running it
-if command -v wl-copy &>/dev/null; then
+if command -v clip &>/dev/null; then
     export FZF_CTRL_R_OPTS="
-      --bind 'ctrl-y:execute-silent(echo -n {2..} | wl-copy)+abort'
+      --bind 'ctrl-y:execute-silent(echo -n {2..} | clip)+abort'
     "
 fi
 

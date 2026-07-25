@@ -15,6 +15,6 @@ vim.o.relativenumber = false       -- absolute line numbers
 vim.api.nvim_create_autocmd("TextYankPost", {
   callback = function()
     local text = vim.fn.getreg('"')
-    vim.fn.system("wl-copy --primary", text)
+    vim.fn.system("clip --primary", text)
   end,
 })
