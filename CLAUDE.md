@@ -9,11 +9,9 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
 - `bash/` → `~/.bashrc.d/` (shell customizations)
 - `bat/` → `~/.config/bat/`
 - `claude/` → `~/.claude/settings.json`, `~/.claude/statusline-command.sh`, `~/.claude/skills/` (settings.json wires the
-  agentbar hook on every Claude lifecycle event + the statusLine; `~/.claude/skills/` ships shared, dotfiles-owned
-  skills like `vault-manager`, distinct from personal skills which live in a private branch; agent state for both the
-  sidebar and the `M-;` session picker comes from that plugin's `@agent_*` pane options, not local hook scripts. Note:
-  Claude Code does NOT load a user-level `~/.claude/settings.local.json` - hooks/settings there are silently ignored;
-  anything that must take effect goes in `settings.json`)
+  agentbar hook on every Claude lifecycle event + the statusLine; agent state comes from that plugin's `@agent_*` pane
+  options, not local hook scripts. Claude Code does NOT load a user-level `~/.claude/settings.local.json` - anything
+  that must take effect goes in `settings.json`)
 - `clip/` → `~/.local/bin/clip` (copy stdin to the clipboard; picks wl-copy, xclip or pbcopy. Every copy path - tmux
   `copy-command`, `tmux-yank.sh`, fzf's Ctrl-Y, nvim - goes through it, so the backend is chosen in one place)
 - `dictate/` → `~/.local/bin/dictate` (toggle-key local Whisper dictation into tmux; opt-in. Has its own nested
@@ -25,17 +23,15 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
 - `theme/` → `~/.local/bin/theme` (theme switcher; re-skins the terminal stack across the four flavors from
   `design/palette.toml`, writing per-tool files into `~/.config/theme/`)
 - `tmux/` → `~/.tmux.conf`, `~/.gitmux.conf`, `~/.local/bin/` scripts (`tmux-gitlab.sh` GitLab status, session picker,
-  resurrect guard, yank, `tmux-reset.sh` the `prefix + R` UI reset - reload + sidebar refresh + default geometry,
-  non-destructive; guarded by `task reset`)
+  resurrect guard, yank, `tmux-reset.sh` the `prefix + R` UI reset - reload + default geometry, nothing killed)
 - `trace/` → `~/.local/bin/dotfiles-trace` (shared always-on trace log for the tmux/agent stack; see "Debugging" below)
 - `yazi/` → `~/.config/yazi/` (yazi file manager config)
 
 ## Apps (built from source)
 
-Buildable projects live under `apps/` - these are **not** stow packages and are never passed to `stow`. Each is
-self-contained with its own `Makefile` exposing a uniform `build` target, so `bootstrap.sh` builds any language the same
-way: `build_apps` loops over `apps/*/` running `make build`, and the toolchain gets a pinned `install_*` step (e.g.
-`install_go`). Add more apps by dropping a project with a `Makefile` under `apps/`.
+Buildable projects live under `apps/` - these are **not** stow packages and are never passed to `stow`. Each carries its
+own `Makefile` with a uniform `build` target, so `bootstrap.sh` builds any language the same way and the toolchain gets
+a pinned `install_*` step. Add one by dropping a project with a `Makefile` under `apps/`.
 
 - `apps/agentbar/` → Go tmux plugin (the Claude agent sidebar). Loaded by a `run-shell` line at the end of
   `tmux/.tmux.conf`, so it builds and runs straight from the repo. The Claude lifecycle hooks in
@@ -44,8 +40,8 @@ way: `build_apps` loops over `apps/*/` running `make build`, and the toolchain g
 
 ## Installing software
 
-`install.sh` is the only thing in this repo that downloads a tool, and it holds every version pin. It doubles as a small
-CLI so CI installs with the same code a machine does - no duplicated download logic in the workflows:
+`install.sh` is the only thing in this repo that downloads a tool, and it holds every version pin. It doubles as a CLI
+so CI installs with the same code a machine does:
 
 ```sh
 ./install.sh                 # list the steps
@@ -63,10 +59,8 @@ CLI so CI installs with the same code a machine does - no duplicated download lo
 
 ## Release furniture
 
-- `Taskfile.yml` - the routine tasks; `task check` is the gate (see "Tasks" below)
 - `.github/workflows/` - `ci.yml` on every push/PR, `release.yml` on a `v*` tag
 - `cliff.toml` - git-cliff config: Conventional Commits to CHANGELOG.md and release notes
-- `CHANGELOG.md` - Keep a Changelog; `0.1.0` hand-written, generated from `0.2.0` on
 
 ## Debugging (trace log)
 
@@ -91,12 +85,10 @@ records action _edges_ across the whole interactive stack:
   drag - nothing was selected, so nothing was copied; **`rc` non-zero** means the backend itself failed, and
   `wl=`/`dsp=` say why - a long-lived tmux server keeps the `WAYLAND_DISPLAY` it started with, so after a re-login
   `wl-copy` cannot reach the compositor and every copy fails until the server is restarted or its environment updated.
-- **Reading a drifted layout:** the sidebar squeezed to a few columns or a split far off 50/50 is a screen change - tmux
-  takes a shrink evenly from every pane, and it has no fixed-size pane. `src=sidebar evt=pin` is the `window-resized`
-  hook putting the width back on its own; `prefix + R` (`src=tmux evt=reset … changed=N`) resets the whole layout, with
-  one `src=tmux evt=layout win=… before=… after=…` per window it changed. `changed=0` and no `evt=layout` lines mean
-  everything was already at its default. `resized>0` alongside `changed=0` is normal - the column pass corrects the
-  equal share `select-layout -E` just handed the sidebar.
+- **Reading a drifted layout:** a squeezed sidebar or a skewed split is a screen change - tmux takes a shrink evenly
+  from every pane and has no fixed-size pane. `src=sidebar evt=pin` is the `window-resized` hook fixing the width
+  itself; `prefix + R` logs `src=tmux evt=reset … changed=N` plus one `evt=layout win=… before=… after=…` per window it
+  changed, and nothing when nothing had drifted.
 - **Reading state drift:** `src=hook evt=event name=… prev=… new=… sid=…` is ground truth of what Claude told the
   sidebar (`via=cwd` means the pane was recovered by the cwd fallback - a resumed / `claude daemon run` session that
   fired the hook with no `$TMUX_PANE`); `src=hook evt=drop reason=no_pane cwd=… sid=…` flags a hook that arrived with no
@@ -112,26 +104,21 @@ records action _edges_ across the whole interactive stack:
 
 ### Tracing a new feature
 
-Give every new interactive feature the same treatment, so the evidence is already there the first time it misbehaves:
+Trace a new interactive feature the same way, so the evidence is there the first time it misbehaves:
 
-- One `dotfiles-trace log <src> <evt> k=v ...` per action edge, never in a hot loop. Reuse an existing `src`, or add the
-  new one to the `--src` list above.
-- Log the outcome, not just the intent - `rc=`, `bytes=`, `resized=` are what separate "it ran" from "it worked".
-- When the feature changes state, put both sides on one line (`before=… after=…`), and only when it actually changed, so
-  a steady state stays silent.
-- Records are summaries: the CLI escapes values and caps them at 200 chars, and the log is 1 MiB with one rotation.
-- Tests run the code under `DOTFILES_TRACE=0` so they never land in the live log.
+- One `dotfiles-trace log <src> <evt> k=v ...` per action edge, never in a hot loop. Reuse an existing `src`.
+- Log the outcome, not the intent - `rc=`, `bytes=` are what separate "it ran" from "it worked".
+- Changing state: `before=… after=…` on one line, only when it actually changed. Values are capped at 200 chars.
+- Tests run under `DOTFILES_TRACE=0`, never into the live log.
 
 ## Vault template
 
 `vault-template/` holds the boilerplate for the two notes vaults (`~/vaults/personal`, `~/vaults/work`). Like `apps/`,
-it is **not** a stow package and is never passed to `stow` - `bootstrap.sh` copies it into each vault as **real files**
-(via `seed_vault`), so the scaffolding gets committed into that vault's own private repo and stays portable and
-self-contained. `common/` is shared by both vaults (the folder skeleton, `Home.md`, note templates, the `.claude/`
-guardrail hooks + the `vault-check` integrity script, and the `.githooks/` pre-commit guard (integrity + secrets));
-`personal/` and `work/` carry the vault-specific `CLAUDE.md` + `README.md`. Copies are seed-if-missing
-(`copy_if_absent`), so re-running bootstrap never clobbers live edits. Vault _content_ (the notes themselves) never
-lives here - this repo is public.
+it is **not** a stow package - `bootstrap.sh` copies it into each vault as **real files**, so the scaffolding is
+committed into that vault's own private repo. `common/` is shared by both vaults (skeleton, templates, `.claude/`
+guardrail hooks + `vault-check`, `.githooks/` pre-commit guard); `personal/` and `work/` carry their own `CLAUDE.md` +
+`README.md`. Copies are seed-if-missing, so re-running bootstrap never clobbers live edits. Vault _content_ never lives
+here - this repo is public.
 
 ## Rules
 
@@ -151,10 +138,8 @@ lives here - this repo is public.
 - Each tool init file guards with `command -v tool &>/dev/null || return`
 - Private/work-specific config goes in `~/.bashrc.d/local.bash` (not tracked)
 - `bootstrap.sh` must be idempotent (safe to re-run)
-- `bootstrap.sh` scaffolds two independent notes vaults - `~/vaults/personal` and `~/vaults/work`
-  (`create_personal_vault` / `create_work_vault`, both calling `seed_vault` to copy `vault-template/` in as real files);
-  any vault without a git remote is reported once at the very end (`print_vault_sync_hints`, optional) instead of
-  mid-run, and the remote/identity are never created or stored here, keeping both out of this public repo
+- `bootstrap.sh` scaffolds the two notes vaults (see "Vault template"); a vault with no git remote is reported once at
+  the end, and the remote/identity are never created or stored here
 - Keep lists alphabetically sorted (stow packages, apt packages, pinned versions, bootstrap calls, docs)
 
 ## Deploy
@@ -166,13 +151,12 @@ When I say "deploy": **first commit and push, then make it live** on the running
    - **tmux** (`tmux/.tmux.conf`): `tmux source-file ~/.tmux.conf`. One server is shared by all sessions, so a single
      reload updates every existing session at once.
    - **Stowed scripts** (symlinks - `dictate/`, `bash/`, etc.): live the moment the repo file is saved; no step needed.
-   - **New stow package or file**: `cd ~/dotfiles && stow <pkg>`, then reload the relevant tool. This includes a **new
-     file inside an already-stowed package** - it has no symlink until you re-stow, so anything referencing it through
-     `~/.local/bin` silently does nothing (a `run-shell -b` of a missing path fails quietly).
-   - **`apps/agentbar`** (Go): `task agentbar:build`, then **`prefix + R`** in each session that should pick up the new
-     binary - it reloads the config and restarts that session's sidebar in place. **`prefix + e` twice** restarts them
-     all at once, at the cost of the render storm. Hook-path edits to the stowed `settings.json` take effect on the next
-     agent lifecycle event.
+   - **New stow package or file**: `cd ~/dotfiles && stow <pkg>`, then reload the relevant tool. A new file in an
+     already-stowed package needs this too - until then it has no symlink, and callers using `~/.local/bin` fail
+     silently.
+   - **`apps/agentbar`** (Go): `task agentbar:build`, then **`prefix + R`** per session to pick up the new binary
+     (reloads and restarts that sidebar in place); **`prefix + e` twice** does all sessions, at the cost of the render
+     storm. Hook-path edits to the stowed `settings.json` take effect on the next agent lifecycle event.
 3. Always list any steps I must run by hand - things that can't be scripted (re-login, `gsettings`/GNOME shortcut
    install, `systemctl --user …`, opening a fresh shell).
 
@@ -205,19 +189,15 @@ git tag -a v0.2.0 -m "dotfiles v0.2.0"  # annotated SemVer tag
 git push origin v0.2.0                  # fires release.yml
 ```
 
-For **v0.1.0** skip the changelog step - its entry is already written; just replace `unreleased` with the date.
-
 SemVer, `v`-prefixed. **This repo stays on 0.x - do not bump to 1.0.** Pre-1.0 shifts the meanings down one: a release
-needing manual steps bumps the MINOR (`0.1.0` -> `0.2.0`), everything else bumps the PATCH. `task release-notes`
-previews what the next release would publish. The `0.1.0` entry in `CHANGELOG.md` is hand-written because the history
-predates the convention; generation covers `0.2.0` on, which is why `task changelog` prepends rather than regenerating.
+needing manual steps bumps the MINOR, everything else bumps the PATCH. `task release-notes` previews what the next
+release would publish; `task changelog` prepends to `CHANGELOG.md` rather than regenerating it.
 
 ## Tasks
 
-`Taskfile.yml` holds the routine work - run `task` for the list. `task check` is the gate CI runs; `task stow`,
-`task fmt`, `task trace`, `task tmux-reload`, `task tmux-reset` (same as `prefix + R`), `task fresh` and the
-`agentbar:*` tasks cover the rest. The `tmux-*` tasks are the ones that act on the live server. Projects under `apps/`
-keep their own build files and the `agentbar:*` tasks delegate to them.
+`Taskfile.yml` holds the routine work - run `task` for the list. `task check` is the gate CI runs. The `tmux-*` tasks
+are the ones that act on the live server (`tmux-reset` is `prefix + R`); the `agentbar:*` tasks delegate to that
+project's own build files.
 
 `task check-ci` reruns the agentbar suite in a container mirroring the runner: older tmux, no `LANG`, `CI` set. Run it
 before pushing anything that touches tmux, rendering or the pane protocol. The rest of the gate reads files and is
