@@ -9,6 +9,7 @@ Development environment for Ubuntu 24.04 - shell, tmux, Neovim, terminal, and CL
 ## Contents
 
 - [What's included](#whats-included)
+- [Platform support](#platform-support)
 - [Setup on a new machine](#setup-on-a-new-machine)
 - [Usage](#usage)
 - [Managing configs](#managing-configs)
@@ -24,6 +25,7 @@ Development environment for Ubuntu 24.04 - shell, tmux, Neovim, terminal, and CL
 | `bash`    | Shell customizations, aliases, direnv/fzf/zoxide hooks, vi mode                                                            | `~/.bashrc.d/`                   |
 | `bat`     | Syntax highlighter theme                                                                                                   | `~/.config/bat/`                 |
 | `claude`  | Claude Code settings.json (agentbar hook, statusLine, permissions), statusline script, and shared skills (`vault-manager`) | `~/.claude/`                     |
+| `clip`    | Copy stdin to the clipboard - picks wl-copy (Wayland), xclip (X11) or pbcopy (macOS)                                       | `~/.local/bin/clip`              |
 | `dictate` | Toggle-key local speech-to-text (faster-whisper) into tmux                                                                 | `~/.local/bin/`                  |
 | `ghostty` | Ghostty terminal config (Solarized Light, block cursor, cursor trail shader)                                               | `~/.config/ghostty/`             |
 | `git`     | Git tool settings (delta pager, staging/blame, merge)                                                                      | `~/.config/git/config`           |
@@ -31,6 +33,7 @@ Development environment for Ubuntu 24.04 - shell, tmux, Neovim, terminal, and CL
 | `nvim`    | Neovim config (LazyVim, LSP, plugins)                                                                                      | `~/.config/nvim/`                |
 | `theme`   | Theme switcher - re-skins the terminal stack across four flavors (`design/palette.toml`)                                   | `~/.local/bin/theme`             |
 | `tmux`    | Tmux config, gitmux, CI status script                                                                                      | `~/.tmux.conf`, `~/.gitmux.conf` |
+| `trace`   | Shared always-on trace log for the tmux/agent stack                                                                        | `~/.local/bin/dotfiles-trace`    |
 | `yazi`    | Yazi file manager config with zoxide plugin                                                                                | `~/.config/yazi/`                |
 
 ### Apps (built from source)
@@ -75,6 +78,28 @@ pinned versions:
 - [tree](https://gitlab.com/OldManProgrammer/unix-tree) - directory listing utility
 - [yazi](https://github.com/sxyazi/yazi) - terminal file manager
 - [zoxide](https://github.com/ajeetdsouza/zoxide) - smarter cd
+
+## Platform support
+
+**Ubuntu 24.04 is the supported platform** - it is what this repo is developed and used on. `install.sh` assumes `apt`,
+Linux release assets and a GNU userland, so it refuses to run anywhere else rather than failing half way through.
+
+macOS is **not supported**. The configs are largely portable and each platform-varying piece is kept in one place, so
+adding it would be tractable rather than a rewrite:
+
+| Layer                                         | Today               | Would need                                                              |
+| --------------------------------------------- | ------------------- | ----------------------------------------------------------------------- |
+| Configs (nvim, bat, git, yazi, hunk, ghostty) | portable            | nothing                                                                 |
+| Clipboard                                     | portable via `clip` | nothing - it already picks `pbcopy`                                     |
+| Shell config (`bash/.bashrc.d/`)              | bash only           | zsh guards, since macOS defaults to zsh                                 |
+| Release assets (`install.sh`)                 | one `case` arm      | one more arm - no install function changes                              |
+| System packages                               | `apt`               | Homebrew; `brew bundle` cannot pin versions the way `apt` does          |
+| `agentbar`                                    | Go core is portable | `osascript` notify fallback, BSD `script` in the e2e suite              |
+| `trace`                                       | Linux only          | `date '+%3N'`, `date -d`, `stat -c` and `flock` have no BSD equivalents |
+| `dictate`                                     | Linux only          | out of scope - different audio stack, unscriptable mic permission       |
+
+`task portability` prints every Linux-only primitive and the files holding it - the inventory another platform would
+have to answer for.
 
 ## Setup on a new machine
 
