@@ -4,7 +4,8 @@ set -o vi
 bind -m vi-insert '"\C-l": clear-screen'
 export VISUAL=nvim
 export EDITOR=nvim
-export TERM="tmux-256color"
+# No TERM here: tmux sets it inside panes, the terminal sets it outside. Forcing
+# it hid Ghostty from tmux, so 'xterm-ghostty:*' terminal-features never matched.
 export BROWSER="firefox"
 
 # Git - gd/gds/gdw/gdm open hunk's interactive TUI; git's own pager is delta
