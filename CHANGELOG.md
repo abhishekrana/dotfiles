@@ -7,7 +7,7 @@ This repo stays on **0.x** by choice. Pre-1.0 SemVer puts the breaking signal on
 manual steps on the machine - a re-login, a re-stow, a GNOME shortcut, a systemd unit - bumps **0.x** and says which;
 PATCH is for everything else.
 
-## [0.1.0] - unreleased
+## [0.1.0] - 2026-07-25
 
 First tagged snapshot of a repo that had been running untagged since 2026-03-14. Written by hand: the history predates
 Conventional Commits, so `git-cliff` has nothing to group. Generated notes take over from 0.2.0.
