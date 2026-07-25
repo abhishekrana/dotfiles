@@ -8,6 +8,7 @@ LOCAL_BIN="$HOME/.local/bin"
 DELTA_VERSION="0.19.2"
 FD_VERSION="10.4.2"
 FZF_VERSION="0.74.1"
+GIT_CLIFF_VERSION="2.13.1"
 GITMUX_VERSION="0.11.5"
 GO_VERSION="1.26.5"
 HUNK_VERSION="0.17.6"
@@ -111,6 +112,24 @@ install_fzf() {
     curl -sSL "$url" | tar xz -C "$LOCAL_BIN" fzf
     chmod +x "$LOCAL_BIN/fzf"
     ok "fzf $FZF_VERSION installed"
+}
+
+# Generates CHANGELOG.md and the release notes from conventional commits.
+# Needed locally to cut a release; the release workflow installs its own copy.
+install_git_cliff() {
+    if [ -x "$LOCAL_BIN/git-cliff" ] && "$LOCAL_BIN/git-cliff" --version 2>/dev/null | grep -q "$GIT_CLIFF_VERSION"; then
+        ok "git-cliff $GIT_CLIFF_VERSION already installed"
+        return
+    fi
+    log "Installing git-cliff $GIT_CLIFF_VERSION..."
+    local url="https://github.com/orhun/git-cliff/releases/download/v${GIT_CLIFF_VERSION}/git-cliff-${GIT_CLIFF_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+    local tmp
+    tmp=$(mktemp -d)
+    curl -sSL "$url" | tar xz -C "$tmp"
+    mv "$tmp/git-cliff-${GIT_CLIFF_VERSION}/git-cliff" "$LOCAL_BIN/git-cliff"
+    chmod +x "$LOCAL_BIN/git-cliff"
+    rm -rf "$tmp"
+    ok "git-cliff $GIT_CLIFF_VERSION installed"
 }
 
 install_gitmux() {
@@ -649,6 +668,7 @@ install_delta
 install_fd
 install_fzf
 install_ghostty
+install_git_cliff
 install_gitmux
 install_go
 install_hunk
