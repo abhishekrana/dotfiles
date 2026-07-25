@@ -1140,6 +1140,31 @@ func TestSidebarSelfRegisters(t *testing.T) {
 	})
 }
 
+// TestOpenLeavesNoPhantomSidebar: when the split genuinely fails (a window
+// with no room for another pane), open.sh must not mark the session as having
+// a sidebar. @sidebar_on=1 with an empty @sidebar_pane wedges the session:
+// follow.sh bails on the empty pane before its self-heal can clear the flags.
+func TestOpenLeavesNoPhantomSidebar(t *testing.T) {
+	s := start(t)
+	s.tmux("new-session", "-d", "-s", "tiny", "-x", "2", "-y", "20")
+	s.tmux("set-option", "-g", "window-size", "manual")
+	s.tmux("resize-window", "-t", "tiny", "-x", "2", "-y", "20")
+	// A second session proves one unopenable session doesn't abort the sweep.
+	s.newSession("roomy")
+
+	s.script("on.sh")
+
+	if on, _ := s.tmuxErr("show-option", "-t", "tiny", "-qv", "@sidebar_on"); on != "" {
+		t.Errorf("@sidebar_on = %q on a session whose split failed, want unset", on)
+	}
+	if pane := s.sidebarPane("tiny"); pane != "" {
+		t.Errorf("@sidebar_pane = %q on a session whose split failed, want unset", pane)
+	}
+	waitFor(t, "sidebar in the roomy session", 5*time.Second, func() bool {
+		return s.sidebarAlive("roomy")
+	})
+}
+
 // TestSidebarSurvivesOneColumnPane: a sidebar squeezed to a single column
 // must keep running. tmux CLAMPS the -l 30 split instead of refusing it, so a
 // narrow window hands the sidebar a 1-column pane on the ordinary open path,
