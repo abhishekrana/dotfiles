@@ -46,7 +46,8 @@ The sidebar loads from here via a `run-shell` line in `tmux/.tmux.conf`; edit it
 
 ### System dependencies
 
-Installed via `bootstrap.sh` (apt + `~/.local/bin`):
+Installed by `install.sh` (apt + `~/.local/bin`), which `bootstrap.sh` calls and CI reuses so both install the same
+pinned versions:
 
 - [bat](https://github.com/sharkdp/bat) - cat with syntax highlighting
 - [delta](https://github.com/dandavison/delta) - git diff pager with syntax highlighting
@@ -70,7 +71,7 @@ Installed via `bootstrap.sh` (apt + `~/.local/bin`):
 - [shellcheck](https://www.shellcheck.net/) - shell linter (gates every script here)
 - [shfmt](https://github.com/mvdan/sh) - finds shell files by shebang for the lint gate
 - [Task](https://taskfile.dev/) - task runner for this repo's `Taskfile.yml`
-- [tmux](https://github.com/tmux/tmux) - terminal multiplexer
+- [tmux](https://github.com/tmux/tmux) - terminal multiplexer (pinned, built from source: 24.04 ships 3.4)
 - [tree](https://gitlab.com/OldManProgrammer/unix-tree) - directory listing utility
 - [yazi](https://github.com/sxyazi/yazi) - terminal file manager
 - [zoxide](https://github.com/ajeetdsouza/zoxide) - smarter cd

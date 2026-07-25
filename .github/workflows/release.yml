@@ -16,48 +16,20 @@ jobs:
         with:
           fetch-depth: 0 # git-cliff needs full history and tags
 
-      - name: Read pinned tool versions
-        run:
-          grep -E '^(GIT_CLIFF|GITLEAKS|RUFF|SHELLCHECK|SHFMT|TASK|TMUX)_VERSION=' bootstrap.sh | tr -d '"' >>
-          "$GITHUB_ENV"
-
-      - name: Install the gate tools and git-cliff
+      # One source of truth: the same script, pins and code a developer machine runs.
+      - name: Install the gate tools
         run: |
-          mkdir -p "$HOME/.local/bin"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          curl -sSL "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" \
-            | tar xJ -C /tmp
-          mv "/tmp/shellcheck-v${SHELLCHECK_VERSION}/shellcheck" "$HOME/.local/bin/"
-          curl -sSL -o "$HOME/.local/bin/shfmt" \
-            "https://github.com/mvdan/sh/releases/download/v${SHFMT_VERSION}/shfmt_v${SHFMT_VERSION}_linux_amd64"
-          curl -sSL "https://github.com/go-task/task/releases/download/v${TASK_VERSION}/task_linux_amd64.tar.gz" \
-            | tar xz -C /tmp task
-          mv /tmp/task "$HOME/.local/bin/"
-          curl -sSL "https://github.com/orhun/git-cliff/releases/download/v${GIT_CLIFF_VERSION}/git-cliff-${GIT_CLIFF_VERSION}-x86_64-unknown-linux-musl.tar.gz" \
-            | tar xz -C /tmp
-          mv "/tmp/git-cliff-${GIT_CLIFF_VERSION}/git-cliff" "$HOME/.local/bin/"
-          curl -sSL "https://github.com/astral-sh/ruff/releases/download/${RUFF_VERSION}/ruff-x86_64-unknown-linux-gnu.tar.gz" \
-            | tar xz -C /tmp
-          mv /tmp/ruff-x86_64-unknown-linux-gnu/ruff "$HOME/.local/bin/"
-          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
-            | tar xz -C /tmp gitleaks
-          mv /tmp/gitleaks "$HOME/.local/bin/"
-          chmod +x "$HOME/.local/bin"/*
+          ./install.sh gate-tools
+        env:
+          DEBIAN_FRONTEND: noninteractive
+
+      - name: Read the pinned Go version
+        run: grep -E '^GO_VERSION=' install.sh | tr -d '"' >> "$GITHUB_ENV"
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: apps/agentbar/go.mod
-
-      - name: Build the pinned tmux
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq build-essential bison libevent-dev libncurses-dev pkg-config
-          curl -sSL "https://github.com/tmux/tmux/releases/download/${TMUX_VERSION}/tmux-${TMUX_VERSION}.tar.gz" \
-            | tar xz -C /tmp
-          cd "/tmp/tmux-${TMUX_VERSION}"
-          ./configure --prefix="$HOME/.local" >/dev/null
-          make -j"$(nproc)" >/dev/null && make install >/dev/null
-          tmux -V
+          go-version: ${{ env.GO_VERSION }}
 
       - name: task check
         run: task check

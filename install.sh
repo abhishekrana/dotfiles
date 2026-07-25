@@ -1,0 +1,580 @@
+#!/usr/bin/env bash
+# install.sh - installs the software this environment needs. Every version is
+# pinned here; nothing else in the repo downloads a tool.
+#
+#   ./install.sh                 list the steps
+#   ./install.sh all             everything (bootstrap.sh calls this)
+#   ./install.sh gate-tools      only what `task check` needs (CI calls this)
+#   ./install.sh install_tmux    one step by name
+#
+# Sourced by bootstrap.sh, which adds the machine wiring (stow, vaults, bashrc).
+set -euo pipefail
+
+LOCAL_BIN="$HOME/.local/bin"
+
+# Pinned versions (update these to upgrade)
+DELTA_VERSION="0.19.2"
+FD_VERSION="10.4.2"
+FZF_VERSION="0.74.1"
+GIT_CLIFF_VERSION="2.13.1"
+GITLEAKS_VERSION="8.30.1"
+GITMUX_VERSION="0.11.5"
+GO_VERSION="1.26.5"
+HUNK_VERSION="0.17.6"
+LAZYDOCKER_VERSION="0.25.2"
+LAZYGIT_VERSION="0.63.1"
+NEOVIM_VERSION="0.12.4"
+NERD_FONT_VERSION="3.4.0"
+RUFF_VERSION="0.16.0"
+SHELLCHECK_VERSION="0.11.0"
+SHFMT_VERSION="3.13.1"
+TASK_VERSION="3.52.0"
+TMUX_VERSION="3.7b"
+YAZI_VERSION="26.5.6"
+ZOXIDE_VERSION="0.10.0"
+
+# URL of a GitHub release asset: gh_url <owner/repo> <tag> <asset>
+gh_url() { printf 'https://github.com/%s/releases/download/%s/%s' "$1" "$2" "$3"; }
+
+log() { echo -e "\033[1;34m[dotfiles]\033[0m $*"; }
+warn() { echo -e "\033[1;33m[dotfiles]\033[0m $*"; }
+ok() { echo -e "\033[1;32m[dotfiles]\033[0m $*"; }
+
+install_apt_packages() {
+    # chafa: image previews for yazi
+    # imagemagick: convert/identify, used by image.nvim to render images in nvim
+    local pkgs=(
+        bat bison build-essential chafa curl direnv fontconfig imagemagick jq
+        libevent-dev libncurses-dev pkg-config ripgrep software-properties-common
+        stow tree unzip wget wl-clipboard
+    )
+    local to_install=()
+    for pkg in "${pkgs[@]}"; do
+        dpkg -s "$pkg" &>/dev/null || to_install+=("$pkg")
+    done
+    if [ ${#to_install[@]} -gt 0 ]; then
+        log "Installing apt packages: ${to_install[*]}"
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq "${to_install[@]}"
+    else
+        ok "APT packages already installed"
+    fi
+
+    # bat is installed as 'batcat' on Ubuntu, symlink it
+    if command -v batcat &>/dev/null && [ ! -e "$LOCAL_BIN/bat" ]; then
+        ln -s "$(command -v batcat)" "$LOCAL_BIN/bat"
+    fi
+}
+
+install_bat_themes() {
+    # Vendored Catppuccin bat themes (gitignored - fetched here). bat's config dir is
+    # stowed; drop the .tmTheme files in and rebuild the cache. The `theme` switcher
+    # selects them via BAT_THEME. Idempotent. Must run after stow_packages.
+    command -v bat &>/dev/null || return
+    local dir changed=0 t enc
+    dir="$(bat --config-dir)/themes"
+    mkdir -p "$dir"
+    for t in "Catppuccin Latte" "Catppuccin Mocha"; do
+        [ -f "$dir/$t.tmTheme" ] && continue
+        enc="${t// /%20}"
+        local url="https://raw.githubusercontent.com/catppuccin/bat/main/themes/${enc}.tmTheme"
+        if curl -sfL "$url" -o "$dir/$t.tmTheme"; then
+            changed=1
+        else
+            warn "Could not fetch bat theme: $t"
+            rm -f "$dir/$t.tmTheme"
+        fi
+    done
+    if [ "$changed" = 1 ]; then
+        bat cache --build >/dev/null 2>&1 || true
+    fi
+    ok "bat Catppuccin themes ready"
+}
+
+install_delta() {
+    if [ -x "$LOCAL_BIN/delta" ] && "$LOCAL_BIN/delta" --version 2>/dev/null | grep -q "$DELTA_VERSION"; then
+        ok "delta $DELTA_VERSION already installed"
+        return
+    fi
+    log "Installing delta $DELTA_VERSION..."
+    local url
+    url=$(gh_url dandavison/delta "${DELTA_VERSION}" \
+        "delta-${DELTA_VERSION}-x86_64-unknown-linux-musl.tar.gz")
+    local tmp
+    tmp=$(mktemp -d)
+    curl -sSL "$url" | tar xz -C "$tmp"
+    mv "$tmp/delta-${DELTA_VERSION}-x86_64-unknown-linux-musl/delta" "$LOCAL_BIN/delta"
+    chmod +x "$LOCAL_BIN/delta"
+    rm -rf "$tmp"
+    ok "delta $DELTA_VERSION installed"
+}
+
+install_dictate_deps() {
+    mkdir -p "$LOCAL_BIN"
+    # uv runs the PEP 723 dictate script. Unpinned (latest): opt-in convenience,
+    # self-updating, and tolerant of the script's inline deps.
+    if command -v uv &>/dev/null; then
+        ok "uv already installed"
+    else
+        log "Installing uv..."
+        curl -LsSf https://astral.sh/uv/install.sh |
+            env UV_INSTALL_DIR="$LOCAL_BIN" INSTALLER_NO_MODIFY_PATH=1 sh
+        ok "uv installed"
+    fi
+    # parec (record) + pactl (audio ducking), both from pulseaudio-utils. Absent
+    # on a fresh Ubuntu base, usually present on the desktop. Guarded = no-op when
+    # already there.
+    if command -v parec &>/dev/null && command -v pactl &>/dev/null; then
+        ok "parec/pactl already installed"
+    else
+        log "Installing pulseaudio-utils (parec + pactl)..."
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq pulseaudio-utils
+        ok "pulseaudio-utils installed"
+    fi
+}
+
+install_fd() {
+    if [ -x "$LOCAL_BIN/fd" ] && "$LOCAL_BIN/fd" --version 2>/dev/null | grep -q "$FD_VERSION"; then
+        ok "fd $FD_VERSION already installed"
+        return
+    fi
+    log "Installing fd $FD_VERSION..."
+    local url
+    url=$(gh_url sharkdp/fd "v${FD_VERSION}" "fd-v${FD_VERSION}-x86_64-unknown-linux-musl.tar.gz")
+    local tmp
+    tmp=$(mktemp -d)
+    curl -sSL "$url" | tar xz -C "$tmp"
+    mv "$tmp/fd-v${FD_VERSION}-x86_64-unknown-linux-musl/fd" "$LOCAL_BIN/fd"
+    chmod +x "$LOCAL_BIN/fd"
+    rm -rf "$tmp"
+    ok "fd $FD_VERSION installed"
+}
+
+install_fzf() {
+    if [ -x "$LOCAL_BIN/fzf" ] && "$LOCAL_BIN/fzf" --version 2>/dev/null | grep -q "$FZF_VERSION"; then
+        ok "fzf $FZF_VERSION already installed"
+        return
+    fi
+    log "Installing fzf $FZF_VERSION..."
+    local url
+    url=$(gh_url junegunn/fzf "v${FZF_VERSION}" "fzf-${FZF_VERSION}-linux_amd64.tar.gz")
+    curl -sSL "$url" | tar xz -C "$LOCAL_BIN" fzf
+    chmod +x "$LOCAL_BIN/fzf"
+    ok "fzf $FZF_VERSION installed"
+}
+
+install_ghostty() {
+    if command -v ghostty &>/dev/null; then
+        ok "Ghostty already installed"
+        return
+    fi
+    log "Installing Ghostty..."
+    if ! grep -rq mkasberg/ghostty-ubuntu /etc/apt/sources.list.d/ 2>/dev/null; then
+        sudo add-apt-repository -y ppa:mkasberg/ghostty-ubuntu
+        sudo apt-get update -qq
+    fi
+    sudo apt-get install -y -qq ghostty
+    ok "Ghostty installed"
+}
+
+install_git_cliff() {
+    if [ -x "$LOCAL_BIN/git-cliff" ] &&
+        "$LOCAL_BIN/git-cliff" --version 2>/dev/null | grep -q "$GIT_CLIFF_VERSION"; then
+        ok "git-cliff $GIT_CLIFF_VERSION already installed"
+        return
+    fi
+    log "Installing git-cliff $GIT_CLIFF_VERSION..."
+    local url
+    url=$(gh_url orhun/git-cliff "v${GIT_CLIFF_VERSION}" \
+        "git-cliff-${GIT_CLIFF_VERSION}-x86_64-unknown-linux-musl.tar.gz")
+    local tmp
+    tmp=$(mktemp -d)
+    curl -sSL "$url" | tar xz -C "$tmp"
+    mv "$tmp/git-cliff-${GIT_CLIFF_VERSION}/git-cliff" "$LOCAL_BIN/git-cliff"
+    chmod +x "$LOCAL_BIN/git-cliff"
+    rm -rf "$tmp"
+    ok "git-cliff $GIT_CLIFF_VERSION installed"
+}
+
+install_gitleaks() {
+    if [ -x "$LOCAL_BIN/gitleaks" ] && "$LOCAL_BIN/gitleaks" version 2>/dev/null | grep -q "$GITLEAKS_VERSION"; then
+        ok "gitleaks $GITLEAKS_VERSION already installed"
+        return
+    fi
+    log "Installing gitleaks $GITLEAKS_VERSION..."
+    local url
+    url=$(gh_url gitleaks/gitleaks "v${GITLEAKS_VERSION}" "gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz")
+    local tmp
+    tmp=$(mktemp -d)
+    curl -sSL "$url" | tar xz -C "$tmp"
+    mv "$tmp/gitleaks" "$LOCAL_BIN/gitleaks"
+    chmod +x "$LOCAL_BIN/gitleaks"
+    rm -rf "$tmp"
+    ok "gitleaks $GITLEAKS_VERSION installed"
+}
+
+install_gitmux() {
+    if [ -x "$LOCAL_BIN/gitmux" ] && [ -f "$LOCAL_BIN/.gitmux-version" ] &&
+        grep -q "$GITMUX_VERSION" "$LOCAL_BIN/.gitmux-version"; then
+        ok "gitmux $GITMUX_VERSION already installed"
+        return
+    fi
+    log "Installing gitmux $GITMUX_VERSION..."
+    local url
+    url=$(gh_url arl/gitmux "v${GITMUX_VERSION}" "gitmux_v${GITMUX_VERSION}_linux_amd64.tar.gz")
+    local tmp
+    tmp=$(mktemp -d)
+    curl -sSL "$url" | tar xz -C "$tmp"
+    mv "$tmp/gitmux" "$LOCAL_BIN/gitmux"
+    chmod +x "$LOCAL_BIN/gitmux"
+    echo "$GITMUX_VERSION" >"$LOCAL_BIN/.gitmux-version"
+    rm -rf "$tmp"
+    ok "gitmux $GITMUX_VERSION installed"
+}
+
+install_go() {
+    if [ -x "$LOCAL_BIN/go" ] && "$LOCAL_BIN/go" version 2>/dev/null | grep -q "go${GO_VERSION} "; then
+        ok "Go $GO_VERSION already installed"
+        return
+    fi
+    log "Installing Go $GO_VERSION..."
+    rm -rf "$HOME/.local/go"
+    local url="https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz"
+    local tmp
+    tmp=$(mktemp -d)
+    curl -sSL "$url" | tar xz -C "$tmp"
+    mv "$tmp/go" "$HOME/.local/go"
+    ln -sf "$HOME/.local/go/bin/go" "$LOCAL_BIN/go"
+    ln -sf "$HOME/.local/go/bin/gofmt" "$LOCAL_BIN/gofmt"
+    rm -rf "$tmp"
+    ok "Go $GO_VERSION installed"
+}
+
+install_hunk() {
+    if [ -x "$LOCAL_BIN/hunk" ] && "$LOCAL_BIN/hunk" --version 2>/dev/null | grep -q "$HUNK_VERSION"; then
+        ok "hunk $HUNK_VERSION already installed"
+    else
+        log "Installing hunk $HUNK_VERSION..."
+        npm install -g --prefix "$HOME/.local" "hunkdiff@$HUNK_VERSION"
+        ok "hunk $HUNK_VERSION installed"
+    fi
+
+    # Expose hunk's bundled Claude Code review skill as a user skill, so agents
+    # can drive a live hunk review session. Symlinked (not copied) so it tracks
+    # the installed hunk version. Runs on every bootstrap, install or not.
+    local skill_md
+    skill_md="$("$LOCAL_BIN/hunk" skill path 2>/dev/null)" || return 0
+    if [ -f "$skill_md" ]; then
+        mkdir -p "$HOME/.claude/skills"
+        ln -sfn "$(dirname "$skill_md")" "$HOME/.claude/skills/hunk-review"
+        ok "hunk-review Claude skill linked"
+    fi
+}
+
+install_lazydocker() {
+    if [ -x "$LOCAL_BIN/lazydocker" ] &&
+        "$LOCAL_BIN/lazydocker" --version 2>/dev/null | grep -q "$LAZYDOCKER_VERSION"; then
+        ok "lazydocker $LAZYDOCKER_VERSION already installed"
+        return
+    fi
+    log "Installing lazydocker $LAZYDOCKER_VERSION..."
+    local url
+    url=$(gh_url jesseduffield/lazydocker "v${LAZYDOCKER_VERSION}" \
+        "lazydocker_${LAZYDOCKER_VERSION}_Linux_x86_64.tar.gz")
+    local tmp
+    tmp=$(mktemp -d)
+    curl -sSL "$url" | tar xz -C "$tmp"
+    mv "$tmp/lazydocker" "$LOCAL_BIN/lazydocker"
+    chmod +x "$LOCAL_BIN/lazydocker"
+    rm -rf "$tmp"
+    ok "lazydocker $LAZYDOCKER_VERSION installed"
+}
+
+install_lazygit() {
+    if [ -x "$LOCAL_BIN/lazygit" ] && "$LOCAL_BIN/lazygit" --version 2>/dev/null | grep -q "$LAZYGIT_VERSION"; then
+        ok "lazygit $LAZYGIT_VERSION already installed"
+        return
+    fi
+    log "Installing lazygit $LAZYGIT_VERSION..."
+    local url
+    url=$(gh_url jesseduffield/lazygit "v${LAZYGIT_VERSION}" \
+        "lazygit_${LAZYGIT_VERSION}_Linux_x86_64.tar.gz")
+    local tmp
+    tmp=$(mktemp -d)
+    curl -sSL "$url" | tar xz -C "$tmp"
+    mv "$tmp/lazygit" "$LOCAL_BIN/lazygit"
+    chmod +x "$LOCAL_BIN/lazygit"
+    rm -rf "$tmp"
+    ok "lazygit $LAZYGIT_VERSION installed"
+}
+
+install_neovim() {
+    if [ -x "$LOCAL_BIN/nvim" ] && "$LOCAL_BIN/nvim" --version 2>/dev/null | grep -q "v${NEOVIM_VERSION}"; then
+        ok "neovim $NEOVIM_VERSION already installed"
+        return
+    fi
+    log "Installing neovim $NEOVIM_VERSION..."
+    rm -rf "$HOME/.local/nvim"
+    local url
+    url=$(gh_url neovim/neovim "v${NEOVIM_VERSION}" nvim-linux-x86_64.tar.gz)
+    local tmp
+    tmp=$(mktemp -d)
+    curl -sSL "$url" | tar xz -C "$tmp"
+    mv "$tmp"/nvim-linux-x86_64 "$HOME/.local/nvim"
+    ln -sf "$HOME/.local/nvim/bin/nvim" "$LOCAL_BIN/nvim"
+    rm -rf "$tmp"
+    ok "neovim $NEOVIM_VERSION installed"
+}
+
+install_nerd_font() {
+    local font_dir="$HOME/.local/share/fonts"
+    if [ -f "$font_dir/.nerd-font-version" ] && grep -q "$NERD_FONT_VERSION" "$font_dir/.nerd-font-version"; then
+        ok "JetBrainsMono Nerd Font $NERD_FONT_VERSION already installed"
+        return
+    fi
+    log "Installing JetBrainsMono Nerd Font $NERD_FONT_VERSION..."
+    mkdir -p "$font_dir"
+    local tmp
+    tmp=$(mktemp -d)
+    local url
+    url=$(gh_url ryanoasis/nerd-fonts "v${NERD_FONT_VERSION}" JetBrainsMono.tar.xz)
+    curl -sSL "$url" -o "$tmp/JetBrainsMono.tar.xz"
+    tar xf "$tmp/JetBrainsMono.tar.xz" -C "$font_dir"
+    fc-cache -fv "$font_dir" >/dev/null 2>&1
+    echo "$NERD_FONT_VERSION" >"$font_dir/.nerd-font-version"
+    rm -rf "$tmp"
+    ok "JetBrainsMono Nerd Font $NERD_FONT_VERSION installed"
+}
+
+install_nodejs() {
+    if command -v node &>/dev/null && node --version | grep -q '^v24\.'; then
+        ok "Node.js 24.x already installed"
+        return
+    fi
+    log "Installing Node.js 24.x via NodeSource..."
+    # Remove Ubuntu's outdated nodejs/npm if present
+    sudo apt-get remove -y -qq nodejs npm 2>/dev/null || true
+    curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
+    sudo apt-get install -y -qq nodejs
+    ok "Node.js $(node --version) / npm $(npm --version) installed"
+}
+
+install_nvim_plugins() {
+    # Pre-install plugins headlessly so the first interactive launch is ready.
+    # Must run after the nvim config is stowed. Idempotent: `install` only
+    # fetches missing plugins, `restore` pins them to the committed lazy-lock.json.
+    if [ ! -x "$LOCAL_BIN/nvim" ]; then
+        return
+    fi
+    log "Installing Neovim plugins (headless)..."
+    timeout 300 "$LOCAL_BIN/nvim" --headless "+Lazy! install" "+Lazy! restore" +qa >/dev/null 2>&1 || true
+    ok "Neovim plugins installed"
+}
+
+install_ruff() {
+    if [ -x "$LOCAL_BIN/ruff" ] && "$LOCAL_BIN/ruff" --version 2>/dev/null | grep -q "$RUFF_VERSION"; then
+        ok "ruff $RUFF_VERSION already installed"
+        return
+    fi
+    log "Installing ruff $RUFF_VERSION..."
+    local url="https://github.com/astral-sh/ruff/releases/download/${RUFF_VERSION}/ruff-x86_64-unknown-linux-gnu.tar.gz"
+    local tmp
+    tmp=$(mktemp -d)
+    curl -sSL "$url" | tar xz -C "$tmp"
+    mv "$tmp/ruff-x86_64-unknown-linux-gnu/ruff" "$LOCAL_BIN/ruff"
+    chmod +x "$LOCAL_BIN/ruff"
+    rm -rf "$tmp"
+    ok "ruff $RUFF_VERSION installed"
+}
+
+install_shellcheck() {
+    if [ -x "$LOCAL_BIN/shellcheck" ] &&
+        "$LOCAL_BIN/shellcheck" --version 2>/dev/null | grep -q "$SHELLCHECK_VERSION"; then
+        ok "shellcheck $SHELLCHECK_VERSION already installed"
+        return
+    fi
+    log "Installing shellcheck $SHELLCHECK_VERSION..."
+    local url
+    url=$(gh_url koalaman/shellcheck "v${SHELLCHECK_VERSION}" \
+        "shellcheck-v${SHELLCHECK_VERSION}.linux.x86_64.tar.xz")
+    local tmp
+    tmp=$(mktemp -d)
+    curl -sSL "$url" | tar xJ -C "$tmp"
+    mv "$tmp/shellcheck-v${SHELLCHECK_VERSION}/shellcheck" "$LOCAL_BIN/shellcheck"
+    chmod +x "$LOCAL_BIN/shellcheck"
+    rm -rf "$tmp"
+    ok "shellcheck $SHELLCHECK_VERSION installed"
+}
+
+install_shfmt() {
+    if [ -x "$LOCAL_BIN/shfmt" ] && "$LOCAL_BIN/shfmt" --version 2>/dev/null | grep -q "$SHFMT_VERSION"; then
+        ok "shfmt $SHFMT_VERSION already installed"
+        return
+    fi
+    log "Installing shfmt $SHFMT_VERSION..."
+    curl -sSL -o "$LOCAL_BIN/shfmt" \
+        "https://github.com/mvdan/sh/releases/download/v${SHFMT_VERSION}/shfmt_v${SHFMT_VERSION}_linux_amd64"
+    chmod +x "$LOCAL_BIN/shfmt"
+    ok "shfmt $SHFMT_VERSION installed"
+}
+
+install_task() {
+    if [ -x "$LOCAL_BIN/task" ] && "$LOCAL_BIN/task" --version 2>/dev/null | grep -q "$TASK_VERSION"; then
+        ok "task $TASK_VERSION already installed"
+        return
+    fi
+    log "Installing task $TASK_VERSION..."
+    local url
+    url=$(gh_url go-task/task "v${TASK_VERSION}" task_linux_amd64.tar.gz)
+    local tmp
+    tmp=$(mktemp -d)
+    curl -sSL "$url" | tar xz -C "$tmp"
+    mv "$tmp/task" "$LOCAL_BIN/task"
+    chmod +x "$LOCAL_BIN/task"
+    rm -rf "$tmp"
+    ok "task $TASK_VERSION installed"
+}
+
+install_tmux() {
+    if [ -x "$LOCAL_BIN/tmux" ] && "$LOCAL_BIN/tmux" -V 2>/dev/null | grep -q "tmux $TMUX_VERSION"; then
+        ok "tmux $TMUX_VERSION already installed"
+        return
+    fi
+    log "Building tmux $TMUX_VERSION from source..."
+    local url tmp
+    url=$(gh_url tmux/tmux "$TMUX_VERSION" "tmux-${TMUX_VERSION}.tar.gz")
+    tmp=$(mktemp -d)
+    curl -sSL "$url" | tar xz -C "$tmp"
+    (cd "$tmp/tmux-${TMUX_VERSION}" && ./configure --prefix="$HOME/.local" >/dev/null &&
+        make -j"$(nproc)" >/dev/null && make install >/dev/null)
+    rm -rf "$tmp"
+    ok "tmux $TMUX_VERSION installed"
+}
+
+install_tpm() {
+    local tpm_dir="$HOME/.tmux/plugins/tpm"
+    if [ -d "$tpm_dir" ]; then
+        ok "TPM already installed"
+        return
+    fi
+    log "Installing TPM..."
+    git clone https://github.com/tmux-plugins/tpm "$tpm_dir"
+    ok "TPM installed - run 'prefix + I' in tmux to install plugins"
+}
+
+install_yazi() {
+    if [ -x "$LOCAL_BIN/yazi" ] && "$LOCAL_BIN/yazi" --version 2>/dev/null | grep -q "$YAZI_VERSION"; then
+        ok "yazi $YAZI_VERSION already installed"
+        return
+    fi
+    log "Installing yazi $YAZI_VERSION..."
+    local url
+    url=$(gh_url sxyazi/yazi "v${YAZI_VERSION}" yazi-x86_64-unknown-linux-gnu.zip)
+    local tmp
+    tmp=$(mktemp -d)
+    curl -sSL "$url" -o "$tmp/yazi.zip"
+    unzip -o "$tmp/yazi.zip" -d "$tmp" >/dev/null
+    mv "$tmp/yazi-x86_64-unknown-linux-gnu/yazi" "$LOCAL_BIN/yazi"
+    mv "$tmp/yazi-x86_64-unknown-linux-gnu/ya" "$LOCAL_BIN/ya"
+    chmod +x "$LOCAL_BIN/yazi" "$LOCAL_BIN/ya"
+    rm -rf "$tmp"
+    ok "yazi $YAZI_VERSION installed"
+}
+
+install_zoxide() {
+    if [ -x "$LOCAL_BIN/zoxide" ] && "$LOCAL_BIN/zoxide" --version 2>/dev/null | grep -q "$ZOXIDE_VERSION"; then
+        ok "zoxide $ZOXIDE_VERSION already installed"
+        return
+    fi
+    log "Installing zoxide $ZOXIDE_VERSION..."
+    local url
+    url=$(gh_url ajeetdsouza/zoxide "v${ZOXIDE_VERSION}" \
+        "zoxide-${ZOXIDE_VERSION}-x86_64-unknown-linux-musl.tar.gz")
+    local tmp
+    tmp=$(mktemp -d)
+    curl -sSL "$url" | tar xz -C "$tmp"
+    mv "$tmp/zoxide" "$LOCAL_BIN/zoxide"
+    chmod +x "$LOCAL_BIN/zoxide"
+    rm -rf "$tmp"
+    ok "zoxide $ZOXIDE_VERSION installed"
+}
+
+# Everything `task check` needs. Kept here, not in the workflows, so CI installs
+# with the same code and the same pins a developer machine does.
+gate_tools() {
+    install_apt_packages
+    install_git_cliff
+    install_gitleaks
+    install_ruff
+    install_shellcheck
+    install_shfmt
+    install_task
+    install_tmux
+}
+
+# Every tool, in dependency order (node before hunk, which installs via npm).
+all_tools() {
+    install_apt_packages
+    install_nodejs
+    install_delta
+    install_fd
+    install_fzf
+    install_ghostty
+    install_git_cliff
+    install_gitleaks
+    install_gitmux
+    install_go
+    install_hunk
+    install_lazydocker
+    install_lazygit
+    install_neovim
+    install_nerd_font
+    install_ruff
+    install_shellcheck
+    install_shfmt
+    install_task
+    install_tmux
+    install_tpm
+    install_yazi
+    install_zoxide
+}
+
+run_step() {
+    case $1 in
+        all) all_tools ;;
+        gate-tools) gate_tools ;;
+        dictate-deps) install_dictate_deps ;;
+        install_*)
+            declare -F "$1" >/dev/null || {
+                warn "no such step: $1"
+                exit 2
+            }
+            "$1"
+            ;;
+        *)
+            warn "unknown step: $1"
+            exit 2
+            ;;
+    esac
+}
+
+usage() {
+    echo "usage: ./install.sh <step>...   (all | gate-tools | dictate-deps | install_*)"
+    echo "steps:"
+    declare -F | awk '{print $3}' | grep '^install_' | sed 's/^/  /'
+}
+
+# ~/.local/bin isn't on a fresh machine's PATH yet; put it there so this run's
+# `command -v` guards and the Go build see what we install.
+mkdir -p "$LOCAL_BIN"
+export PATH="$LOCAL_BIN:$PATH"
+
+# CLI only when executed directly - bootstrap.sh sources this file.
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+    [ $# -gt 0 ] || {
+        usage
+        exit 0
+    }
+    for step in "$@"; do run_step "$step"; done
+fi

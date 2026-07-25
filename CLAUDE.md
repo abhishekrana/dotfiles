@@ -39,6 +39,26 @@ way: `build_apps` loops over `apps/*/` running `make build`, and the toolchain g
   `claude/.claude/settings.json` invoke its binary at `$HOME/dotfiles/apps/agentbar/bin/agentbar`. It has its own nested
   `CLAUDE.md` - read that before touching the code.
 
+## Installing software
+
+`install.sh` is the only thing in this repo that downloads a tool, and it holds every version pin. It doubles as a small
+CLI so CI installs with the same code a machine does - no duplicated download logic in the workflows:
+
+```sh
+./install.sh                 # list the steps
+./install.sh all             # every tool (bootstrap.sh calls this)
+./install.sh gate-tools      # just what `task check` needs (CI calls this)
+./install.sh install_tmux     # one step by name
+./install.sh dictate-deps    # uv + pulseaudio-utils, opt-in
+```
+
+`bootstrap.sh` sources it and adds the machine wiring: stow, the `.bashrc` patch, the vaults, the resurrect timer and
+`apps/` builds. Steps that need the stowed configs in place (`install_bat_themes`, `install_nvim_plugins`) run after
+`stow_packages`.
+
+**tmux is pinned and built from source.** Ubuntu 24.04 ships 3.4, and the sidebar's e2e suite fails 8 tests on it - one
+version everywhere instead of supporting old ones.
+
 ## Release furniture
 
 - `Taskfile.yml` - the routine tasks; `task check` is the gate (see "Tasks" below)
