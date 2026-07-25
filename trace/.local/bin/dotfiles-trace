@@ -11,6 +11,7 @@
 #   dotfiles-trace log <src> <evt> [k=v ...]   append one logfmt record
 #   dotfiles-trace tail [-f]                    last 100 lines (-f follows)
 #   dotfiles-trace show [--since T] [--src X] [--grep P]
+#       T: an age (30s, 5m, 2h, 1d) or any date GNU date takes ("09:00", "yesterday")
 #   dotfiles-trace path                         print the log file path
 #   dotfiles-trace clear                        truncate the log (+ rotation)
 #
@@ -74,8 +75,26 @@ cmd_tail() {
   esac
 }
 
+# Resolve a --since value to a log timestamp. Compact ages MUST be rewritten:
+# `date -d 5m` does not mean "5 minutes ago" - GNU date reads it as 05:00 in
+# military timezone M, silently yielding an unrelated instant (and `30s` is
+# invalid outright). Anything else is handed to date as-is.
+since_ts() {
+  local v=$1 n
+  if [[ $v =~ ^([0-9]+)[[:space:]]*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)$ ]]; then
+    n=${BASH_REMATCH[1]}
+    case ${BASH_REMATCH[2]} in
+      s*) v="$n seconds ago" ;;
+      m*) v="$n minutes ago" ;;
+      h*) v="$n hours ago" ;;
+      d*) v="$n days ago" ;;
+    esac
+  fi
+  date -d "$v" '+%Y-%m-%dT%H:%M:%S.%3N' 2>/dev/null
+}
+
 cmd_show() {
-  local since="" src="" pat=""
+  local since="" src="" pat="" cutoff=""
   while [ $# -gt 0 ]; do
     case $1 in
       --since) since=${2:-}; shift 2 ;;
@@ -84,13 +103,19 @@ cmd_show() {
       *) shift ;;
     esac
   done
+  # Fail loudly on an unparseable age: silently showing the WHOLE log instead
+  # of the asked-for window is how a stale line gets read as a fresh one.
+  if [ -n "$since" ]; then
+    cutoff=$(since_ts "$since")
+    [ -n "$cutoff" ] || {
+      echo "dotfiles-trace: unrecognized --since '$since' (try 30s, 5m, 2h, 1d, or a date)" >&2
+      exit 2
+    }
+  fi
   { [ -f "$LOG.1" ] && cat "$LOG.1"; [ -f "$LOG" ] && cat "$LOG"; } 2>/dev/null \
     | { [ -n "$src" ] && grep -F "src=$src " || cat; } \
     | { [ -n "$pat" ] && grep -- "$pat" || cat; } \
-    | { if [ -n "$since" ]; then
-          t=$(date -d "$since" '+%Y-%m-%dT%H:%M:%S.%3N' 2>/dev/null)
-          [ -n "$t" ] && awk -v t="ts=$t" '$1 >= t' || cat
-        else cat; fi; }
+    | { if [ -n "$cutoff" ]; then awk -v t="ts=$cutoff" '$1 >= t'; else cat; fi; }
 }
 
 case ${1:-} in
@@ -99,5 +124,7 @@ case ${1:-} in
   show)  shift; cmd_show "$@" ;;
   path)  printf '%s\n' "$LOG" ;;
   clear) : > "$LOG" 2>/dev/null; rm -f "$LOG.1" 2>/dev/null ;;
-  *) sed -n '3,20p' "$0" | sed 's/^# \{0,1\}//' ;;
+  # Usage is the header comment block: print from line 3 to the first
+  # non-comment line, so adding a doc line never leaks code into --help.
+  *) awk 'NR>2 { if (!/^#/) exit; sub(/^# ?/, ""); print }' "$0" ;;
 esac
