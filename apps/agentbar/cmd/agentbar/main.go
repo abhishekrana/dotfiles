@@ -8,6 +8,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -116,6 +118,27 @@ func runDoctor() {
 		doctor.ParseHealth(traceHook("1h")),
 		time.Now().Unix(),
 	))
+
+	sidebarsOut, _ := tmux.Exec{}.Run("list-panes", "-a", "-F", doctor.SidebarFormat)
+	option, _ := tmux.Exec{}.Run("show-option", "-gqv", "@agentbar-theme")
+	fmt.Print(doctor.RenderTheme(doctor.Theme{
+		Configured: configuredTheme(),
+		Option:     option,
+		Sidebars:   doctor.ParseSidebars(sidebarsOut),
+	}))
+}
+
+// configuredTheme reads the flavor the `theme` switcher persisted.
+func configuredTheme() string {
+	dir := os.Getenv("XDG_CONFIG_HOME")
+	if dir == "" {
+		dir = filepath.Join(os.Getenv("HOME"), ".config")
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "theme", "current"))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
 }
 
 // traceHook returns recent `src=hook` lines via the dotfiles-trace CLI (the

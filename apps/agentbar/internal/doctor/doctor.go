@@ -134,6 +134,97 @@ func Render(panes []Pane, h Health, now int64) string {
 	return b.String()
 }
 
+// SidebarPane is one running sidebar and the flavor it was launched with.
+type SidebarPane struct{ Session, ID, Theme string }
+
+// SidebarFormat is the tab-separated list-panes format ParseSidebars expects.
+const SidebarFormat = "#{session_name}\t#{pane_id}\t#{pane_current_command}\t#{pane_start_command}"
+
+// Theme is one flavor as each of its three stores sees it.
+type Theme struct {
+	Configured string // ~/.config/theme/current - the persisted choice
+	Option     string // @agentbar-theme - what the next sidebar will launch with
+	Sidebars   []SidebarPane
+}
+
+// ParseSidebars keeps panes running the sidebar and reads back the --theme they
+// were started with. Liveness is pane_current_command == agentbar, as elsewhere.
+func ParseSidebars(out string) []SidebarPane {
+	var panes []SidebarPane
+	for ln := range strings.SplitSeq(strings.TrimRight(out, "\n"), "\n") {
+		f := strings.Split(ln, "\t")
+		if len(f) < 4 || f[2] != "agentbar" {
+			continue
+		}
+		panes = append(panes, SidebarPane{Session: f[0], ID: f[1], Theme: themeFlag(f[3])})
+	}
+	return panes
+}
+
+// themeFlag returns the --theme value in a pane's start command, which tmux
+// reports quoted.
+func themeFlag(cmd string) string {
+	_, after, found := strings.Cut(cmd, "--theme")
+	if !found {
+		return ""
+	}
+	v := strings.TrimLeft(after, " =")
+	if j := strings.IndexAny(v, " \""); j >= 0 {
+		v = v[:j]
+	}
+	return v
+}
+
+// RenderTheme reports flavor drift. A sidebar bakes --theme into its pane at
+// spawn and reads the option only then, so the option reaches a running sidebar
+// only on restart, and anything setting the option directly bypasses the file.
+func RenderTheme(t Theme) string {
+	var b strings.Builder
+	b.WriteString("\nTheme\n")
+	fmt.Fprintf(&b, "  configured  %-17s ~/.config/theme/current\n", orDash(t.Configured))
+	fmt.Fprintf(&b, "  option      %-17s @agentbar-theme (the next sidebar's flavor)\n", orDash(t.Option))
+	fmt.Fprintf(&b, "  sidebars    %s\n", tally(t.Sidebars))
+
+	drift := false
+	if t.Configured != "" && t.Option != "" && t.Configured != t.Option {
+		drift = true
+		fmt.Fprintf(&b, "  ✗ option ≠ configured — set outside `theme`; fix: theme %s\n", t.Configured)
+	}
+	stale := 0
+	for _, s := range t.Sidebars {
+		if t.Option != "" && s.Theme != t.Option {
+			stale++
+		}
+	}
+	if stale > 0 {
+		drift = true
+		fmt.Fprintf(&b, "  ⚠ %d sidebar(s) render an older flavor — restart: prefix + e twice\n", stale)
+	}
+	if !drift {
+		b.WriteString("  ✓ in sync\n")
+	}
+	return b.String()
+}
+
+// tally counts sidebars per flavor, in first-seen order.
+func tally(panes []SidebarPane) string {
+	counts, order := map[string]int{}, []string{}
+	for _, p := range panes {
+		if counts[p.Theme] == 0 {
+			order = append(order, p.Theme)
+		}
+		counts[p.Theme]++
+	}
+	if len(order) == 0 {
+		return "none running"
+	}
+	parts := make([]string, 0, len(order))
+	for _, th := range order {
+		parts = append(parts, fmt.Sprintf("%d × %s", counts[th], orDash(th)))
+	}
+	return strings.Join(parts, ", ")
+}
+
 func orDash(s string) string {
 	if s == "" {
 		return "-"

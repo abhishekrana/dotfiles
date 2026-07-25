@@ -81,3 +81,88 @@ func TestRenderClean(t *testing.T) {
 		t.Errorf("clean summary wrong:\n%s", out)
 	}
 }
+
+func TestParseSidebars(t *testing.T) {
+	// Real list-panes output: tmux reports pane_start_command quoted.
+	out := strings.Join([]string{
+		"web\t%1\tagentbar\t\"/home/u/dotfiles/apps/agentbar/bin/agentbar run --theme catppuccin-mocha\"",
+		"web\t%2\tclaude\t\"claude\"",
+		"api\t%3\tagentbar\t\"/home/u/dotfiles/apps/agentbar/bin/agentbar run --theme solarized-light\"",
+		"api\t%4\tagentbar\t\"/home/u/dotfiles/apps/agentbar/bin/agentbar run\"",
+	}, "\n")
+	got := ParseSidebars(out)
+	want := []SidebarPane{
+		{Session: "web", ID: "%1", Theme: "catppuccin-mocha"},
+		{Session: "api", ID: "%3", Theme: "solarized-light"},
+		{Session: "api", ID: "%4", Theme: ""},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %d sidebars, want %d: %+v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("sidebar %d: got %+v want %+v", i, got[i], want[i])
+		}
+	}
+}
+
+// The drift that actually happened: @agentbar-theme was set outside `theme`, so
+// the file and the option disagreed and a restart silently repainted the sidebar.
+func TestRenderThemeOptionSetOutsideSwitcher(t *testing.T) {
+	out := RenderTheme(Theme{
+		Configured: "solarized-light",
+		Option:     "catppuccin-mocha",
+		Sidebars:   []SidebarPane{{Session: "web", ID: "%1", Theme: "catppuccin-mocha"}},
+	})
+	if !strings.Contains(out, "option ≠ configured") {
+		t.Errorf("drift between file and option not reported:\n%s", out)
+	}
+	if !strings.Contains(out, "theme solarized-light") {
+		t.Errorf("remedy must name the configured flavor:\n%s", out)
+	}
+	if strings.Contains(out, "in sync") {
+		t.Errorf("must not claim in sync:\n%s", out)
+	}
+}
+
+// After `theme` fixes the option, running sidebars still render the old flavor
+// until they are restarted - the state the user is left in mid-fix.
+func TestRenderThemeStaleSidebars(t *testing.T) {
+	out := RenderTheme(Theme{
+		Configured: "solarized-light",
+		Option:     "solarized-light",
+		Sidebars: []SidebarPane{
+			{Session: "web", ID: "%1", Theme: "catppuccin-mocha"},
+			{Session: "api", ID: "%3", Theme: "catppuccin-mocha"},
+			{Session: "db", ID: "%5", Theme: "solarized-light"},
+		},
+	})
+	if !strings.Contains(out, "2 sidebar(s) render an older flavor") {
+		t.Errorf("stale sidebars not counted:\n%s", out)
+	}
+	if !strings.Contains(out, "prefix + e twice") {
+		t.Errorf("remedy missing:\n%s", out)
+	}
+	if strings.Contains(out, "option ≠ configured") {
+		t.Errorf("file and option agree; must not flag them:\n%s", out)
+	}
+}
+
+func TestRenderThemeInSync(t *testing.T) {
+	out := RenderTheme(Theme{
+		Configured: "solarized-light",
+		Option:     "solarized-light",
+		Sidebars:   []SidebarPane{{Session: "web", ID: "%1", Theme: "solarized-light"}},
+	})
+	if !strings.Contains(out, "✓ in sync") {
+		t.Errorf("clean state should report in sync:\n%s", out)
+	}
+}
+
+// No sidebar running is not drift; nothing can be stale.
+func TestRenderThemeNoSidebars(t *testing.T) {
+	out := RenderTheme(Theme{Configured: "solarized-light", Option: "solarized-light"})
+	if !strings.Contains(out, "none running") || !strings.Contains(out, "✓ in sync") {
+		t.Errorf("no sidebars should be in sync:\n%s", out)
+	}
+}
