@@ -7,6 +7,18 @@ This repo stays on **0.x** by choice. Pre-1.0 SemVer puts the breaking signal on
 manual steps on the machine - a re-login, a re-stow, a GNOME shortcut, a systemd unit - bumps **0.x** and says which;
 PATCH is for everything else.
 
+## [0.1.1] - 2026-07-25
+
+### Changed
+
+- **install**: Extract install.sh so CI installs the way a machine does (d3b48ad)
+
+### Fixed
+
+- **agentbar**: Keep CI out of the e2e environment so the sidebar renders colour (a0c64b0)
+- **agentbar**: Force a UTF-8 locale on tmux calls that parse tabs (8c37c3d)
+- **ci**: Build the pinned tmux instead of using Ubuntu's 3.4 (0482b8e)
+
 ## [0.1.0] - 2026-07-25
 
 First tagged snapshot of a repo that had been running untagged since 2026-03-14. Written by hand: the history predates
