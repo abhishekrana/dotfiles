@@ -1,0 +1,50 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Same versions a dev machine uses, rather than pinning them twice.
+      - name: Read pinned tool versions
+        run: grep -E '^(GITLEAKS|RUFF|SHELLCHECK|SHFMT|TASK)_VERSION=' bootstrap.sh | tr -d '"' >> "$GITHUB_ENV"
+
+      - name: Install the gate tools
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          curl -sSL "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" \
+            | tar xJ -C /tmp
+          mv "/tmp/shellcheck-v${SHELLCHECK_VERSION}/shellcheck" "$HOME/.local/bin/"
+          curl -sSL -o "$HOME/.local/bin/shfmt" \
+            "https://github.com/mvdan/sh/releases/download/v${SHFMT_VERSION}/shfmt_v${SHFMT_VERSION}_linux_amd64"
+          curl -sSL "https://github.com/go-task/task/releases/download/v${TASK_VERSION}/task_linux_amd64.tar.gz" \
+            | tar xz -C /tmp task
+          mv /tmp/task "$HOME/.local/bin/"
+          curl -sSL "https://github.com/astral-sh/ruff/releases/download/${RUFF_VERSION}/ruff-x86_64-unknown-linux-gnu.tar.gz" \
+            | tar xz -C /tmp
+          mv /tmp/ruff-x86_64-unknown-linux-gnu/ruff "$HOME/.local/bin/"
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar xz -C /tmp gitleaks
+          mv /tmp/gitleaks "$HOME/.local/bin/"
+          chmod +x "$HOME/.local/bin"/*
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/agentbar/go.mod
+
+      # The agentbar e2e suite drives real tmux servers on private sockets.
+      - name: Install tmux
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq tmux
+
+      - name: task check
+        run: task check

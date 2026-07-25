@@ -9,6 +9,7 @@ DELTA_VERSION="0.19.2"
 FD_VERSION="10.4.2"
 FZF_VERSION="0.74.1"
 GIT_CLIFF_VERSION="2.13.1"
+GITLEAKS_VERSION="8.30.1"
 GITMUX_VERSION="0.11.5"
 GO_VERSION="1.26.5"
 HUNK_VERSION="0.17.6"
@@ -16,6 +17,7 @@ LAZYDOCKER_VERSION="0.25.2"
 LAZYGIT_VERSION="0.63.1"
 NEOVIM_VERSION="0.12.4"
 NERD_FONT_VERSION="3.4.0"
+RUFF_VERSION="0.16.0"
 SHELLCHECK_VERSION="0.11.0"
 SHFMT_VERSION="3.13.1"
 TASK_VERSION="3.52.0"
@@ -117,8 +119,7 @@ install_fzf() {
     ok "fzf $FZF_VERSION installed"
 }
 
-# Generates CHANGELOG.md and the release notes from conventional commits.
-# Needed locally to cut a release; the release workflow installs its own copy.
+# Generates CHANGELOG.md and release notes from conventional commits.
 install_git_cliff() {
     if [ -x "$LOCAL_BIN/git-cliff" ] && "$LOCAL_BIN/git-cliff" --version 2>/dev/null | grep -q "$GIT_CLIFF_VERSION"; then
         ok "git-cliff $GIT_CLIFF_VERSION already installed"
@@ -133,6 +134,23 @@ install_git_cliff() {
     chmod +x "$LOCAL_BIN/git-cliff"
     rm -rf "$tmp"
     ok "git-cliff $GIT_CLIFF_VERSION installed"
+}
+
+# Scans the tree and full history for credentials; this repo is public.
+install_gitleaks() {
+    if [ -x "$LOCAL_BIN/gitleaks" ] && "$LOCAL_BIN/gitleaks" version 2>/dev/null | grep -q "$GITLEAKS_VERSION"; then
+        ok "gitleaks $GITLEAKS_VERSION already installed"
+        return
+    fi
+    log "Installing gitleaks $GITLEAKS_VERSION..."
+    local url="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+    local tmp
+    tmp=$(mktemp -d)
+    curl -sSL "$url" | tar xz -C "$tmp"
+    mv "$tmp/gitleaks" "$LOCAL_BIN/gitleaks"
+    chmod +x "$LOCAL_BIN/gitleaks"
+    rm -rf "$tmp"
+    ok "gitleaks $GITLEAKS_VERSION installed"
 }
 
 install_gitmux() {
@@ -241,9 +259,25 @@ install_neovim() {
     ok "neovim $NEOVIM_VERSION installed"
 }
 
-# The release gate runs this linter. Pinned rather than taken from apt, which
-# lags: 24.04 ships 0.9.0. NB a comment line whose first word is the linter's
-# own name is read as a directive and fails to parse - so don't start one that way.
+# Lints the one Python script (dictate) for real bugs, not style.
+install_ruff() {
+    if [ -x "$LOCAL_BIN/ruff" ] && "$LOCAL_BIN/ruff" --version 2>/dev/null | grep -q "$RUFF_VERSION"; then
+        ok "ruff $RUFF_VERSION already installed"
+        return
+    fi
+    log "Installing ruff $RUFF_VERSION..."
+    local url="https://github.com/astral-sh/ruff/releases/download/${RUFF_VERSION}/ruff-x86_64-unknown-linux-gnu.tar.gz"
+    local tmp
+    tmp=$(mktemp -d)
+    curl -sSL "$url" | tar xz -C "$tmp"
+    mv "$tmp/ruff-x86_64-unknown-linux-gnu/ruff" "$LOCAL_BIN/ruff"
+    chmod +x "$LOCAL_BIN/ruff"
+    rm -rf "$tmp"
+    ok "ruff $RUFF_VERSION installed"
+}
+
+# Pinned: apt lags at 0.9.0. NB a comment starting with this tool's name is
+# read as a directive and fails to parse - never start one that way.
 install_shellcheck() {
     if [ -x "$LOCAL_BIN/shellcheck" ] && "$LOCAL_BIN/shellcheck" --version 2>/dev/null | grep -q "$SHELLCHECK_VERSION"; then
         ok "shellcheck $SHELLCHECK_VERSION already installed"
@@ -260,8 +294,7 @@ install_shellcheck() {
     ok "shellcheck $SHELLCHECK_VERSION installed"
 }
 
-# Used to find shell files by shebang for the lint gate (extensionless scripts
-# included, the Python dictate excluded), not to reformat them.
+# Finds shell files by shebang for the lint gate; not used to reformat.
 install_shfmt() {
     if [ -x "$LOCAL_BIN/shfmt" ] && "$LOCAL_BIN/shfmt" --version 2>/dev/null | grep -q "$SHFMT_VERSION"; then
         ok "shfmt $SHFMT_VERSION already installed"
@@ -274,8 +307,7 @@ install_shfmt() {
     ok "shfmt $SHFMT_VERSION installed"
 }
 
-# go-task runs this repo's routine tasks (Taskfile.yml): `task check`, `task
-# stow`, `task changelog`. Same runner the sibling Go projects use.
+# Runs this repo's Taskfile: `task check`, `task stow`, `task changelog`.
 install_task() {
     if [ -x "$LOCAL_BIN/task" ] && "$LOCAL_BIN/task" --version 2>/dev/null | grep -q "$TASK_VERSION"; then
         ok "task $TASK_VERSION already installed"
@@ -723,6 +755,7 @@ install_fd
 install_fzf
 install_ghostty
 install_git_cliff
+install_gitleaks
 install_gitmux
 install_go
 install_hunk
@@ -730,6 +763,7 @@ install_lazydocker
 install_lazygit
 install_neovim
 install_nerd_font
+install_ruff
 install_shellcheck
 install_shfmt
 install_task

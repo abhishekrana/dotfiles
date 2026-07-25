@@ -4,14 +4,16 @@ version: "3"
 
 vars:
   AGENTBAR: apps/agentbar
-  # shfmt -f finds shell files by shebang, so extensionless scripts
-  # (.githooks/pre-commit, theme, dotfiles-trace) are covered and the Python
-  # dictate is not. Intersected with git ls-files so the gitignored local.bash
-  # never reaches the gate.
+  # Tracked shell files, found by shebang: covers extensionless ones, skips dictate.
   SHELL_FILES:
     sh: git ls-files -z | xargs -0 shfmt -f | sort | tr '\n' ' '
+  # Python by shebang too - dictate runs via `uv run --script`.
+  PY_FILES:
+    sh: git ls-files -z | xargs -0 awk 'FNR==1 && /^#!.*(python|uv run)/ {print FILENAME}' | tr '\n' ' '
   MD_FILES:
     sh: git ls-files '*.md' | tr '\n' ' '
+  # Pinned so the gate behaves the same in CI and here.
+  PRETTIER: prettier@3.9.6
   # Read from bootstrap.sh so the two never drift.
   STOW_PACKAGES:
     sh: sed -n 's/^ *local packages=(\(.*\))$/\1/p' bootstrap.sh
@@ -23,10 +25,12 @@ tasks:
       - task --list
 
   check:
-    desc: The release gate - lint, markdown, tests
+    desc: The release gate - lint, python, markdown, secrets, tests
     cmds:
       - task: lint
+      - task: py
       - task: md
+      - task: secrets
       - task: test
 
   lint:
@@ -34,15 +38,26 @@ tasks:
     cmds:
       - shellcheck -S warning {{.SHELL_FILES}}
 
+  py:
+    desc: Lint the Python scripts for bugs (E9 syntax, F pyflakes - not style)
+    cmds:
+      - ruff check --select E9,F {{.PY_FILES}}
+
+  secrets:
+    desc: Scan the tree and the full history for credentials
+    cmds:
+      - gitleaks dir . --no-banner --redact
+      - gitleaks git . --no-banner --redact
+
   md:
     desc: Check markdown formatting
     cmds:
-      - npx --yes prettier --check {{.MD_FILES}}
+      - npx --yes {{.PRETTIER}} --check {{.MD_FILES}}
 
   fmt:
     desc: Format markdown in place
     cmds:
-      - npx --yes prettier --write {{.MD_FILES}}
+      - npx --yes {{.PRETTIER}} --write {{.MD_FILES}}
 
   test:
     desc: Run the agentbar test suite
