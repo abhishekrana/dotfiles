@@ -168,6 +168,9 @@ const labelW = 10
 
 // padCol pads (or truncates) a plain string to exactly w cells.
 func padCol(s string, w int) string {
+	if w <= 0 {
+		return "" // a squeezed pane leaves no column to write in
+	}
 	r := []rune(s)
 	if len(r) > w {
 		return string(r[:w-1]) + "…"

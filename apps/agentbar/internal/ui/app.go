@@ -711,7 +711,11 @@ func (a App) onNotifyChip(x, y int) bool {
 }
 
 func (a App) View() string {
-	if a.width == 0 {
+	// A pane squeezed to a couple of columns has no room for even the
+	// selection edge; draw nothing rather than a column of debris. The
+	// sidebar must survive it either way - it is a long-lived process, so a
+	// crash here costs a manual restart (prefix+e twice).
+	if a.width < 4 {
 		return ""
 	}
 	now := time.Now()

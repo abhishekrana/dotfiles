@@ -1140,6 +1140,53 @@ func TestSidebarSelfRegisters(t *testing.T) {
 	})
 }
 
+// TestSidebarSurvivesOneColumnPane: a sidebar squeezed to a single column
+// must keep running. tmux CLAMPS the -l 30 split instead of refusing it, so a
+// narrow window hands the sidebar a 1-column pane on the ordinary open path,
+// and a render that panics there kills a long-lived process for good (its
+// stderr goes nowhere, so it just vanishes).
+func TestSidebarSurvivesOneColumnPane(t *testing.T) {
+	s := start(t)
+
+	// Route 1: open into a window too narrow for the 30-column split.
+	s.tmux("new-session", "-d", "-s", "narrow", "-x", "12", "-y", "20")
+	s.tmux("set-option", "-g", "window-size", "manual")
+	s.tmux("resize-window", "-t", "narrow", "-x", "12", "-y", "20")
+	s.script("open.sh", "narrow")
+
+	side := s.sidebarPane("narrow")
+	if side == "" {
+		t.Fatal("no sidebar pane recorded for the narrow session")
+	}
+	if w, _ := s.tmuxErr("display-message", "-p", "-t", side, "#{pane_width}"); strings.TrimSpace(w) != "1" {
+		t.Fatalf("narrow open gave the sidebar width %q, want 1 - test no longer exercises the squeeze", w)
+	}
+	// A crash shows up as the pane dying: give it renders to crash in first.
+	time.Sleep(time.Second)
+	if !s.sidebarAlive("narrow") {
+		t.Error("sidebar died in a 1-column pane on open")
+	}
+
+	// Route 2: squeeze a healthy 30-column sidebar down to one column.
+	s.newSession("work")
+	s.script("open.sh", "work")
+	waitFor(t, "sidebar in work", 5*time.Second, func() bool { return s.sidebarAlive("work") })
+	wide := s.sidebarPane("work")
+	s.tmux("resize-pane", "-t", wide, "-x", "1")
+	if w, _ := s.tmuxErr("display-message", "-p", "-t", wide, "#{pane_width}"); strings.TrimSpace(w) != "1" {
+		t.Fatalf("resize left the sidebar at width %q, want 1", w)
+	}
+	time.Sleep(time.Second)
+	if !s.sidebarAlive("work") {
+		t.Fatal("sidebar died when squeezed to 1 column")
+	}
+	// And it comes back to life when given room again.
+	s.tmux("resize-pane", "-t", wide, "-x", "30")
+	waitFor(t, "sidebar redraws after widening", 5*time.Second, func() bool {
+		return strings.Contains(s.captureText(wide), "tmux agents")
+	})
+}
+
 // TestResurrectSaveHook: the post-save hook stamps a restore command on
 // sidebar pane lines (resurrect saves them with an empty command).
 func TestResurrectSaveHook(t *testing.T) {
