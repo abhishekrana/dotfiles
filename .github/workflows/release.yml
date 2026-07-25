@@ -30,6 +30,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: apps/agentbar/go.sum
 
       - name: task check
         run: task check

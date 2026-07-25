@@ -91,7 +91,10 @@ func start(t *testing.T) *server {
 	for _, kv := range os.Environ() {
 		k, _, _ := strings.Cut(kv, "=")
 		switch k {
-		case "TMUX", "TMUX_PANE", "PATH", "AGENTBAR_TEST_SOCKET", "TERM":
+		// CI is dropped deliberately: termenv reads any non-empty CI as "not a
+		// TTY" and falls back to the Ascii profile, so the sidebar would render
+		// without the ANSI attributes the highlight assertions look for.
+		case "TMUX", "TMUX_PANE", "PATH", "AGENTBAR_TEST_SOCKET", "TERM", "CI":
 		default:
 			env = append(env, kv)
 		}
