@@ -488,10 +488,14 @@ def watch(pid):
                 break                          # parec ended/crashed - finalise what we have
             try:
                 with open(PCM_FILE, "rb") as fh:
-                    fh.seek(posn); data = fh.read(); posn = fh.tell()
+                    fh.seek(posn); data = fh.read()
             except OSError:
                 data = b""
+            # Advance by whole s16le frames only: parec's buffer can be caught
+            # mid-sample, and skipping that odd byte would shift every later
+            # read one byte out of phase, turning the RMS into noise.
             n = len(data) // 2 * 2
+            posn += n
             if n and np.sqrt(np.mean(np.frombuffer(data[:n], dtype=np.int16).astype(np.float32) ** 2)) >= VAD_RMS:
                 voiced = True; last_voice = time.time()
             now = time.time()
