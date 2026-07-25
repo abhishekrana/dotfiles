@@ -925,9 +925,11 @@ func TestFollowKeepsColumnWidths(t *testing.T) {
 		waitFor(t, "sidebar in window 1", 5*time.Second, sidebarIn("work:1"))
 		s.tmux("select-window", "-t", "work:0")
 		waitFor(t, "sidebar in window 0", 5*time.Second, sidebarIn("work:0"))
-		if got := widths(); got != "60,60" {
-			t.Fatalf("columns drifted to %s after %d switches, want 60,60", got, i+1)
-		}
+		// join-pane moves the sidebar, then insert_keeping_widths restores the
+		// columns - so sample until they settle rather than in that gap. A real
+		// drain never settles and still fails here.
+		waitFor(t, fmt.Sprintf("columns restored after switch %d (last: %s)", i+1, widths()),
+			5*time.Second, func() bool { return widths() == "60,60" })
 	}
 }
 

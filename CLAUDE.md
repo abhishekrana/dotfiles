@@ -136,8 +136,8 @@ notes are generated from these, so the type and scope are the machine-readable p
   `claude`, `design`, `dictate`, `ghostty`, `git`, `hunk`, `lint`, `nvim`, `release`, `task`, `theme`, `tmux`, `trace`,
   `vault`, `yazi`. Omit it only when a change genuinely spans everything.
 - **Breaking = needs manual steps on the machine.** A `!` after the scope (`feat(tmux)!:`) or a `BREAKING CHANGE:`
-  footer marks a release that can't just be pulled - a re-login, a re-stow, a GNOME shortcut, a systemd unit. It drives
-  the MAJOR bump and renders as "needs manual steps" in the changelog.
+  footer marks a release that can't just be pulled - a re-login, a re-stow, a GNOME shortcut, a systemd unit. It renders
+  as "needs manual steps" in the changelog and, pre-1.0, drives the MINOR bump.
 - `ci:` and `chore(release):` are filtered out of the changelog (see `cliff.toml`).
 - Do not add `Co-Authored-By` lines to commit messages
 
@@ -155,9 +155,12 @@ git tag -a v0.2.0 -m "dotfiles v0.2.0"  # annotated SemVer tag
 git push origin v0.2.0                  # fires release.yml
 ```
 
-SemVer, `v`-prefixed, starting at `v0.1.0` to match the sibling projects. `task release-notes` previews what the next
-release would publish. The `0.1.0` entry in `CHANGELOG.md` is hand-written because the history predates the convention;
-generation covers `0.2.0` on, which is why `task changelog` prepends rather than regenerating.
+For **v0.1.0** skip the changelog step - its entry is already written; just replace `unreleased` with the date.
+
+SemVer, `v`-prefixed. **This repo stays on 0.x - do not bump to 1.0.** Pre-1.0 shifts the meanings down one: a release
+needing manual steps bumps the MINOR (`0.1.0` -> `0.2.0`), everything else bumps the PATCH. `task release-notes`
+previews what the next release would publish. The `0.1.0` entry in `CHANGELOG.md` is hand-written because the history
+predates the convention; generation covers `0.2.0` on, which is why `task changelog` prepends rather than regenerating.
 
 ## Tasks
 

@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # `task secrets` scans the whole history
 
       # Same versions a dev machine uses, rather than pinning them twice.
       - name: Read pinned tool versions

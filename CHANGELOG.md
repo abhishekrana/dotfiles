@@ -3,8 +3,9 @@
 Notable changes to these dotfiles, in [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) spirit and versioned with
 [SemVer](https://semver.org/).
 
-A **MAJOR** bump means the release needs manual steps on the machine - a re-login, a re-stow, a GNOME shortcut, a
-systemd unit - and the notes say which.
+This repo stays on **0.x** by choice. Pre-1.0 SemVer puts the breaking signal on the MINOR, so a release that needs
+manual steps on the machine - a re-login, a re-stow, a GNOME shortcut, a systemd unit - bumps **0.x** and says which;
+PATCH is for everything else.
 
 ## [0.1.0] - unreleased
 

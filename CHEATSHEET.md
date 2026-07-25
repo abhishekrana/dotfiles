@@ -41,25 +41,6 @@ Commands and keys to internalize for this setup. Sorted by frequency of use.
 
 ---
 
-### Dotfiles repo tasks (run in `~/dotfiles`)
-
-| Command                   | Action                                                |
-| ------------------------- | ----------------------------------------------------- |
-| `task`                    | list every task                                       |
-| `task check`              | the gate: shellcheck, ruff, prettier, gitleaks, tests |
-| `task fmt`                | format markdown in place                              |
-| `task secrets`            | scan tree + full history for credentials              |
-| `task stow`               | restow every package                                  |
-| `task trace`              | follow the shared trace log                           |
-| `task tmux-reload`        | re-source `~/.tmux.conf` in the running server        |
-| `task agentbar:build`     | rebuild the sidebar binary                            |
-| `task agentbar:doctor`    | audit Claude panes vs the hook trace                  |
-| `task fresh`              | full bootstrap in a clean container (~10 min)         |
-| `task release-notes`      | preview the notes the next release would publish      |
-| `task changelog V=v0.2.0` | prepend the generated changelog section               |
-
----
-
 ### fzf (inside a picker)
 
 | Key      | Action                                                                     |

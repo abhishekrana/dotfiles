@@ -92,6 +92,9 @@ tasks:
     preconditions:
       - sh: test -n "{{.V}}"
         msg: "usage: task changelog V=v0.2.0"
+      # 0.1.0 is hand-written; generating it again would add a second section.
+      - sh: '! grep -q "^## \[$(echo {{.V}} | sed s/^v//)\]" CHANGELOG.md'
+        msg: "CHANGELOG.md already has a {{.V}} section - edit it by hand instead"
     cmds:
       # --prepend, not -o: regenerating would drop the hand-written 0.1.0 entry.
       - git cliff --unreleased --tag {{.V}} --prepend CHANGELOG.md
