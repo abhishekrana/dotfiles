@@ -14,6 +14,8 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
   sidebar and the `M-;` session picker comes from that plugin's `@agent_*` pane options, not local hook scripts. Note:
   Claude Code does NOT load a user-level `~/.claude/settings.local.json` - hooks/settings there are silently ignored;
   anything that must take effect goes in `settings.json`)
+- `clip/` → `~/.local/bin/clip` (copy stdin to the clipboard; picks wl-copy, xclip or pbcopy. Every copy path - tmux
+  `copy-command`, `tmux-yank.sh`, fzf's Ctrl-Y, nvim - goes through it, so the backend is chosen in one place)
 - `dictate/` → `~/.local/bin/dictate` (toggle-key local Whisper dictation into tmux; opt-in. Has its own nested
   `CLAUDE.md` - read it before touching the script. Its deps are opt-in too: `./bootstrap.sh dictate-deps`)
 - `ghostty/` → `~/.config/ghostty/` (Ghostty terminal config)
@@ -74,13 +76,20 @@ records action _edges_ across the whole interactive stack:
 - **Where:** `${XDG_STATE_HOME:-~/.local/state}/dotfiles/trace.log` (outside the repo, never committed). Size-capped at
   1 MiB with one rotation (`trace.log.1`).
 - **View:** `dotfiles-trace tail -f`, or
-  `dotfiles-trace show --since 5m --src <tmux|agentbar|hook|sidebar|picker|dictate|resurrect|yank> --grep <pat>`.
+  `dotfiles-trace show --since 5m --src <tmux|agentbar|clip|hook|sidebar|picker|dictate|resurrect|yank> --grep <pat>`.
   `dotfiles-trace path` prints the file.
 - **Format:** logfmt - `ts=<iso ms> src=… evt=… pid=… k=v …`. The on-screen status clock is `%H:%M:%S`, so a screenshot
   anchors to a log window.
 - **Reading the flaky-click case:** a `src=tmux evt=click range=…` line means tmux _received_ the click (so any failure
   is downstream - our bug); _no_ line for a click you made means the terminal dropped the event before tmux (the known
   Ghostty+tmux status-click bug, not fixable here).
+- **Reading the flaky-copy case:** every copy path goes through `clip`, so each one leaves
+  `src=clip evt=copy backend=… sel=… bytes=… rc=… wl=… dsp=…`, and a mouse yank adds
+  `src=yank evt=copy bytes=… rc=… rc_primary=…` for the tmux edge above it. Read it in this order: **no `src=yank`
+  line** means tmux never fired the yank (the selection or the binding, not the clipboard); **`bytes=0`** means an empty
+  drag - nothing was selected, so nothing was copied; **`rc` non-zero** means the backend itself failed, and
+  `wl=`/`dsp=` say why - a long-lived tmux server keeps the `WAYLAND_DISPLAY` it started with, so after a re-login
+  `wl-copy` cannot reach the compositor and every copy fails until the server is restarted or its environment updated.
 - **Reading state drift:** `src=hook evt=event name=… prev=… new=… sid=…` is ground truth of what Claude told the
   sidebar (`via=cwd` means the pane was recovered by the cwd fallback - a resumed / `claude daemon run` session that
   fired the hook with no `$TMUX_PANE`); `src=hook evt=drop reason=no_pane cwd=… sid=…` flags a hook that arrived with no
@@ -152,8 +161,8 @@ notes are generated from these, so the type and scope are the machine-readable p
 
 - **Types**: `feat` · `fix` · `docs` · `refactor` · `perf` · `test` · `build` · `ci` · `chore`
 - **Scope** is the area, matching a stow package, an app, or a repo concern: `agentbar`, `bash`, `bat`, `bootstrap`,
-  `claude`, `design`, `dictate`, `ghostty`, `git`, `hunk`, `lint`, `nvim`, `release`, `task`, `theme`, `tmux`, `trace`,
-  `vault`, `yazi`. Omit it only when a change genuinely spans everything.
+  `claude`, `clip`, `design`, `dictate`, `ghostty`, `git`, `hunk`, `install`, `lint`, `nvim`, `release`, `task`,
+  `theme`, `tmux`, `trace`, `vault`, `yazi`. Omit it only when a change genuinely spans everything.
 - **Breaking = needs manual steps on the machine.** A `!` after the scope (`feat(tmux)!:`) or a `BREAKING CHANGE:`
   footer marks a release that can't just be pulled - a re-login, a re-stow, a GNOME shortcut, a systemd unit. It renders
   as "needs manual steps" in the changelog and, pre-1.0, drives the MINOR bump.

@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# clip - copy stdin to the clipboard, on whichever backend this machine has:
+# wl-copy (Wayland), xclip (X11) or pbcopy (macOS).
+#
+#   clip              copy to the clipboard
+#   clip --primary    copy to the primary selection; a no-op where there is none
+#
+# Every copy path in this repo goes through here (tmux copy-command, tmux-yank,
+# fzf Ctrl-Y, nvim), so one trace line per copy covers them all. Copies are user
+# edges, not a hot loop, so logging them is cheap. Fields that matter when a yank
+# silently does nothing: rc (the backend failed), bytes=0 (an empty drag - nothing
+# was selected), and wl/dsp (a tmux server holding a stale WAYLAND_DISPLAY from a
+# previous login cannot reach the compositor).
+set -euo pipefail
+
+TRACE="$HOME/.local/bin/dotfiles-trace"
+trace() { [ -x "$TRACE" ] && "$TRACE" log clip "$@" 2>/dev/null || true; }
+
+sel=clipboard
+[ "${1:-}" = "--primary" ] && sel=primary
+
+# Buffered via a temp file, not a variable: $(cat) strips trailing newlines and
+# cannot hold NULs, which would corrupt what gets copied. 0600 by mktemp, and
+# removed on every exit path since clipboard contents can be sensitive.
+buf=$(mktemp)
+trap 'rm -f "$buf"' EXIT
+cat >"$buf"
+bytes=$(wc -c <"$buf" | tr -d ' ')
+
+rc=0
+if command -v wl-copy &>/dev/null; then
+    backend=wl-copy
+    if [ "$sel" = primary ]; then
+        wl-copy --primary <"$buf" || rc=$?
+    else
+        wl-copy <"$buf" || rc=$?
+    fi
+elif command -v xclip &>/dev/null; then
+    backend=xclip
+    xclip -selection "$sel" <"$buf" || rc=$?
+elif command -v pbcopy &>/dev/null; then
+    backend=pbcopy
+    # No primary selection here; the clipboard call already carried the text.
+    [ "$sel" = primary ] || pbcopy <"$buf" || rc=$?
+else
+    trace nobackend sel="$sel" bytes="$bytes"
+    echo "clip: no clipboard backend found (wl-copy, xclip or pbcopy)" >&2
+    exit 1
+fi
+
+trace copy backend="$backend" sel="$sel" bytes="$bytes" rc="$rc" \
+    wl="${WAYLAND_DISPLAY:--}" dsp="${DISPLAY:--}"
+exit "$rc"
