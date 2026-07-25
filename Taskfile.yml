@@ -63,6 +63,24 @@ tasks:
         '\b(10\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}|192\.168\.[0-9]{1,3}\.[0-9]{1,3}|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]{1,3}\.[0-9]{1,3})\b'
         && { echo "private IP in a tracked file (see above)" >&2; exit 1; } || true
 
+  portability:
+    desc: Report Linux-only primitives and where they live (a map, not a gate)
+    silent: true
+    cmds:
+      # Deliberately not in `check`: these are load-bearing on Ubuntu. The report
+      # is the inventory another platform would have to answer for. shellcheck
+      # does not know BSD from GNU, so nothing else covers this.
+      - |
+        printf 'Linux-only primitives in tracked files:\n\n'
+        for p in 'apt-get' 'dpkg -s' 'add-apt-repository' 'notify-send' 'systemctl' 'loginctl' \
+          'xdg-open' 'wl-copy' 'wl-paste' 'parec' 'pactl' 'flock' 'stat -c' 'readlink -f' \
+          'sed -i ' 'date -d ' '%3N' '/proc/'; do
+          hits=$(git ls-files -z | xargs -0 grep -lIF -- "$p" 2>/dev/null \
+            | grep -vE '^(Taskfile\.yml$|.*\.md$)' | sort | tr '\n' ' ')
+          [ -n "$hits" ] && printf '  %-20s %s\n' "$p" "$hits"
+        done
+        printf '\nSee "Platform support" in README.md.\n'
+
   fmt-check:
     desc: Check prettier formatting (markdown, yaml, json) - 120 columns
     cmds:
