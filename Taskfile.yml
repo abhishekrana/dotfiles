@@ -34,6 +34,7 @@ tasks:
       - task: py
       - task: fmt-check
       - task: secrets
+      - task: clipboard
       - task: test
 
   lint:
@@ -62,6 +63,11 @@ tasks:
         git ls-files -z | xargs -0 grep -nEI
         '\b(10\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}|192\.168\.[0-9]{1,3}\.[0-9]{1,3}|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]{1,3}\.[0-9]{1,3})\b'
         && { echo "private IP in a tracked file (see above)" >&2; exit 1; } || true
+
+  clipboard:
+    desc: Guard the copy path - every tmux trigger must reach clipboard and primary
+    cmds:
+      - bash test/clipboard.sh
 
   portability:
     desc: Report Linux-only primitives and where they live (a map, not a gate)
