@@ -100,6 +100,9 @@ func start(t *testing.T) *server {
 		"PATH="+shimDir+":"+os.Getenv("PATH"),
 		"AGENTBAR_TEST_SOCKET="+sock,
 		"TERM=xterm-256color",
+		// tmux mangles tabs in -F output outside a UTF-8 locale, and the whole
+		// pane protocol is tab-separated. CI runners leave LANG unset.
+		"LC_ALL=C.UTF-8",
 	)
 	s := &server{t: t, env: env}
 	t.Cleanup(func() { _, _ = s.tmuxErr("kill-server") })

@@ -28,6 +28,9 @@
 
 set -euo pipefail
 
+# tmux sanitizes tabs in -F output to "_" outside a UTF-8 locale.
+export LC_ALL=C.UTF-8
+
 order_file="${XDG_STATE_HOME:-$HOME/.local/state}/tmux/session-order"
 mkdir -p "$(dirname "$order_file")"
 touch "$order_file"

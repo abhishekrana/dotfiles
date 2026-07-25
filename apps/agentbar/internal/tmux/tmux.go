@@ -2,6 +2,7 @@
 package tmux
 
 import (
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -17,7 +18,11 @@ type Runner interface {
 type Exec struct{}
 
 func (Exec) Run(args ...string) (string, error) {
-	out, err := exec.Command("tmux", args...).Output()
+	cmd := exec.Command("tmux", args...)
+	// tmux replaces tabs in -F output with "_" outside a UTF-8 locale, which
+	// would shred every field this package splits on.
+	cmd.Env = append(os.Environ(), "LC_ALL=C.UTF-8")
+	out, err := cmd.Output()
 	// Trim only newlines: a TrimSpace would eat trailing tabs of the
 	// last output line, i.e. trailing empty format fields.
 	return strings.TrimRight(string(out), "\n"), err

@@ -13,6 +13,9 @@
 # The restore side needs "~claude" in @resurrect-processes to relaunch it.
 set -euo pipefail
 
+# tmux sanitizes tabs in -F output to "_" outside a UTF-8 locale.
+export LC_ALL=C.UTF-8
+
 PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 state_file=${1:?usage: resurrect-save.sh <state-file>}
 

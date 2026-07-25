@@ -3,6 +3,9 @@
 # aggregated Claude state, and per-pane breakdown.
 
 set -u
+
+# tmux sanitizes tabs in -F output to "_" outside a UTF-8 locale.
+export LC_ALL=C.UTF-8
 session=${1:-}
 [ -z "$session" ] && exit 0
 
