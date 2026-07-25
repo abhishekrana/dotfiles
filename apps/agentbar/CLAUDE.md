@@ -6,6 +6,9 @@ anything that talks to tmux. Line width ≤120 everywhere.
 
 ## Commands
 
+From the repo root, `task agentbar:build` / `agentbar:test` / `agentbar:unit` / `agentbar:mockup` / `agentbar:doctor`
+delegate to these targets; `task check` at the root runs the suite as part of the release gate.
+
 ```bash
 make build              # bin/agentbar
 make unit               # go test -short ./...

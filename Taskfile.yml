@@ -85,8 +85,9 @@ tasks:
       - sh: test -n "{{.V}}"
         msg: "usage: task changelog V=v0.2.0"
     cmds:
-      - git cliff --tag {{.V}} -o CHANGELOG.md
-      - echo "CHANGELOG.md written for {{.V}} - review it, then commit and tag."
+      # --prepend, not -o: regenerating would drop the hand-written 0.1.0 entry.
+      - git cliff --unreleased --tag {{.V}} --prepend CHANGELOG.md
+      - echo "CHANGELOG.md updated for {{.V}} - review it, then commit and tag."
 
   release-notes:
     desc: Preview the notes the next release would publish

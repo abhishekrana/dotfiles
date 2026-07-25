@@ -25,6 +25,13 @@ Buildable projects live under `apps/` - these are **not** stow packages and are 
 
 - `apps/agentbar/` → Go tmux plugin (the Claude agent sidebar). Loaded by a `run-shell` line at the end of `tmux/.tmux.conf`, so it builds and runs straight from the repo. The Claude lifecycle hooks in `claude/.claude/settings.json` invoke its binary at `$HOME/dotfiles/apps/agentbar/bin/agentbar`. It has its own nested `CLAUDE.md` - read that before touching the code.
 
+## Release furniture
+
+- `Taskfile.yml` - the routine tasks; `task check` is the gate (see "Tasks" below)
+- `.github/workflows/` - `ci.yml` on every push/PR, `release.yml` on a `v*` tag
+- `cliff.toml` - git-cliff config: Conventional Commits to CHANGELOG.md and release notes
+- `CHANGELOG.md` - Keep a Changelog; `0.1.0` hand-written, generated from `0.2.0` on
+
 ## Debugging (trace log)
 
 **When something in the tmux/agent workflow misbehaves - a status-bar click didn't register, the sidebar shows the wrong agent state, a session switch felt slow, dictation went nowhere - look at the trace log first.** It is always on and records action _edges_ across the whole interactive stack:
@@ -44,7 +51,8 @@ Buildable projects live under `apps/` - these are **not** stow packages and are 
 ## Rules
 
 - **Never commit personal info**: no names, emails, IP addresses, work-specific paths, or employer / product / project names
-- **Audit before committing**: `git diff --cached | grep -iE '10\.\d+\.\d+|172\.\d+'` must return empty, and eyeball the diff for your name, employer, and project names
+- **Audit before committing**: `task secrets` (gitleaks over the tree and the full history) must pass, and eyeball the
+  diff for your name, employer, and project names - a scanner won't catch those
 - **Only track customizations**: don't add stock Ubuntu defaults (prompt, bash-completion, color aliases) - those belong in the system `.bashrc`
 - **Prefer `~/.local/bin`** for tool installations over system-wide installs
 - **Keep it simple**: no unnecessary abstractions, no over-engineering
@@ -68,14 +76,53 @@ When I say "deploy": **first commit and push, then make it live** on the running
    - **tmux** (`tmux/.tmux.conf`): `tmux source-file ~/.tmux.conf`. One server is shared by all sessions, so a single reload updates every existing session at once.
    - **Stowed scripts** (symlinks - `dictate/`, `bash/`, etc.): live the moment the repo file is saved; no step needed.
    - **New stow package or file**: `cd ~/dotfiles && stow <pkg>`, then reload the relevant tool.
-   - **`apps/agentbar`** (Go): `make -C ~/dotfiles/apps/agentbar build`, then reload tmux (`tmux source-file ~/.tmux.conf`). The sidebar is a long-lived process, so restarting it is a manual step you must list: **`prefix + e` twice**. Hook-path edits to the stowed `settings.json` take effect on the next agent lifecycle event.
+   - **`apps/agentbar`** (Go): `task agentbar:build`, then reload tmux (`tmux source-file ~/.tmux.conf`). The sidebar is a long-lived process, so restarting it is a manual step you must list: **`prefix + e` twice**. Hook-path edits to the stowed `settings.json` take effect on the next agent lifecycle event.
 3. Always list any steps I must run by hand - things that can't be scripted (re-login, `gsettings`/GNOME shortcut install, `systemctl --user …`, opening a fresh shell).
 
 ## Commits
 
+[Conventional Commits](https://www.conventionalcommits.org/): `type(scope): summary`. The changelog and the release
+notes are generated from these, so the type and scope are the machine-readable part - get them right.
+
+- **Types**: `feat` · `fix` · `docs` · `refactor` · `perf` · `test` · `build` · `ci` · `chore`
+- **Scope** is the area, matching a stow package, an app, or a repo concern: `agentbar`, `bash`, `bat`, `bootstrap`,
+  `claude`, `design`, `dictate`, `ghostty`, `git`, `hunk`, `lint`, `nvim`, `release`, `task`, `theme`, `tmux`, `trace`,
+  `vault`, `yazi`. Omit it only when a change genuinely spans everything.
+- **Breaking = needs manual steps on the machine.** A `!` after the scope (`feat(tmux)!:`) or a `BREAKING CHANGE:`
+  footer marks a release that can't just be pulled - a re-login, a re-stow, a GNOME shortcut, a systemd unit. It drives
+  the MAJOR bump and renders as "needs manual steps" in the changelog.
+- `ci:` and `chore(release):` are filtered out of the changelog (see `cliff.toml`).
 - Do not add `Co-Authored-By` lines to commit messages
+
+## Releasing
+
+`task check` must be green and pushed first. Then the tag is the trigger: `.github/workflows/release.yml` re-runs the
+gate, runs the Docker fresh-install test, and publishes a GitHub Release with notes from `git cliff`. Never move a
+published tag - bump the patch instead.
+
+```sh
+task check                              # gate: shellcheck, ruff, prettier, gitleaks, tests
+task changelog V=v0.2.0                 # prepend the generated section to CHANGELOG.md
+git commit -am "chore(release): v0.2.0" && git push
+git tag -a v0.2.0 -m "dotfiles v0.2.0"  # annotated SemVer tag
+git push origin v0.2.0                  # fires release.yml
+```
+
+SemVer, `v`-prefixed, starting at `v0.1.0` to match the sibling projects. `task release-notes` previews what the next
+release would publish. The `0.1.0` entry in `CHANGELOG.md` is hand-written because the history predates the convention;
+generation covers `0.2.0` on, which is why `task changelog` prepends rather than regenerating.
+
+## Tasks
+
+`Taskfile.yml` holds the routine work - run `task` for the list. `task check` is the gate CI runs; `task stow`,
+`task fmt`, `task trace`, `task tmux-reload`, `task fresh` and the `agentbar:*` tasks cover the rest. Projects under
+`apps/` keep their own build files and the `agentbar:*` tasks delegate to them.
 
 ## Formatting
 
-- Format markdown files with `npx prettier --write <file>.md`
+- Markdown: `task fmt` (prettier, pinned in `Taskfile.yml` so CI and local agree). `task md` checks without writing.
+- Shell: no formatter. `shfmt` is used only to find shell files by shebang for the lint gate - it reflows the compact
+  `cmd; cmd` and `|| { … }` idioms this repo uses, so it is deliberately not run with `-w`.
+- Lint gates on bugs, not style: `shellcheck -S warning` for shell, `ruff --select E9,F` for the Python in `dictate`.
+  Deliberate idioms that a linter misreads carry a directive rather than being rewritten.
 - Always use a plain hyphen (`-`), never em or en dashes

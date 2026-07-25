@@ -54,6 +54,8 @@ Installed via `bootstrap.sh` (apt + `~/.local/bin`):
 - [fd](https://github.com/sharkdp/fd) - fast find (powers fzf file search)
 - [fzf](https://github.com/junegunn/fzf) - fuzzy finder
 - [Ghostty](https://ghostty.org/) - terminal emulator
+- [git-cliff](https://git-cliff.org/) - changelog and release notes from conventional commits
+- [gitleaks](https://github.com/gitleaks/gitleaks) - secret scanning over the tree and history
 - [gitmux](https://github.com/arl/gitmux) - git status in tmux
 - [GNU Stow](https://www.gnu.org/software/stow/) - symlink manager
 - [Go](https://go.dev/) - toolchain for building `apps/` (agentbar)
@@ -64,6 +66,10 @@ Installed via `bootstrap.sh` (apt + `~/.local/bin`):
 - [lazygit](https://github.com/jesseduffield/lazygit) - terminal git UI
 - [Neovim](https://neovim.io/) - editor
 - [ripgrep](https://github.com/BurntSushi/ripgrep) - fast recursive search
+- [ruff](https://docs.astral.sh/ruff/) - Python linter (gates the `dictate` script)
+- [shellcheck](https://www.shellcheck.net/) - shell linter (gates every script here)
+- [shfmt](https://github.com/mvdan/sh) - finds shell files by shebang for the lint gate
+- [Task](https://taskfile.dev/) - task runner for this repo's `Taskfile.yml`
 - [tmux](https://github.com/tmux/tmux) - terminal multiplexer
 - [tree](https://gitlab.com/OldManProgrammer/unix-tree) - directory listing utility
 - [yazi](https://github.com/sxyazi/yazi) - terminal file manager
@@ -106,6 +112,14 @@ Day-to-day keybindings and commands - shell aliases, tmux, Neovim (LazyVim), hun
 **[CHEATSHEET.md](CHEATSHEET.md)** (also viewable in the terminal via the `cheat` alias). Re-skin the
 whole terminal stack with `theme <flavor>` (`solarized-light` · `solarized-dark` · `catppuccin-latte` ·
 `catppuccin-mocha`); see [`design/theme-switcher.md`](design/theme-switcher.md).
+
+## Development
+
+`task` lists everything this repo can do; `task check` is the gate CI runs on every push - shellcheck, ruff, prettier,
+gitleaks and the agentbar test suite. Commits follow [Conventional Commits](https://www.conventionalcommits.org/), and
+releases are cut by pushing an annotated `v*` tag: `.github/workflows/release.yml` re-runs the gate, runs the
+container fresh-install test, and publishes a GitHub Release with notes generated from the commit history. See
+[CHANGELOG.md](CHANGELOG.md) and the "Releasing" section of [CLAUDE.md](CLAUDE.md).
 
 ## Managing configs
 
@@ -162,7 +176,7 @@ stow -R <package>    # Re-link (unlink + link)
 - **Neovim plugins**: `lazy-lock.json` pins versions - commit it to keep installs reproducible.
 - **Python venvs**: direnv auto-activates `.venv` per directory.
 - **Idempotent**: `bootstrap.sh` is safe to re-run (skips what's installed).
-- **Smoke test**: `test/bootstrap-fresh.sh` runs bootstrap in a clean Ubuntu 24.04 container (checks binaries, symlinks, idempotency); run before touching `bootstrap.sh`.
+- **Smoke test**: `task fresh` runs bootstrap in a clean Ubuntu 24.04 container (checks binaries, symlinks, idempotency); run before touching `bootstrap.sh`. The release workflow runs it too, so no release ships without it.
 
 ## License
 
