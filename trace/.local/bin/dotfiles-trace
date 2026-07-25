@@ -19,111 +19,140 @@
 # always exits 0, so a `set -e` caller is safe even if the write fails.
 
 LOG="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/trace.log"
-CAP=1048576   # 1 MiB, then rotate to trace.log.1 (~2 MiB max on disk)
+CAP=1048576 # 1 MiB, then rotate to trace.log.1 (~2 MiB max on disk)
 
 # logfmt-escape one value: strip control chars (keeps one record per line),
 # cap at 200 chars, quote iff empty or containing space/=/"/backslash.
 esc() {
-  local v=$1
-  v=${v//$'\r'/ }; v=${v//$'\n'/ }; v=${v//$'\t'/ }
-  v=${v:0:200}
-  case $v in
-    ''|*' '*|*'='*|*'"'*|*'\'*)
-      v=${v//\\/\\\\}; v=${v//\"/\\\"}; v=\"$v\" ;;
-  esac
-  printf '%s' "$v"
+    local v=$1
+    v=${v//$'\r'/ }
+    v=${v//$'\n'/ }
+    v=${v//$'\t'/ }
+    v=${v:0:200}
+    case $v in
+        '' | *' '* | *'='* | *'"'* | *'\'*)
+            v=${v//\\/\\\\}
+            v=${v//\"/\\\"}
+            v=\"$v\"
+            ;;
+    esac
+    printf '%s' "$v"
 }
 
 # Rotate only when over the cap, guarded by flock so shell and Go writers
 # (same lock path) never double-rotate and clobber history.
 rotate_if_needed() {
-  local sz
-  sz=$(stat -c%s "$LOG" 2>/dev/null || echo 0)
-  [ "$sz" -ge "$CAP" ] || return 0
-  exec 9>"$LOG.lock" 2>/dev/null || return 0
-  if flock -n 9 2>/dev/null; then
+    local sz
     sz=$(stat -c%s "$LOG" 2>/dev/null || echo 0)
-    [ "$sz" -ge "$CAP" ] && mv -f "$LOG" "$LOG.1" 2>/dev/null
-  fi
-  exec 9>&- 2>/dev/null
-  return 0
+    [ "$sz" -ge "$CAP" ] || return 0
+    exec 9>"$LOG.lock" 2>/dev/null || return 0
+    if flock -n 9 2>/dev/null; then
+        sz=$(stat -c%s "$LOG" 2>/dev/null || echo 0)
+        [ "$sz" -ge "$CAP" ] && mv -f "$LOG" "$LOG.1" 2>/dev/null
+    fi
+    exec 9>&- 2>/dev/null
+    return 0
 }
 
 cmd_log() {
-  [ "${DOTFILES_TRACE:-1}" = "0" ] && exit 0
-  local src=${1:-} evt=${2:-}
-  [ $# -ge 2 ] && shift 2 || shift $#
-  mkdir -p "$(dirname "$LOG")" 2>/dev/null
-  local ts line kv key val
-  ts=$(date '+%Y-%m-%dT%H:%M:%S.%3N' 2>/dev/null)
-  line="ts=$ts src=$(esc "$src") evt=$(esc "$evt") pid=$$"
-  for kv in "$@"; do
-    key=${kv%%=*}
-    val=${kv#*=}
-    [ "$kv" = "$key" ] && val=""            # arg had no '='
-    line+=" $key=$(esc "$val")"
-  done
-  printf '%s\n' "$line" >> "$LOG" 2>/dev/null
-  rotate_if_needed
-  exit 0
+    [ "${DOTFILES_TRACE:-1}" = "0" ] && exit 0
+    local src=${1:-} evt=${2:-}
+    [ $# -ge 2 ] && shift 2 || shift $#
+    mkdir -p "$(dirname "$LOG")" 2>/dev/null
+    local ts line kv key val
+    ts=$(date '+%Y-%m-%dT%H:%M:%S.%3N' 2>/dev/null)
+    line="ts=$ts src=$(esc "$src") evt=$(esc "$evt") pid=$$"
+    for kv in "$@"; do
+        key=${kv%%=*}
+        val=${kv#*=}
+        [ "$kv" = "$key" ] && val="" # arg had no '='
+        line+=" $key=$(esc "$val")"
+    done
+    printf '%s\n' "$line" >>"$LOG" 2>/dev/null
+    rotate_if_needed
+    exit 0
 }
 
 cmd_tail() {
-  case ${1:-} in
-    -f) tail -F -n 100 "$LOG" 2>/dev/null ;;
-    *)  tail -n 100 "$LOG" 2>/dev/null ;;
-  esac
+    case ${1:-} in
+        -f) tail -F -n 100 "$LOG" 2>/dev/null ;;
+        *) tail -n 100 "$LOG" 2>/dev/null ;;
+    esac
 }
 
 # Resolve a --since value to a log timestamp. Compact ages need rewriting:
 # `date -d 5m` reads as 05:00 in military timezone M, not "5 minutes ago" (and
 # `30s` is invalid). Anything else goes to date as-is.
 since_ts() {
-  local v=$1 n
-  if [[ $v =~ ^([0-9]+)[[:space:]]*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)$ ]]; then
-    n=${BASH_REMATCH[1]}
-    case ${BASH_REMATCH[2]} in
-      s*) v="$n seconds ago" ;;
-      m*) v="$n minutes ago" ;;
-      h*) v="$n hours ago" ;;
-      d*) v="$n days ago" ;;
-    esac
-  fi
-  date -d "$v" '+%Y-%m-%dT%H:%M:%S.%3N' 2>/dev/null
+    local v=$1 n
+    if [[ $v =~ ^([0-9]+)[[:space:]]*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)$ ]]; then
+        n=${BASH_REMATCH[1]}
+        case ${BASH_REMATCH[2]} in
+            s*) v="$n seconds ago" ;;
+            m*) v="$n minutes ago" ;;
+            h*) v="$n hours ago" ;;
+            d*) v="$n days ago" ;;
+        esac
+    fi
+    date -d "$v" '+%Y-%m-%dT%H:%M:%S.%3N' 2>/dev/null
 }
 
 cmd_show() {
-  local since="" src="" pat="" cutoff=""
-  while [ $# -gt 0 ]; do
-    case $1 in
-      --since) since=${2:-}; shift 2 ;;
-      --src)   src=${2:-};   shift 2 ;;
-      --grep)  pat=${2:-};   shift 2 ;;
-      *) shift ;;
-    esac
-  done
-  # Fail loudly on an unparseable age: silently showing the whole log reads as
-  # the asked-for window, so a stale line looks fresh.
-  if [ -n "$since" ]; then
-    cutoff=$(since_ts "$since")
-    [ -n "$cutoff" ] || {
-      echo "dotfiles-trace: unrecognized --since '$since' (try 30s, 5m, 2h, 1d, or a date)" >&2
-      exit 2
-    }
-  fi
-  { [ -f "$LOG.1" ] && cat "$LOG.1"; [ -f "$LOG" ] && cat "$LOG"; } 2>/dev/null \
-    | { [ -n "$src" ] && grep -F "src=$src " || cat; } \
-    | { [ -n "$pat" ] && grep -- "$pat" || cat; } \
-    | { if [ -n "$cutoff" ]; then awk -v t="ts=$cutoff" '$1 >= t'; else cat; fi; }
+    local since="" src="" pat="" cutoff=""
+    while [ $# -gt 0 ]; do
+        case $1 in
+            --since)
+                since=${2:-}
+                shift 2
+                ;;
+            --src)
+                src=${2:-}
+                shift 2
+                ;;
+            --grep)
+                pat=${2:-}
+                shift 2
+                ;;
+            *) shift ;;
+        esac
+    done
+    # Fail loudly on an unparseable age: silently showing the whole log reads as
+    # the asked-for window, so a stale line looks fresh.
+    if [ -n "$since" ]; then
+        cutoff=$(since_ts "$since")
+        [ -n "$cutoff" ] || {
+            echo "dotfiles-trace: unrecognized --since '$since' (try 30s, 5m, 2h, 1d, or a date)" >&2
+            exit 2
+        }
+    fi
+    {
+        [ -f "$LOG.1" ] && cat "$LOG.1"
+        [ -f "$LOG" ] && cat "$LOG"
+    } 2>/dev/null |
+        { [ -n "$src" ] && grep -F "src=$src " || cat; } |
+        { [ -n "$pat" ] && grep -- "$pat" || cat; } |
+        { if [ -n "$cutoff" ]; then awk -v t="ts=$cutoff" '$1 >= t'; else cat; fi; }
 }
 
 case ${1:-} in
-  log)   shift; cmd_log "$@" ;;
-  tail)  shift; cmd_tail "$@" ;;
-  show)  shift; cmd_show "$@" ;;
-  path)  printf '%s\n' "$LOG" ;;
-  clear) : > "$LOG" 2>/dev/null; rm -f "$LOG.1" 2>/dev/null ;;
-  # Usage is the header comment block: print from line 3 to the first
-  # non-comment line, so adding a doc line never leaks code into --help.
-  *) awk 'NR>2 { if (!/^#/) exit; sub(/^# ?/, ""); print }' "$0" ;;
+    log)
+        shift
+        cmd_log "$@"
+        ;;
+    tail)
+        shift
+        cmd_tail "$@"
+        ;;
+    show)
+        shift
+        cmd_show "$@"
+        ;;
+    path) printf '%s\n' "$LOG" ;;
+    clear)
+        : >"$LOG" 2>/dev/null
+        rm -f "$LOG.1" 2>/dev/null
+        ;;
+    # Usage is the header comment block: print from line 3 to the first
+    # non-comment line, so adding a doc line never leaks code into --help.
+    *) awk 'NR>2 { if (!/^#/) exit; sub(/^# ?/, ""); print }' "$0" ;;
 esac

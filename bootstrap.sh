@@ -550,11 +550,11 @@ seed_vault() {
     for d in archive areas assets dailies inbox projects resources templates; do
         mkdir -p "$vault/$d"
     done
-    copy_if_absent "$tpl/common/.gitignore"  "$vault/.gitignore"
+    copy_if_absent "$tpl/common/.gitignore" "$vault/.gitignore"
     copy_if_absent "$tpl/common/.prettierrc" "$vault/.prettierrc"
-    copy_if_absent "$tpl/common/Home.md"     "$vault/Home.md"
-    copy_if_absent "$tpl/$type/CLAUDE.md"    "$vault/CLAUDE.md"
-    copy_if_absent "$tpl/$type/README.md"    "$vault/README.md"
+    copy_if_absent "$tpl/common/Home.md" "$vault/Home.md"
+    copy_if_absent "$tpl/$type/CLAUDE.md" "$vault/CLAUDE.md"
+    copy_if_absent "$tpl/$type/README.md" "$vault/README.md"
     for f in "$tpl"/common/templates/*; do
         copy_if_absent "$f" "$vault/templates/$(basename "$f")"
     done
@@ -714,8 +714,8 @@ install_dictate_deps() {
         ok "uv already installed"
     else
         log "Installing uv..."
-        curl -LsSf https://astral.sh/uv/install.sh \
-            | env UV_INSTALL_DIR="$LOCAL_BIN" INSTALLER_NO_MODIFY_PATH=1 sh
+        curl -LsSf https://astral.sh/uv/install.sh |
+            env UV_INSTALL_DIR="$LOCAL_BIN" INSTALLER_NO_MODIFY_PATH=1 sh
         ok "uv installed"
     fi
     # parec (record) + pactl (audio ducking), both from pulseaudio-utils. Absent

@@ -10,8 +10,8 @@ vars:
   # Python by shebang too - dictate runs via `uv run --script`.
   PY_FILES:
     sh: git ls-files -z | xargs -0 awk 'FNR==1 && /^#!.*(python|uv run)/ {print FILENAME}' | tr '\n' ' '
-  MD_FILES:
-    sh: git ls-files '*.md' | tr '\n' ' '
+  PRETTIER_FILES:
+    sh: git ls-files '*.md' '*.yml' '*.yaml' '*.json' | tr '\n' ' '
   # Pinned so the gate behaves the same in CI and here.
   PRETTIER: prettier@3.9.6
   # Read from bootstrap.sh so the two never drift.
@@ -25,11 +25,11 @@ tasks:
       - task --list
 
   check:
-    desc: The release gate - lint, python, markdown, secrets, tests
+    desc: The release gate - lint, python, formatting, secrets, tests
     cmds:
       - task: lint
       - task: py
-      - task: md
+      - task: fmt-check
       - task: secrets
       - task: test
 
@@ -39,9 +39,9 @@ tasks:
       - shellcheck -S warning {{.SHELL_FILES}}
 
   py:
-    desc: Lint the Python scripts for bugs (E9 syntax, F pyflakes - not style)
+    desc: Lint the Python scripts (rules and 120-column limit in ruff.toml)
     cmds:
-      - ruff check --select E9,F {{.PY_FILES}}
+      - ruff check {{.PY_FILES}}
 
   secrets:
     desc: Scan the tree and the full history for credentials
@@ -49,15 +49,15 @@ tasks:
       - gitleaks dir . --no-banner --redact
       - gitleaks git . --no-banner --redact
 
-  md:
-    desc: Check markdown formatting
+  fmt-check:
+    desc: Check prettier formatting (markdown, yaml, json) - 120 columns
     cmds:
-      - npx --yes {{.PRETTIER}} --check {{.MD_FILES}}
+      - npx --yes {{.PRETTIER}} --check {{.PRETTIER_FILES}}
 
   fmt:
-    desc: Format markdown in place
+    desc: Format markdown, yaml and json in place
     cmds:
-      - npx --yes {{.PRETTIER}} --write {{.MD_FILES}}
+      - npx --yes {{.PRETTIER}} --write {{.PRETTIER_FILES}}
 
   test:
     desc: Run the agentbar test suite

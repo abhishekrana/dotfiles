@@ -9,10 +9,10 @@ set -euo pipefail
 # warnings (unresolved links, missing type) print but do not block.
 check="$(git rev-parse --show-toplevel)/.claude/vault-check.sh"
 if [ -x "$check" ]; then
-  "$check" || {
-    echo "pre-commit: vault-check found hard errors above. Fix them, or bypass with: git commit --no-verify" >&2
-    exit 1
-  }
+    "$check" || {
+        echo "pre-commit: vault-check found hard errors above. Fix them, or bypass with: git commit --no-verify" >&2
+        exit 1
+    }
 fi
 
 # --- Secrets ---
@@ -23,11 +23,11 @@ added="$(git diff --cached --no-color -U0 | grep -E '^\+' | grep -vE '^\+\+\+' |
 patterns='-----BEGIN [A-Z ]*PRIVATE KEY-----|AKIA[0-9A-Z]{16}|xox[baprs]-[0-9A-Za-z-]+|gh[pousr]_[0-9A-Za-z]{20,}|(api[_-]?key|secret|token|password|passwd)[[:space:]]*[:=][[:space:]]*["'"'"'0-9A-Za-z._-]{8,}'
 
 if printf '%s\n' "$added" | grep -iEq -e "$patterns"; then
-  echo "pre-commit: possible secret/credential in staged changes:" >&2
-  printf '%s\n' "$added" | grep -iEn -e "$patterns" | sed 's/^/  /' >&2
-  echo "" >&2
-  echo "Refusing to commit. Store secrets in a password manager and reference them." >&2
-  echo "If this is a false positive, re-run with: git commit --no-verify" >&2
-  exit 1
+    echo "pre-commit: possible secret/credential in staged changes:" >&2
+    printf '%s\n' "$added" | grep -iEn -e "$patterns" | sed 's/^/  /' >&2
+    echo "" >&2
+    echo "Refusing to commit. Store secrets in a password manager and reference them." >&2
+    echo "If this is a false positive, re-run with: git commit --no-verify" >&2
+    exit 1
 fi
 exit 0

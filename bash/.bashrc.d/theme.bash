@@ -8,9 +8,9 @@
 # back gracefully on a flavor it doesn't ship (e.g. solarized-dark). Other subcommands and
 # path-invoked hunk (bootstrap) are untouched.
 hunk() {
-	if [ -n "${THEME:-}" ] && [ "${1:-}" = diff ]; then
-		command hunk "$@" --theme "$THEME"
-	else
-		command hunk "$@"
-	fi
+    if [ -n "${THEME:-}" ] && [ "${1:-}" = diff ]; then
+        command hunk "$@" --theme "$THEME"
+    else
+        command hunk "$@"
+    fi
 }

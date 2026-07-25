@@ -17,7 +17,8 @@ jobs:
           fetch-depth: 0 # git-cliff needs full history and tags
 
       - name: Read pinned tool versions
-        run: grep -E '^(GIT_CLIFF|GITLEAKS|RUFF|SHELLCHECK|SHFMT|TASK)_VERSION=' bootstrap.sh | tr -d '"' >> "$GITHUB_ENV"
+        run:
+          grep -E '^(GIT_CLIFF|GITLEAKS|RUFF|SHELLCHECK|SHFMT|TASK)_VERSION=' bootstrap.sh | tr -d '"' >> "$GITHUB_ENV"
 
       - name: Install the gate tools and git-cliff
         run: |

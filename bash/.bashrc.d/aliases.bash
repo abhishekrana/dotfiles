@@ -37,49 +37,52 @@ alias gwtrm='git worktree remove'
 # Remote (latest) > local-only > new branch off base (default origin/main).
 # Usage: gwta <dir> <branch> [base]
 gwta() {
-  local dir="$1" branch="$2" base="${3:-origin/main}"
-  if [ -z "$dir" ] || [ -z "$branch" ]; then
-    echo "usage: gwta <dir> <branch> [base]" >&2
-    return 1
-  fi
-  git fetch origin "$branch" 2>/dev/null
-  if git show-ref --verify --quiet "refs/remotes/origin/$branch"; then
-    # exists on remote -> (re)point local branch at remote tip
-    git worktree add "$dir" -B "$branch" "origin/$branch"
-  elif git show-ref --verify --quiet "refs/heads/$branch"; then
-    # local-only branch -> check out as-is
-    git worktree add "$dir" "$branch"
-  else
-    # nowhere -> create new branch off base
-    git fetch origin 2>/dev/null
-    echo "branch '$branch' not found; creating it off '$base'" >&2
-    git worktree add "$dir" -b "$branch" "$base"
-  fi
+    local dir="$1" branch="$2" base="${3:-origin/main}"
+    if [ -z "$dir" ] || [ -z "$branch" ]; then
+        echo "usage: gwta <dir> <branch> [base]" >&2
+        return 1
+    fi
+    git fetch origin "$branch" 2>/dev/null
+    if git show-ref --verify --quiet "refs/remotes/origin/$branch"; then
+        # exists on remote -> (re)point local branch at remote tip
+        git worktree add "$dir" -B "$branch" "origin/$branch"
+    elif git show-ref --verify --quiet "refs/heads/$branch"; then
+        # local-only branch -> check out as-is
+        git worktree add "$dir" "$branch"
+    else
+        # nowhere -> create new branch off base
+        git fetch origin 2>/dev/null
+        echo "branch '$branch' not found; creating it off '$base'" >&2
+        git worktree add "$dir" -b "$branch" "$base"
+    fi
 }
 
 # gwts: fuzzy-switch between worktrees of the current repo (cd into the pick).
 gwts() {
-  local line dir
-  line=$(git worktree list | grep -v ' (bare)$' | fzf --prompt='worktree> ') || return
-  dir="${line%% *}"
-  [ -n "$dir" ] || return
-  cd "$dir" || return
+    local line dir
+    line=$(git worktree list | grep -v ' (bare)$' | fzf --prompt='worktree> ') || return
+    dir="${line%% *}"
+    [ -n "$dir" ] || return
+    cd "$dir" || return
 }
 
 # gwtm: switch to the branch named after the current worktree dir (create it off
 # origin/main if missing), then fast-forward it to origin/main. --ff-only aborts
 # on divergence instead of dropping commits.
 gwtm() {
-  local root name
-  root=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "not in a git repo" >&2; return 1; }
-  name=$(basename "$root")
-  git fetch origin || return
-  if git show-ref --verify --quiet "refs/heads/$name"; then
-    git switch "$name" || return
-  else
-    git switch -c "$name" origin/main || return
-  fi
-  git merge --ff-only origin/main
+    local root name
+    root=$(git rev-parse --show-toplevel 2>/dev/null) || {
+        echo "not in a git repo" >&2
+        return 1
+    }
+    name=$(basename "$root")
+    git fetch origin || return
+    if git show-ref --verify --quiet "refs/heads/$name"; then
+        git switch "$name" || return
+    else
+        git switch -c "$name" origin/main || return
+    fi
+    git merge --ff-only origin/main
 }
 
 # Docker
@@ -100,34 +103,34 @@ alias vimr='NVIM_RESTORE=1 nvim'
 # Attach to session (default: current dir name), creating if missing.
 # Inside tmux, switch the client instead of nesting sessions.
 ta() {
-  local name="${1:-$(basename "$PWD")}"
-  if [ -n "$TMUX" ]; then
-    # Already inside tmux: create-if-missing, then switch (never nest).
-    tmux new-session -d -s "$name" 2>/dev/null
-    tmux switch-client -t "$name"
-  elif tmux ls >/dev/null 2>&1; then
-    # Server already running: attach, creating the session if needed.
-    tmux new-session -A -s "$name"
-  else
-    # Cold start (post-reboot): let tmux-continuum auto-restore populate the
-    # server first. Boot a throwaway 2-pane session so tmux-resurrect's
-    # "restore from scratch" (which fires only when the whole server has exactly
-    # one pane) does NOT absorb our launch pane into a restored session and
-    # scramble its layout. Then drop the scratch and attach to the target.
-    tmux new-session -d -s _resurrect_boot -c "$HOME"
-    tmux split-window -t _resurrect_boot -c "$HOME"
-    for _ in $(seq 1 60); do
-      tmux has-session -t "$name" 2>/dev/null && break
-      sleep 0.25
-    done
-    # Restore succeeded if any real session now exists; if so, drop the scratch.
-    if tmux ls -F '#{session_name}' 2>/dev/null | grep -qvx _resurrect_boot; then
-      tmux kill-session -t _resurrect_boot 2>/dev/null
+    local name="${1:-$(basename "$PWD")}"
+    if [ -n "$TMUX" ]; then
+        # Already inside tmux: create-if-missing, then switch (never nest).
+        tmux new-session -d -s "$name" 2>/dev/null
+        tmux switch-client -t "$name"
+    elif tmux ls >/dev/null 2>&1; then
+        # Server already running: attach, creating the session if needed.
+        tmux new-session -A -s "$name"
+    else
+        # Cold start (post-reboot): let tmux-continuum auto-restore populate the
+        # server first. Boot a throwaway 2-pane session so tmux-resurrect's
+        # "restore from scratch" (which fires only when the whole server has exactly
+        # one pane) does NOT absorb our launch pane into a restored session and
+        # scramble its layout. Then drop the scratch and attach to the target.
+        tmux new-session -d -s _resurrect_boot -c "$HOME"
+        tmux split-window -t _resurrect_boot -c "$HOME"
+        for _ in $(seq 1 60); do
+            tmux has-session -t "$name" 2>/dev/null && break
+            sleep 0.25
+        done
+        # Restore succeeded if any real session now exists; if so, drop the scratch.
+        if tmux ls -F '#{session_name}' 2>/dev/null | grep -qvx _resurrect_boot; then
+            tmux kill-session -t _resurrect_boot 2>/dev/null
+        fi
+        tmux attach -t "$name" 2>/dev/null ||
+            tmux attach 2>/dev/null ||
+            tmux new-session -A -s "$name"
     fi
-    tmux attach -t "$name" 2>/dev/null \
-      || tmux attach 2>/dev/null \
-      || tmux new-session -A -s "$name"
-  fi
 }
 
 # Quick reference

@@ -1,11 +1,10 @@
 # dotfiles
 
-Development environment for Ubuntu 24.04 - shell, tmux, Neovim, terminal, and CLI tooling - managed
-with [GNU Stow](https://www.gnu.org/software/stow/) and reproducible on a fresh machine from a single
-`bootstrap.sh`.
+Development environment for Ubuntu 24.04 - shell, tmux, Neovim, terminal, and CLI tooling - managed with
+[GNU Stow](https://www.gnu.org/software/stow/) and reproducible on a fresh machine from a single `bootstrap.sh`.
 
-> **Built for [Ghostty](https://ghostty.org/).** The tmux, theme switcher, and shaders assume it.
-> `bootstrap.sh` installs it; use it as your terminal. Other terminals work but aren't themed.
+> **Built for [Ghostty](https://ghostty.org/).** The tmux, theme switcher, and shaders assume it. `bootstrap.sh`
+> installs it; use it as your terminal. Other terminals work but aren't themed.
 
 ## Contents
 
@@ -36,7 +35,8 @@ with [GNU Stow](https://www.gnu.org/software/stow/) and reproducible on a fresh 
 
 ### Apps (built from source)
 
-Binaries built from source under `apps/` (not stow packages). Each has a `Makefile` with a `make build` target; `bootstrap.sh` installs the toolchain and builds them.
+Binaries built from source under `apps/` (not stow packages). Each has a `Makefile` with a `make build` target;
+`bootstrap.sh` installs the toolchain and builds them.
 
 | App        | Description                                                          | Language |
 | ---------- | -------------------------------------------------------------------- | -------- |
@@ -98,27 +98,26 @@ cd ~/dotfiles
 source ~/.bashrc
 ```
 
-Neovim plugins will auto-install on first launch via lazy.nvim.
-Run `prefix + I` in tmux to install tmux plugins.
+Neovim plugins will auto-install on first launch via lazy.nvim. Run `prefix + I` in tmux to install tmux plugins.
 
 ### 4. Switch to Ghostty
 
-Bootstrap installed it - open Ghostty and use it going forward; the configs are tuned for it.
-(`bootstrap.sh` itself runs from any terminal.)
+Bootstrap installed it - open Ghostty and use it going forward; the configs are tuned for it. (`bootstrap.sh` itself
+runs from any terminal.)
 
 ## Usage
 
 Day-to-day keybindings and commands - shell aliases, tmux, Neovim (LazyVim), hunk, Ghostty - live in
-**[CHEATSHEET.md](CHEATSHEET.md)** (also viewable in the terminal via the `cheat` alias). Re-skin the
-whole terminal stack with `theme <flavor>` (`solarized-light` · `solarized-dark` · `catppuccin-latte` ·
-`catppuccin-mocha`); see [`design/theme-switcher.md`](design/theme-switcher.md).
+**[CHEATSHEET.md](CHEATSHEET.md)** (also viewable in the terminal via the `cheat` alias). Re-skin the whole terminal
+stack with `theme <flavor>` (`solarized-light` · `solarized-dark` · `catppuccin-latte` · `catppuccin-mocha`); see
+[`design/theme-switcher.md`](design/theme-switcher.md).
 
 ## Development
 
 `task` lists everything this repo can do; `task check` is the gate CI runs on every push - shellcheck, ruff, prettier,
 gitleaks and the agentbar test suite. Commits follow [Conventional Commits](https://www.conventionalcommits.org/), and
-releases are cut by pushing an annotated `v*` tag: `.github/workflows/release.yml` re-runs the gate, runs the
-container fresh-install test, and publishes a GitHub Release with notes generated from the commit history. See
+releases are cut by pushing an annotated `v*` tag: `.github/workflows/release.yml` re-runs the gate, runs the container
+fresh-install test, and publishes a GitHub Release with notes generated from the commit history. See
 [CHANGELOG.md](CHANGELOG.md) and the "Releasing" section of [CLAUDE.md](CLAUDE.md).
 
 ## Managing configs
@@ -155,10 +154,10 @@ vim ~/.bashrc.d/local.bash
 
 ### Machine-specific Claude Code settings
 
-The committed `~/.claude/settings.json` is the full baseline - hooks, `statusLine`, `permissions`,
-plugins, and prefs. Claude Code has no user-level `settings.local.json` (only a project's is read), and
-the file is a stowed symlink, so runtime `/config` edits write into this repo: commit what you want to
-keep, or `git checkout` to discard. An existing file is backed up to `*.pre-dotfiles` on first bootstrap.
+The committed `~/.claude/settings.json` is the full baseline - hooks, `statusLine`, `permissions`, plugins, and prefs.
+Claude Code has no user-level `settings.local.json` (only a project's is read), and the file is a stowed symlink, so
+runtime `/config` edits write into this repo: commit what you want to keep, or `git checkout` to discard. An existing
+file is backed up to `*.pre-dotfiles` on first bootstrap.
 
 ### Stow commands
 
@@ -170,13 +169,19 @@ stow -R <package>    # Re-link (unlink + link)
 
 ## Notes
 
-- **System `.bashrc` is never overwritten** - customizations live in `~/.bashrc.d/*.bash`, sourced by a loop `bootstrap.sh` appends (with a backup).
+- **System `.bashrc` is never overwritten** - customizations live in `~/.bashrc.d/*.bash`, sourced by a loop
+  `bootstrap.sh` appends (with a backup).
 - **Private/work aliases** go in `~/.bashrc.d/local.bash` (not tracked).
-- **Notes vaults**: `bootstrap.sh` seeds two plain-markdown PARA vault skeletons (`~/vaults/personal`, `~/vaults/work`) from `vault-template/`, each with an agent layer - the global `vault-manager` skill adds and maintains notes, and a deterministic `.claude/vault-check.sh` integrity gate runs in the git pre-commit hook (which also blocks secrets). It prints optional git-remote wiring steps for any not yet synced; each vault's contents live in its own private repo, never here.
+- **Notes vaults**: `bootstrap.sh` seeds two plain-markdown PARA vault skeletons (`~/vaults/personal`, `~/vaults/work`)
+  from `vault-template/`, each with an agent layer - the global `vault-manager` skill adds and maintains notes, and a
+  deterministic `.claude/vault-check.sh` integrity gate runs in the git pre-commit hook (which also blocks secrets). It
+  prints optional git-remote wiring steps for any not yet synced; each vault's contents live in its own private repo,
+  never here.
 - **Neovim plugins**: `lazy-lock.json` pins versions - commit it to keep installs reproducible.
 - **Python venvs**: direnv auto-activates `.venv` per directory.
 - **Idempotent**: `bootstrap.sh` is safe to re-run (skips what's installed).
-- **Smoke test**: `task fresh` runs bootstrap in a clean Ubuntu 24.04 container (checks binaries, symlinks, idempotency); run before touching `bootstrap.sh`. The release workflow runs it too, so no release ships without it.
+- **Smoke test**: `task fresh` runs bootstrap in a clean Ubuntu 24.04 container (checks binaries, symlinks,
+  idempotency); run before touching `bootstrap.sh`. The release workflow runs it too, so no release ships without it.
 
 ## License
 

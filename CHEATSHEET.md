@@ -72,9 +72,8 @@ Commands and keys to internalize for this setup. Sorted by frequency of use.
 
 ### hunk (diff viewer)
 
-delta is git's pager, so raw `git diff` / `git show` / `git log` open in delta.
-The `gd` / `gds` / `gdw` / `gdm` aliases launch hunk's native interactive
-reviewer directly. delta also colors `git add -p` staging and `git blame`.
+delta is git's pager, so raw `git diff` / `git show` / `git log` open in delta. The `gd` / `gds` / `gdw` / `gdm` aliases
+launch hunk's native interactive reviewer directly. delta also colors `git add -p` staging and `git blame`.
 
 | Key / Command | Action                                        |
 | ------------- | --------------------------------------------- |
@@ -219,7 +218,8 @@ reviewer directly. delta also colors `git add -p` staging and `git blame`.
 
 ### Sessions (persistence.nvim)
 
-Sessions are scoped per cwd and saved on quit. Use `vimr` to restore buffers and the explorer (if it was open); plain `vim`/`nvim` always starts clean.
+Sessions are scoped per cwd and saved on quit. Use `vimr` to restore buffers and the explorer (if it was open); plain
+`vim`/`nvim` always starts clean.
 
 | Key          | Action                              |
 | ------------ | ----------------------------------- |
@@ -235,12 +235,10 @@ Sessions are scoped per cwd and saved on quit. Use `vimr` to restore buffers and
 
 ### Notes (Obsidian vaults: `~/vaults/personal` and `~/vaults/work`)
 
-Two markdown vaults with `[[wiki-links]]`, daily notes and tags (obsidian.nvim):
-`~/vaults/personal` and `~/vaults/work` are separate workspaces - the one that owns
-the open file activates automatically (work is the default), and `<leader>ow` switches
-between them. Images render inline in the buffer (image.nvim) and paste from the
-clipboard (img-clip.nvim).
-Keys below work in markdown buffers.
+Two markdown vaults with `[[wiki-links]]`, daily notes and tags (obsidian.nvim): `~/vaults/personal` and `~/vaults/work`
+are separate workspaces - the one that owns the open file activates automatically (work is the default), and
+`<leader>ow` switches between them. Images render inline in the buffer (image.nvim) and paste from the clipboard
+(img-clip.nvim). Keys below work in markdown buffers.
 
 | Key          | Action                                       |
 | ------------ | -------------------------------------------- |

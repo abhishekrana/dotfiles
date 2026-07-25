@@ -18,54 +18,54 @@ FLAVORS="solarized-light solarized-dark catppuccin-latte catppuccin-mocha"
 
 # ghostty's built-in theme name per flavor (from `ghostty +list-themes`).
 ghostty_name() {
-	case "$1" in
-	solarized-light) echo "iTerm2 Solarized Light" ;;
-	solarized-dark) echo "iTerm2 Solarized Dark" ;;
-	catppuccin-latte) echo "Catppuccin Latte" ;;
-	catppuccin-mocha) echo "Catppuccin Mocha" ;;
-	esac
+    case "$1" in
+        solarized-light) echo "iTerm2 Solarized Light" ;;
+        solarized-dark) echo "iTerm2 Solarized Dark" ;;
+        catppuccin-latte) echo "Catppuccin Latte" ;;
+        catppuccin-mocha) echo "Catppuccin Mocha" ;;
+    esac
 }
 
 # palette_get <flavor> <token> - read one hex from palette.toml's [themes.<flavor>] table.
 palette_get() {
-	awk -v want="[themes.$1]" -v key="$2" '
+    awk -v want="[themes.$1]" -v key="$2" '
 		/^\[/ { in_s = ($0 == want) }
 		in_s && $1 == key { gsub(/"/, "", $3); print $3; exit }
 	' "$PALETTE"
 }
 
-valid() { case " $FLAVORS " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
+valid() { case " $FLAVORS " in *" $1 "*) return 0 ;; *) return 1 ;; esac }
 
 # The sidebar reads @agentbar-theme at launch; running instances need a restart.
 apply_sidebar() {
-	command -v tmux >/dev/null || return 0
-	tmux set -g @agentbar-theme "$1" 2>/dev/null || true
+    command -v tmux >/dev/null || return 0
+    tmux set -g @agentbar-theme "$1" 2>/dev/null || true
 }
 
 # Ghostty applies a built-in theme by name. Write it to a non-repo file that the main
 # config includes (config-file = ?~/.config/theme/ghostty.conf), so switching never edits
 # the tracked config. SIGUSR2 reloads a running instance (Linux).
 apply_ghostty() {
-	printf 'theme = %s\n' "$(ghostty_name "$1")" >"$STATE_DIR/ghostty.conf"
-	pkill -USR2 -x ghostty 2>/dev/null || true
+    printf 'theme = %s\n' "$(ghostty_name "$1")" >"$STATE_DIR/ghostty.conf"
+    pkill -USR2 -x ghostty 2>/dev/null || true
 }
 
 # The tmux frame hardcodes colors that overpaint ghostty inside tmux; regenerate the
 # colour-carrying settings from the palette and source them into the running server.
 apply_tmux() {
-	command -v tmux >/dev/null || return 0
-	local f="$STATE_DIR/tmux.conf"
-	local bg surface fg muted accent block ask grn work
-	bg=$(palette_get "$1" bg)
-	surface=$(palette_get "$1" surface)
-	fg=$(palette_get "$1" fg)
-	muted=$(palette_get "$1" muted)
-	accent=$(palette_get "$1" accent)
-	block=$(palette_get "$1" blocked)
-	ask=$(palette_get "$1" asking)
-	grn=$(palette_get "$1" "done")
-	work=$(palette_get "$1" working)
-	cat >"$f" <<EOF
+    command -v tmux >/dev/null || return 0
+    local f="$STATE_DIR/tmux.conf"
+    local bg surface fg muted accent block ask grn work
+    bg=$(palette_get "$1" bg)
+    surface=$(palette_get "$1" surface)
+    fg=$(palette_get "$1" fg)
+    muted=$(palette_get "$1" muted)
+    accent=$(palette_get "$1" accent)
+    block=$(palette_get "$1" blocked)
+    ask=$(palette_get "$1" asking)
+    grn=$(palette_get "$1" "done")
+    work=$(palette_get "$1" working)
+    cat >"$f" <<EOF
 set -g status-style "fg=$fg,bg=$surface"
 set -g window-style "fg=$fg,bg=$bg"
 set -g window-active-style "fg=$fg,bg=$bg"
@@ -79,25 +79,25 @@ set -g @submit_seg "#{?@submit_flash,#[fg=$bg bg=$grn]  ⏎ enter  ,#[fg=$work b
 set -g @push_seg "#{?@push_flash,#[fg=$bg bg=$grn]  ⇡ commit+push  ,#[fg=$accent bg=$surface]  ⇡ commit+push  }"
 set -g @diff_seg "#[fg=#6c71c4 bg=$surface] ◧ diff#{?@diff_mode,:#{@diff_mode},} "
 EOF
-	tmux source-file "$f" 2>/dev/null || true
+    tmux source-file "$f" 2>/dev/null || true
 }
 
 # fzf reads its palette from FZF_DEFAULT_OPTS; write the flavor's --color block to a
 # file that fzf.bash sources, so new shells follow the flavor.
 apply_fzf() {
-	local f="$STATE_DIR/fzf.sh"
-	local mode bg fg accent emph sel muted work grn border
-	mode=$(palette_get "$1" mode)
-	bg=$(palette_get "$1" bg)
-	fg=$(palette_get "$1" fg)
-	accent=$(palette_get "$1" accent)
-	emph=$(palette_get "$1" emphasis)
-	sel=$(palette_get "$1" selection)
-	muted=$(palette_get "$1" muted)
-	work=$(palette_get "$1" working)
-	grn=$(palette_get "$1" "done")
-	border=$(palette_get "$1" border)
-	cat >"$f" <<EOF
+    local f="$STATE_DIR/fzf.sh"
+    local mode bg fg accent emph sel muted work grn border
+    mode=$(palette_get "$1" mode)
+    bg=$(palette_get "$1" bg)
+    fg=$(palette_get "$1" fg)
+    accent=$(palette_get "$1" accent)
+    emph=$(palette_get "$1" emphasis)
+    sel=$(palette_get "$1" selection)
+    muted=$(palette_get "$1" muted)
+    work=$(palette_get "$1" working)
+    grn=$(palette_get "$1" "done")
+    border=$(palette_get "$1" border)
+    cat >"$f" <<EOF
 _fzf_color="--color=$mode --color=fg:$fg,bg:$bg,hl:$accent --color=fg+:$emph,bg+:$sel,hl+:$accent --color=info:$muted,prompt:$accent,pointer:$accent --color=marker:$grn,spinner:$work,header:$muted --color=border:$border,gutter:$bg"
 EOF
 }
@@ -106,15 +106,15 @@ EOF
 # from a file sourced by ~/.bashrc.d/theme.bash, so new shells follow it. Catppuccin bat
 # themes need installing separately; until then bat falls back harmlessly.
 apply_env() {
-	local f="$STATE_DIR/env.sh"
-	local bat
-	case "$1" in
-	solarized-light) bat="Solarized (light)" ;;
-	solarized-dark) bat="Solarized (dark)" ;;
-	catppuccin-latte) bat="Catppuccin Latte" ;;
-	catppuccin-mocha) bat="Catppuccin Mocha" ;;
-	esac
-	cat >"$f" <<EOF
+    local f="$STATE_DIR/env.sh"
+    local bat
+    case "$1" in
+        solarized-light) bat="Solarized (light)" ;;
+        solarized-dark) bat="Solarized (dark)" ;;
+        catppuccin-latte) bat="Catppuccin Latte" ;;
+        catppuccin-mocha) bat="Catppuccin Mocha" ;;
+    esac
+    cat >"$f" <<EOF
 export THEME="$1"
 export BAT_THEME="$bat"
 EOF
@@ -123,17 +123,17 @@ EOF
 # delta reads its colors from git config; write the flavor's block to a file git includes
 # (overrides the solarized-light default). Non-repo, applies on the next git diff.
 apply_delta() {
-	local f="$STATE_DIR/delta.gitconfig"
-	local light stheme add rem
-	case "$1" in
-	solarized-light) light=true stheme="Solarized (light)" ;;
-	solarized-dark) light=false stheme="Solarized (dark)" ;;
-	catppuccin-latte) light=true stheme="Catppuccin Latte" ;;
-	catppuccin-mocha) light=false stheme="Catppuccin Mocha" ;;
-	esac
-	add=$(palette_get "$1" add)
-	rem=$(palette_get "$1" remove)
-	cat >"$f" <<EOF
+    local f="$STATE_DIR/delta.gitconfig"
+    local light stheme add rem
+    case "$1" in
+        solarized-light) light=true stheme="Solarized (light)" ;;
+        solarized-dark) light=false stheme="Solarized (dark)" ;;
+        catppuccin-latte) light=true stheme="Catppuccin Latte" ;;
+        catppuccin-mocha) light=false stheme="Catppuccin Mocha" ;;
+    esac
+    add=$(palette_get "$1" add)
+    rem=$(palette_get "$1" remove)
+    cat >"$f" <<EOF
 [delta]
 	light = $light
 	syntax-theme = $stheme
@@ -146,44 +146,44 @@ EOF
 
 # nvim reads the flavor at startup from ~/.config/theme/nvim.lua (colorscheme + background).
 apply_nvim() {
-	local scheme bg
-	case "$1" in
-	solarized-light) scheme=solarized bg=light ;;
-	solarized-dark) scheme=solarized bg=dark ;;
-	catppuccin-latte) scheme=catppuccin-latte bg=light ;;
-	catppuccin-mocha) scheme=catppuccin-mocha bg=dark ;;
-	esac
-	cat >"$STATE_DIR/nvim.lua" <<EOF
+    local scheme bg
+    case "$1" in
+        solarized-light) scheme=solarized bg=light ;;
+        solarized-dark) scheme=solarized bg=dark ;;
+        catppuccin-latte) scheme=catppuccin-latte bg=light ;;
+        catppuccin-mocha) scheme=catppuccin-mocha bg=dark ;;
+    esac
+    cat >"$STATE_DIR/nvim.lua" <<EOF
 return { colorscheme = "$scheme", background = "$bg" }
 EOF
 }
 
 main() {
-	case "${1:-}" in
-	--list | -l)
-		echo "$FLAVORS" | tr ' ' '\n'
-		return 0
-		;;
-	"")
-		if [ -f "$STATE_DIR/current" ]; then cat "$STATE_DIR/current"; else echo "solarized-light (default)"; fi
-		return 0
-		;;
-	esac
-	local flavor="$1"
-	if ! valid "$flavor"; then
-		echo "theme: unknown flavor '$flavor' (try: theme --list)" >&2
-		return 2
-	fi
-	mkdir -p "$STATE_DIR"
-	echo "$flavor" >"$STATE_DIR/current"
-	apply_sidebar "$flavor"
-	apply_ghostty "$flavor"
-	apply_tmux "$flavor"
-	apply_fzf "$flavor"
-	apply_env "$flavor"
-	apply_delta "$flavor"
-	apply_nvim "$flavor"
-	echo "→ $flavor (accent $(palette_get "$flavor" accent)). Ghostty + tmux reload now; new shells pick up fzf/bat; next git diff / nvim launch picks up delta / nvim; restart sidebars with prefix+e twice."
+    case "${1:-}" in
+        --list | -l)
+            echo "$FLAVORS" | tr ' ' '\n'
+            return 0
+            ;;
+        "")
+            if [ -f "$STATE_DIR/current" ]; then cat "$STATE_DIR/current"; else echo "solarized-light (default)"; fi
+            return 0
+            ;;
+    esac
+    local flavor="$1"
+    if ! valid "$flavor"; then
+        echo "theme: unknown flavor '$flavor' (try: theme --list)" >&2
+        return 2
+    fi
+    mkdir -p "$STATE_DIR"
+    echo "$flavor" >"$STATE_DIR/current"
+    apply_sidebar "$flavor"
+    apply_ghostty "$flavor"
+    apply_tmux "$flavor"
+    apply_fzf "$flavor"
+    apply_env "$flavor"
+    apply_delta "$flavor"
+    apply_nvim "$flavor"
+    echo "→ $flavor (accent $(palette_get "$flavor" accent)). Ghostty + tmux reload now; new shells pick up fzf/bat; next git diff / nvim launch picks up delta / nvim; restart sidebars with prefix+e twice."
 }
 
 main "$@"

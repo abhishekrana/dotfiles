@@ -1,21 +1,21 @@
 # dictate
 
-Toggle-key local speech-to-text into tmux. Tap a key to start, tap again to stop - the clip is transcribed offline
-with [faster-whisper](https://github.com/SYSTRAN/faster-whisper) and typed into your active tmux pane. CPU-only, fully
-local, zero elevated privilege.
+Toggle-key local speech-to-text into tmux. Tap a key to start, tap again to stop - the clip is transcribed offline with
+[faster-whisper](https://github.com/SYSTRAN/faster-whisper) and typed into your active tmux pane. CPU-only, fully local,
+zero elevated privilege.
 
 ## How it works
 
-- A GNOME custom shortcut runs `dictate --toggle`. First press records the mic via `parec`; second press ships the
-  clip to a local model server for transcription and injects the text with `tmux send-keys`.
+- A GNOME custom shortcut runs `dictate --toggle`. First press records the mic via `parec`; second press ships the clip
+  to a local model server for transcription and injects the text with `tmux send-keys`.
 - Runs entirely in userspace - no sudo, no groups, no `/dev/*` access. tmux owns the pane's pty, so writing to it is
   ordinary I/O.
 - **Lazy model server:** the first dictation spawns a background `dictate --serve` that loads faster-whisper once and
   keeps it resident, listening on a Unix socket in `$XDG_RUNTIME_DIR`. Later dictations reuse it and skip the ~1 s
-  model-load - the toggle just streams PCM in and reads text back, so it never imports faster-whisper itself. The
-  server self-exits after `DICTATE_IDLE` seconds of inactivity to free its RAM (~0.5-1 GB), and respawns on the next
-  dictation. If the server can't be reached, the toggle falls back to loading the model in-process, so dictation always
-  works. The mic is open only between toggle-on and toggle-off.
+  model-load - the toggle just streams PCM in and reads text back, so it never imports faster-whisper itself. The server
+  self-exits after `DICTATE_IDLE` seconds of inactivity to free its RAM (~0.5-1 GB), and respawns on the next dictation.
+  If the server can't be reached, the toggle falls back to loading the model in-process, so dictation always works. The
+  mic is open only between toggle-on and toggle-off.
 - **Auto-stop on silence:** while recording, a background `dictate --watch` samples the audio and stops for you after
   `DICTATE_SILENCE` seconds of trailing silence (only once you've actually spoken), or the `DICTATE_MAXSECS` cap. A
   second press still stops early; set `DICTATE_SILENCE=0` for manual-only.
@@ -63,8 +63,8 @@ dictate --serve-stop          # stop the model server (e.g. to pick up new confi
 The server picks up its config (model, prompt, etc.) at spawn time, so after changing a `DICTATE_*` env var run
 `dictate --serve-stop` (or wait for the idle timeout) so the next dictation starts a fresh server.
 
-Dictated newlines are collapsed to spaces, so speech never submits a prompt - you press Enter yourself (or click the
-`⏎` button in the status bar).
+Dictated newlines are collapsed to spaces, so speech never submits a prompt - you press Enter yourself (or click the `⏎`
+button in the status bar).
 
 ## Config (env vars)
 

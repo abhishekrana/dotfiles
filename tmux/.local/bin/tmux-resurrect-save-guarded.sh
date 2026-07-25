@@ -22,23 +22,23 @@ RESURRECT_SAVE="${HOME}/.tmux/plugins/tmux-resurrect/scripts/save.sh"
 
 # Nothing running -> nothing to save (e.g. timer fired while detached from boot).
 if ! tmux list-sessions >/dev/null 2>&1; then
-	exit 0
+    exit 0
 fi
 
 host="$(hostname -s 2>/dev/null || hostname 2>/dev/null || echo tmux)"
 
 # Normalise empty / ":"-prefixed titles across every pane on the server.
 while IFS=$'\t' read -r pane_id title; do
-	case "$title" in
-		"" | :*) tmux select-pane -t "$pane_id" -T "$host" 2>/dev/null ;;
-	esac
+    case "$title" in
+        "" | :*) tmux select-pane -t "$pane_id" -T "$host" 2>/dev/null ;;
+    esac
 done < <(tmux list-panes -a -F "#{pane_id}"$'\t'"#{pane_title}" 2>/dev/null)
 
 # Trace manual saves only (prefix + C-s). Continuum autosave and the systemd
 # timer pass "quiet" -- they're periodic, not user actions, so skip them.
 case "$*" in
-	*quiet*) : ;;
-	*) "$HOME/.local/bin/dotfiles-trace" log resurrect save trigger=manual 2>/dev/null || true ;;
+    *quiet*) : ;;
+    *) "$HOME/.local/bin/dotfiles-trace" log resurrect save trigger=manual 2>/dev/null || true ;;
 esac
 
 exec "$RESURRECT_SAVE" "$@"

@@ -12,7 +12,10 @@ set -euo pipefail
 
 DOTFILES_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
-command -v docker >/dev/null || { echo "docker not found"; exit 1; }
+command -v docker >/dev/null || {
+    echo "docker not found"
+    exit 1
+}
 
 docker run --rm -v "$DOTFILES_DIR:/dotfiles:ro" ubuntu:24.04 bash -c '
 set -e

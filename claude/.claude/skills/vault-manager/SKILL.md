@@ -1,6 +1,10 @@
 ---
 name: vault-manager
-description: Manages the user's plain-markdown notes vault (~/vaults/work or ~/vaults/personal) - adds, updates, files, links, and prunes notes, keeping it coherent. Use only when the user explicitly asks to put something in their vault or notes, e.g. "save this to my vault" or "add this to my notes". Searches the vault first, follows the target vault's CLAUDE.md rules, records source provenance, and never commits.
+description:
+  Manages the user's plain-markdown notes vault (~/vaults/work or ~/vaults/personal) - adds, updates, files, links, and
+  prunes notes, keeping it coherent. Use only when the user explicitly asks to put something in their vault or notes,
+  e.g. "save this to my vault" or "add this to my notes". Searches the vault first, follows the target vault's CLAUDE.md
+  rules, records source provenance, and never commits.
 ---
 
 # Vault manager
@@ -24,8 +28,8 @@ Make the smallest change that satisfies the request; nothing is committed, so th
    - **Reorganize:** move a note to the right bucket when its actionability changes. Rename via the vault's rename
      convention so `[[links]]` stay intact - never break backlinks.
    - **Link:** add `[[links]]` to closely related notes you verified exist - never invent a link.
-   - **Prune:** merge near-duplicates; delete truly redundant or dead notes. Deletion is destructive - state exactly what
-     you will remove and why first, and prefer merging into a better note over deleting outright.
+   - **Prune:** merge near-duplicates; delete truly redundant or dead notes. Deletion is destructive - state exactly
+     what you will remove and why first, and prefer merging into a better note over deleting outright.
 5. **Keep notes atomic** (one idea each; split rather than bolt on) and **stamp provenance** using the vault's schema
    (`source: <repo>@<branch>`, `updated:`).
 6. **Verify.** Run `<vault>/.claude/vault-check.sh` and resolve what it flags - fix every `ERROR`, and address warnings

@@ -8,7 +8,8 @@
 # returns it to the leftmost only - every move drained the others.
 # Locals are prefixed: bash scoping leaks them into the called command.
 insert_keeping_widths() {
-    local ikw_window=$1 ikw_inserted=$2; shift 2
+    local ikw_window=$1 ikw_inserted=$2
+    shift 2
     local ikw_before ikw_min ikw_left ikw_id ikw_width ikw_shrunk=""
     ikw_before=$(tmux list-panes -t "$ikw_window" -F '#{pane_left} #{pane_id} #{pane_width}' | sort -n)
     "$@" || return 0

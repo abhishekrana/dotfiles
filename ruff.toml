@@ -1,0 +1,6 @@
+# Lints the PEP 723 scripts in this repo (dictate). Gates bugs and line width,
+# not style: the compact `a(); b()` idiom is deliberate.
+line-length = 120
+
+[lint]
+select = ["E9", "F", "E501"]

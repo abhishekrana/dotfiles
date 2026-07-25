@@ -7,4 +7,7 @@ parts=()
 [ -n "$model" ] && parts+=("$model")
 [ -n "$used" ] && parts+=("ctx: ${used}% used")
 
-printf "%s" "$(IFS='|'; echo "${parts[*]}" | sed 's/|/ | /g')"
+printf "%s" "$(
+    IFS='|'
+    echo "${parts[*]}" | sed 's/|/ | /g'
+)"

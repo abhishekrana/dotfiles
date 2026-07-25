@@ -1,7 +1,7 @@
 # CLAUDE.md
 
-Toggle-key local speech-to-text into tmux (faster-whisper, CPU-only). See `README.md` for usage and config; this file
-is for hacking on the script. Keep it a single file - do not split it into a package.
+Toggle-key local speech-to-text into tmux (faster-whisper, CPU-only). See `README.md` for usage and config; this file is
+for hacking on the script. Keep it a single file - do not split it into a package.
 
 ## Packaging (why it is a stow package, not an app)
 
@@ -32,8 +32,8 @@ is for hacking on the script. Keep it a single file - do not split it into a pac
 ## Tracing
 
 - `log()` prints to stderr, which is **discarded** in every real launch context (tmux `run-shell -b`, the GNOME
-  shortcut, `--serve`/`--watch` DEVNULL). The `trace(evt, **kv)` helper is the only durable record: it fires
-  edges (`toggle`, `rec`, `transcribe`, `send`, `result` with outcome/chars/ms) into the shared dotfiles trace log
+  shortcut, `--serve`/`--watch` DEVNULL). The `trace(evt, **kv)` helper is the only durable record: it fires edges
+  (`toggle`, `rec`, `transcribe`, `send`, `result` with outcome/chars/ms) into the shared dotfiles trace log
   (`dotfiles-trace`). Call it at action edges only - **never** in `watch()` (150ms poll) or the `--serve` loop. View
   with `dotfiles-trace show --src dictate`; see the repo-root CLAUDE.md "Debugging" section.
 
