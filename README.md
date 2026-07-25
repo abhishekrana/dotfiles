@@ -115,9 +115,10 @@ stack with `theme <flavor>` (`solarized-light` · `solarized-dark` · `catppucci
 
 ## Development
 
-`task` lists everything this repo can do; `task check` is the gate CI runs on every push - shellcheck, ruff, prettier,
-gitleaks and the agentbar test suite. Commits follow [Conventional Commits](https://www.conventionalcommits.org/), and
-releases are cut by pushing an annotated `v*` tag: `.github/workflows/release.yml` re-runs the gate, runs the container
+`task` lists everything this repo can do. `task check` is the gate CI runs on every push - shellcheck, ruff, prettier,
+gitleaks and the agentbar test suite - and `task check-ci` reruns that suite in a container mirroring the runner (older
+tmux, no `LANG`, `CI` set). Commits follow [Conventional Commits](https://www.conventionalcommits.org/), and releases
+are cut by pushing an annotated `v*` tag: `.github/workflows/release.yml` re-runs the gate, runs the container
 fresh-install test, and publishes a GitHub Release with notes generated from the commit history. See
 [CHANGELOG.md](CHANGELOG.md) and the "Releasing" section of [CLAUDE.md](CLAUDE.md).
 

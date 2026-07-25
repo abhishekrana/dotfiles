@@ -56,8 +56,7 @@ CLI so CI installs with the same code a machine does - no duplicated download lo
 `apps/` builds. Steps that need the stowed configs in place (`install_bat_themes`, `install_nvim_plugins`) run after
 `stow_packages`.
 
-**tmux is pinned and built from source.** Ubuntu 24.04 ships 3.4, and the sidebar's e2e suite fails 8 tests on it - one
-version everywhere instead of supporting old ones.
+**tmux is pinned and built from source.** Ubuntu 24.04 ships 3.4, which the sidebar's e2e suite fails on.
 
 ## Release furniture
 
@@ -187,6 +186,10 @@ predates the convention; generation covers `0.2.0` on, which is why `task change
 `Taskfile.yml` holds the routine work - run `task` for the list. `task check` is the gate CI runs; `task stow`,
 `task fmt`, `task trace`, `task tmux-reload`, `task fresh` and the `agentbar:*` tasks cover the rest. Projects under
 `apps/` keep their own build files and the `agentbar:*` tasks delegate to them.
+
+`task check-ci` reruns the agentbar suite in a container mirroring the runner: older tmux, no `LANG`, `CI` set. Run it
+before pushing anything that touches tmux, rendering or the pane protocol. The rest of the gate reads files and is
+environment-blind.
 
 ## Formatting
 

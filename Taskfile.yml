@@ -88,6 +88,15 @@ tasks:
     cmds:
       - stow --restow {{.STOW_PACKAGES}}
 
+  check-ci:
+    desc: Run the agentbar suite in a container that mirrors the CI runner (needs docker)
+    cmds:
+      - docker build -q -f test/ci-mirror.Dockerfile -t dotfiles-ci-mirror . >/dev/null
+      # CI=true and no LANG: what a runner has and this machine does not.
+      - >-
+        docker run --rm -e CI=true -v "$PWD:/src:ro" dotfiles-ci-mirror bash -c 'cp -r /src /work && cd
+        /work/{{.AGENTBAR}} && go test ./... -count=1'
+
   fresh:
     desc: Full bootstrap in a clean Ubuntu container, twice (needs docker, ~10 min)
     cmds:

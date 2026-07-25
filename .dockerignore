@@ -1,0 +1,3 @@
+# Keep the build context small; the CI mirror only needs install.sh.
+.git
+apps/*/bin
