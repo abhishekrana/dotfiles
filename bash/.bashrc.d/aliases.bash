@@ -59,7 +59,8 @@ gwts() {
   local line dir
   line=$(git worktree list | grep -v ' (bare)$' | fzf --prompt='worktree> ') || return
   dir="${line%% *}"
-  [ -n "$dir" ] && cd "$dir"
+  [ -n "$dir" ] || return
+  cd "$dir" || return
 }
 
 # gwtm: switch to the branch named after the current worktree dir (create it off
@@ -110,10 +111,9 @@ ta() {
     # "restore from scratch" (which fires only when the whole server has exactly
     # one pane) does NOT absorb our launch pane into a restored session and
     # scramble its layout. Then drop the scratch and attach to the target.
-    local i
     tmux new-session -d -s _resurrect_boot -c "$HOME"
     tmux split-window -t _resurrect_boot -c "$HOME"
-    for i in $(seq 1 60); do
+    for _ in $(seq 1 60); do
       tmux has-session -t "$name" 2>/dev/null && break
       sleep 0.25
     done

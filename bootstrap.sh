@@ -3,7 +3,6 @@ set -euo pipefail
 
 DOTFILES_DIR="$(cd "$(dirname "$0")" && pwd)"
 LOCAL_BIN="$HOME/.local/bin"
-ARCH="$(uname -m)"
 
 # Pinned versions (update these to upgrade)
 DELTA_VERSION="0.19.2"
