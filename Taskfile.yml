@@ -52,10 +52,16 @@ tasks:
       - ruff check {{.PY_FILES}}
 
   secrets:
-    desc: Scan the tree and the full history for credentials
+    desc: Scan for credentials (gitleaks) and private IPs in tracked files
     cmds:
       - gitleaks dir . --no-banner --redact
       - gitleaks git . --no-banner --redact
+      # Four octets: the old audit grep used 10\.\d+\.\d+, which fires on version
+      # pins like 10.4.2. Tracked files only - local.bash is gitignored by design.
+      - >-
+        git ls-files -z | xargs -0 grep -nEI
+        '\b(10\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}|192\.168\.[0-9]{1,3}\.[0-9]{1,3}|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]{1,3}\.[0-9]{1,3})\b'
+        && { echo "private IP in a tracked file (see above)" >&2; exit 1; } || true
 
   fmt-check:
     desc: Check prettier formatting (markdown, yaml, json) - 120 columns

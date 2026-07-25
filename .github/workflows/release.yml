@@ -18,7 +18,8 @@ jobs:
 
       - name: Read pinned tool versions
         run:
-          grep -E '^(GIT_CLIFF|GITLEAKS|RUFF|SHELLCHECK|SHFMT|TASK)_VERSION=' bootstrap.sh | tr -d '"' >> "$GITHUB_ENV"
+          grep -E '^(GIT_CLIFF|GITLEAKS|RUFF|SHELLCHECK|SHFMT|TASK|TMUX)_VERSION=' bootstrap.sh | tr -d '"' >>
+          "$GITHUB_ENV"
 
       - name: Install the gate tools and git-cliff
         run: |
@@ -47,8 +48,16 @@ jobs:
         with:
           go-version-file: apps/agentbar/go.mod
 
-      - name: Install tmux
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq tmux
+      - name: Build the pinned tmux
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq build-essential bison libevent-dev libncurses-dev pkg-config
+          curl -sSL "https://github.com/tmux/tmux/releases/download/${TMUX_VERSION}/tmux-${TMUX_VERSION}.tar.gz" \
+            | tar xz -C /tmp
+          cd "/tmp/tmux-${TMUX_VERSION}"
+          ./configure --prefix="$HOME/.local" >/dev/null
+          make -j"$(nproc)" >/dev/null && make install >/dev/null
+          tmux -V
 
       - name: task check
         run: task check

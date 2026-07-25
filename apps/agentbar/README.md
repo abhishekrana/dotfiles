@@ -46,7 +46,7 @@ the sidebar picks it up on its 1s tick.
 
 ## Requirements
 
-- tmux ≥ 3.2
+- tmux 3.7b (pinned; `bootstrap.sh` builds it - Ubuntu 24.04 ships 3.4, which this suite fails on)
 - Claude Code ≥ 2.x (hooks)
 - Go ≥ 1.25 (to build; only needed once)
 - git (for the branch line)

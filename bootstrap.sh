@@ -21,6 +21,7 @@ RUFF_VERSION="0.16.0"
 SHELLCHECK_VERSION="0.11.0"
 SHFMT_VERSION="3.13.1"
 TASK_VERSION="3.52.0"
+TMUX_VERSION="3.7b"
 YAZI_VERSION="26.5.6"
 ZOXIDE_VERSION="0.10.0"
 
@@ -39,8 +40,9 @@ install_apt_packages() {
     # chafa: image previews for yazi
     # imagemagick: convert/identify, used by image.nvim to render images in nvim
     local pkgs=(
-        bat build-essential chafa curl direnv fontconfig imagemagick jq ripgrep
-        software-properties-common stow tmux tree unzip wget wl-clipboard
+        bat bison build-essential chafa curl direnv fontconfig imagemagick jq
+        libevent-dev libncurses-dev pkg-config ripgrep software-properties-common
+        stow tree unzip wget wl-clipboard
     )
     local to_install=()
     for pkg in "${pkgs[@]}"; do
@@ -414,6 +416,24 @@ install_nerd_font() {
 # =============================================================================
 # TPM (Tmux Plugin Manager)
 # =============================================================================
+
+# Built from source: Ubuntu 24.04 ships 3.4, which the sidebar's e2e suite fails
+# on (selection propagation and narrow panes). One version everywhere instead.
+install_tmux() {
+    if [ -x "$LOCAL_BIN/tmux" ] && "$LOCAL_BIN/tmux" -V 2>/dev/null | grep -q "tmux $TMUX_VERSION"; then
+        ok "tmux $TMUX_VERSION already installed"
+        return
+    fi
+    log "Building tmux $TMUX_VERSION from source..."
+    local url tmp
+    url=$(gh_url tmux/tmux "$TMUX_VERSION" "tmux-${TMUX_VERSION}.tar.gz")
+    tmp=$(mktemp -d)
+    curl -sSL "$url" | tar xz -C "$tmp"
+    (cd "$tmp/tmux-${TMUX_VERSION}" && ./configure --prefix="$HOME/.local" >/dev/null &&
+        make -j"$(nproc)" >/dev/null && make install >/dev/null)
+    rm -rf "$tmp"
+    ok "tmux $TMUX_VERSION installed"
+}
 
 install_tpm() {
     local tpm_dir="$HOME/.tmux/plugins/tpm"
@@ -800,6 +820,7 @@ install_ruff
 install_shellcheck
 install_shfmt
 install_task
+install_tmux
 install_tpm
 install_yazi
 install_zoxide
