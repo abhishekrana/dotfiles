@@ -25,7 +25,8 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
 - `theme/` → `~/.local/bin/theme` (theme switcher; re-skins the terminal stack across the four flavors from
   `design/palette.toml`, writing per-tool files into `~/.config/theme/`)
 - `tmux/` → `~/.tmux.conf`, `~/.gitmux.conf`, `~/.local/bin/` scripts (`tmux-gitlab.sh` GitLab status, session picker,
-  resurrect guard, yank)
+  resurrect guard, yank, `tmux-reset.sh` the `prefix + R` UI reset - reload + sidebar refresh + default geometry,
+  non-destructive; guarded by `task reset`)
 - `trace/` → `~/.local/bin/dotfiles-trace` (shared always-on trace log for the tmux/agent stack; see "Debugging" below)
 - `yazi/` → `~/.config/yazi/` (yazi file manager config)
 
@@ -102,6 +103,18 @@ records action _edges_ across the whole interactive stack:
 - **Toggles:** `tmux set -g @agentbar-trace-verbose on` adds the noisy sidebar events (mouse motion, ticks) for a live
   hunt (effect within ~1s, no restart). `DOTFILES_TRACE=0` disables entirely; for tmux `run-shell` children use
   `tmux set-environment -g DOTFILES_TRACE 0`.
+
+### Tracing a new feature
+
+Give every new interactive feature the same treatment, so the evidence is already there the first time it misbehaves:
+
+- One `dotfiles-trace log <src> <evt> k=v ...` per action edge, never in a hot loop. Reuse an existing `src`, or add the
+  new one to the `--src` list above.
+- Log the outcome, not just the intent - `rc=`, `bytes=`, `resized=` are what separate "it ran" from "it worked".
+- When the feature changes state, put both sides on one line (`before=… after=…`), and only when it actually changed, so
+  a steady state stays silent.
+- Records are summaries: the CLI escapes values and caps them at 200 chars, and the log is 1 MiB with one rotation.
+- Tests run the code under `DOTFILES_TRACE=0` so they never land in the live log.
 
 ## Vault template
 
@@ -193,8 +206,9 @@ predates the convention; generation covers `0.2.0` on, which is why `task change
 ## Tasks
 
 `Taskfile.yml` holds the routine work - run `task` for the list. `task check` is the gate CI runs; `task stow`,
-`task fmt`, `task trace`, `task tmux-reload`, `task fresh` and the `agentbar:*` tasks cover the rest. Projects under
-`apps/` keep their own build files and the `agentbar:*` tasks delegate to them.
+`task fmt`, `task trace`, `task tmux-reload`, `task tmux-reset` (same as `prefix + R`), `task fresh` and the
+`agentbar:*` tasks cover the rest. The `tmux-*` tasks are the ones that act on the live server. Projects under `apps/`
+keep their own build files and the `agentbar:*` tasks delegate to them.
 
 `task check-ci` reruns the agentbar suite in a container mirroring the runner: older tmux, no `LANG`, `CI` set. Run it
 before pushing anything that touches tmux, rendering or the pane protocol. The rest of the gate reads files and is

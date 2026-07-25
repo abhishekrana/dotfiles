@@ -22,7 +22,7 @@ set -u
 
 SELF="$0"
 AGENT_CMD="${DICTATE_TMUX_CMD:-claude}" # which pane runs the agent (mirrors dictate)
-PANE_SIZE="${DIFF_PANE_SIZE:-45%}"      # width of the diff split
+PANE_SIZE="${DIFF_PANE_SIZE:-50%}"      # width of the diff split (matches tmux-realign.sh's even split)
 TAB=$(printf '\t')
 
 hunk_bin() {

@@ -35,6 +35,7 @@ tasks:
       - task: fmt-check
       - task: secrets
       - task: clipboard
+      - task: reset
       - task: test
 
   lint:
@@ -68,6 +69,11 @@ tasks:
     desc: Guard the copy path - every tmux trigger must reach clipboard and primary
     cmds:
       - bash test/clipboard.sh
+
+  reset:
+    desc: Guard the UI reset - sidebar width/place and an even column split
+    cmds:
+      - bash test/reset.sh
 
   portability:
     desc: Report Linux-only primitives and where they live (a map, not a gate)
@@ -153,7 +159,15 @@ tasks:
     desc: Re-source ~/.tmux.conf in the running server (all sessions at once)
     cmds:
       - tmux source-file ~/.tmux.conf
-      - echo "tmux reloaded. Sidebars are long-lived - prefix+e twice to restart them."
+      - echo "tmux reloaded. Sidebars are long-lived - prefix+R refreshes the current session's."
+
+  # Same work as prefix+R, so it can be scripted or run from outside tmux. The
+  # tmux- prefix marks the tasks that act on the live server; `task reset` is the
+  # gate that guards this one.
+  tmux-reset:
+    desc: Reset the UI in the running server (reload, sidebar refresh, default geometry)
+    cmds:
+      - bash tmux/.local/bin/tmux-reset.sh
 
   agentbar:build:
     desc: Build the agentbar binary

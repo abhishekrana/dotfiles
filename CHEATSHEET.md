@@ -112,10 +112,11 @@ launch hunk's native interactive reviewer directly. delta also colors `git add -
 
 ### Other
 
-| Key        | Action              |
-| ---------- | ------------------- |
-| `prefix r` | reload tmux config  |
-| `prefix I` | install TPM plugins |
+| Key        | Action                                                              |
+| ---------- | ------------------------------------------------------------------- |
+| `prefix r` | reload tmux config                                                  |
+| `prefix R` | reset the UI - reload, refresh sidebar, even the panes (keeps work) |
+| `prefix I` | install TPM plugins                                                 |
 
 ---
 
