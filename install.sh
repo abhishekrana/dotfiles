@@ -12,6 +12,29 @@ set -euo pipefail
 
 LOCAL_BIN="$HOME/.local/bin"
 
+# The only place a platform is decided. Release-asset names are grouped by
+# upstream naming convention, so supporting another platform is one more arm
+# here and no change in any install function. OS_KIND is exported for
+# bootstrap.sh, which sources this file.
+case "$(uname -s)" in
+    Linux)
+        export OS_KIND="linux"
+        RUST_MUSL="x86_64-unknown-linux-musl" # delta fd git-cliff zoxide
+        RUST_GNU="x86_64-unknown-linux-gnu"   # ruff yazi
+        GO_SLUG="linux_amd64"                 # fzf gitmux shfmt task
+        GOREL_SLUG="Linux_x86_64"             # lazydocker lazygit
+        GITLEAKS_SLUG="linux_x64"
+        GO_DIST="linux-amd64"
+        NEOVIM_SLUG="linux-x86_64"
+        SHELLCHECK_SLUG="linux.x86_64"
+        ;;
+    *)
+        echo "dotfiles supports Linux (Ubuntu 24.04). Detected: $(uname -s)." >&2
+        echo "See 'Platform support' in README.md." >&2
+        exit 1
+        ;;
+esac
+
 # Pinned versions (update these to upgrade)
 DELTA_VERSION="0.19.2"
 FD_VERSION="10.4.2"
@@ -99,11 +122,11 @@ install_delta() {
     log "Installing delta $DELTA_VERSION..."
     local url
     url=$(gh_url dandavison/delta "${DELTA_VERSION}" \
-        "delta-${DELTA_VERSION}-x86_64-unknown-linux-musl.tar.gz")
+        "delta-${DELTA_VERSION}-${RUST_MUSL}.tar.gz")
     local tmp
     tmp=$(mktemp -d)
     curl -sSL "$url" | tar xz -C "$tmp"
-    mv "$tmp/delta-${DELTA_VERSION}-x86_64-unknown-linux-musl/delta" "$LOCAL_BIN/delta"
+    mv "$tmp/delta-${DELTA_VERSION}-${RUST_MUSL}/delta" "$LOCAL_BIN/delta"
     chmod +x "$LOCAL_BIN/delta"
     rm -rf "$tmp"
     ok "delta $DELTA_VERSION installed"
@@ -141,11 +164,11 @@ install_fd() {
     fi
     log "Installing fd $FD_VERSION..."
     local url
-    url=$(gh_url sharkdp/fd "v${FD_VERSION}" "fd-v${FD_VERSION}-x86_64-unknown-linux-musl.tar.gz")
+    url=$(gh_url sharkdp/fd "v${FD_VERSION}" "fd-v${FD_VERSION}-${RUST_MUSL}.tar.gz")
     local tmp
     tmp=$(mktemp -d)
     curl -sSL "$url" | tar xz -C "$tmp"
-    mv "$tmp/fd-v${FD_VERSION}-x86_64-unknown-linux-musl/fd" "$LOCAL_BIN/fd"
+    mv "$tmp/fd-v${FD_VERSION}-${RUST_MUSL}/fd" "$LOCAL_BIN/fd"
     chmod +x "$LOCAL_BIN/fd"
     rm -rf "$tmp"
     ok "fd $FD_VERSION installed"
@@ -158,7 +181,7 @@ install_fzf() {
     fi
     log "Installing fzf $FZF_VERSION..."
     local url
-    url=$(gh_url junegunn/fzf "v${FZF_VERSION}" "fzf-${FZF_VERSION}-linux_amd64.tar.gz")
+    url=$(gh_url junegunn/fzf "v${FZF_VERSION}" "fzf-${FZF_VERSION}-${GO_SLUG}.tar.gz")
     curl -sSL "$url" | tar xz -C "$LOCAL_BIN" fzf
     chmod +x "$LOCAL_BIN/fzf"
     ok "fzf $FZF_VERSION installed"
@@ -187,7 +210,7 @@ install_git_cliff() {
     log "Installing git-cliff $GIT_CLIFF_VERSION..."
     local url
     url=$(gh_url orhun/git-cliff "v${GIT_CLIFF_VERSION}" \
-        "git-cliff-${GIT_CLIFF_VERSION}-x86_64-unknown-linux-musl.tar.gz")
+        "git-cliff-${GIT_CLIFF_VERSION}-${RUST_MUSL}.tar.gz")
     local tmp
     tmp=$(mktemp -d)
     curl -sSL "$url" | tar xz -C "$tmp"
@@ -204,7 +227,7 @@ install_gitleaks() {
     fi
     log "Installing gitleaks $GITLEAKS_VERSION..."
     local url
-    url=$(gh_url gitleaks/gitleaks "v${GITLEAKS_VERSION}" "gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz")
+    url=$(gh_url gitleaks/gitleaks "v${GITLEAKS_VERSION}" "gitleaks_${GITLEAKS_VERSION}_${GITLEAKS_SLUG}.tar.gz")
     local tmp
     tmp=$(mktemp -d)
     curl -sSL "$url" | tar xz -C "$tmp"
@@ -222,7 +245,7 @@ install_gitmux() {
     fi
     log "Installing gitmux $GITMUX_VERSION..."
     local url
-    url=$(gh_url arl/gitmux "v${GITMUX_VERSION}" "gitmux_v${GITMUX_VERSION}_linux_amd64.tar.gz")
+    url=$(gh_url arl/gitmux "v${GITMUX_VERSION}" "gitmux_v${GITMUX_VERSION}_${GO_SLUG}.tar.gz")
     local tmp
     tmp=$(mktemp -d)
     curl -sSL "$url" | tar xz -C "$tmp"
@@ -240,7 +263,7 @@ install_go() {
     fi
     log "Installing Go $GO_VERSION..."
     rm -rf "$HOME/.local/go"
-    local url="https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz"
+    local url="https://go.dev/dl/go${GO_VERSION}.${GO_DIST}.tar.gz"
     local tmp
     tmp=$(mktemp -d)
     curl -sSL "$url" | tar xz -C "$tmp"
@@ -281,7 +304,7 @@ install_lazydocker() {
     log "Installing lazydocker $LAZYDOCKER_VERSION..."
     local url
     url=$(gh_url jesseduffield/lazydocker "v${LAZYDOCKER_VERSION}" \
-        "lazydocker_${LAZYDOCKER_VERSION}_Linux_x86_64.tar.gz")
+        "lazydocker_${LAZYDOCKER_VERSION}_${GOREL_SLUG}.tar.gz")
     local tmp
     tmp=$(mktemp -d)
     curl -sSL "$url" | tar xz -C "$tmp"
@@ -299,7 +322,7 @@ install_lazygit() {
     log "Installing lazygit $LAZYGIT_VERSION..."
     local url
     url=$(gh_url jesseduffield/lazygit "v${LAZYGIT_VERSION}" \
-        "lazygit_${LAZYGIT_VERSION}_Linux_x86_64.tar.gz")
+        "lazygit_${LAZYGIT_VERSION}_${GOREL_SLUG}.tar.gz")
     local tmp
     tmp=$(mktemp -d)
     curl -sSL "$url" | tar xz -C "$tmp"
@@ -317,11 +340,11 @@ install_neovim() {
     log "Installing neovim $NEOVIM_VERSION..."
     rm -rf "$HOME/.local/nvim"
     local url
-    url=$(gh_url neovim/neovim "v${NEOVIM_VERSION}" nvim-linux-x86_64.tar.gz)
+    url=$(gh_url neovim/neovim "v${NEOVIM_VERSION}" "nvim-${NEOVIM_SLUG}.tar.gz")
     local tmp
     tmp=$(mktemp -d)
     curl -sSL "$url" | tar xz -C "$tmp"
-    mv "$tmp"/nvim-linux-x86_64 "$HOME/.local/nvim"
+    mv "$tmp/nvim-${NEOVIM_SLUG}" "$HOME/.local/nvim"
     ln -sf "$HOME/.local/nvim/bin/nvim" "$LOCAL_BIN/nvim"
     rm -rf "$tmp"
     ok "neovim $NEOVIM_VERSION installed"
@@ -378,11 +401,11 @@ install_ruff() {
         return
     fi
     log "Installing ruff $RUFF_VERSION..."
-    local url="https://github.com/astral-sh/ruff/releases/download/${RUFF_VERSION}/ruff-x86_64-unknown-linux-gnu.tar.gz"
+    local url="https://github.com/astral-sh/ruff/releases/download/${RUFF_VERSION}/ruff-${RUST_GNU}.tar.gz"
     local tmp
     tmp=$(mktemp -d)
     curl -sSL "$url" | tar xz -C "$tmp"
-    mv "$tmp/ruff-x86_64-unknown-linux-gnu/ruff" "$LOCAL_BIN/ruff"
+    mv "$tmp/ruff-${RUST_GNU}/ruff" "$LOCAL_BIN/ruff"
     chmod +x "$LOCAL_BIN/ruff"
     rm -rf "$tmp"
     ok "ruff $RUFF_VERSION installed"
@@ -397,7 +420,7 @@ install_shellcheck() {
     log "Installing shellcheck $SHELLCHECK_VERSION..."
     local url
     url=$(gh_url koalaman/shellcheck "v${SHELLCHECK_VERSION}" \
-        "shellcheck-v${SHELLCHECK_VERSION}.linux.x86_64.tar.xz")
+        "shellcheck-v${SHELLCHECK_VERSION}.${SHELLCHECK_SLUG}.tar.xz")
     local tmp
     tmp=$(mktemp -d)
     curl -sSL "$url" | tar xJ -C "$tmp"
@@ -414,7 +437,7 @@ install_shfmt() {
     fi
     log "Installing shfmt $SHFMT_VERSION..."
     curl -sSL -o "$LOCAL_BIN/shfmt" \
-        "https://github.com/mvdan/sh/releases/download/v${SHFMT_VERSION}/shfmt_v${SHFMT_VERSION}_linux_amd64"
+        "https://github.com/mvdan/sh/releases/download/v${SHFMT_VERSION}/shfmt_v${SHFMT_VERSION}_${GO_SLUG}"
     chmod +x "$LOCAL_BIN/shfmt"
     ok "shfmt $SHFMT_VERSION installed"
 }
@@ -426,7 +449,7 @@ install_task() {
     fi
     log "Installing task $TASK_VERSION..."
     local url
-    url=$(gh_url go-task/task "v${TASK_VERSION}" task_linux_amd64.tar.gz)
+    url=$(gh_url go-task/task "v${TASK_VERSION}" "task_${GO_SLUG}.tar.gz")
     local tmp
     tmp=$(mktemp -d)
     curl -sSL "$url" | tar xz -C "$tmp"
@@ -470,13 +493,13 @@ install_yazi() {
     fi
     log "Installing yazi $YAZI_VERSION..."
     local url
-    url=$(gh_url sxyazi/yazi "v${YAZI_VERSION}" yazi-x86_64-unknown-linux-gnu.zip)
+    url=$(gh_url sxyazi/yazi "v${YAZI_VERSION}" yazi-${RUST_GNU}.zip)
     local tmp
     tmp=$(mktemp -d)
     curl -sSL "$url" -o "$tmp/yazi.zip"
     unzip -o "$tmp/yazi.zip" -d "$tmp" >/dev/null
-    mv "$tmp/yazi-x86_64-unknown-linux-gnu/yazi" "$LOCAL_BIN/yazi"
-    mv "$tmp/yazi-x86_64-unknown-linux-gnu/ya" "$LOCAL_BIN/ya"
+    mv "$tmp/yazi-${RUST_GNU}/yazi" "$LOCAL_BIN/yazi"
+    mv "$tmp/yazi-${RUST_GNU}/ya" "$LOCAL_BIN/ya"
     chmod +x "$LOCAL_BIN/yazi" "$LOCAL_BIN/ya"
     rm -rf "$tmp"
     ok "yazi $YAZI_VERSION installed"
@@ -490,7 +513,7 @@ install_zoxide() {
     log "Installing zoxide $ZOXIDE_VERSION..."
     local url
     url=$(gh_url ajeetdsouza/zoxide "v${ZOXIDE_VERSION}" \
-        "zoxide-${ZOXIDE_VERSION}-x86_64-unknown-linux-musl.tar.gz")
+        "zoxide-${ZOXIDE_VERSION}-${RUST_MUSL}.tar.gz")
     local tmp
     tmp=$(mktemp -d)
     curl -sSL "$url" | tar xz -C "$tmp"
