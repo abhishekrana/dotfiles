@@ -33,11 +33,10 @@ curwin=$(tmux display-message -p -t "$session" '#{window_id}')
 new=''
 split() { new=$(tmux split-window -dhbf -l "$width" -t "$active" -P -F '#{pane_id}' "$BIN run --theme $theme"); }
 insert_keeping_widths "$curwin" "$width" split
-# The split can fail outright (no room for another pane). Leave the session
-# unmarked: stamping @sidebar_on with an empty @sidebar_pane wedges it, because
-# follow.sh bails on the empty pane BEFORE reaching the self-heal that would
-# clear the flags - so nothing ever repairs it and every window switch is a
-# silent no-op. Exit 0 so on.sh keeps opening the remaining sessions.
+# A failed split (no room for another pane) leaves $new empty. Leave the
+# session unmarked: @sidebar_on with an empty @sidebar_pane wedges follow.sh,
+# which bails on the empty pane before its self-heal can clear the flags.
+# Exit 0 so on.sh keeps opening the remaining sessions.
 if [ -z "$new" ]; then
     "$HOME/.local/bin/dotfiles-trace" log sidebar open session="$session" action=fail why=nosplit 2>/dev/null || true
     exit 0

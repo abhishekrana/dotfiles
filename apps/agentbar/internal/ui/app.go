@@ -219,10 +219,8 @@ func (a App) gather(signal bool) snapMsg {
 // readPins loads the pinned-session set from the global @agentbar-pins option
 // (tab-separated names). Empty/unset yields an empty set.
 //
-// Tab, not space: tmux allows spaces in a session name (the picker's `c` and
-// `r` prompts take free text) but rejects tabs outright, so it is the one
-// separator a name can never contain. On space, pinning "my repo" stored two
-// bogus names, so the row never read back as pinned and every `p` re-added it.
+// Tab is the one separator a session name can never hold: tmux takes spaces
+// (the picker's `c`/`r` prompts are free text) but rejects tabs.
 func readPins(r tmux.Runner) map[string]bool {
 	out, _ := r.Run("show-option", "-gqv", "@agentbar-pins")
 	pins := map[string]bool{}
@@ -718,10 +716,8 @@ func (a App) onNotifyChip(x, y int) bool {
 }
 
 func (a App) View() string {
-	// A pane squeezed to a couple of columns has no room for even the
-	// selection edge; draw nothing rather than a column of debris. The
-	// sidebar must survive it either way - it is a long-lived process, so a
-	// crash here costs a manual restart (prefix+e twice).
+	// Below a few columns there is no room for even the selection edge: draw
+	// nothing rather than debris, and never panic (this process is long-lived).
 	if a.width < 4 {
 		return ""
 	}

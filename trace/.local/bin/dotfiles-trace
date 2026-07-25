@@ -75,10 +75,9 @@ cmd_tail() {
   esac
 }
 
-# Resolve a --since value to a log timestamp. Compact ages MUST be rewritten:
-# `date -d 5m` does not mean "5 minutes ago" - GNU date reads it as 05:00 in
-# military timezone M, silently yielding an unrelated instant (and `30s` is
-# invalid outright). Anything else is handed to date as-is.
+# Resolve a --since value to a log timestamp. Compact ages need rewriting:
+# `date -d 5m` reads as 05:00 in military timezone M, not "5 minutes ago" (and
+# `30s` is invalid). Anything else goes to date as-is.
 since_ts() {
   local v=$1 n
   if [[ $v =~ ^([0-9]+)[[:space:]]*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)$ ]]; then
@@ -103,8 +102,8 @@ cmd_show() {
       *) shift ;;
     esac
   done
-  # Fail loudly on an unparseable age: silently showing the WHOLE log instead
-  # of the asked-for window is how a stale line gets read as a fresh one.
+  # Fail loudly on an unparseable age: silently showing the whole log reads as
+  # the asked-for window, so a stale line looks fresh.
   if [ -n "$since" ]; then
     cutoff=$(since_ts "$since")
     [ -n "$cutoff" ] || {

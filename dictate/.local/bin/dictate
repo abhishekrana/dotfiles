@@ -491,9 +491,8 @@ def watch(pid):
                     fh.seek(posn); data = fh.read()
             except OSError:
                 data = b""
-            # Advance by whole s16le frames only: parec's buffer can be caught
-            # mid-sample, and skipping that odd byte would shift every later
-            # read one byte out of phase, turning the RMS into noise.
+            # Advance by whole s16le frames: a read can land mid-sample, and
+            # skipping that byte puts every later read out of phase.
             n = len(data) // 2 * 2
             posn += n
             if n and np.sqrt(np.mean(np.frombuffer(data[:n], dtype=np.int16).astype(np.float32) ** 2)) >= VAD_RMS:
