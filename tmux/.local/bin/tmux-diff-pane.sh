@@ -146,8 +146,8 @@ cmd_flip_layout() {
   local cur new mode diff
   resolve_context
   [ -n "${WIN:-}" ] || return 0
-  cur=$(opt_get @diff_layout); [ -n "$cur" ] || cur=split   # config default
-  case "$cur" in stack) new=split ;; *) new=stack ;; esac
+  cur=$(opt_get @diff_layout); [ -n "$cur" ] || cur="split"   # config default
+  case "$cur" in stack) new="split" ;; *) new="stack" ;; esac
   opt_set @diff_layout "$new"
   mode=$(opt_get @diff_mode)
   diff=$(opt_get @diff_pane)

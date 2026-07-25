@@ -406,6 +406,8 @@ enable_tmux_resurrect_timer() {
 # Patch ~/.bashrc
 # =============================================================================
 
+# The ~ in the messages below is for the reader, not a path to expand.
+# shellcheck disable=SC2088
 patch_bashrc() {
     local marker="# Load dotfiles shell customizations"
     if grep -qF "$marker" "$HOME/.bashrc"; then

@@ -1,4 +1,6 @@
 # Shared by open.sh / follow.sh.
+# shellcheck shell=bash
+# Sourced, never executed, so it carries a shell directive instead of a shebang.
 
 # Run an insert command (split/join of the sidebar), then re-apply pane
 # widths left-to-right so the whole cost lands on the leftmost pane.

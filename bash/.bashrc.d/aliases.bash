@@ -17,8 +17,11 @@ alias gl='git log'
 alias gp='git push'
 alias gs='git status'
 # alias gst='git status'
+# The $1/$0 below are awk fields inside a quoted awk program, not shell args.
+# shellcheck disable=SC2142
 alias gb='git branch --sort=committerdate --format="%(refname:short) %(committerdate:relative)" | tail -20 | awk -F" " "{name=\$1; \$1=\"\"; printf \"%-50s (%s)\\n\", name, substr(\$0,2)}" && echo "" && echo "* $(git branch --show-current)"'
 # gbr: remote branches (last 500 by recency) with tip author; run gf first to refresh
+# shellcheck disable=SC2142
 alias gbr='git branch -r --sort=committerdate --format="%(refname:short)%09%(authorname)%09%(committerdate:relative)" | grep -v "/HEAD" | tail -500 | awk -F"\t" "{ printf \"%-60s %-20s (%s)\\n\", \$1, \$2, \$3 }"'
 alias gdm='hunk diff origin/main...HEAD'
 alias gw='while clear; do git diff --stat --color && echo "---" && git diff --color | head -60; sleep 2; done'
