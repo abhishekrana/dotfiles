@@ -46,7 +46,7 @@ install_apt_packages() {
     local pkgs=(
         bat bison build-essential chafa curl direnv fontconfig imagemagick jq
         libevent-dev libncurses-dev pkg-config ripgrep software-properties-common
-        stow tree unzip wget wl-clipboard
+        stow tree unzip wget wl-clipboard xclip
     )
     local to_install=()
     for pkg in "${pkgs[@]}"; do
