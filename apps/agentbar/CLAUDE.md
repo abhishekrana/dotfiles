@@ -48,7 +48,9 @@ state (working/permission/asking/done/done-seen/idle), one multi-Claude-on-one-b
   `ParsePanes`/`ParseHealth`/`Render`
 - `internal/trace` - writer for the shared dotfiles trace log; must match the `dotfiles-trace` CLI byte-for-byte on
   ts/escaping/rotation
-- `scripts/` - `toggle.sh` (global), `open.sh`, `follow.sh`, `resurrect-save.sh`, `common.sh` (shared helpers)
+- `scripts/` - `toggle.sh` (global), `open.sh`, `restart.sh` (one session, in place - used by the dotfiles `prefix + R`
+  reset), `pin.sh` (`window-resized` hook: holds the sidebar at `@agentbar-width`, since tmux takes a shrink evenly from
+  every pane and has no fixed-size pane), `follow.sh`, `resurrect-save.sh`, `common.sh` (shared helpers)
 - `agentbar.tmux` - TPM entry point
 
 ## Rules
@@ -77,8 +79,9 @@ state (working/permission/asking/done/done-seen/idle), one multi-Claude-on-one-b
 - After changing behavior, add or extend an e2e test that fails without the change.
 - This project lives in the dotfiles monorepo at `apps/agentbar/` and loads via a `run-shell` line in `tmux/.tmux.conf`
   (not TPM) - it builds and runs straight from this checkout. Portability comes from the dotfiles themselves:
-  `bootstrap.sh` installs Go and runs `make build`. Local changes reach a running sidebar via `make build` → reload tmux
-  → restart (`prefix+e` twice); no push or clone-pull in the loop.
+  `bootstrap.sh` installs Go and runs `make build`. Local changes reach a running sidebar via `prefix + R` (the dotfiles
+  UI reset: reload + `restart.sh` for that session), or `make build` → reload tmux → `prefix+e` twice to restart them
+  all; no push or clone-pull in the loop.
 
 ## Deploy
 
@@ -88,5 +91,6 @@ not just built. Do every step yourself except the last:
 1. Commit to the dotfiles repo (push to its `main` only when the user asks).
 2. `make build` here - the binary lands in `bin/`, which both the `run-shell` entry and the Claude hooks point at.
 3. Verify the rebuilt binary headlessly (private-socket mockup) - never touch the live server.
-4. Then tell the user to restart the sidebars: **`prefix + e` twice**. This is the one manual step - the sidebar is a
-   long-lived process and this project never drives the live tmux server. Always state it explicitly.
+4. Then tell the user to restart the sidebars: **`prefix + R`** in each session that should pick up the new binary (or
+   **`prefix + e` twice** for all of them at once, accepting the render storm). This is the one manual step - the
+   sidebar is a long-lived process and this project never drives the live tmux server. Always state it explicitly.

@@ -34,6 +34,15 @@ key=${key:-e}
 # Global toggle: opens/closes the sidebar in every session at once.
 tmux bind-key "$key" run-shell "$CURRENT_DIR/scripts/toggle.sh"
 
+# Hold the sidebar at its width across window resizes (tmux has no fixed-size
+# pane). window-resized is a WINDOW hook, so it is only visible under -gw and
+# only carries an index once set; leave a foreign one alone.
+case "$(tmux show-hooks -gw 2>/dev/null | sed -n 's/^window-resized\[[0-9]*\][[:space:]]*//p')" in
+'' | *pin.sh*)
+    tmux set-hook -gw window-resized "run-shell -b '$CURRENT_DIR/scripts/pin.sh #{hook_window}'"
+    ;;
+esac
+
 # tmux-resurrect: stamp the sidebar's restore command into each save
 # (see scripts/resurrect-save.sh). Don't clobber a user-set hook.
 if [ -z "$(tmux show-option -gqv @resurrect-hook-post-save-layout)" ]; then

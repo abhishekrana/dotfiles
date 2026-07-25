@@ -567,6 +567,73 @@ func TestOnAdoptsExistingSidebar(t *testing.T) {
 	}
 }
 
+// TestPinHoldsSidebarWidthOnResize: tmux takes a window shrink evenly from every
+// pane in the row, which collapses the narrow sidebar; the plugin's
+// window-resized hook puts the width back. tmux has no fixed-size pane.
+func TestPinHoldsSidebarWidthOnResize(t *testing.T) {
+	s := start(t)
+	s.newSession("aaa")
+	s.tmux("split-window", "-d", "-t", "aaa") // something for the row to take from
+	s.plugin()                                // binds the key, installs the hook, autostarts
+	waitFor(t, "sidebar in aaa", 5*time.Second, func() bool {
+		return s.sidebarAlive("aaa")
+	})
+	pane := s.sidebarPane("aaa")
+	if got := s.tmux("display-message", "-p", "-t", pane, "#{pane_width}"); got != "30" {
+		t.Fatalf("sidebar width = %s before resize, want 30", got)
+	}
+
+	// manual: a test server has no client to resize.
+	s.tmux("set", "-g", "window-size", "manual")
+	s.tmux("resize-window", "-t", "aaa", "-x", "120", "-y", "40")
+	waitFor(t, "sidebar width restored after shrink", 5*time.Second, func() bool {
+		w, err := s.tmuxErr("display-message", "-p", "-t", pane, "#{pane_width}")
+		return err == nil && strings.TrimSpace(w) == "30"
+	})
+	s.tmux("resize-window", "-t", "aaa", "-x", "220", "-y", "50")
+	waitFor(t, "sidebar width held after grow", 5*time.Second, func() bool {
+		w, err := s.tmuxErr("display-message", "-p", "-t", pane, "#{pane_width}")
+		return err == nil && strings.TrimSpace(w) == "30"
+	})
+
+	// Hooks are arrays and the plugin is re-sourced on every reload, so a second
+	// run must replace ours rather than stack another copy.
+	s.plugin()
+	hooks := s.tmux("show-hooks", "-gw")
+	if n := strings.Count(hooks, "pin.sh"); n != 1 {
+		t.Errorf("window-resized hook installed %d times, want 1:\n%s", n, hooks)
+	}
+}
+
+// TestRestartRefreshesOneSidebar: restart.sh opens a sidebar where there is
+// none and otherwise replaces the process in place, keeping the pane id (and so
+// @sidebar_pane and the layout) - the reset path relies on both.
+func TestRestartRefreshesOneSidebar(t *testing.T) {
+	s := start(t)
+	s.newSession("aaa")
+	s.newSession("bbb")
+
+	s.script("restart.sh", "aaa")
+	waitFor(t, "sidebar in aaa", 5*time.Second, func() bool {
+		return s.sidebarAlive("aaa")
+	})
+	pane := s.sidebarPane("aaa")
+	pid := s.tmux("display-message", "-p", "-t", pane, "#{pane_pid}")
+
+	s.script("restart.sh", "aaa")
+	waitFor(t, "sidebar process replaced", 5*time.Second, func() bool {
+		now, err := s.tmuxErr("display-message", "-p", "-t", pane, "#{pane_pid}")
+		return err == nil && strings.TrimSpace(now) != pid && s.sidebarAlive("aaa")
+	})
+	if got := s.sidebarPane("aaa"); got != pane {
+		t.Errorf("restart moved the sidebar pane: %q -> %q", pane, got)
+	}
+	// Per-session on purpose: a bulk restart storms this tmux+Ghostty client.
+	if s.sidebarAlive("bbb") {
+		t.Error("restart.sh touched another session's sidebar")
+	}
+}
+
 // TestSidebarRendersAgentState: the TUI picks up hook-driven state changes.
 func TestSidebarRendersAgentState(t *testing.T) {
 	s := start(t)
