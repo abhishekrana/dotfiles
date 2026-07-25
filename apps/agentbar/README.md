@@ -90,7 +90,8 @@ Sessions are grouped into three bands so your working set stays together and dea
 
 A labelled divider heads each band, but only when more than one band is present - a single-band list shows no
 dividers. Within every band sessions stay **alphabetical**, so positions never shuffle as agents change state; they
-move only when you pin or unpin. Pins live in the global `@agentbar-pins` option (space-separated session names), so
+move only when you pin or unpin. Pins live in the global `@agentbar-pins` option (tab-separated session names - tmux
+allows spaces in a session name but never tabs), so
 every session's sidebar shows the same bands at once, and they survive a config reload (a full tmux server restart
 clears them - re-pin in a keypress).
 

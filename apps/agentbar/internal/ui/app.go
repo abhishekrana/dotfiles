@@ -217,17 +217,24 @@ func (a App) gather(signal bool) snapMsg {
 }
 
 // readPins loads the pinned-session set from the global @agentbar-pins option
-// (space-separated names). Empty/unset yields an empty set.
+// (tab-separated names). Empty/unset yields an empty set.
+//
+// Tab, not space: tmux allows spaces in a session name (the picker's `c` and
+// `r` prompts take free text) but rejects tabs outright, so it is the one
+// separator a name can never contain. On space, pinning "my repo" stored two
+// bogus names, so the row never read back as pinned and every `p` re-added it.
 func readPins(r tmux.Runner) map[string]bool {
 	out, _ := r.Run("show-option", "-gqv", "@agentbar-pins")
 	pins := map[string]bool{}
-	for name := range strings.FieldsSeq(out) {
-		pins[name] = true
+	for name := range strings.SplitSeq(out, "\t") {
+		if name != "" {
+			pins[name] = true
+		}
 	}
 	return pins
 }
 
-// pinList serializes a pin set back to the sorted, space-separated value
+// pinList serializes a pin set back to the sorted, tab-separated value
 // stored in @agentbar-pins.
 func pinList(pins map[string]bool) string {
 	names := make([]string, 0, len(pins))
@@ -235,7 +242,7 @@ func pinList(pins map[string]bool) string {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	return strings.Join(names, " ")
+	return strings.Join(names, "\t")
 }
 
 // focusNewlyAttached selects the agent of a session newly in the

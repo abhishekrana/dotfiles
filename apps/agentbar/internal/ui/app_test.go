@@ -356,6 +356,34 @@ func TestActivateCurrentSessionIsNoop(t *testing.T) {
 	}
 }
 
+// Pin names round-trip through @agentbar-pins even with spaces in them:
+// tmux allows a space in a session name, so a space-separated list shredded
+// "my repo" into two bogus pins and the row never read back as pinned.
+func TestPinListRoundTripsNamesWithSpaces(t *testing.T) {
+	want := map[string]bool{"dotfiles": true, "my repo": true, "two  spaces": true}
+	value := pinList(want)
+	if strings.Contains(value, "\t\t") || strings.HasPrefix(value, "\t") {
+		t.Fatalf("pinList produced empty fields: %q", value)
+	}
+	r := &fakeRunner{replies: map[string]string{
+		"show-option -gqv @agentbar-pins": value,
+	}}
+	got := readPins(r)
+	if len(got) != len(want) {
+		t.Fatalf("readPins(%q) = %v, want %v", value, got, want)
+	}
+	for name := range want {
+		if !got[name] {
+			t.Errorf("pin %q lost in the round trip (value %q, got %v)", name, value, got)
+		}
+	}
+	// An unset option is an empty set, not a set holding "".
+	empty := readPins(&fakeRunner{})
+	if len(empty) != 0 {
+		t.Errorf("readPins on unset option = %v, want empty", empty)
+	}
+}
+
 // Pressing p pins the selected session: it floats above the active band
 // (behind a divider), the cursor rides along with it, the divider is not
 // selectable, j/k skip it, and the set persists to @agentbar-pins.
