@@ -33,8 +33,12 @@ width=$(tmux show-option -gqv @agentbar-width)
 width=${width:-30}
 
 # -d: move without stealing focus or the window's automatic-rename.
+# Clear the guard on EVERY exit path: the window or pane vanishing mid-move is
+# exactly the race this guards, and a set -e abort in there would strand it at
+# 1 - every later hook then bails at the re-entrancy check above, so the
+# sidebar silently stops following windows until a global prefix+e cycle.
 tmux set-option -t "$session" -q @sidebar_moving 1
+trap 'tmux set-option -t "$session" -uq @sidebar_moving 2>/dev/null || true' EXIT
 join() { tmux join-pane -dhbf -l "$width" -s "$pane" -t "$curwin" 2>/dev/null || true; }
 insert_keeping_widths "$curwin" "$width" join
-tmux set-option -t "$session" -uq @sidebar_moving
 "$HOME/.local/bin/dotfiles-trace" log sidebar follow session="$session" pane="$pane" 2>/dev/null || true

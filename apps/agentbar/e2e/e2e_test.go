@@ -160,6 +160,27 @@ func (s *server) script(name string, args ...string) {
 	}
 }
 
+// scriptFaulty runs a plugin script with a tmux wrapper ahead of the shim on
+// PATH that fails every call whose arguments contain marker - standing in for
+// the window or pane vanishing mid-command, which no timing-based test can hit
+// reliably. Returns the script's error; a fault aborts it under set -e.
+func (s *server) scriptFaulty(name, marker string, args ...string) error {
+	s.t.Helper()
+	dir := s.t.TempDir()
+	wrapper := "#!/bin/sh\n" +
+		"for a in \"$@\"; do case \"$a\" in *" + marker + "*) exit 1 ;; esac; done\n" +
+		"exec " + filepath.Join(shimDir, "tmux") + " \"$@\"\n"
+	if err := os.WriteFile(filepath.Join(dir, "tmux"), []byte(wrapper), 0o755); err != nil {
+		s.t.Fatal(err)
+	}
+	cmd := exec.Command("bash", append([]string{filepath.Join(repoRoot, "scripts", name)}, args...)...)
+	// A later PATH wins in exec.Cmd, so this shadows the one start() set.
+	cmd.Env = append(append([]string{}, s.env...), "PATH="+dir+":"+shimDir+":"+os.Getenv("PATH"))
+	out, err := cmd.CombinedOutput()
+	s.t.Logf("%s (fault %q) -> %v\n%s", name, marker, err, out)
+	return err
+}
+
 // plugin sources the .tmux entry point against this server, exactly as TPM
 // would at server start (binds the key, wires hooks, runs autostart).
 func (s *server) plugin() {
@@ -943,6 +964,45 @@ func TestFollowWindowAndSelfHeal(t *testing.T) {
 	if on, _ := s.tmuxErr("show-option", "-t", "work", "-qv", "@sidebar_on"); on != "" {
 		t.Errorf("@sidebar_on=%q after self-heal, want unset", on)
 	}
+}
+
+// TestFollowClearsMovingGuardOnFailure: a failed move must not strand the
+// @sidebar_moving re-entrancy guard. The window or pane disappearing mid-move
+// is the very race the guard exists for, and a stranded guard makes every
+// later hook bail at the check - the sidebar then silently stops following
+// windows for the rest of the session, with nothing to self-heal it.
+func TestFollowClearsMovingGuardOnFailure(t *testing.T) {
+	s := start(t)
+	s.newSession("work")
+	s.script("open.sh", "work")
+	waitFor(t, "sidebar open", 5*time.Second, func() bool { return s.sidebarAlive("work") })
+	side := s.sidebarPane("work")
+
+	// Drive follow.sh by hand: drop the hook so tmux can't race us to the
+	// move, then leave the sidebar in a window other than the active one.
+	s.tmux("set-hook", "-u", "-t", "work", "session-window-changed")
+	s.tmux("new-window", "-t", "work")
+	sidebarInActiveWindow := func() bool {
+		cur, _ := s.tmuxErr("display-message", "-t", "work", "-p", "#{window_id}")
+		sidewin, _ := s.tmuxErr("display-message", "-t", side, "-p", "#{window_id}")
+		return cur != "" && cur == sidewin
+	}
+	if sidebarInActiveWindow() {
+		t.Fatal("sidebar already in the active window - nothing for follow.sh to move")
+	}
+
+	// insert_keeping_widths opens with a list-panes carrying #{pane_left}, the
+	// first thing to run after the guard goes up.
+	if err := s.scriptFaulty("follow.sh", "pane_left", "work"); err == nil {
+		t.Fatal("fault did not abort follow.sh - test no longer covers the failed move")
+	}
+	if g, _ := s.tmuxErr("show-option", "-t", "work", "-qv", "@sidebar_moving"); g != "" {
+		t.Errorf("@sidebar_moving = %q after a failed move, want unset", g)
+	}
+
+	// The symptom that matters: following still works afterwards.
+	s.script("follow.sh", "work")
+	waitFor(t, "sidebar follows after a failed move", 5*time.Second, sidebarInActiveWindow)
 }
 
 // TestStatusBarTabClick: with Second/TripleClick1Status bound (stock
