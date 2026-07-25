@@ -1268,7 +1268,7 @@ func TestSidebarSurvivesOneColumnPane(t *testing.T) {
 	// And it comes back to life when given room again.
 	s.tmux("resize-pane", "-t", wide, "-x", "30")
 	waitFor(t, "sidebar redraws after widening", 5*time.Second, func() bool {
-		return strings.Contains(s.captureText(wide), "tmux agents")
+		return strings.Contains(s.captureText(wide), "agentbar")
 	})
 }
 

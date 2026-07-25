@@ -4,7 +4,7 @@ A left sidebar for tmux that shows every Claude Code agent across all your sessi
 so you always know which agents are working, which need your attention, and which are done.
 
 ```
- tmux agents            1/5 ⠼
+ agentbar               1/5 ⠼
 ──────────────────────────────
  pinned ·2 ───────────────────
 

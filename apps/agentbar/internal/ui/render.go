@@ -202,7 +202,8 @@ func (r renderer) sectionRow(label string) string {
 }
 
 func (r renderer) header(snap model.Snapshot, frame int) string {
-	title := lipgloss.NewStyle().Foreground(r.theme.Emphasis).Bold(true).Render(" tmux agents")
+	// The plugin's own name, also its pane command and option namespace.
+	title := lipgloss.NewStyle().Foreground(r.theme.Emphasis).Bold(true).Render(" agentbar")
 	count := fmt.Sprintf("%d/%d", snap.Working(), snap.Total())
 	dot := " "
 	if snap.Working() > 0 {
