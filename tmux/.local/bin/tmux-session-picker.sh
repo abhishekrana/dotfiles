@@ -294,6 +294,9 @@ current_pos=$(printf '%s\n' "$lines" | awk -F'\t' -v c="$current" '$1 == c { pri
 
 self=$(realpath "$0")
 
+fzf_colors='bg+:#268bd2,fg+:#fdf6e3,gutter:-1,pointer:-1,hl:#268bd2'
+fzf_colors+=',hl+:#fdf6e3,border:#93a1a1,info:#93a1a1,prompt:#586e75'
+
 # --sync + start:pos ensures the initial cursor position fires exactly once,
 # at startup. Using load:pos here would re-fire on every reload, snapping
 # the cursor back to the original session after rename/move/kill/new.
@@ -305,7 +308,7 @@ target=$(
             --preview "$HOME/.local/bin/tmux-session-preview.sh {1}" \
             --preview-window=down:50% \
             --pointer=' ' \
-            --color='bg+:#268bd2,fg+:#fdf6e3,gutter:-1,pointer:-1,hl:#268bd2,hl+:#fdf6e3,border:#93a1a1,info:#93a1a1,prompt:#586e75' \
+            --color="$fzf_colors" \
             --bind "start:pos($current_pos)" \
             --bind 'j:down,k:up,g:first,G:last,alt-;:abort' \
             --bind "?:execute($self --help)" \

@@ -24,6 +24,9 @@ TASK_VERSION="3.52.0"
 YAZI_VERSION="26.5.6"
 ZOXIDE_VERSION="0.10.0"
 
+# URL of a GitHub release asset: gh_url <owner/repo> <tag> <asset>
+gh_url() { printf 'https://github.com/%s/releases/download/%s/%s' "$1" "$2" "$3"; }
+
 log() { echo -e "\033[1;34m[dotfiles]\033[0m $*"; }
 warn() { echo -e "\033[1;33m[dotfiles]\033[0m $*"; }
 ok() { echo -e "\033[1;32m[dotfiles]\033[0m $*"; }
@@ -35,7 +38,10 @@ ok() { echo -e "\033[1;32m[dotfiles]\033[0m $*"; }
 install_apt_packages() {
     # chafa: image previews for yazi
     # imagemagick: convert/identify, used by image.nvim to render images in nvim
-    local pkgs=(bat build-essential chafa curl direnv fontconfig imagemagick jq ripgrep software-properties-common stow tmux tree unzip wget wl-clipboard)
+    local pkgs=(
+        bat build-essential chafa curl direnv fontconfig imagemagick jq ripgrep
+        software-properties-common stow tmux tree unzip wget wl-clipboard
+    )
     local to_install=()
     for pkg in "${pkgs[@]}"; do
         dpkg -s "$pkg" &>/dev/null || to_install+=("$pkg")
@@ -81,7 +87,9 @@ install_delta() {
         return
     fi
     log "Installing delta $DELTA_VERSION..."
-    local url="https://github.com/dandavison/delta/releases/download/${DELTA_VERSION}/delta-${DELTA_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+    local url
+    url=$(gh_url dandavison/delta "${DELTA_VERSION}" \
+        "delta-${DELTA_VERSION}-x86_64-unknown-linux-musl.tar.gz")
     local tmp
     tmp=$(mktemp -d)
     curl -sSL "$url" | tar xz -C "$tmp"
@@ -97,7 +105,8 @@ install_fd() {
         return
     fi
     log "Installing fd $FD_VERSION..."
-    local url="https://github.com/sharkdp/fd/releases/download/v${FD_VERSION}/fd-v${FD_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+    local url
+    url=$(gh_url sharkdp/fd "v${FD_VERSION}" "fd-v${FD_VERSION}-x86_64-unknown-linux-musl.tar.gz")
     local tmp
     tmp=$(mktemp -d)
     curl -sSL "$url" | tar xz -C "$tmp"
@@ -113,7 +122,8 @@ install_fzf() {
         return
     fi
     log "Installing fzf $FZF_VERSION..."
-    local url="https://github.com/junegunn/fzf/releases/download/v${FZF_VERSION}/fzf-${FZF_VERSION}-linux_amd64.tar.gz"
+    local url
+    url=$(gh_url junegunn/fzf "v${FZF_VERSION}" "fzf-${FZF_VERSION}-linux_amd64.tar.gz")
     curl -sSL "$url" | tar xz -C "$LOCAL_BIN" fzf
     chmod +x "$LOCAL_BIN/fzf"
     ok "fzf $FZF_VERSION installed"
@@ -121,12 +131,15 @@ install_fzf() {
 
 # Generates CHANGELOG.md and release notes from conventional commits.
 install_git_cliff() {
-    if [ -x "$LOCAL_BIN/git-cliff" ] && "$LOCAL_BIN/git-cliff" --version 2>/dev/null | grep -q "$GIT_CLIFF_VERSION"; then
+    if [ -x "$LOCAL_BIN/git-cliff" ] &&
+        "$LOCAL_BIN/git-cliff" --version 2>/dev/null | grep -q "$GIT_CLIFF_VERSION"; then
         ok "git-cliff $GIT_CLIFF_VERSION already installed"
         return
     fi
     log "Installing git-cliff $GIT_CLIFF_VERSION..."
-    local url="https://github.com/orhun/git-cliff/releases/download/v${GIT_CLIFF_VERSION}/git-cliff-${GIT_CLIFF_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+    local url
+    url=$(gh_url orhun/git-cliff "v${GIT_CLIFF_VERSION}" \
+        "git-cliff-${GIT_CLIFF_VERSION}-x86_64-unknown-linux-musl.tar.gz")
     local tmp
     tmp=$(mktemp -d)
     curl -sSL "$url" | tar xz -C "$tmp"
@@ -143,7 +156,8 @@ install_gitleaks() {
         return
     fi
     log "Installing gitleaks $GITLEAKS_VERSION..."
-    local url="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+    local url
+    url=$(gh_url gitleaks/gitleaks "v${GITLEAKS_VERSION}" "gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz")
     local tmp
     tmp=$(mktemp -d)
     curl -sSL "$url" | tar xz -C "$tmp"
@@ -154,12 +168,14 @@ install_gitleaks() {
 }
 
 install_gitmux() {
-    if [ -x "$LOCAL_BIN/gitmux" ] && [ -f "$LOCAL_BIN/.gitmux-version" ] && grep -q "$GITMUX_VERSION" "$LOCAL_BIN/.gitmux-version"; then
+    if [ -x "$LOCAL_BIN/gitmux" ] && [ -f "$LOCAL_BIN/.gitmux-version" ] &&
+        grep -q "$GITMUX_VERSION" "$LOCAL_BIN/.gitmux-version"; then
         ok "gitmux $GITMUX_VERSION already installed"
         return
     fi
     log "Installing gitmux $GITMUX_VERSION..."
-    local url="https://github.com/arl/gitmux/releases/download/v${GITMUX_VERSION}/gitmux_v${GITMUX_VERSION}_linux_amd64.tar.gz"
+    local url
+    url=$(gh_url arl/gitmux "v${GITMUX_VERSION}" "gitmux_v${GITMUX_VERSION}_linux_amd64.tar.gz")
     local tmp
     tmp=$(mktemp -d)
     curl -sSL "$url" | tar xz -C "$tmp"
@@ -211,12 +227,15 @@ install_hunk() {
 }
 
 install_lazydocker() {
-    if [ -x "$LOCAL_BIN/lazydocker" ] && "$LOCAL_BIN/lazydocker" --version 2>/dev/null | grep -q "$LAZYDOCKER_VERSION"; then
+    if [ -x "$LOCAL_BIN/lazydocker" ] &&
+        "$LOCAL_BIN/lazydocker" --version 2>/dev/null | grep -q "$LAZYDOCKER_VERSION"; then
         ok "lazydocker $LAZYDOCKER_VERSION already installed"
         return
     fi
     log "Installing lazydocker $LAZYDOCKER_VERSION..."
-    local url="https://github.com/jesseduffield/lazydocker/releases/download/v${LAZYDOCKER_VERSION}/lazydocker_${LAZYDOCKER_VERSION}_Linux_x86_64.tar.gz"
+    local url
+    url=$(gh_url jesseduffield/lazydocker "v${LAZYDOCKER_VERSION}" \
+        "lazydocker_${LAZYDOCKER_VERSION}_Linux_x86_64.tar.gz")
     local tmp
     tmp=$(mktemp -d)
     curl -sSL "$url" | tar xz -C "$tmp"
@@ -232,7 +251,9 @@ install_lazygit() {
         return
     fi
     log "Installing lazygit $LAZYGIT_VERSION..."
-    local url="https://github.com/jesseduffield/lazygit/releases/download/v${LAZYGIT_VERSION}/lazygit_${LAZYGIT_VERSION}_Linux_x86_64.tar.gz"
+    local url
+    url=$(gh_url jesseduffield/lazygit "v${LAZYGIT_VERSION}" \
+        "lazygit_${LAZYGIT_VERSION}_Linux_x86_64.tar.gz")
     local tmp
     tmp=$(mktemp -d)
     curl -sSL "$url" | tar xz -C "$tmp"
@@ -249,7 +270,8 @@ install_neovim() {
     fi
     log "Installing neovim $NEOVIM_VERSION..."
     rm -rf "$HOME/.local/nvim"
-    local url="https://github.com/neovim/neovim/releases/download/v${NEOVIM_VERSION}/nvim-linux-x86_64.tar.gz"
+    local url
+    url=$(gh_url neovim/neovim "v${NEOVIM_VERSION}" nvim-linux-x86_64.tar.gz)
     local tmp
     tmp=$(mktemp -d)
     curl -sSL "$url" | tar xz -C "$tmp"
@@ -279,12 +301,15 @@ install_ruff() {
 # Pinned: apt lags at 0.9.0. NB a comment starting with this tool's name is
 # read as a directive and fails to parse - never start one that way.
 install_shellcheck() {
-    if [ -x "$LOCAL_BIN/shellcheck" ] && "$LOCAL_BIN/shellcheck" --version 2>/dev/null | grep -q "$SHELLCHECK_VERSION"; then
+    if [ -x "$LOCAL_BIN/shellcheck" ] &&
+        "$LOCAL_BIN/shellcheck" --version 2>/dev/null | grep -q "$SHELLCHECK_VERSION"; then
         ok "shellcheck $SHELLCHECK_VERSION already installed"
         return
     fi
     log "Installing shellcheck $SHELLCHECK_VERSION..."
-    local url="https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.linux.x86_64.tar.xz"
+    local url
+    url=$(gh_url koalaman/shellcheck "v${SHELLCHECK_VERSION}" \
+        "shellcheck-v${SHELLCHECK_VERSION}.linux.x86_64.tar.xz")
     local tmp
     tmp=$(mktemp -d)
     curl -sSL "$url" | tar xJ -C "$tmp"
@@ -314,7 +339,8 @@ install_task() {
         return
     fi
     log "Installing task $TASK_VERSION..."
-    local url="https://github.com/go-task/task/releases/download/v${TASK_VERSION}/task_linux_amd64.tar.gz"
+    local url
+    url=$(gh_url go-task/task "v${TASK_VERSION}" task_linux_amd64.tar.gz)
     local tmp
     tmp=$(mktemp -d)
     curl -sSL "$url" | tar xz -C "$tmp"
@@ -330,7 +356,8 @@ install_yazi() {
         return
     fi
     log "Installing yazi $YAZI_VERSION..."
-    local url="https://github.com/sxyazi/yazi/releases/download/v${YAZI_VERSION}/yazi-x86_64-unknown-linux-gnu.zip"
+    local url
+    url=$(gh_url sxyazi/yazi "v${YAZI_VERSION}" yazi-x86_64-unknown-linux-gnu.zip)
     local tmp
     tmp=$(mktemp -d)
     curl -sSL "$url" -o "$tmp/yazi.zip"
@@ -348,7 +375,9 @@ install_zoxide() {
         return
     fi
     log "Installing zoxide $ZOXIDE_VERSION..."
-    local url="https://github.com/ajeetdsouza/zoxide/releases/download/v${ZOXIDE_VERSION}/zoxide-${ZOXIDE_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+    local url
+    url=$(gh_url ajeetdsouza/zoxide "v${ZOXIDE_VERSION}" \
+        "zoxide-${ZOXIDE_VERSION}-x86_64-unknown-linux-musl.tar.gz")
     local tmp
     tmp=$(mktemp -d)
     curl -sSL "$url" | tar xz -C "$tmp"
@@ -372,7 +401,9 @@ install_nerd_font() {
     mkdir -p "$font_dir"
     local tmp
     tmp=$(mktemp -d)
-    curl -sSL "https://github.com/ryanoasis/nerd-fonts/releases/download/v${NERD_FONT_VERSION}/JetBrainsMono.tar.xz" -o "$tmp/JetBrainsMono.tar.xz"
+    local url
+    url=$(gh_url ryanoasis/nerd-fonts "v${NERD_FONT_VERSION}" JetBrainsMono.tar.xz)
+    curl -sSL "$url" -o "$tmp/JetBrainsMono.tar.xz"
     tar xf "$tmp/JetBrainsMono.tar.xz" -C "$font_dir"
     fc-cache -fv "$font_dir" >/dev/null 2>&1
     echo "$NERD_FONT_VERSION" >"$font_dir/.nerd-font-version"
@@ -565,7 +596,8 @@ seed_vault() {
     done
     copy_if_absent "$tpl/common/.githooks/pre-commit" "$vault/.githooks/pre-commit"
     # vault-check.sh must be +x - the pre-commit runs it only under `[ -x ]`, else integrity is silently skipped.
-    chmod +x "$vault/.claude/vault-check.sh" "$vault/.claude/hooks/"*.sh "$vault/.githooks/pre-commit" 2>/dev/null || true
+    chmod +x "$vault/.claude/vault-check.sh" "$vault/.claude/hooks/"*.sh \
+        "$vault/.githooks/pre-commit" 2>/dev/null || true
     # git ignores empty dirs, so a fresh skeleton has nothing to commit and the first
     # push fails. Keep each still-empty capture dir trackable with a .gitkeep.
     for d in archive areas assets dailies inbox projects resources templates; do
@@ -653,7 +685,8 @@ install_bat_themes() {
     for t in "Catppuccin Latte" "Catppuccin Mocha"; do
         [ -f "$dir/$t.tmTheme" ] && continue
         enc="${t// /%20}"
-        if curl -sfL "https://raw.githubusercontent.com/catppuccin/bat/main/themes/${enc}.tmTheme" -o "$dir/$t.tmTheme"; then
+        local url="https://raw.githubusercontent.com/catppuccin/bat/main/themes/${enc}.tmTheme"
+        if curl -sfL "$url" -o "$dir/$t.tmTheme"; then
             changed=1
         else
             warn "Could not fetch bat theme: $t"

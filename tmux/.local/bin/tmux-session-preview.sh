@@ -15,6 +15,10 @@ now=$(date +%s)
 # the unix time of the last state change; a pane counts as a live agent only
 # with @agent_present=1 and a claude/node foreground command. Only active
 # states are kept, so idle/registered panes show no state line.
+pane_fmt=$'#{pane_id}\t#{pane_current_command}\t#{@agent_present}'
+pane_fmt+=$'\t#{@agent_state}\t#{@agent_since}'
+win_fmt=$'#{window_index}\t#{window_name}\t#{pane_id}\t#{pane_active}\t#{window_active}'
+
 declare -A PANE_STATE PANE_TS
 while IFS=$'\t' read -r pid cmd present state since; do
     [ "$present" = 1 ] || continue
@@ -22,7 +26,7 @@ while IFS=$'\t' read -r pid cmd present state since; do
     case $state in working | permission | question | done) ;; *) continue ;; esac
     PANE_STATE[$pid]=$state
     PANE_TS[$pid]=${since:-0}
-done < <(tmux list-panes -a -F $'#{pane_id}\t#{pane_current_command}\t#{@agent_present}\t#{@agent_state}\t#{@agent_since}')
+done < <(tmux list-panes -a -F "$pane_fmt")
 
 fmt_ago() {
     local delta=$((now - $1))
@@ -44,7 +48,13 @@ state_rank() {
 # Icons mirror the sidebar's colours: red permission, orange asking,
 # yellow working, green done.
 icon_for() {
-    case $1 in permission) printf '🔴' ;; question) printf '🟠' ;; working) printf '🟡' ;; done) printf '🟢' ;; *) printf '  ' ;; esac
+    case $1 in
+        permission) printf '🔴' ;;
+        question) printf '🟠' ;;
+        working) printf '🟡' ;;
+        done) printf '🟢' ;;
+        *) printf '  ' ;;
+    esac
 }
 
 # ---- Aggregate state across all panes in this session ----------------------
@@ -90,7 +100,7 @@ echo "windows:"
 # Use tab (#{\t} not supported; tmux passes literal $'\t' through -F if quoted).
 # Filter to this session via -t. Fields: window_index, window_name, pane_id,
 # pane_active, window_active.
-tmux list-panes -s -t "$session" -F $'#{window_index}\t#{window_name}\t#{pane_id}\t#{pane_active}\t#{window_active}' 2>/dev/null |
+tmux list-panes -s -t "$session" -F "$win_fmt" 2>/dev/null |
     while IFS=$'\t' read -r widx wname pid pactive wactive; do
         marker=' '
         [ "$wactive" = "1" ] && [ "$pactive" = "1" ] && marker='*'

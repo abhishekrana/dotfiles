@@ -65,6 +65,13 @@ apply_tmux() {
     ask=$(palette_get "$1" asking)
     grn=$(palette_get "$1" "done")
     work=$(palette_get "$1" working)
+    # Built here, not inline in the heredoc, to keep the source under 120 columns;
+    # the generated line is byte-identical either way.
+    local dseg rec_chip work_chip idle_chip
+    rec_chip="#[fg=$block bg=$surface] ● dictate "
+    work_chip="#[fg=$ask bg=$surface] ● dictate "
+    idle_chip="#[fg=$muted bg=$surface] ● dictate "
+    dseg="#{?#{==:#{@dictate},rec},$rec_chip,#{?#{==:#{@dictate},work},$work_chip,$idle_chip}}"
     cat >"$f" <<EOF
 set -g status-style "fg=$fg,bg=$surface"
 set -g window-style "fg=$fg,bg=$bg"
@@ -74,7 +81,7 @@ set -g pane-active-border-style "fg=$accent,bg=$bg"
 set -g status-left "#{@host_badge}#[fg=$bg,bg=$accent,bold] #S #[fg=$fg,bg=$surface] "
 set -g window-status-current-format "#[fg=$bg,bg=$accent,bold] #I:#W#{?window_zoomed_flag, Z,} "
 set -g window-status-format "#{?window_bell_flag,#[fg=$bg bg=$block bold],#[fg=$muted bg=$surface]} #I:#W "
-set -g @dictate_seg "#{?#{==:#{@dictate},rec},#[fg=$block bg=$surface] ● dictate ,#{?#{==:#{@dictate},work},#[fg=$ask bg=$surface] ● dictate ,#[fg=$muted bg=$surface] ● dictate }}"
+set -g @dictate_seg "$dseg"
 set -g @submit_seg "#{?@submit_flash,#[fg=$bg bg=$grn]  ⏎ enter  ,#[fg=$work bg=$surface]  ⏎ enter  }"
 set -g @push_seg "#{?@push_flash,#[fg=$bg bg=$grn]  ⇡ commit+push  ,#[fg=$accent bg=$surface]  ⇡ commit+push  }"
 set -g @diff_seg "#[fg=#6c71c4 bg=$surface] ◧ diff#{?@diff_mode,:#{@diff_mode},} "
@@ -98,7 +105,11 @@ apply_fzf() {
     grn=$(palette_get "$1" "done")
     border=$(palette_get "$1" border)
     cat >"$f" <<EOF
-_fzf_color="--color=$mode --color=fg:$fg,bg:$bg,hl:$accent --color=fg+:$emph,bg+:$sel,hl+:$accent --color=info:$muted,prompt:$accent,pointer:$accent --color=marker:$grn,spinner:$work,header:$muted --color=border:$border,gutter:$bg"
+_fzf_color="--color=$mode --color=fg:$fg,bg:$bg,hl:$accent"
+_fzf_color+=" --color=fg+:$emph,bg+:$sel,hl+:$accent"
+_fzf_color+=" --color=info:$muted,prompt:$accent,pointer:$accent"
+_fzf_color+=" --color=marker:$grn,spinner:$work,header:$muted"
+_fzf_color+=" --color=border:$border,gutter:$bg"
 EOF
 }
 
@@ -183,7 +194,12 @@ main() {
     apply_env "$flavor"
     apply_delta "$flavor"
     apply_nvim "$flavor"
-    echo "→ $flavor (accent $(palette_get "$flavor" accent)). Ghostty + tmux reload now; new shells pick up fzf/bat; next git diff / nvim launch picks up delta / nvim; restart sidebars with prefix+e twice."
+    local msg accent
+    accent=$(palette_get "$flavor" accent)
+    msg="→ $flavor (accent $accent)."
+    msg="$msg Ghostty + tmux reload now; new shells pick up fzf/bat;"
+    msg="$msg next git diff / nvim launch picks up delta / nvim;"
+    echo "$msg restart sidebars with prefix+e twice."
 }
 
 main "$@"

@@ -10,6 +10,8 @@ vars:
   # Python by shebang too - dictate runs via `uv run --script`.
   PY_FILES:
     sh: git ls-files -z | xargs -0 awk 'FNR==1 && /^#!.*(python|uv run)/ {print FILENAME}' | tr '\n' ' '
+  GO_FILES:
+    sh: git ls-files '*.go' | tr '\n' ' '
   PRETTIER_FILES:
     sh: git ls-files '*.md' '*.yml' '*.yaml' '*.json' | tr '\n' ' '
   # Pinned so the gate behaves the same in CI and here.
@@ -28,6 +30,7 @@ tasks:
     desc: The release gate - lint, python, formatting, secrets, tests
     cmds:
       - task: lint
+      - task: width
       - task: py
       - task: fmt-check
       - task: secrets
@@ -37,6 +40,11 @@ tasks:
     desc: shellcheck every tracked shell file (errors and warnings)
     cmds:
       - shellcheck -S warning {{.SHELL_FILES}}
+
+  width:
+    desc: No shell or Go line over 120 columns (prettier and ruff cover the rest)
+    cmds:
+      - awk 'length>120 {print FILENAME":"FNR" ("length" cols)"; n++} END {exit n>0}' {{.SHELL_FILES}} {{.GO_FILES}}
 
   py:
     desc: Lint the Python scripts (rules and 120-column limit in ruff.toml)

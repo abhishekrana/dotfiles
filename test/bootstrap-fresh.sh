@@ -52,15 +52,19 @@ done
 
 echo
 echo \"--- post-stow steps (skipped entirely if bootstrap aborted early) ---\"
-grep -q \"Load dotfiles shell customizations\" ~/.bashrc && printf \"OK   %s\n\" \".bashrc patched\" || { printf \"MISS %s\n\" \".bashrc patch\"; fail=1; }
+grep -q \"Load dotfiles shell customizations\" ~/.bashrc \\
+  && printf \"OK   %s\n\" \".bashrc patched\" \\
+  || { printf \"MISS %s\n\" \".bashrc patch\"; fail=1; }
 for d in ~/vaults/personal ~/vaults/work ~/.local/share/nvim/lazy; do
   if [ -d \"\$d\" ]; then printf \"OK   %s\n\" \"\$d\"; else printf \"MISS %s\n\" \"\$d\"; fail=1; fi
 done
-if [ -x ~/dotfiles/apps/agentbar/bin/agentbar ]; then printf \"OK   %s\n\" \"agentbar built\"; else printf \"MISS %s\n\" \"agentbar\"; fail=1; fi
+if [ -x ~/dotfiles/apps/agentbar/bin/agentbar ]; then printf \"OK   %s\n\" \"agentbar built\"
+  else printf \"MISS %s\n\" \"agentbar\"; fail=1; fi
 
 echo
 echo \"--- 2nd run (idempotency) ---\"
-cd ~/dotfiles && ./bootstrap.sh 2>&1 | grep -E \"already installed|already patched\" | wc -l | xargs -I{} echo \"{} steps already-installed (expect >= 10)\"
+cd ~/dotfiles && ./bootstrap.sh 2>&1 | grep -cE \"already installed|already patched\" \\
+  | xargs -I{} echo \"{} steps already-installed (expect >= 10)\"
 
 exit \$fail
 "

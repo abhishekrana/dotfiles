@@ -169,8 +169,12 @@ generation covers `0.2.0` on, which is why `task changelog` prepends rather than
 
 - Markdown: `task fmt` (prettier, pinned in `Taskfile.yml` so CI and local agree). `task fmt-check` checks without
   writing.
-- Shell: no formatter. `shfmt` is used only to find shell files by shebang for the lint gate - it reflows the compact
-  `cmd; cmd` and `|| { … }` idioms this repo uses, so it is deliberately not run with `-w`.
+- Shell: `shfmt -i 4 -ci` (flags in `Taskfile.yml`, not `.editorconfig` - an extensionless script that matched no
+  section would silently get tab indent). Never `--keep-padding`: it splits `cmd; cmd` and then aligns to the original
+  column, which mangles the file.
 - Lint gates on bugs, not style: `shellcheck -S warning` for shell, `ruff --select E9,F` for the Python in `dictate`.
   Deliberate idioms that a linter misreads carry a directive rather than being rewritten.
+- **120 columns**, enforced per language: `task width` (shell, Go), `ruff` E501 (Python), prettier `printWidth`
+  (markdown, yaml, json). Markdown table rows and long inline-code spans can exceed it - prettier will not break an
+  unbreakable token.
 - Always use a plain hyphen (`-`), never em or en dashes

@@ -85,7 +85,9 @@ cmd_tail() {
 # `30s` is invalid). Anything else goes to date as-is.
 since_ts() {
     local v=$1 n
-    if [[ $v =~ ^([0-9]+)[[:space:]]*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)$ ]]; then
+    local age_re='^([0-9]+)[[:space:]]*(s|sec|secs|second|seconds|m|min|mins|minute|minutes'
+    age_re+='|h|hr|hrs|hour|hours|d|day|days)$'
+    if [[ $v =~ $age_re ]]; then
         n=${BASH_REMATCH[1]}
         case ${BASH_REMATCH[2]} in
             s*) v="$n seconds ago" ;;

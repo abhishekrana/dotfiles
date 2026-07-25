@@ -20,7 +20,10 @@ fi
 added="$(git diff --cached --no-color -U0 | grep -E '^\+' | grep -vE '^\+\+\+' || true)"
 [ -z "$added" ] && exit 0
 
-patterns='-----BEGIN [A-Z ]*PRIVATE KEY-----|AKIA[0-9A-Z]{16}|xox[baprs]-[0-9A-Za-z-]+|gh[pousr]_[0-9A-Za-z]{20,}|(api[_-]?key|secret|token|password|passwd)[[:space:]]*[:=][[:space:]]*["'"'"'0-9A-Za-z._-]{8,}'
+patterns='-----BEGIN [A-Z ]*PRIVATE KEY-----|AKIA[0-9A-Z]{16}'
+patterns+='|xox[baprs]-[0-9A-Za-z-]+|gh[pousr]_[0-9A-Za-z]{20,}'
+patterns+='|(api[_-]?key|secret|token|password|passwd)'
+patterns+='[[:space:]]*[:=][[:space:]]*["'"'"'0-9A-Za-z._-]{8,}'
 
 if printf '%s\n' "$added" | grep -iEq -e "$patterns"; then
     echo "pre-commit: possible secret/credential in staged changes:" >&2
