@@ -16,6 +16,9 @@ LAZYDOCKER_VERSION="0.25.2"
 LAZYGIT_VERSION="0.63.1"
 NEOVIM_VERSION="0.12.4"
 NERD_FONT_VERSION="3.4.0"
+SHELLCHECK_VERSION="0.11.0"
+SHFMT_VERSION="3.13.1"
+TASK_VERSION="3.52.0"
 YAZI_VERSION="26.5.6"
 ZOXIDE_VERSION="0.10.0"
 
@@ -236,6 +239,57 @@ install_neovim() {
     ln -sf "$HOME/.local/nvim/bin/nvim" "$LOCAL_BIN/nvim"
     rm -rf "$tmp"
     ok "neovim $NEOVIM_VERSION installed"
+}
+
+# The release gate runs this linter. Pinned rather than taken from apt, which
+# lags: 24.04 ships 0.9.0. NB a comment line whose first word is the linter's
+# own name is read as a directive and fails to parse - so don't start one that way.
+install_shellcheck() {
+    if [ -x "$LOCAL_BIN/shellcheck" ] && "$LOCAL_BIN/shellcheck" --version 2>/dev/null | grep -q "$SHELLCHECK_VERSION"; then
+        ok "shellcheck $SHELLCHECK_VERSION already installed"
+        return
+    fi
+    log "Installing shellcheck $SHELLCHECK_VERSION..."
+    local url="https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.linux.x86_64.tar.xz"
+    local tmp
+    tmp=$(mktemp -d)
+    curl -sSL "$url" | tar xJ -C "$tmp"
+    mv "$tmp/shellcheck-v${SHELLCHECK_VERSION}/shellcheck" "$LOCAL_BIN/shellcheck"
+    chmod +x "$LOCAL_BIN/shellcheck"
+    rm -rf "$tmp"
+    ok "shellcheck $SHELLCHECK_VERSION installed"
+}
+
+# Used to find shell files by shebang for the lint gate (extensionless scripts
+# included, the Python dictate excluded), not to reformat them.
+install_shfmt() {
+    if [ -x "$LOCAL_BIN/shfmt" ] && "$LOCAL_BIN/shfmt" --version 2>/dev/null | grep -q "$SHFMT_VERSION"; then
+        ok "shfmt $SHFMT_VERSION already installed"
+        return
+    fi
+    log "Installing shfmt $SHFMT_VERSION..."
+    curl -sSL -o "$LOCAL_BIN/shfmt" \
+        "https://github.com/mvdan/sh/releases/download/v${SHFMT_VERSION}/shfmt_v${SHFMT_VERSION}_linux_amd64"
+    chmod +x "$LOCAL_BIN/shfmt"
+    ok "shfmt $SHFMT_VERSION installed"
+}
+
+# go-task runs this repo's routine tasks (Taskfile.yml): `task check`, `task
+# stow`, `task changelog`. Same runner the sibling Go projects use.
+install_task() {
+    if [ -x "$LOCAL_BIN/task" ] && "$LOCAL_BIN/task" --version 2>/dev/null | grep -q "$TASK_VERSION"; then
+        ok "task $TASK_VERSION already installed"
+        return
+    fi
+    log "Installing task $TASK_VERSION..."
+    local url="https://github.com/go-task/task/releases/download/v${TASK_VERSION}/task_linux_amd64.tar.gz"
+    local tmp
+    tmp=$(mktemp -d)
+    curl -sSL "$url" | tar xz -C "$tmp"
+    mv "$tmp/task" "$LOCAL_BIN/task"
+    chmod +x "$LOCAL_BIN/task"
+    rm -rf "$tmp"
+    ok "task $TASK_VERSION installed"
 }
 
 install_yazi() {
@@ -676,6 +730,9 @@ install_lazydocker
 install_lazygit
 install_neovim
 install_nerd_font
+install_shellcheck
+install_shfmt
+install_task
 install_tpm
 install_yazi
 install_zoxide

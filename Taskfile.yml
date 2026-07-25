@@ -1,0 +1,128 @@
+# Routine tasks for this repo. `task` with no arguments lists them.
+# Projects under apps/ keep their own build files; the agentbar:* tasks delegate.
+version: "3"
+
+vars:
+  AGENTBAR: apps/agentbar
+  # shfmt -f finds shell files by shebang, so extensionless scripts
+  # (.githooks/pre-commit, theme, dotfiles-trace) are covered and the Python
+  # dictate is not. Intersected with git ls-files so the gitignored local.bash
+  # never reaches the gate.
+  SHELL_FILES:
+    sh: git ls-files -z | xargs -0 shfmt -f | sort | tr '\n' ' '
+  MD_FILES:
+    sh: git ls-files '*.md' | tr '\n' ' '
+  # Read from bootstrap.sh so the two never drift.
+  STOW_PACKAGES:
+    sh: sed -n 's/^ *local packages=(\(.*\))$/\1/p' bootstrap.sh
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+
+  check:
+    desc: The release gate - lint, markdown, tests
+    cmds:
+      - task: lint
+      - task: md
+      - task: test
+
+  lint:
+    desc: shellcheck every tracked shell file (errors and warnings)
+    cmds:
+      - shellcheck -S warning {{.SHELL_FILES}}
+
+  md:
+    desc: Check markdown formatting
+    cmds:
+      - npx --yes prettier --check {{.MD_FILES}}
+
+  fmt:
+    desc: Format markdown in place
+    cmds:
+      - npx --yes prettier --write {{.MD_FILES}}
+
+  test:
+    desc: Run the agentbar test suite
+    cmds:
+      - task: agentbar:test
+
+  build:
+    desc: Build everything under apps/
+    cmds:
+      - task: agentbar:build
+
+  stow:
+    desc: Restow every package (safe to re-run)
+    cmds:
+      - stow --restow {{.STOW_PACKAGES}}
+
+  fresh:
+    desc: Full bootstrap in a clean Ubuntu container, twice (needs docker, ~10 min)
+    cmds:
+      - test/bootstrap-fresh.sh
+
+  changelog:
+    desc: Regenerate CHANGELOG.md for a version, e.g. task changelog V=v0.2.0
+    preconditions:
+      - sh: test -n "{{.V}}"
+        msg: "usage: task changelog V=v0.2.0"
+    cmds:
+      - git cliff --tag {{.V}} -o CHANGELOG.md
+      - echo "CHANGELOG.md written for {{.V}} - review it, then commit and tag."
+
+  release-notes:
+    desc: Preview the notes the next release would publish
+    cmds:
+      - git cliff --unreleased
+
+  trace:
+    desc: Follow the shared trace log (tmux, agentbar, dictate, hooks)
+    cmds:
+      - dotfiles-trace tail -f
+
+  tmux-reload:
+    desc: Re-source ~/.tmux.conf in the running server (all sessions at once)
+    cmds:
+      - tmux source-file ~/.tmux.conf
+      - echo "tmux reloaded. Sidebars are long-lived - prefix+e twice to restart them."
+
+  agentbar:build:
+    desc: Build the agentbar binary
+    dir: "{{.AGENTBAR}}"
+    cmds:
+      - make build
+    sources:
+      - "**/*.go"
+      - go.mod
+      - go.sum
+    generates:
+      - bin/agentbar
+
+  agentbar:test:
+    desc: agentbar unit and e2e tests (e2e needs tmux)
+    dir: "{{.AGENTBAR}}"
+    cmds:
+      - make test
+
+  agentbar:unit:
+    desc: agentbar unit tests only (skips e2e)
+    dir: "{{.AGENTBAR}}"
+    cmds:
+      - make unit
+
+  agentbar:mockup:
+    desc: Preview the sidebar with fake data (needs a TTY)
+    deps: [agentbar:build]
+    dir: "{{.AGENTBAR}}"
+    cmds:
+      - bin/agentbar mockup
+
+  agentbar:doctor:
+    desc: Audit live Claude panes against the hook trace for state desync
+    deps: [agentbar:build]
+    dir: "{{.AGENTBAR}}"
+    cmds:
+      - bin/agentbar doctor
