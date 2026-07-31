@@ -69,6 +69,7 @@ picked up on their next restart.
 | key             | action                                                                                              |
 | --------------- | --------------------------------------------------------------------------------------------------- |
 | `prefix + e`    | toggle the sidebar in **all** sessions                                                              |
+| `Alt-h`/`Alt-l` | switch to the session one row up / down this list, wrapping (dotfiles binding, works outside it)    |
 | `prefix + R`    | refresh this session's sidebar and reset the window layout (dotfiles' UI reset)                     |
 | `j`/`k`, wheel  | move between sessions and agents                                                                    |
 | `Enter`, click  | on an agent: jump to its pane; on a session name: switch to that session                            |
@@ -92,8 +93,14 @@ Sessions are grouped into three bands so your working set stays together and dea
 A labelled divider heads each band, but only when more than one band is present - a single-band list shows no dividers.
 Within every band sessions stay **alphabetical**, so positions never shuffle as agents change state; they move only when
 you pin or unpin. Pins live in the global `@agentbar-pins` option (tab-separated session names - tmux allows spaces in a
-session name but never tabs), so every session's sidebar shows the same bands at once, and they survive a config reload
-(a full tmux server restart clears them - re-pin in a keypress).
+session name but never tabs), so every session's sidebar shows the same bands at once. Every pin write also mirrors the
+set to `${XDG_STATE_HOME:-~/.local/state}/dotfiles/agentbar-pins` and drops names whose session is gone; a tmux server
+restart drops the option, and the next read restores it from that mirror.
+
+This order is the **only** session order in the stack. `agentbar order` prints it as `band<TAB>name` lines, and both the
+`Alt-h`/`Alt-l` keys (`agentbar prev` / `next`) and the dotfiles session picker popup (`Alt-;`) walk exactly that, so
+the list you see is the list they move through. Pinning is the one thing that reorders it - and the popup's `p` writes
+the same set this sidebar's `p` does.
 
 The sidebar is on by default: it opens in every session at tmux server start, and any session created while it's on gets
 one automatically (set `@agentbar-autostart 'off'` to start closed). The toggle is global: one press closes them all
@@ -244,6 +251,9 @@ Notes for hacking:
 - The sidebar TUI (Go, Bubble Tea) snapshots `list-panes -a` once a second and renders sessions in three bands - pinned,
   active, dormant - alphabetical within each. Jumping runs `switch-client` + `select-window` + `select-pane`, publishes
   the selection, and signals a `wait-for` channel every sidebar blocks on.
+- `agentbar order` / `next` / `prev` / `pin` expose that same grouping (`model.Arrange`) to the keys and the picker
+  popup, so nothing outside the TUI has to reimplement the bands. They skip the per-pane git lookups the sidebar does
+  for branch names - order needs none, and they run on a keypress.
 - A `session-window-changed` hook moves the sidebar pane into whichever window becomes active (`join-pane -d`), with a
   re-entrancy guard and self-healing if the pane died.
 - A `window-resized` hook (`scripts/pin.sh`) holds the sidebar at `@agentbar-width`. tmux has no fixed-size pane and

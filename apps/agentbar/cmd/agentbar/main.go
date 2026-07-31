@@ -16,6 +16,7 @@ import (
 
 	"github.com/abhishekrana/agentbar/internal/doctor"
 	"github.com/abhishekrana/agentbar/internal/hook"
+	"github.com/abhishekrana/agentbar/internal/model"
 	"github.com/abhishekrana/agentbar/internal/tmux"
 	"github.com/abhishekrana/agentbar/internal/trace"
 	"github.com/abhishekrana/agentbar/internal/ui"
@@ -27,6 +28,10 @@ commands:
   run [--theme <name>]          run the live sidebar (inside a tmux pane)
   mockup [--theme <name>]       render the sidebar with fake data (visual preview)
   status                        print a status-line segment (⚠N ●N)
+  order                         print the sidebar's session order, "band<TAB>name" per line
+  next | prev [<session> [<tty>]]
+                                switch the client one session down / up that order
+  pin <session>                 toggle a session's pin (the sidebar's p key)
   hook                          Claude Code hook entry: stdin JSON -> pane options
   doctor                        audit Claude panes vs the hook trace for state desync
 
@@ -45,6 +50,14 @@ func main() {
 		runMockup(os.Args[2:])
 	case "status":
 		fmt.Print(tmux.StatusSegment(tmux.Exec{}))
+	case "order":
+		runOrder()
+	case "next":
+		runStep(1, os.Args[2:])
+	case "prev":
+		runStep(-1, os.Args[2:])
+	case "pin":
+		runPin(os.Args[2:])
 	case "hook":
 		runHook()
 	case "doctor":
@@ -52,6 +65,108 @@ func main() {
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command %q\n%s", os.Args[1], usage)
 		os.Exit(2)
+	}
+}
+
+// ordered returns every session in sidebar order - the same model.Arrange
+// bands the TUI renders, so the keys and the picker walk exactly what you see.
+// A nil branch cache skips the per-pane git lookups: order needs no branches,
+// and these run on a keypress.
+func ordered(r tmux.Runner, current string) []model.Session {
+	snap := tmux.Snapshot(r, nil, current)
+	return model.Arrange(snap.Sessions, tmux.Pins(r))
+}
+
+// runOrder publishes the order as "band<TAB>name" lines, the picker popup's
+// source for grouping its rows into the same bands as the bar. Display (state
+// glyphs, branch) stays the picker's own business; only the order is shared.
+func runOrder() {
+	r := tmux.Exec{}
+	var b strings.Builder
+	for _, s := range ordered(r, tmux.CurrentSession(r)) {
+		b.WriteString(s.BandLabel() + "\t" + s.Name + "\n")
+	}
+	fmt.Print(b.String())
+}
+
+// runStep switches the client one row down (+1) or up (-1) the sidebar's
+// order, wrapping at both ends. A non-zero exit lets the tmux binding fall
+// back to switch-client, so the key still works without a built binary.
+//
+// args is the pressing client's own [session, tty]: the key bindings pass
+// tmux's #{client_session} and #{client_tty}, so the walk starts at the right
+// row and moves the right client even with several attached. Both fall back to
+// a guess for a bare run from a shell. tmux does NOT re-stamp TMUX_PANE for a
+// key binding's run-shell child - it inherits the server's environment - so a
+// guessed session silently walks from the wrong row.
+func runStep(delta int, args []string) {
+	r := tmux.Exec{}
+	cur, tty := "", ""
+	if len(args) > 0 {
+		cur = strings.TrimSpace(args[0])
+	}
+	if len(args) > 1 {
+		tty = strings.TrimSpace(args[1])
+	}
+	if cur == "" {
+		cur = tmux.CurrentSession(r)
+	}
+	target := model.Step(model.Names(ordered(r, cur)), cur, delta)
+	if target == "" || target == cur {
+		return // nothing to move to: a single session, or an empty server
+	}
+	cmd := []string{"switch-client"}
+	if tty == "" {
+		tty = tmux.ClientFor(r, cur)
+	}
+	if tty != "" {
+		cmd = append(cmd, "-c", tty)
+	}
+	// Publishing the session (token "=name") is the same write the sidebar's
+	// own Enter makes: every sidebar moves its highlight now, not next tick.
+	cmd = append(cmd,
+		"-t", target, ";",
+		"set-option", "-g", "@sidebar_selected", "="+target, ";",
+		"wait-for", "-S", tmux.RefreshChannel,
+	)
+	start := time.Now()
+	_, err := r.Run(cmd...)
+	trace.Log("agentbar", "switch", "session", target, "from", cur, "key", stepLabel(delta),
+		"ms", time.Since(start).Milliseconds(), "err", trace.Err(err))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "agentbar:", err)
+		os.Exit(1)
+	}
+}
+
+func stepLabel(delta int) string {
+	if delta < 0 {
+		return "prev"
+	}
+	return "next"
+}
+
+// runPin toggles one session's pin - the sidebar's `p` key as a command, so
+// the picker popup drives the same set instead of keeping its own order.
+func runPin(args []string) {
+	if len(args) != 1 || args[0] == "" {
+		fmt.Fprint(os.Stderr, "usage: agentbar pin <session>\n")
+		os.Exit(2)
+	}
+	name := args[0]
+	r := tmux.Exec{}
+	pins := tmux.Pins(r)
+	pinned := !pins[name]
+	if pinned {
+		pins[name] = true
+	} else {
+		delete(pins, name)
+	}
+	err := tmux.SetPins(r, pins)
+	trace.Log("agentbar", "pin", "session", name, "pinned", pinned, "err", trace.Err(err))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "agentbar:", err)
+		os.Exit(1)
 	}
 }
 

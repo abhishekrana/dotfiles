@@ -28,13 +28,20 @@ var agentCommands = map[string]bool{"claude": true, "node": true}
 // CurrentSession names the session the sidebar pane lives in, anchored
 // to our own pane: a bare display-message resolves against the attached
 // client, which may be looking at a different session.
+//
+// A TMUX_PANE naming a pane this server doesn't have resolves to the empty
+// string (exit 0, no error), so fall back to the client. That happens whenever
+// the server inherited a stale TMUX_PANE - it is fixed at server start, and
+// tmux does not re-stamp it for a run-shell child - which would otherwise leave
+// every caller thinking there is no current session.
 func CurrentSession(r Runner) string {
-	args := []string{"display-message", "-p"}
-	if pane := os.Getenv("TMUX_PANE"); pane != "" {
-		args = append(args, "-t", pane)
+	pane := os.Getenv("TMUX_PANE")
+	if pane != "" {
+		if out, _ := r.Run("display-message", "-p", "-t", pane, "#S"); out != "" {
+			return out
+		}
 	}
-	args = append(args, "#S")
-	out, _ := r.Run(args...)
+	out, _ := r.Run("display-message", "-p", "#S")
 	return out
 }
 

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -15,6 +16,20 @@ import (
 type fakeRunner struct {
 	calls   [][]string
 	replies map[string]string
+}
+
+// Pins and trace lines land under XDG_STATE_HOME; point it at a tempdir so a
+// direct `go test ./internal/ui/` never writes to the developer's state - a
+// fixture session name matching a real one would pin it in the live sidebar.
+func TestMain(m *testing.M) {
+	dir, err := os.MkdirTemp("", "agentbar-ui-test")
+	if err != nil {
+		panic(err)
+	}
+	os.Setenv("XDG_STATE_HOME", dir)
+	code := m.Run()
+	_ = os.RemoveAll(dir) // os.Exit skips defers
+	os.Exit(code)
 }
 
 func (f *fakeRunner) Run(args ...string) (string, error) {
@@ -353,34 +368,6 @@ func TestActivateCurrentSessionIsNoop(t *testing.T) {
 	a.cursor = 0 // api's header (current)
 	if _, _ = a.activate(); len(r.calls) != 0 {
 		t.Errorf("activating the current session issued %v", r.calls)
-	}
-}
-
-// Pin names round-trip through @agentbar-pins even with spaces in them:
-// tmux allows a space in a session name, so a space-separated list shredded
-// "my repo" into two bogus pins and the row never read back as pinned.
-func TestPinListRoundTripsNamesWithSpaces(t *testing.T) {
-	want := map[string]bool{"dotfiles": true, "my repo": true, "two  spaces": true}
-	value := pinList(want)
-	if strings.Contains(value, "\t\t") || strings.HasPrefix(value, "\t") {
-		t.Fatalf("pinList produced empty fields: %q", value)
-	}
-	r := &fakeRunner{replies: map[string]string{
-		"show-option -gqv @agentbar-pins": value,
-	}}
-	got := readPins(r)
-	if len(got) != len(want) {
-		t.Fatalf("readPins(%q) = %v, want %v", value, got, want)
-	}
-	for name := range want {
-		if !got[name] {
-			t.Errorf("pin %q lost in the round trip (value %q, got %v)", name, value, got)
-		}
-	}
-	// An unset option is an empty set, not a set holding "".
-	empty := readPins(&fakeRunner{})
-	if len(empty) != 0 {
-		t.Errorf("readPins on unset option = %v, want empty", empty)
 	}
 }
 

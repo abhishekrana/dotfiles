@@ -8,12 +8,17 @@ import (
 )
 
 type fakeRunner struct {
-	panes string
-	calls []string
+	panes   string
+	replies map[string]string // canned output keyed by the joined args
+	calls   []string
 }
 
 func (f *fakeRunner) Run(args ...string) (string, error) {
-	f.calls = append(f.calls, strings.Join(args, " "))
+	call := strings.Join(args, " ")
+	f.calls = append(f.calls, call)
+	if out, ok := f.replies[call]; ok {
+		return out, nil
+	}
 	if args[0] == "list-panes" {
 		return f.panes, nil
 	}
@@ -67,5 +72,28 @@ func TestSnapshotMarksVisibleDoneAsSeen(t *testing.T) {
 	joined := strings.Join(r.calls, " | ")
 	if !strings.Contains(joined, "set-option -pq -t %3 @agent_seen 1") {
 		t.Errorf("must stamp @agent_seen on the pane: %s", joined)
+	}
+}
+
+// A TMUX_PANE the server doesn't have resolves to empty with no error - a
+// server that inherited a stale one (it is fixed at server start, and tmux
+// never re-stamps it for a run-shell child) would otherwise report no current
+// session at all, and the session keys would walk from the wrong row.
+func TestCurrentSessionFallsBackOffAStalePane(t *testing.T) {
+	t.Setenv("TMUX_PANE", "%57") // a pane from some other tmux server
+	r := &fakeRunner{replies: map[string]string{
+		"display-message -p #S": "dotfiles",
+	}}
+	if got := CurrentSession(r); got != "dotfiles" {
+		t.Errorf("CurrentSession = %q, want dotfiles from the client fallback", got)
+	}
+	// A pane that does resolve is still preferred: the sidebar's own pane may
+	// sit in a different session than the client is looking at.
+	own := &fakeRunner{replies: map[string]string{
+		"display-message -p -t %57 #S": "payments",
+		"display-message -p #S":        "dotfiles",
+	}}
+	if got := CurrentSession(own); got != "payments" {
+		t.Errorf("CurrentSession = %q, want the pane's own session payments", got)
 	}
 }

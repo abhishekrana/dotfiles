@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
@@ -26,7 +25,7 @@ const (
 
 	// wait-for channel signalled by jumps; sidebars adopt the shared
 	// selection immediately instead of on the next tick.
-	refreshChannel = "agentbar-refresh"
+	refreshChannel = tmux.RefreshChannel
 )
 
 type tickMsg time.Time
@@ -81,7 +80,7 @@ func NewLive(theme Theme) App {
 		runner:   runner,
 		branches: tmux.NewBranchCache(),
 		current:  tmux.CurrentSession(runner),
-		pins:     readPins(runner),
+		pins:     tmux.Pins(runner),
 	}
 	snap := tmux.Snapshot(runner, app.branches, app.current)
 	snap.Sessions = model.Arrange(snap.Sessions, app.pins)
@@ -204,7 +203,7 @@ func (a App) gather(signal bool) snapMsg {
 	// on` takes effect within ~1s, no sidebar restart.
 	verbose, _ := a.runner.Run("show-option", "-gqv", "@agentbar-trace-verbose")
 	trace.SetVerbose(truthy(verbose))
-	pins := readPins(a.runner)
+	pins := tmux.Pins(a.runner)
 	snap := tmux.Snapshot(a.runner, a.branches, a.current)
 	snap.Sessions = model.Arrange(snap.Sessions, pins)
 	return snapMsg{
@@ -214,33 +213,6 @@ func (a App) gather(signal bool) snapMsg {
 		pins:   pins,
 		signal: signal,
 	}
-}
-
-// readPins loads the pinned-session set from the global @agentbar-pins option
-// (tab-separated names). Empty/unset yields an empty set.
-//
-// Tab is the one separator a session name can never hold: tmux takes spaces
-// (the picker's `c`/`r` prompts are free text) but rejects tabs.
-func readPins(r tmux.Runner) map[string]bool {
-	out, _ := r.Run("show-option", "-gqv", "@agentbar-pins")
-	pins := map[string]bool{}
-	for name := range strings.SplitSeq(out, "\t") {
-		if name != "" {
-			pins[name] = true
-		}
-	}
-	return pins
-}
-
-// pinList serializes a pin set back to the sorted, tab-separated value
-// stored in @agentbar-pins.
-func pinList(pins map[string]bool) string {
-	names := make([]string, 0, len(pins))
-	for name := range pins {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return strings.Join(names, "\t")
 }
 
 // focusNewlyAttached selects the agent of a session newly in the
@@ -666,7 +638,8 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // togglePin pins or unpins the selected session, regrouping the list right
 // away (the cursor rides along with the session as it moves bands) and
-// persisting the set to @agentbar-pins so every sidebar picks it up.
+// persisting the set (tmux.SetPins) so every sidebar and the picker popup pick
+// it up, and it survives a server restart.
 func (a App) togglePin() (tea.Model, tea.Cmd) {
 	if !a.blockSelectable(a.cursor) {
 		return a, nil
@@ -686,10 +659,7 @@ func (a App) togglePin() (tea.Model, tea.Cmd) {
 	snap.Sessions = model.Arrange(a.snap.Sessions, pins)
 	a.setSnapshot(snap) // captures the current selection, re-anchors it after regroup
 	if !a.mockup {
-		_, _ = a.runner.Run(
-			"set-option", "-g", "@agentbar-pins", pinList(pins), ";",
-			"wait-for", "-S", refreshChannel,
-		)
+		_ = tmux.SetPins(a.runner, pins)
 	}
 	return a, nil
 }

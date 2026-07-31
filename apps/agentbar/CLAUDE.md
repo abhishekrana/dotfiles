@@ -38,7 +38,7 @@ state (working/permission/asking/done/done-seen/idle), one multi-Claude-on-one-b
 
 ## Layout
 
-- `cmd/agentbar` - subcommands: `run`, `mockup`, `status`, `hook`, `doctor`
+- `cmd/agentbar` - subcommands: `run`, `mockup`, `status`, `order`, `next`/`prev`, `pin`, `hook`, `doctor`
 - `internal/hook` - event JSON → `@agent_*` pane options; `Decide()` is pure; `ResolvePane()` finds the pane by the
   event `cwd` when `$TMUX_PANE` is absent
 - `internal/tmux` - exec wrapper, `list-panes -a` snapshot, branch cache, status segment
@@ -68,13 +68,20 @@ state (working/permission/asking/done/done-seen/idle), one multi-Claude-on-one-b
 - Sessions render in three bands - pinned (`@agentbar-pins`, the `p` key), active, dormant (no agents) - alphabetical
   within each, so positions move only on pin/unpin. `model.Arrange` is the pure grouping; section dividers are
   non-selectable blocks nav/clicks skip.
+- **`model.Arrange` is the only session order in the stack.** `agentbar order` publishes it as `band<TAB>name`, and
+  `next`/`prev` (the dotfiles `Alt-h`/`Alt-l`) plus the dotfiles session picker popup consume it - never reimplement the
+  banding in a caller, and never give a caller an order of its own. Those paths pass a nil `BranchCache` (no git calls,
+  as `StatusSegment` does): order needs no branches and they run on a keypress.
+- Pins go through `tmux.Pins`/`SetPins`, never a raw option write: a write also mirrors the set under `XDG_STATE_HOME`
+  and prunes dead session names, and a read restores it when the option is empty. tmux drops user options when its
+  server exits, and pins are now the only thing that reorders the bar, so losing them flattens it to alphabetical.
 - `hook` must never exit non-zero or block; Claude Code waits on it.
 - Sidebar liveness is `#{pane_current_command} == agentbar` everywhere; never wrap the binary in a shell (breaks it).
 - Mouse actions fire on release, not press.
-- Trace action edges via `internal/trace` (`start`/`click`/`jump`/`switch` + latency, hook `event`/`drop`) - always-on,
-  best-effort, never fails the hook. Never trace hot paths (`Snapshot`, `StatusSegment`, the 200ms tick, mouse motion);
-  motion + ticks are `Logv` (verbose-gated via `@agentbar-trace-verbose`). See the repo-root CLAUDE.md "Debugging"
-  section.
+- Trace action edges via `internal/trace` (`start`/`click`/`jump`/`switch`/`pin` + latency, hook `event`/`drop`) -
+  always-on, best-effort, never fails the hook. Never trace hot paths (`Snapshot`, `StatusSegment`, the 200ms tick,
+  mouse motion); motion + ticks are `Logv` (verbose-gated via `@agentbar-trace-verbose`). See the repo-root CLAUDE.md
+  "Debugging" section.
 - Comments: one short line, only for what the code can't say.
 - After changing behavior, add or extend an e2e test that fails without the change.
 - This project lives in the dotfiles monorepo at `apps/agentbar/` and loads via a `run-shell` line in `tmux/.tmux.conf`

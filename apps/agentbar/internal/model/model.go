@@ -79,6 +79,20 @@ func (s Session) Band() int {
 	}
 }
 
+// BandLabel names the band. The sidebar draws its own header text from this
+// group; the token is what `agentbar order` publishes, so the picker popup can
+// group its rows into the same bands without reimplementing them.
+func (s Session) BandLabel() string {
+	switch s.Band() {
+	case 0:
+		return "pinned"
+	case 1:
+		return "active"
+	default:
+		return "dormant"
+	}
+}
+
 // Arrange returns a copy of sessions grouped into bands (pinned, active,
 // dormant) and alphabetical within each, stamping Pinned from the given set.
 // Positions only move when the pin set changes - never on agent state - so
@@ -96,6 +110,41 @@ func Arrange(sessions []Session, pinned map[string]bool) []Session {
 		return out[i].Name < out[j].Name
 	})
 	return out
+}
+
+// Names lists session names in the order given - post-Arrange, that is the
+// order the sidebar renders top to bottom.
+func Names(sessions []Session) []string {
+	names := make([]string, 0, len(sessions))
+	for _, s := range sessions {
+		names = append(names, s.Name)
+	}
+	return names
+}
+
+// Step walks the ordered list delta rows from cur, wrapping at both ends, so
+// the session keys traverse the sidebar top to bottom and back around. Empty
+// for an empty list; an unknown cur (no client attached) enters from the end
+// the walk is heading away from.
+func Step(names []string, cur string, delta int) string {
+	if len(names) == 0 {
+		return ""
+	}
+	at := -1
+	for i, n := range names {
+		if n == cur {
+			at = i
+			break
+		}
+	}
+	if at < 0 {
+		if delta < 0 {
+			return names[len(names)-1]
+		}
+		return names[0]
+	}
+	n := len(names)
+	return names[((at+delta)%n+n)%n] // Go's % keeps the sign; this wraps both ways
 }
 
 // Snapshot is everything the sidebar shows. tmux.Snapshot delivers sessions

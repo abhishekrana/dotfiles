@@ -94,7 +94,7 @@ func start(t *testing.T) *server {
 		// CI is dropped deliberately: termenv reads any non-empty CI as "not a
 		// TTY" and falls back to the Ascii profile, so the sidebar would render
 		// without the ANSI attributes the highlight assertions look for.
-		case "TMUX", "TMUX_PANE", "PATH", "AGENTBAR_TEST_SOCKET", "TERM", "CI":
+		case "TMUX", "TMUX_PANE", "PATH", "AGENTBAR_TEST_SOCKET", "TERM", "CI", "XDG_STATE_HOME":
 		default:
 			env = append(env, kv)
 		}
@@ -103,6 +103,10 @@ func start(t *testing.T) *server {
 		"PATH="+shimDir+":"+os.Getenv("PATH"),
 		"AGENTBAR_TEST_SOCKET="+sock,
 		"TERM=xterm-256color",
+		// Keep the shared state dir out of the developer's: the trace log and
+		// the pin mirror both live under it, and a test must never write to
+		// either. Tests needing pane-side redirection also set-environment -g.
+		"XDG_STATE_HOME="+t.TempDir(),
 		// tmux mangles tabs in -F output outside a UTF-8 locale, and the whole
 		// pane protocol is tab-separated. CI runners leave LANG unset.
 		"LC_ALL=C.UTF-8",
@@ -1489,5 +1493,143 @@ func TestStatusSegment(t *testing.T) {
 	}
 	if !strings.Contains(string(out), "⚠1") || !strings.Contains(string(out), "●1") {
 		t.Errorf("status segment = %q, want ⚠1 and ●1", out)
+	}
+}
+
+// agentbar runs the binary against this server and returns its stdout.
+func (s *server) agentbar(args ...string) string {
+	s.t.Helper()
+	cmd := exec.Command(binPath, args...)
+	cmd.Env = s.env
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		s.t.Fatalf("agentbar %v: %v\n%s", args, err, stderr.String())
+	}
+	return string(out)
+}
+
+// agentbarEnv runs the binary with extra environment - a stale TMUX_PANE, as a
+// tmux server that inherited one hands to every run-shell child.
+func (s *server) agentbarEnv(env []string, args ...string) string {
+	s.t.Helper()
+	cmd := exec.Command(binPath, args...)
+	cmd.Env = append(append([]string{}, s.env...), env...)
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		s.t.Fatalf("agentbar %v: %v\n%s", args, err, stderr.String())
+	}
+	return string(out)
+}
+
+// clientSession names the session the attached client is looking at.
+func (s *server) clientSession() string {
+	return strings.TrimSpace(s.tmux("list-clients", "-F", "#{client_session}"))
+}
+
+// `agentbar order` is the single source of the session order: bands first
+// (pinned, active, dormant), alphabetical inside each. The session keys and the
+// picker popup both walk it, so a drift back to plain alphabetical - the whole
+// reason the keys felt jarring - has to fail here.
+func TestOrderFollowsSidebarBands(t *testing.T) {
+	s := start(t)
+	for _, name := range []string{"api", "blog", "dotfiles"} {
+		s.newSession(name)
+		s.agentPane(name)
+	}
+	s.newSession("payments") // no agent: dormant
+	s.ptyClient("dotfiles")
+	s.agentbar("pin", "blog")
+	s.agentbar("pin", "dotfiles")
+
+	// Alphabetically this would be api, blog, dotfiles, payments.
+	want := "pinned\tblog\npinned\tdotfiles\nactive\tapi\ndormant\tpayments\n"
+	if got := s.agentbar("order"); got != want {
+		t.Errorf("order =\n%q\nwant\n%q", got, want)
+	}
+}
+
+// next/prev walk that order top to bottom and back, wrapping at both ends -
+// never tmux's own alphabetical session list.
+func TestNextPrevWalkSidebarOrder(t *testing.T) {
+	s := start(t)
+	for _, name := range []string{"api", "blog", "dotfiles"} {
+		s.newSession(name)
+		s.agentPane(name)
+	}
+	s.newSession("payments")
+	s.ptyClient("dotfiles")
+	s.agentbar("pin", "blog")
+	s.agentbar("pin", "dotfiles")
+	// Order is now: blog, dotfiles, api, payments.
+
+	// The bindings pass tmux's own #{client_session}: tmux never re-stamps
+	// TMUX_PANE for a key binding's run-shell child, so a guessed current
+	// session walks from the wrong row. Step from an explicit name here, and
+	// from a stale TMUX_PANE in the environment, which used to blank it.
+	steps := []struct {
+		cmd  string
+		want string
+	}{
+		{"next", "api"},  // down a band boundary; alphabetically: payments
+		{"next", "payments"}, // bottom row
+		{"next", "blog"},  // wraps to the top; alphabetically: api
+		{"prev", "payments"}, // wraps back past the top
+		{"prev", "api"},
+	}
+	tty := strings.TrimSpace(s.tmux("list-clients", "-F", "#{client_tty}"))
+	for _, step := range steps {
+		from := s.clientSession()
+		// Exactly what the tmux binding runs: #{client_session} #{client_tty}.
+		s.agentbarEnv([]string{"TMUX_PANE=%999"}, step.cmd, from, tty)
+		waitFor(t, step.cmd+" from "+from+" -> "+step.want, 2*time.Second, func() bool {
+			return s.clientSession() == step.want
+		})
+	}
+}
+
+// Pins are the only thing that reorders the bar now, and tmux drops user
+// options when its server exits - so the disk mirror has to bring them back.
+func TestPinsSurviveServerRestart(t *testing.T) {
+	s := start(t)
+	s.newSession("api")
+	s.agentPane("api")
+	s.newSession("blog")
+	s.agentPane("blog")
+	s.ptyClient("api")
+	s.agentbar("pin", "blog")
+
+	s.tmux("kill-server")
+	s.newSession("api") // fresh server: @agentbar-pins is gone
+	s.agentPane("api")
+	s.newSession("blog")
+	s.agentPane("blog")
+
+	want := "pinned\tblog\nactive\tapi\n"
+	if got := s.agentbar("order"); got != want {
+		t.Errorf("order after restart =\n%q\nwant\n%q", got, want)
+	}
+	if got := s.tmux("show-option", "-gqv", "@agentbar-pins"); got != "blog" {
+		t.Errorf("@agentbar-pins after restart = %q, want it stamped back as blog", got)
+	}
+}
+
+// `agentbar pin` is the picker popup's pin key: it must toggle the same set
+// the sidebar's own p key writes, both ways.
+func TestPinCommandToggles(t *testing.T) {
+	s := start(t)
+	s.newSession("my repo") // a space: tmux allows it, so the storage must
+	s.agentPane("my repo")
+
+	s.agentbar("pin", "my repo")
+	if got := s.agentbar("order"); got != "pinned\tmy repo\n" {
+		t.Errorf("order after pin = %q, want the session pinned", got)
+	}
+	s.agentbar("pin", "my repo")
+	if got := s.agentbar("order"); got != "active\tmy repo\n" {
+		t.Errorf("order after unpin = %q, want the session unpinned", got)
 	}
 }
