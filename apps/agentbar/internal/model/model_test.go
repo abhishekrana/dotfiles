@@ -88,12 +88,12 @@ func TestStepWalksTheOrderAndWraps(t *testing.T) {
 		delta int
 		want  string
 	}{
-		{"dotfiles", 1, "api"},  // down the bar, not alphabetically
+		{"dotfiles", 1, "api"},   // down the bar, not alphabetically
 		{"dotfiles", -1, "blog"}, // up
 		{"payments", 1, "blog"},  // wrap past the bottom
 		{"blog", -1, "payments"}, // wrap past the top
 		{"gone", 1, "blog"},      // unknown session: enter from the top
-		{"gone", -1, "payments"},    // ... and from the bottom going up
+		{"gone", -1, "payments"}, // ... and from the bottom going up
 	}
 	for _, c := range cases {
 		if got := Step(names, c.cur, c.delta); got != c.want {
@@ -113,8 +113,8 @@ func TestStepWalksTheOrderAndWraps(t *testing.T) {
 func TestNamesFollowsTheBands(t *testing.T) {
 	sessions := []Session{
 		{Name: "payments"},                      // dormant
-		{Name: "api", Agents: []Agent{{}}},  // active
-		{Name: "blog", Agents: []Agent{{}}},  // pinned below
+		{Name: "api", Agents: []Agent{{}}},      // active
+		{Name: "blog", Agents: []Agent{{}}},     // pinned below
 		{Name: "dotfiles", Agents: []Agent{{}}}, // pinned below
 	}
 	got := Names(Arrange(sessions, map[string]bool{"blog": true, "dotfiles": true}))

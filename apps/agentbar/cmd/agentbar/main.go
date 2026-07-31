@@ -49,7 +49,10 @@ func main() {
 	case "mockup":
 		runMockup(os.Args[2:])
 	case "status":
-		fmt.Print(tmux.StatusSegment(tmux.Exec{}))
+		// The status segment speaks the same state language as the sidebar, so it
+		// takes its colours from the configured flavor too.
+		t := ui.ThemeByName(configuredTheme())
+		fmt.Print(tmux.StatusSegment(tmux.Exec{}, string(t.Blocked), string(t.Working)))
 	case "order":
 		runOrder()
 	case "next":

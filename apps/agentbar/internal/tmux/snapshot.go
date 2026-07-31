@@ -149,17 +149,22 @@ func ClientFor(r Runner, session string) string {
 }
 
 // StatusSegment renders a compact status-line summary with tmux colour
-// markup: attention count (red) and working count (yellow). Empty when
-// no agents are running, so the segment vanishes rather than showing 0s.
-func StatusSegment(r Runner) string {
+// markup: attention count and working count. Empty when no agents are
+// running, so the segment vanishes rather than showing 0s.
+//
+// The two colours are passed in rather than pinned here: they belong to the
+// palette (design/palette.toml), and this is the one agent-state surface the
+// theme switcher could not reach. The working count used to render in the
+// asking amber, which read as "a question is waiting" on a busy server.
+func StatusSegment(r Runner, blocked, working string) string {
 	snap := Snapshot(r, nil, "") // nil cache: skip git lookups, counts only
 	att, work := snap.Attention(), snap.Working()
 	parts := []string{}
 	if att > 0 {
-		parts = append(parts, fmt.Sprintf("#[fg=#dc322f,bold]⚠%d#[default]", att))
+		parts = append(parts, fmt.Sprintf("#[fg=%s,bold]\u26a0%d#[default]", blocked, att))
 	}
 	if work > 0 {
-		parts = append(parts, fmt.Sprintf("#[fg=#b58900]●%d#[default]", work))
+		parts = append(parts, fmt.Sprintf("#[fg=%s]\u25cf%d#[default]", working, work))
 	}
 	return strings.Join(parts, " ")
 }

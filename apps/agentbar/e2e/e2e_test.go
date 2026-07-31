@@ -18,6 +18,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/abhishekrana/agentbar/internal/ui"
 )
 
 var (
@@ -1494,6 +1496,16 @@ func TestStatusSegment(t *testing.T) {
 	if !strings.Contains(string(out), "⚠1") || !strings.Contains(string(out), "●1") {
 		t.Errorf("status segment = %q, want ⚠1 and ●1", out)
 	}
+	// Colours come from the flavor, and the working count speaks the working
+	// role: it used to render in the asking amber, which reads as "a question is
+	// waiting" on a busy server.
+	theme := ui.SolarizedLight()
+	if !strings.Contains(string(out), "fg="+string(theme.Working)+"]●") {
+		t.Errorf("status segment = %q, want the working count in %s", out, theme.Working)
+	}
+	if !strings.Contains(string(out), "fg="+string(theme.Blocked)+",bold]⚠") {
+		t.Errorf("status segment = %q, want the attention count in %s", out, theme.Blocked)
+	}
 }
 
 // agentbar runs the binary against this server and returns its stdout.
@@ -1574,9 +1586,9 @@ func TestNextPrevWalkSidebarOrder(t *testing.T) {
 		cmd  string
 		want string
 	}{
-		{"next", "api"},  // down a band boundary; alphabetically: payments
+		{"next", "api"},      // down a band boundary; alphabetically: payments
 		{"next", "payments"}, // bottom row
-		{"next", "blog"},  // wraps to the top; alphabetically: api
+		{"next", "blog"},     // wraps to the top; alphabetically: api
 		{"prev", "payments"}, // wraps back past the top
 		{"prev", "api"},
 	}
