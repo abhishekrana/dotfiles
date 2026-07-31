@@ -39,6 +39,12 @@ self=$(realpath "$0")
 # action can tell a header apart and no-op on it.
 BAND_MARK='__band__'
 
+# Glyphs, colors and the state ranking are shared with the preview (and mirror
+# the sidebar's), so the three can't drift apart. Resolved next to this script,
+# not via ~/.local/bin: that path only exists once the package is stowed.
+# shellcheck source=tmux/.local/bin/tmux-agent-state.sh
+. "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/tmux-agent-state.sh"
+
 # ---- Helpers ---------------------------------------------------------------
 
 flash_error() {
@@ -156,40 +162,16 @@ do_pin() {
 
 # ---- Display lines ---------------------------------------------------------
 
-# Glyphs + colours match the sidebar's five-state language (Solarized Light):
-# ◔ blocked=red, ? asking=amber, ⠹ working=cyan, ✓ done=green. Needs fzf --ansi.
-icon_for() {
-    case $1 in
-        permission) printf '\033[38;2;220;50;47m◔\033[0m' ;;
-        question) printf '\033[38;2;181;137;0m?\033[0m' ;;
-        working) printf '\033[38;2;42;161;152m⠹\033[0m' ;;
-        done) printf '\033[38;2;133;153;0m✓\033[0m' ;;
-        *) printf ' ' ;;
-    esac
-}
-
-# A band divider, muted like the sidebar's: label then a trailing rule. An
-# empty label is the bare rule the bar draws between pinned and active.
+# A band divider, muted like the sidebar's: label then a trailing rule.
 band_row() {
     local label=$1 rule
     rule=$(printf '─%.0s' $(seq $((34 - ${#label}))))
-    printf '%s\t\033[38;2;147;161;161m%s%s\033[0m\n' "$BAND_MARK" "$label" "$rule"
+    printf '%s\t%s\n' "$BAND_MARK" "$(agent_muted "$label$rule")"
 }
 
-# Priority for the per-session rollup: permission(4) > asking(3) > working(2) >
-# done(1) > blank(0). State comes from the @agent_* pane options the agentbar
-# hook stamps on each Claude pane - the same source the sidebar reads, so picker
-# and sidebar always agree. Pane options die with the pane, so no liveness
-# bookkeeping.
-state_rank() {
-    case $1 in
-        permission) printf 4 ;;
-        question) printf 3 ;;
-        working) printf 2 ;;
-        done) printf 1 ;;
-        *) printf 0 ;;
-    esac
-}
+# State comes from the @agent_* pane options the agentbar hook stamps on each
+# Claude pane - the same source the sidebar reads, so picker and sidebar always
+# agree. Pane options die with the pane, so no liveness bookkeeping.
 
 # Render the whole list as "<name>TAB<display>" - fzf hides field 1 via
 # --with-nth=2 but binds use it for {1} substitution. Band headers head each
@@ -213,7 +195,7 @@ build_lines() {
         [ "$present" = 1 ] || continue
         case $cmd in claude | node) ;; *) continue ;; esac
         prev=${STATE_BY_SESSION[$sess]:-}
-        if [ "$(state_rank "$state")" -gt "$(state_rank "$prev")" ]; then
+        if [ "$(agent_state_rank "$state")" -gt "$(agent_state_rank "$prev")" ]; then
             STATE_BY_SESSION[$sess]=$state
         fi
     done < <(tmux list-panes -a -F $'#{session_name}\t#{pane_current_command}\t#{@agent_present}\t#{@agent_state}')
@@ -257,7 +239,7 @@ build_lines() {
                 git -C "$path" rev-parse --short HEAD 2>/dev/null ||
                 true)
         fi
-        icon=$(icon_for "${STATE_BY_SESSION[$name]:-}")
+        icon=$(agent_icon "${STATE_BY_SESSION[$name]:-}")
         [ "$name" = "$current" ] && mark='▸' || mark=' '
         printf '%s\t%s %s %-18s  %s\n' "$name" "$mark" "$icon" "$name" "$branch"
     done <<<"$ordered"
@@ -302,9 +284,6 @@ current=$(tmux display-message -p '#S')
 current_pos=$(printf '%s\n' "$lines" | awk -F'\t' -v c="$current" '$1 == c { print NR; exit }')
 : "${current_pos:=1}"
 
-fzf_colors='bg+:#268bd2,fg+:#fdf6e3,gutter:-1,pointer:-1,hl:#268bd2'
-fzf_colors+=',hl+:#fdf6e3,border:#93a1a1,info:#93a1a1,prompt:#586e75'
-
 # Band headers are rows fzf has no way to mark unselectable, so every motion
 # chases itself off one: `down` then, if we landed on a header, one more. The
 # transform runs after the move, so {1} is the row we arrived at. Parenthesized
@@ -326,7 +305,7 @@ target=$(
             --preview "$HOME/.local/bin/tmux-session-preview.sh {1}" \
             --preview-window=down:16 \
             --pointer=' ' \
-            --color="$fzf_colors" \
+            --color="$_popup_fzf_color" \
             --bind "start:pos($current_pos)" \
             --bind "j:down+$skip_down+$skip_down,k:up+$skip_up+$skip_up" \
             --bind "g:first+$skip_down+$skip_down,G:last+$skip_up+$skip_up" \

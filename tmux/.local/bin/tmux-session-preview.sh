@@ -6,6 +6,13 @@ set -u
 
 # tmux sanitizes tabs in -F output to "_" outside a UTF-8 locale.
 export LC_ALL=C.UTF-8
+
+# Glyphs, colors and the state ranking come from the shared language the picker
+# and the sidebar use - this pane used to draw its own emoji circles instead.
+# Resolved next to this script, not via ~/.local/bin: that path only exists once
+# the package is stowed.
+# shellcheck source=tmux/.local/bin/tmux-agent-state.sh
+. "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/tmux-agent-state.sh"
 session=${1:-}
 [ -z "$session" ] && exit 0
 
@@ -44,22 +51,6 @@ fmt_ago() {
     fi
 }
 
-state_rank() {
-    case $1 in permission) echo 4 ;; question) echo 3 ;; working) echo 2 ;; done) echo 1 ;; *) echo 0 ;; esac
-}
-
-# Icons mirror the sidebar's colours: red permission, orange asking,
-# yellow working, green done.
-icon_for() {
-    case $1 in
-        permission) printf '🔴' ;;
-        question) printf '🟠' ;;
-        working) printf '🟡' ;;
-        done) printf '🟢' ;;
-        *) printf '  ' ;;
-    esac
-}
-
 # ---- Aggregate state across all panes in this session ----------------------
 agg_state=
 agg_ts=0
@@ -67,10 +58,12 @@ panes_in_session=$(tmux list-panes -s -t "$session" -F '#{pane_id}' 2>/dev/null)
 for p in $panes_in_session; do
     st=${PANE_STATE[$p]:-}
     [ -z "$st" ] && continue
-    if [ "$(state_rank "$st")" -gt "$(state_rank "$agg_state")" ]; then
+    rank=$(agent_state_rank "$st")
+    best=$(agent_state_rank "$agg_state")
+    if [ "$rank" -gt "$best" ]; then
         agg_state=$st
         agg_ts=${PANE_TS[$p]}
-    elif [ "$(state_rank "$st")" = "$(state_rank "$agg_state")" ] && [ "${PANE_TS[$p]}" -gt "$agg_ts" ]; then
+    elif [ "$rank" = "$best" ] && [ "${PANE_TS[$p]}" -gt "$agg_ts" ]; then
         agg_ts=${PANE_TS[$p]}
     fi
 done
@@ -94,7 +87,7 @@ if [ -n "$path" ] && [ -d "$path" ]; then
 fi
 
 if [ -n "$agg_state" ]; then
-    echo "state:   $(icon_for "$agg_state") $agg_state ($(fmt_ago "$agg_ts"))"
+    echo "state:   $(agent_icon "$agg_state") $agg_state ($(fmt_ago "$agg_ts"))"
 fi
 
 # ---- Windows + per-pane state ----------------------------------------------
@@ -108,7 +101,7 @@ tmux list-panes -s -t "$session" -F "$win_fmt" 2>/dev/null |
         marker=' '
         [ "$wactive" = "1" ] && [ "$pactive" = "1" ] && marker='*'
         st=${PANE_STATE[$pid]:-}
-        icon=$(icon_for "$st")
+        icon=$(agent_icon "$st")
         if [ -n "$st" ]; then
             printf '  %s:%-8s %s  %s %s (%s)\n' "$widx" "$wname" "$marker" "$icon" "$st" "$(fmt_ago "${PANE_TS[$pid]}")"
         else

@@ -42,7 +42,9 @@ tasks:
   lint:
     desc: shellcheck every tracked shell file (errors and warnings)
     cmds:
-      - shellcheck -S warning {{.SHELL_FILES}}
+      # -x follows `source`d files, so a shared helper's contract is checked at
+      # every call site (a `# shellcheck source=` directive resolves the path).
+      - shellcheck -S warning -x {{.SHELL_FILES}}
 
   width:
     desc: No shell or Go line over 120 columns (prettier and ruff cover the rest)

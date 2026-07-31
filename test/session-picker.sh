@@ -13,6 +13,7 @@ set -uo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PICKER="$REPO/tmux/.local/bin/tmux-session-picker.sh"
+PREVIEW="$REPO/tmux/.local/bin/tmux-session-preview.sh"
 BIN="$REPO/apps/agentbar/bin/agentbar"
 BAND_MARK='__band__'
 pass=0 fail=0
@@ -120,11 +121,41 @@ eq "pin prints the fzf actions that redraw and follow" \
     "reload-sync+pos(2)" \
     "$("$PICKER" --pin payments | sed -E 's/reload-sync\([^)]*\)/reload-sync/')"
 eq "the pin reached the shared set" "payments" "$("$BIN" order | head -1 | cut -f2)"
-eq "pin is a toggle" "" "$("$PICKER" --pin payments >/dev/null; "$BIN" order | grep -c '^pinned' | sed 's/^0$//')"
+eq "pin is a toggle" "" "$(
+    "$PICKER" --pin payments >/dev/null
+    "$BIN" order | grep -c '^pinned' | sed 's/^0$//'
+)"
 eq "a band header row is never pinned" "" "$("$PICKER" --pin "$BAND_MARK")"
+
+printf '\npicker: list and preview share one state language\n'
+
+tmux kill-server 2>/dev/null
+session api agent
+# SessionStart leaves it idle, which renders blank; a prompt makes it working.
+pane=$(tmux list-panes -s -t api -F '#{pane_id} #{pane_current_command}' | awk '$2 == "claude" {print $1}')
+printf '{"hook_event_name":"UserPromptSubmit","session_id":"t"}' | TMUX_PANE="$pane" "$BIN" hook
+
+# The preview drew its own emoji circles while the list and the sidebar drew
+# glyphs; both now come from tmux-agent-state.sh, so they cannot disagree again.
+list_icon=$("$PICKER" --list | grep -F api | grep -oE $'\033\[38;2;[0-9;]+m.' | head -1)
+prev_icon=$("$PREVIEW" api | grep -F 'state:' | grep -oE $'\033\[38;2;[0-9;]+m.' | head -1)
+eq "the list row and the preview render the same glyph" "$list_icon" "$prev_icon"
+eq "and it is the working glyph, not an emoji" "working ⠹" \
+    "working $(printf '%s' "$list_icon" | sed 's/\x1b\[[0-9;]*m//g')"
+
+# Colors come from the theme switcher's file, per design/palette.toml: nothing
+# downstream hardcodes, so the popup follows a `theme` switch.
+mkdir -p "$TMP/config/theme"
+printf '_state_working="#ff00ff"\n' >"$TMP/config/theme/agent-state.sh"
+themed=$(XDG_CONFIG_HOME="$TMP/config" "$PICKER" --list | grep -F api |
+    grep -oE $'\033\[38;2;255;0;255m' | head -1)
+eq "the glyph color follows the active flavor" $'\033[38;2;255;0;255m' "$themed"
 
 printf '\npicker: no binary means no crash\n'
 
+tmux kill-server 2>/dev/null
+session api agent
+session payments
 eq "falls back to a flat alphabetical list" "api payments" \
     "$(AGENTBAR_BIN=/nonexistent "$PICKER" --list | cut -f1 | tr '\n' ' ' | sed 's/ $//')"
 

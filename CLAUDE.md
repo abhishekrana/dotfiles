@@ -23,10 +23,12 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
 - `theme/` → `~/.local/bin/theme` (theme switcher; re-skins the terminal stack across the four flavors from
   `design/palette.toml`, writing per-tool files into `~/.config/theme/`)
 - `tmux/` → `~/.tmux.conf`, `~/.gitmux.conf`, `~/.local/bin/` scripts (`tmux-gitlab.sh` GitLab status, session picker,
-  resurrect guard, yank, `tmux-reset.sh` the `prefix + R` UI reset - reload + default geometry, nothing killed). **One
-  session order everywhere:** the agentbar sidebar's bands (pinned / active / dormant, alphabetical inside each) are the
-  order, `Alt-h`/`Alt-l` walk it row by row and wrap, and the `Alt-;` picker popup renders the same bands - all three
-  read `agentbar order`, and `p` (pin) in either view is the only thing that moves a session
+  resurrect guard, yank, `tmux-reset.sh` the `prefix + R` UI reset - reload + default geometry, nothing killed,
+  `tmux-agent-state.sh` the sourced agent-state language - glyphs, colors and state ranking shared by the picker and its
+  preview, mirroring the sidebar's; colors come from the theme switcher, never hardcoded). **One session order
+  everywhere:** the agentbar sidebar's bands (pinned / active / dormant, alphabetical inside each) are the order,
+  `Alt-h`/`Alt-l` walk it row by row and wrap, and the `Alt-;` picker popup renders the same bands - all three read
+  `agentbar order`, and `p` (pin) in either view is the only thing that moves a session
 - `trace/` → `~/.local/bin/dotfiles-trace` (shared always-on trace log for the tmux/agent stack; see "Debugging" below)
 - `yazi/` → `~/.config/yazi/` (yazi file manager config)
 
