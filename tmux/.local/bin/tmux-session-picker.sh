@@ -197,7 +197,8 @@ state_rank() {
 # list shows none), exactly as the sidebar does it.
 build_lines() {
     local -A STATE_BY_SESSION
-    local sess cmd present state prev current ordered band name path branch icon mark
+    local sess cmd present state prev current ordered band name path branch icon mark header
+    local headed=
     local -A count
 
     ordered=$(ordered_sessions)
@@ -228,14 +229,25 @@ build_lines() {
             # All three bands are named, on one rule: a header shows when it
             # actually divides this band from a non-empty neighbour, so a
             # single-band list stays clean. Matches the sidebar's sectionHeader.
+            header=
             case $band in
                 pinned) [ $((${count[active]:-0} + ${count[dormant]:-0})) -gt 0 ] &&
-                    band_row "pinned ·${count[pinned]} " ;;
+                    header="pinned ·${count[pinned]} " ;;
                 active) [ $((${count[pinned]:-0} + ${count[dormant]:-0})) -gt 0 ] &&
-                    band_row "active ·${count[active]} " ;;
+                    header="active ·${count[active]} " ;;
                 dormant) [ $((${count[pinned]:-0} + ${count[active]:-0})) -gt 0 ] &&
-                    band_row "dormant ·${count[dormant]} " ;;
+                    header="dormant ·${count[dormant]} " ;;
             esac
+            if [ -n "$header" ]; then
+                # A blank row above every divider but the first, so each band
+                # reads as its own group - the spacing the sidebar's `pad` gives
+                # them. Marked inert like the header, so nav and every action
+                # skip it; that makes runs of two skippable rows, which the
+                # j/k/g binds handle with two conditional steps.
+                [ -n "$headed" ] && printf '%s\t\n' "$BAND_MARK"
+                band_row "$header"
+                headed=1
+            fi
             prev=$band
         fi
         path=$(tmux display-message -p -t "$name" '#{pane_current_path}' 2>/dev/null || true)
@@ -312,12 +324,12 @@ target=$(
             --header='? for help' --header-first \
             --delimiter=$'\t' --with-nth=2 \
             --preview "$HOME/.local/bin/tmux-session-preview.sh {1}" \
-            --preview-window=down:50% \
+            --preview-window=down:16 \
             --pointer=' ' \
             --color="$fzf_colors" \
             --bind "start:pos($current_pos)" \
-            --bind "j:down+$skip_down,k:up+$skip_up" \
-            --bind "g:first+$skip_down,G:last+$skip_up" \
+            --bind "j:down+$skip_down+$skip_down,k:up+$skip_up+$skip_up" \
+            --bind "g:first+$skip_down+$skip_down,G:last+$skip_up+$skip_up" \
             --bind 'alt-;:abort' \
             --bind "enter:transform([ {1} = $BAND_MARK ] && echo ignore || echo accept)" \
             --bind "?:execute($self --help)" \

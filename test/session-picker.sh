@@ -68,6 +68,13 @@ session() {
 
 # names / bands - field 1 / the band column of the picker's list, one per line
 names() { "$PICKER" --list | cut -f1; }
+
+# rows - the list's structure: session names, plus hdr/gap for the two kinds of
+# inert row (a band header and the blank spacer above it).
+rows() {
+    "$PICKER" --list | awk -F'\t' -v m="$BAND_MARK" \
+        '{ print ($1 == m ? ($2 == "" ? "gap" : "hdr") : $1) }'
+}
 bands() { "$PICKER" --list | cut -f2 | sed 's/\x1b\[[0-9;]*m//g'; }
 
 printf '\npicker: order and bands mirror the agent bar\n'
@@ -80,10 +87,12 @@ session payments # no agent: dormant
 "$BIN" pin blog >/dev/null
 "$BIN" pin dotfiles >/dev/null
 
-# Alphabetically this list would be api, blog, dotfiles, payments.
-eq "sessions follow the bands, not the alphabet" \
-    "$BAND_MARK blog dotfiles $BAND_MARK api $BAND_MARK payments" \
-    "$(names | tr '\n' ' ' | sed 's/ $//')"
+# Alphabetically this list would be api, blog, dotfiles, payments. Each band but
+# the first also opens with a blank spacer, so the groups read apart - the same
+# spacing the sidebar gives them.
+eq "bands, gaps and sessions in sidebar order" \
+    "hdr blog dotfiles gap hdr api gap hdr payments" \
+    "$(rows | tr '\n' ' ' | sed 's/ $//')"
 
 eq "picker order matches agentbar order exactly" \
     "$("$BIN" order | cut -f2 | tr '\n' ' ')" \
@@ -99,7 +108,7 @@ printf '\npicker: headers only when they divide something\n'
 
 tmux kill-server 2>/dev/null
 session solo agent
-eq "a single band shows no header rows" "solo" "$(names | tr '\n' ' ' | sed 's/ $//')"
+eq "a single band shows no header or gap rows" "solo" "$(rows | tr '\n' ' ' | sed 's/ $//')"
 
 printf '\npicker: p pins through the binary and follows the row\n'
 
