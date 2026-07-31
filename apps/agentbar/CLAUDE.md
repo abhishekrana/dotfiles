@@ -67,7 +67,8 @@ state (working/permission/asking/done/done-seen/idle), one multi-Claude-on-one-b
   this.
 - Sessions render in three bands - pinned (`@agentbar-pins`, the `p` key), active, dormant (no agents) - alphabetical
   within each, so positions move only on pin/unpin. `model.Arrange` is the pure grouping; section dividers are
-  non-selectable blocks nav/clicks skip.
+  non-selectable blocks nav/clicks skip. All three carry a `<name> ·<count>` label (`model.BandLabel`, the tokens
+  `order` prints) and show it whenever the band has a non-empty neighbour - never leave one unlabelled as "the rest".
 - **`model.Arrange` is the only session order in the stack.** `agentbar order` publishes it as `band<TAB>name`, and
   `next`/`prev` (the dotfiles `Alt-h`/`Alt-l`) plus the dotfiles session picker popup consume it - never reimplement the
   banding in a caller, and never give a caller an order of its own. Those paths pass a nil `BranchCache` (no git calls,

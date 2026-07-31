@@ -10,7 +10,7 @@ import (
 )
 
 // A single-band list (all active) shows no dividers; a pinned+active+dormant
-// list shows the pinned label, a bare rule before active, then the dormant label.
+// list labels all three, so no band is left as "the rest".
 func TestBuildBlocksDividers(t *testing.T) {
 	single := model.Snapshot{Sessions: []model.Session{
 		{Name: "a", Agents: []model.Agent{{PaneID: "%1"}}},
@@ -33,23 +33,40 @@ func TestBuildBlocksDividers(t *testing.T) {
 			labels = append(labels, bl.label)
 		}
 	}
-	want := []string{"pinned ·1", "", "dormant ·1"}
+	want := []string{"pinned ·1", "active ·1", "dormant ·1"}
 	if !slices.Equal(labels, want) {
 		t.Errorf("dividers = %q, want %q", labels, want)
+	}
+
+	// Every band is labelled on the same rule - one non-empty neighbour is
+	// enough. The active header used to appear only under a pinned band, so a
+	// pin-free list left its first group nameless.
+	noPins := model.Snapshot{Sessions: model.Arrange([]model.Session{
+		{Name: "act", Agents: []model.Agent{{PaneID: "%1"}}},
+		{Name: "dead"},
+	}, nil)}
+	labels = nil
+	for _, bl := range buildBlocks(noPins) {
+		if bl.kind == blockSection {
+			labels = append(labels, bl.label)
+		}
+	}
+	if want := []string{"active ·1", "dormant ·1"}; !slices.Equal(labels, want) {
+		t.Errorf("dividers without a pinned band = %q, want %q", labels, want)
 	}
 }
 
 // The top pinned divider stays tight under the header rule; every divider
 // below it gets a blank line above, and the dormant one also gets a blank
-// below (its sessions pack tight). Line counts: pinned = 1, bare = 2, dormant = 3.
+// below (its sessions pack tight). Line counts: pinned = 1, active = 2, dormant = 3.
 func TestBandDividerSpacing(t *testing.T) {
 	snap := model.Snapshot{Sessions: model.Arrange([]model.Session{
 		{Name: "act", Agents: []model.Agent{{PaneID: "%2"}}},
 		{Name: "dead"}, // dormant
 		{Name: "pin", Agents: []model.Agent{{PaneID: "%1"}}},
 	}, map[string]bool{"pin": true})}
-	var pinned, bare, dormant block
-	var havePinned, haveBare, haveDormant bool
+	var pinned, active, dormant block
+	var havePinned, haveActive, haveDormant bool
 	for _, b := range buildBlocks(snap) {
 		if b.kind != blockSection {
 			continue
@@ -59,22 +76,22 @@ func TestBandDividerSpacing(t *testing.T) {
 			pinned, havePinned = b, true
 		case strings.HasPrefix(b.label, "dormant"):
 			dormant, haveDormant = b, true
-		case b.label == "":
-			bare, haveBare = b, true
+		case strings.HasPrefix(b.label, "active"):
+			active, haveActive = b, true
 		}
 	}
-	if !havePinned || !haveBare || !haveDormant {
-		t.Fatal("expected pinned, bare-rule, and dormant dividers")
+	if !havePinned || !haveActive || !haveDormant {
+		t.Fatal("expected pinned, active, and dormant dividers")
 	}
 	// The top pinned divider is tight; every divider below it has a blank above.
 	if pinned.pad {
 		t.Error("top pinned divider must stay tight (no blank above it)")
 	}
-	if !bare.pad || !dormant.pad {
+	if !active.pad || !dormant.pad {
 		t.Error("dividers below the top must have a blank line above them")
 	}
 	// Only the dormant divider adds a blank below itself.
-	if pinned.gapAfter || bare.gapAfter {
+	if pinned.gapAfter || active.gapAfter {
 		t.Error("only the dormant divider adds a blank below itself")
 	}
 	if !dormant.gapAfter {
@@ -83,8 +100,8 @@ func TestBandDividerSpacing(t *testing.T) {
 	if got := blockLineCount(pinned, snap); got != 1 {
 		t.Errorf("pinned divider = %d lines, want 1 (tight rule)", got)
 	}
-	if got := blockLineCount(bare, snap); got != 2 {
-		t.Errorf("bare rule = %d lines, want 2 (blank + rule)", got)
+	if got := blockLineCount(active, snap); got != 2 {
+		t.Errorf("active divider = %d lines, want 2 (blank + rule)", got)
 	}
 	if got := blockLineCount(dormant, snap); got != 3 {
 		t.Errorf("dormant divider = %d lines, want 3 (blank + rule + blank)", got)

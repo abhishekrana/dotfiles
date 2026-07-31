@@ -17,7 +17,7 @@ you always know which agents are working, which need your attention, and which a
    ◔ claude  permission  40s
    ✓ claude  done        11m
 
- ─────────────────────────────
+ active ·2 ───────────────────
 
  api-server
  feat/rate-limit-rollout
@@ -87,15 +87,17 @@ Clicking a session name switches to it - the one way to reach a session with no 
 Sessions are grouped into three bands so your working set stays together and dead sessions get out of the way:
 
 - **`pinned`** - sessions you pinned with `p`, floated to the top; the label reads gold.
-- **active** - the rest of the sessions that have a Claude running.
+- **`active`** - the rest of the sessions that have a Claude running.
 - **`dormant`** - sessions with no agents, dimmed grey and sunk to the bottom (one compact line each).
 
-A labelled divider heads each band, but only when more than one band is present - a single-band list shows no dividers.
-Within every band sessions stay **alphabetical**, so positions never shuffle as agents change state; they move only when
-you pin or unpin. Pins live in the global `@agentbar-pins` option (tab-separated session names - tmux allows spaces in a
-session name but never tabs), so every session's sidebar shows the same bands at once. Every pin write also mirrors the
-set to `${XDG_STATE_HOME:-~/.local/state}/dotfiles/agentbar-pins` and drops names whose session is gone; a tmux server
-restart drops the option, and the next read restores it from that mirror.
+A labelled divider heads each band - all three named, on one rule: it appears when the band has a non-empty neighbour to
+divide it from, so a single-band list shows no dividers at all. The names are `model.BandLabel`, the same tokens
+`agentbar order` prints, so a label you read is a token you can grep. Within every band sessions stay **alphabetical**,
+so positions never shuffle as agents change state; they move only when you pin or unpin. Pins live in the global
+`@agentbar-pins` option (tab-separated session names - tmux allows spaces in a session name but never tabs), so every
+session's sidebar shows the same bands at once. Every pin write also mirrors the set to
+`${XDG_STATE_HOME:-~/.local/state}/dotfiles/agentbar-pins` and drops names whose session is gone; a tmux server restart
+drops the option, and the next read restores it from that mirror.
 
 This order is the **only** session order in the stack. `agentbar order` prints it as `band<TAB>name` lines, and both the
 `Alt-h`/`Alt-l` keys (`agentbar prev` / `next`) and the dotfiles session picker popup (`Alt-;`) walk exactly that, so

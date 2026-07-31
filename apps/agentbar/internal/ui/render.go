@@ -79,19 +79,24 @@ func buildBlocks(snap model.Snapshot) []block {
 // sectionHeader returns the divider that heads band, and whether to draw one.
 // A divider only appears when it actually separates two non-empty bands, so a
 // single-band list (the common case today) shows no headers at all.
+//
+// All three bands are named, on the same rule: an unlabelled middle band left
+// you counting rows to work out where "the rest" ended. The labels are
+// model.BandLabel, so what you read here is what `agentbar order` prints.
 func sectionHeader(band, nP, nA, nD int) (string, bool) {
+	label := func(name string, n int) string { return name + " ·" + strconv.Itoa(n) }
 	switch band {
 	case 0: // pinned
 		if nP > 0 && nA+nD > 0 {
-			return "pinned ·" + strconv.Itoa(nP), true
+			return label("pinned", nP), true
 		}
-	case 1: // active: a bare rule, only to divide it from a pinned band above
-		if nA > 0 && nP > 0 {
-			return "", true
+	case 1: // active
+		if nA > 0 && nP+nD > 0 {
+			return label("active", nA), true
 		}
 	case 2: // dormant
 		if nD > 0 && nP+nA > 0 {
-			return "dormant ·" + strconv.Itoa(nD), true
+			return label("dormant", nD), true
 		}
 	}
 	return "", false
@@ -183,13 +188,10 @@ func (r renderer) sep() string {
 }
 
 // sectionRow renders a band divider: the label then a trailing rule. The
-// pinned label reads gold, dormant stays muted grey. An empty label is a
-// bare full-width rule. Never selectable, never lit.
+// pinned label reads gold, active and dormant stay muted grey. Never
+// selectable, never lit.
 func (r renderer) sectionRow(label string) string {
 	mut := lipgloss.NewStyle().Foreground(r.theme.Muted)
-	if label == "" {
-		return mut.Render(" " + strings.Repeat("─", max(r.width-1, 0)))
-	}
 	used := 1 + len([]rune(label)) + 1 // leading space + label + a space before the rule
 	rule := mut.Render(" " + strings.Repeat("─", max(r.width-used, 0)))
 	// The pinned label reads warm/gold so your working set pops; dormant stays

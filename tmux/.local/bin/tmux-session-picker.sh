@@ -225,10 +225,14 @@ build_lines() {
     while IFS=$'\t' read -r band name; do
         [ -z "$name" ] && continue
         if [ "$band" != "$prev" ]; then
+            # All three bands are named, on one rule: a header shows when it
+            # actually divides this band from a non-empty neighbour, so a
+            # single-band list stays clean. Matches the sidebar's sectionHeader.
             case $band in
                 pinned) [ $((${count[active]:-0} + ${count[dormant]:-0})) -gt 0 ] &&
                     band_row "pinned ·${count[pinned]} " ;;
-                active) [ "${count[pinned]:-0}" -gt 0 ] && band_row "" ;;
+                active) [ $((${count[pinned]:-0} + ${count[dormant]:-0})) -gt 0 ] &&
+                    band_row "active ·${count[active]} " ;;
                 dormant) [ $((${count[pinned]:-0} + ${count[active]:-0})) -gt 0 ] &&
                     band_row "dormant ·${count[dormant]} " ;;
             esac

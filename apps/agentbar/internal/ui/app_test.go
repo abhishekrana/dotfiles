@@ -178,8 +178,9 @@ func TestAgentStartedAfterSwitchGetsHighlight(t *testing.T) {
 	snap.Sessions[1].Agents = nil // switched here before claude started
 	m, _ := a.Update(snapMsg{snap: snap, sel: ""})
 	a = m.(App)
-	if a.cursor != 1 {
-		t.Fatalf("cursor = %d while blog has no agents, want 1", a.cursor)
+	// Two bands now, both labelled: 0 active-div, 1 api-hdr, 2 %0, 3 dormant-div.
+	if a.cursor != 2 {
+		t.Fatalf("cursor = %d while blog has no agents, want 2 (api's agent)", a.cursor)
 	}
 
 	snap = twoSessionSnap()

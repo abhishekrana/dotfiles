@@ -89,9 +89,11 @@ eq "picker order matches agentbar order exactly" \
     "$("$BIN" order | cut -f2 | tr '\n' ' ')" \
     "$(names | grep -Fxv "$BAND_MARK" | tr '\n' ' ')"
 
-eq "band headers are labelled and counted" \
-    "pinned ·2|dormant ·1" \
-    "$(bands | grep -oE '(pinned|dormant) ·[0-9]+' | paste -sd'|')"
+# All three named: an unlabelled middle band left you counting rows to see
+# where "the rest" ended.
+eq "every band is labelled and counted" \
+    "pinned ·2|active ·1|dormant ·1" \
+    "$(bands | grep -oE '(pinned|active|dormant) ·[0-9]+' | paste -sd'|')"
 
 printf '\npicker: headers only when they divide something\n'
 
