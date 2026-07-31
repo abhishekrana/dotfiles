@@ -35,6 +35,7 @@ tasks:
       - task: fmt-check
       - task: secrets
       - task: clipboard
+      - task: picker
       - task: reset
       - task: test
 
@@ -69,6 +70,13 @@ tasks:
     desc: Guard the copy path - every tmux trigger must reach clipboard and primary
     cmds:
       - bash test/clipboard.sh
+
+  picker:
+    desc: Guard the session picker - one order and bands shared with the agent bar
+    deps:
+      - agentbar:build
+    cmds:
+      - bash test/session-picker.sh
 
   reset:
     desc: Guard the UI reset - sidebar width/place and an even column split

@@ -23,7 +23,10 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
 - `theme/` → `~/.local/bin/theme` (theme switcher; re-skins the terminal stack across the four flavors from
   `design/palette.toml`, writing per-tool files into `~/.config/theme/`)
 - `tmux/` → `~/.tmux.conf`, `~/.gitmux.conf`, `~/.local/bin/` scripts (`tmux-gitlab.sh` GitLab status, session picker,
-  resurrect guard, yank, `tmux-reset.sh` the `prefix + R` UI reset - reload + default geometry, nothing killed)
+  resurrect guard, yank, `tmux-reset.sh` the `prefix + R` UI reset - reload + default geometry, nothing killed). **One
+  session order everywhere:** the agentbar sidebar's bands (pinned / active / dormant, alphabetical inside each) are the
+  order, `Alt-h`/`Alt-l` walk it row by row and wrap, and the `Alt-;` picker popup renders the same bands - all three
+  read `agentbar order`, and `p` (pin) in either view is the only thing that moves a session
 - `trace/` → `~/.local/bin/dotfiles-trace` (shared always-on trace log for the tmux/agent stack; see "Debugging" below)
 - `yazi/` → `~/.config/yazi/` (yazi file manager config)
 
@@ -89,6 +92,12 @@ records action _edges_ across the whole interactive stack:
   from every pane and has no fixed-size pane. `src=sidebar evt=pin` is the `window-resized` hook fixing the width
   itself; `prefix + R` logs `src=tmux evt=reset … changed=N` plus one `evt=layout win=… before=… after=…` per window it
   changed, and nothing when nothing had drifted.
+- **Reading a session jump that went to the wrong place:** `Alt-h`/`Alt-l` log
+  `src=agentbar evt=switch session=… from=… key=prev|next ms=…` - the session it landed on and the one it left. No line
+  at all means the binary never ran, so the binding fell through to tmux's own alphabetical `switch-client` (rebuild
+  it); a line whose `session=` is not the neighbouring row means the bands moved under you - `agentbar order` prints the
+  list the keys walk, and `src=agentbar evt=pin session=… pinned=…` is every pin change, from either the sidebar or the
+  picker popup.
 - **Reading state drift:** `src=hook evt=event name=… prev=… new=… sid=…` is ground truth of what Claude told the
   sidebar (`via=cwd` means the pane was recovered by the cwd fallback - a resumed / `claude daemon run` session that
   fired the hook with no `$TMUX_PANE`); `src=hook evt=drop reason=no_pane cwd=… sid=…` flags a hook that arrived with no
