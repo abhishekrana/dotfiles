@@ -39,19 +39,23 @@ tracked config.
 | bat / `$THEME` | named           | `env.sh` (`export THEME`, `export BAT_THEME`)                     | new shells                        |
 | git-delta      | hex + named     | `delta.gitconfig` (a `[delta]` block, git-included)               | next `git` invocation             |
 | nvim           | named           | `nvim.lua` (`colorscheme` + `background`)                         | live `:colorscheme` / next launch |
+| session popup  | hex → generated | `agent-state.sh` (state colors + the popup's fzf palette)         | next `Alt-;`                      |
 
 Tools that follow the flavor **without** being driven by the switcher:
 
 - **hunk** - a `hunk()` wrapper in `bash/.bashrc.d/theme.bash` appends `--theme $THEME` to `hunk diff` (hunk falls back
   gracefully on a flavor it lacks).
 - **yazi** - a static `theme.toml` picks Mocha/Latte automatically by terminal light/dark.
-- **session picker & `tmux-gitlab.sh`** - still hardcode Solarized hexes (not yet palette-driven).
+- **`tmux-gitlab.sh`** - still hardcodes Solarized hexes (not yet palette-driven).
 
 ## Where the choice lives
 
 - `~/.config/theme/current` - the selected flavor id (one line); read back by `theme` to print the active flavor.
 - `~/.config/theme/env.sh` - sourced by `bash/.bashrc.d/theme.bash`; exports `THEME` and `BAT_THEME`. (fzf's colors are
   separate, in `fzf.sh`.)
+- `~/.config/theme/agent-state.sh` - sourced by `tmux-agent-state.sh`, the shell side of the agent-state language (the
+  session popup's glyph colors and its fzf palette). Falls back to the palette's solarized-light values when absent, so
+  the popup works before the first `theme` run.
 - `tmux set -g @agentbar-theme <flavor>` - so the sidebar can read the flavor at launch.
 
 ## Operational notes

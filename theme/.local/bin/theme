@@ -155,6 +155,35 @@ apply_delta() {
 EOF
 }
 
+# The tmux session popup renders the agent-state language in shell (the picker's rows
+# and its preview), so the four state colors and the popup's own fzf palette come from
+# here instead of being pinned in those scripts. Sourced when the popup opens, so a
+# switch lands the next time you press Alt-;.
+apply_agent_state() {
+    local f="$STATE_DIR/agent-state.sh"
+    local bg accent emph muted border block ask work grn
+    bg=$(palette_get "$1" bg)
+    accent=$(palette_get "$1" accent)
+    emph=$(palette_get "$1" emphasis)
+    muted=$(palette_get "$1" muted)
+    border=$(palette_get "$1" border)
+    block=$(palette_get "$1" blocked)
+    ask=$(palette_get "$1" asking)
+    work=$(palette_get "$1" working)
+    grn=$(palette_get "$1" "done")
+    # The popup's selected row is a solid accent bar (bg+/fg+), deliberately louder than
+    # the shell fzf's subtle selection in fzf.sh; gutter/pointer stay off.
+    local sel="bg+:$accent,fg+:$bg,gutter:-1,pointer:-1,hl:$accent,hl+:$bg"
+    cat >"$f" <<EOF
+_state_blocked="$block"
+_state_asking="$ask"
+_state_working="$work"
+_state_done="$grn"
+_state_muted="$muted"
+_popup_fzf_color="$sel,border:$border,info:$muted,prompt:$emph"
+EOF
+}
+
 # nvim reads the flavor at startup from ~/.config/theme/nvim.lua (colorscheme + background).
 apply_nvim() {
     local scheme bg
@@ -191,6 +220,7 @@ main() {
     apply_ghostty "$flavor"
     apply_tmux "$flavor"
     apply_fzf "$flavor"
+    apply_agent_state "$flavor"
     apply_env "$flavor"
     apply_delta "$flavor"
     apply_nvim "$flavor"
@@ -198,7 +228,7 @@ main() {
     accent=$(palette_get "$flavor" accent)
     msg="→ $flavor (accent $accent)."
     msg="$msg Ghostty + tmux reload now; new shells pick up fzf/bat;"
-    msg="$msg next git diff / nvim launch picks up delta / nvim;"
+    msg="$msg next git diff / nvim launch / Alt-; popup picks up delta / nvim / popup;"
     echo "$msg restart sidebars with prefix+e twice."
 }
 
