@@ -1,3 +1,4 @@
-mode = "split"             # side-by-side, matching the delta side-by-side setup
+mode = "stack"             # stacked/unified, not side-by-side: full width per line, no half-width columns
 theme = "solarized-light"  # built-in Solarized Light (also tints diff add/remove correctly)
 line_numbers = true
+wrap_lines = true          # wrap long lines instead of truncating them off the right edge
