@@ -210,9 +210,11 @@ release would publish; `task changelog` prepends to `CHANGELOG.md` rather than r
 are the ones that act on the live server (`tmux-reset` is `prefix + R`); the `agentbar:*` tasks delegate to that
 project's own build files.
 
-`task check-ci` reruns the agentbar suite in a container mirroring the runner: older tmux, no `LANG`, `CI` set. Run it
-before pushing anything that touches tmux, rendering or the pane protocol. The rest of the gate reads files and is
-environment-blind.
+`task check-ci` reruns the tmux-driven suites - the shell gates and the agentbar tests - in a container mirroring the
+runner: gawk as `awk`, no `LANG`, `CI` set. Run it before pushing anything that touches tmux, rendering or the pane
+protocol. The rest of the gate reads files and is environment-blind. **The runner's `awk` is gawk and Ubuntu's is
+mawk**: on `exit` gawk closes the pipe and SIGPIPEs the producer, so under `set -e` + `pipefail` a pipeline that reads
+one line and quits dies on CI and passes here. Match a first row with a flag, never `exit`.
 
 ## Formatting
 

@@ -129,13 +129,15 @@ tasks:
       - stow --restow {{.STOW_PACKAGES}}
 
   check-ci:
-    desc: Run the agentbar suite in a container that mirrors the CI runner (needs docker)
+    desc: Run the tmux-driven suites in a container that mirrors the CI runner (needs docker)
     cmds:
       - docker build -q -f test/ci-mirror.Dockerfile -t dotfiles-ci-mirror . >/dev/null
-      # CI=true and no LANG: what a runner has and this machine does not.
+      # CI=true, no LANG, gawk as awk: what a runner has and this machine does not.
+      # The shell suites run here too - the awk difference bit the picker, not Go.
       - >-
-        docker run --rm -e CI=true -v "$PWD:/src:ro" dotfiles-ci-mirror bash -c 'cp -r /src /work && cd
-        /work/{{.AGENTBAR}} && go test ./... -count=1'
+        docker run --rm -e CI=true -v "$PWD:/src:ro" dotfiles-ci-mirror bash -c 'cp -r /src /work && cd /work && make -C
+        {{.AGENTBAR}} build && bash test/clipboard.sh && bash test/session-picker.sh && bash test/reset.sh && cd
+        {{.AGENTBAR}} && go test ./... -count=1'
 
   fresh:
     desc: Full bootstrap in a clean Ubuntu container, twice (needs docker, ~10 min)
