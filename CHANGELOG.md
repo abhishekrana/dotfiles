@@ -7,7 +7,19 @@ This repo stays on **0.x** by choice. Pre-1.0 SemVer puts the breaking signal on
 manual steps on the machine - a re-login, a re-stow, a GNOME shortcut, a systemd unit - bumps **0.x** and says which;
 PATCH is for everything else.
 
+## [0.1.4] - 2026-08-05
+
+### Fixed
+
+- **tmux**: Match a picker row without closing the pipe early (225fbe6)
+
+### Tests
+
+- **task**: Give the CI mirror the runner's gawk and the shell gates (0d5f57e)
+
 ## [0.1.3] - 2026-08-05
+
+Tagged but never published: the release gate failed on the runner (see 0.1.4). Everything below ships in 0.1.4.
 
 ### Added
 
