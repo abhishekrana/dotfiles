@@ -155,7 +155,11 @@ do_pin() {
     { [ -z "$name" ] || [ "$name" = "$BAND_MARK" ]; } && return 0
     [ -x "$agentbar_bin" ] || return 0
     "$agentbar_bin" pin "$name" >/dev/null 2>&1 || return 0
-    pos=$(build_lines | awk -F'\t' -v n="$name" '$1 == n { print NR; exit }')
+    # First match without `exit`: exiting closes the pipe while build_lines is
+    # still writing rows, and gawk (the CI runner's awk) then SIGPIPEs it - 141
+    # through pipefail kills this script before the printf below, so the pin
+    # lands but nothing redraws. mawk drains the pipe first and hides it.
+    pos=$(build_lines | awk -F'\t' -v n="$name" '$1 == n && !p { print NR; p = 1 }')
     printf 'reload-sync(%s --list)+pos(%s)' "$self" "${pos:-1}"
     "$HOME/.local/bin/dotfiles-trace" log picker pin name="$name" 2>/dev/null || true
 }
@@ -281,7 +285,9 @@ lines=$(build_lines)
 [ -z "$lines" ] && exit 0
 
 current=$(tmux display-message -p '#S')
-current_pos=$(printf '%s\n' "$lines" | awk -F'\t' -v c="$current" '$1 == c { print NR; exit }')
+# No `exit` here either, for the reason do_pin gives: a closed pipe under
+# pipefail would take the popup down before fzf ever runs.
+current_pos=$(printf '%s\n' "$lines" | awk -F'\t' -v c="$current" '$1 == c && !p { print NR; p = 1 }')
 : "${current_pos:=1}"
 
 # Band headers are rows fzf has no way to mark unselectable, so every motion
