@@ -7,6 +7,22 @@ This repo stays on **0.x** by choice. Pre-1.0 SemVer puts the breaking signal on
 manual steps on the machine - a re-login, a re-stow, a GNOME shortcut, a systemd unit - bumps **0.x** and says which;
 PATCH is for everything else.
 
+## [0.1.3] - 2026-08-05
+
+### Added
+
+- **theme**: Drive the session popup's colors from the palette (7a241b9)
+- **hunk**: Default to the stacked layout with wrapped lines (d87df95)
+- **tmux**: Fit every band in the session popup and space them apart (60df65f)
+- **agentbar**: Name the middle band, so all three read the same (702d8c9)
+- **tmux**: Walk the agent bar's order with Alt-h/Alt-l, pin from the picker (f7d6968)
+- **agentbar**: Publish the sidebar's session order as order/next/prev/pin (016d25c)
+
+### Fixed
+
+- **agentbar**: Draw the working count in the working colour (c3e85e2)
+- **tmux**: One agent-state language for the picker and its preview (34aefd4)
+
 ## [0.1.2] - 2026-07-28
 
 ### Added
