@@ -87,9 +87,10 @@ apply_tmux() {
     # Claude is writing on the right when that pane runs it (see .tmux.conf).
     local border rail
     rail="#($HOME/.local/bin/tmux-rail.sh '#{pane_current_path}')"
-    border=" #[fg=$emph]$rail "
+    border="#{?#{==:#{pane_current_command},agentbar},,"
+    border="$border #[fg=$emph]$rail "
     border="$border#{?#{E:@rail_agent},#[align=right fg=$accent]→ "
-    border="$border#($HOME/.local/bin/tmux-rail.sh '#{@agent_workdir}') , }"
+    border="$border#($HOME/.local/bin/tmux-rail.sh '#{@agent_workdir}') , }}"
     cat >"$f" <<EOF
 set -g status-style "fg=$fg,bg=$surface"
 set -g window-style "fg=$fg,bg=$bg"
