@@ -19,6 +19,10 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
 - `ghostty/` → `~/.config/ghostty/` (Ghostty terminal config)
 - `git/` → `~/.config/git/config` (delta pager, merge settings)
 - `hunk/` → `~/.config/hunk/` (hunk diff viewer config, Solarized Light theme)
+- `leaf/` → `~/.config/leaf/` (leaf markdown previewer config. Carries a full Solarized Light palette as
+  `[themes.solarized-light]`, since leaf ships only `solarized-dark`; that registration is what lets the theme switcher
+  drive leaf by name via `LEAF_THEME`. **leaf writes this file itself** - a first run with no config seeds upstream's
+  sample there, which then blocks `stow leaf`, so the backup step in `bootstrap.sh` is load-bearing)
 - `nvim/` → `~/.config/nvim/` (LazyVim config)
 - `theme/` → `~/.local/bin/theme` (theme switcher; re-skins the terminal stack across the four flavors from
   `design/palette.toml`, writing per-tool files into `~/.config/theme/`)
@@ -197,7 +201,7 @@ notes are generated from these, so the type and scope are the machine-readable p
 
 - **Types**: `feat` · `fix` · `docs` · `refactor` · `perf` · `test` · `build` · `ci` · `chore`
 - **Scope** is the area, matching a stow package, an app, or a repo concern: `agentbar`, `bash`, `bat`, `bootstrap`,
-  `claude`, `clip`, `design`, `dictate`, `ghostty`, `git`, `hunk`, `install`, `lint`, `nvim`, `release`, `task`,
+  `claude`, `clip`, `design`, `dictate`, `ghostty`, `git`, `hunk`, `install`, `leaf`, `lint`, `nvim`, `release`, `task`,
   `theme`, `tmux`, `trace`, `vault`, `yazi`. Omit it only when a change genuinely spans everything.
 - **Breaking = needs manual steps on the machine.** A `!` after the scope (`feat(tmux)!:`) or a `BREAKING CHANGE:`
   footer marks a release that can't just be pulled - a re-login, a re-stow, a GNOME shortcut, a systemd unit. It renders

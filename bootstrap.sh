@@ -47,7 +47,7 @@ backup_pkg_files() {
 }
 
 stow_packages() {
-    local packages=(bash bat claude clip dictate ghostty git hunk nvim theme tmux trace yazi)
+    local packages=(bash bat claude clip dictate ghostty git hunk leaf nvim theme tmux trace yazi)
 
     # Single files we own outright: back up the file itself.
     backup_if_not_symlink "$HOME/.tmux.conf" "$DOTFILES_DIR/tmux/.tmux.conf"
@@ -65,6 +65,7 @@ stow_packages() {
     backup_if_not_symlink "$HOME/.config/bat"
     backup_if_not_symlink "$HOME/.config/ghostty"
     backup_if_not_symlink "$HOME/.config/hunk"
+    backup_if_not_symlink "$HOME/.config/leaf"
     backup_if_not_symlink "$HOME/.config/yazi"
 
     cd "$DOTFILES_DIR"

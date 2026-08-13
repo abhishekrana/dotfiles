@@ -137,21 +137,32 @@ _fzf_color+=" --color=border:$border,gutter:$bg"
 EOF
 }
 
-# Env-driven tools (bat via BAT_THEME, and anything reading $THEME) inherit the flavor
-# from a file sourced by ~/.bashrc.d/theme.bash, so new shells follow it. Catppuccin bat
-# themes need installing separately; until then bat falls back harmlessly.
+# Env-driven tools (bat via BAT_THEME, leaf via LEAF_THEME, and anything reading $THEME)
+# inherit the flavor from a file sourced by ~/.bashrc.d/theme.bash, so new shells follow
+# it. Catppuccin bat themes need installing separately; until then bat falls back
+# harmlessly.
+#
+# leaf is the opposite case to yazi: it ships no Catppuccin, so those flavors get its
+# closest light/dark built-in instead. Every flavor must map to a theme leaf knows, and
+# the failure is silent rather than loud: an unrecognised LEAF_THEME does not error, leaf
+# falls back to its own default (ocean, a DARK theme) and ignores the config's `theme`
+# setting entirely - so an unmapped flavor here would quietly paint dark on a light
+# terminal. (The `--theme` flag is the strict path: it exits 1 on an unknown name.)
+# solarized-light is not a leaf built-in; it is registered under that name in
+# leaf/.config/leaf/config.toml.
 apply_env() {
     local f="$STATE_DIR/env.sh"
-    local bat
+    local bat leaf
     case "$1" in
-        solarized-light) bat="Solarized (light)" ;;
-        solarized-dark) bat="Solarized (dark)" ;;
-        catppuccin-latte) bat="Catppuccin Latte" ;;
-        catppuccin-mocha) bat="Catppuccin Mocha" ;;
+        solarized-light) bat="Solarized (light)" leaf="solarized-light" ;;
+        solarized-dark) bat="Solarized (dark)" leaf="solarized-dark" ;;
+        catppuccin-latte) bat="Catppuccin Latte" leaf="arctic" ;;
+        catppuccin-mocha) bat="Catppuccin Mocha" leaf="ocean" ;;
     esac
     cat >"$f" <<EOF
 export THEME="$1"
 export BAT_THEME="$bat"
+export LEAF_THEME="$leaf"
 EOF
 }
 

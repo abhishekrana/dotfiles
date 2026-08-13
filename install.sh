@@ -25,6 +25,7 @@ case "$(uname -s)" in
         GOREL_SLUG="Linux_x86_64"             # lazydocker lazygit
         GITLEAKS_SLUG="linux_x64"
         GO_DIST="linux-amd64"
+        LEAF_SLUG="linux-x86_64"
         NEOVIM_SLUG="linux-x86_64"
         SHELLCHECK_SLUG="linux.x86_64"
         ;;
@@ -46,6 +47,7 @@ GO_VERSION="1.26.5"
 HUNK_VERSION="0.17.6"
 LAZYDOCKER_VERSION="0.25.2"
 LAZYGIT_VERSION="0.63.1"
+LEAF_VERSION="1.27.1"
 NEOVIM_VERSION="0.12.4"
 NERD_FONT_VERSION="3.4.0"
 RUFF_VERSION="0.16.0"
@@ -332,6 +334,21 @@ install_lazygit() {
     ok "lazygit $LAZYGIT_VERSION installed"
 }
 
+install_leaf() {
+    if [ -x "$LOCAL_BIN/leaf" ] && "$LOCAL_BIN/leaf" --version 2>/dev/null | grep -q "$LEAF_VERSION"; then
+        ok "leaf $LEAF_VERSION already installed"
+        return
+    fi
+    log "Installing leaf $LEAF_VERSION..."
+    local url
+    # leaf tags releases without the usual `v` prefix, and ships a bare binary
+    # rather than an archive - no tar step here.
+    url=$(gh_url rivolink/leaf "$LEAF_VERSION" "leaf-${LEAF_SLUG}")
+    curl -sSL -o "$LOCAL_BIN/leaf" "$url"
+    chmod +x "$LOCAL_BIN/leaf"
+    ok "leaf $LEAF_VERSION installed"
+}
+
 install_neovim() {
     if [ -x "$LOCAL_BIN/nvim" ] && "$LOCAL_BIN/nvim" --version 2>/dev/null | grep -q "v${NEOVIM_VERSION}"; then
         ok "neovim $NEOVIM_VERSION already installed"
@@ -551,6 +568,7 @@ all_tools() {
     install_hunk
     install_lazydocker
     install_lazygit
+    install_leaf
     install_neovim
     install_nerd_font
     install_ruff

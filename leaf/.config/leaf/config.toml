@@ -1,0 +1,169 @@
+# leaf - terminal markdown previewer. Only non-defaults are set here.
+#
+# theme: leaf ships solarized-dark as a built-in but has no light Solarized, so
+# the light flavor is registered below under the switcher's own flavor id. That
+# makes it resolvable BY NAME, which is what lets the `theme` switcher drive leaf
+# with LEAF_THEME (see apply_env in theme/.local/bin/theme) exactly as it drives
+# bat with BAT_THEME.
+#
+# This setting is the fallback, not the live value: LEAF_THEME outranks it, and
+# an unrecognised LEAF_THEME does not fall back here - leaf drops to its own
+# default (ocean, dark). So this matters only when LEAF_THEME is unset, i.e.
+# before the first `theme` run or outside a shell that sourced env.sh.
+theme = "solarized-light"
+editor = "nvim"
+watch = true # live-reload on save; the point of a previewer
+
+# Solarized Light, mapped from leaf's built-in solarized-dark preset through
+# Ethan Schoonover's canonical light/dark role swap:
+#
+#   base03 <-> base3   base02 <-> base2   base01 <-> base1   base00 <-> base0
+#
+# so the hierarchy (body / emphasis / muted) is preserved rather than inverted.
+# Accents are mode-invariant in Solarized and are unchanged.
+#
+#   base03 #002b36   base02 #073642   base01 #586e75   base00 #657b83
+#   base0  #839496   base1  #93a1a1   base2  #eee8d5   base3  #fdf6e3
+#   yellow #b58900   orange #cb4b16   red    #dc322f   magenta #d33682
+#   violet #6c71c4   blue   #268bd2   cyan   #2aa198   green   #859900
+#
+# Two deliberate deviations, both contrast-driven:
+#   1. Status-bar text uses accents darkened 30% toward base03. Solarized's
+#      yellow/green/cyan sit too close to base3 in luminance to be legible as
+#      small text on a light tint - they top out near 2.8:1 against any light
+#      wash. Hue is preserved, so they still read as green/yellow/cyan. Pure
+#      values are noted per line.
+#   2. Chip foregrounds (brand, reloaded) keep base03 instead of swapping to
+#      base3: those chips sit on cyan/green, which are mode-invariant, so the
+#      contrasting text must stay dark in both modes.
+# Markdown body colors are left pure - headings and list markers land at
+# 2.9-3.4:1, canonical for Solarized Light and AA for the large/bold text they
+# apply to. Body text is 4.99:1, strong 12.05:1.
+[themes.solarized-light]
+base = "arctic"              # the only light built-in; keeps any unset key light
+syntax = "Solarized (light)" # syntect default, pairs with this palette
+
+[themes.solarized-light.ui]
+# Chrome and panels
+toc_bg = "#eee8d5"           # base2
+toc_border = "#93a1a1"       # base1
+content_bg = "#fdf6e3"       # base3
+scrollbar_hover = "#2aa198"  # cyan
+status_bg = "#fdf6e3"        # base3
+status_separator = "#93a1a1" # base1, decorative glyph kept dim
+
+# Status bar - brand
+status_brand_fg = "#002b36" # base03 on cyan; dark by design (4.75:1)
+status_brand_bg = "#2aa198" # cyan
+
+# Status bar - filename
+status_filename_fg = "#586e75" # base01 (4.39:1 on base2)
+status_filename_bg = "#eee8d5" # base2
+
+# Status bar - watch / reload
+status_watch_fg = "#5d7810"    # green darkened 30% (pure: #859900)
+status_watch_bg = "#f5efd3"    # 7% green wash
+status_reloaded_fg = "#002b36" # base03 on green; dark by design (4.69:1)
+status_reloaded_bg = "#859900" # green
+
+# Status bar - search
+status_search_fg = "#7f6d10" # yellow darkened 30% (pure: #b58900)
+status_search_bg = "#f8eed3" # 7% yellow wash
+
+# Status bar - result states
+status_success_fg = "#1d7e7b" # cyan darkened 30% (pure: #2aa198)
+status_success_bg = "#eef0de" # 7% cyan wash
+status_warning_fg = "#7f6d10" # yellow darkened 30% (pure: #b58900)
+status_error_fg = "#dc322f"   # red; pure, already 3.88:1 on its wash
+status_error_bg = "#fbe8d6"   # 7% red wash
+
+# Status bar - misc
+status_shortcut_fg = "#657b83" # base00; keybind hints stay readable
+status_percent_fg = "#1d7e7b"  # cyan darkened 30% (pure: #2aa198)
+
+# Table of contents
+toc_hover_fg = "#073642"                # base02, max contrast
+toc_header_fg = "#657b83"               # base00
+toc_active_bg = "#e0dac7"               # base2, one step down
+toc_inactive_bg = "#eee8d5"             # base2
+toc_accent = "#268bd2"                  # blue
+toc_index_inactive = "#839496"          # base0, deliberately dim
+toc_primary_active = "#073642"          # base02
+toc_primary_inactive = "#586e75"        # base01
+toc_secondary_inactive = "#93a1a1"      # base1
+toc_secondary_text_active = "#073642"   # base02
+toc_secondary_text_inactive = "#657b83" # base00
+
+[themes.solarized-light.markdown]
+# Search
+search_highlight_bg = "#eee0a8" # soft yellow, other matches
+search_match_bg = "#ffe08a"     # brighter yellow, current match (4.17:1)
+
+# Body text
+text = "#586e75"        # base01 (4.99:1)
+strong_text = "#073642" # base02 (12.05:1)
+rule = "#93a1a1"        # base1
+
+# Headings
+heading_1 = "#268bd2"         # blue
+heading_2 = "#2aa198"         # cyan
+heading_3 = "#b58900"         # yellow
+heading_4 = "#586e75"         # base01
+heading_other = "#586e75"     # base01
+heading_underline = "#93a1a1" # base1
+
+# Lists and tasks
+list_level_1 = "#859900"   # green
+list_level_2 = "#268bd2"   # blue
+list_level_3 = "#586e75"   # base01
+ordered_list = "#859900"   # green
+task_checked = "#859900"   # green
+task_unchecked = "#93a1a1" # base1
+
+# Code
+code_gutter = "#93a1a1"     # base1
+code_frame = "#93a1a1"      # base1
+code_label = "#657b83"      # base00
+inline_code_fg = "#cb4b16"  # orange
+inline_code_bg = "#f0e9d2"  # base3, one step down
+
+# Blockquotes
+blockquote_marker = "#6c71c4" # violet
+blockquote_text = "#657b83"   # base00
+
+# Tables
+table_border = "#93a1a1"    # base1
+table_separator = "#839496" # base0
+table_header = "#268bd2"    # blue
+table_cell = "#586e75"      # base01
+
+# Links
+link_icon = "#268bd2"  # blue
+link_text = "#268bd2"  # blue
+link_hover = "#0f6ba8" # blue, darkened for a light bg
+
+# LaTeX
+latex_inline_fg = "#6c71c4" # violet
+latex_inline_bg = "#f2ecd8" # base3, one step down
+latex_block_fg = "#6c71c4"  # violet
+
+# Mermaid
+mermaid_keyword = "#2aa198"  # cyan
+mermaid_arrow = "#268bd2"    # blue
+mermaid_label = "#1f8378"    # cyan, darkened for a light bg
+mermaid_block_fg = "#657b83" # base00
+
+# Highlight (==mark==)
+mark_fg = "#586e75" # base01
+mark_bg = "#ece0a6" # pale yellow
+
+# GitHub alerts
+alert_note = "#268bd2"      # blue
+alert_tip = "#859900"       # green
+alert_important = "#6c71c4" # violet
+alert_warning = "#b58900"   # yellow
+alert_caution = "#dc322f"   # red
+
+# Footnotes
+footnote_ref = "#268bd2"  # blue
+footnote_text = "#586e75" # base01
