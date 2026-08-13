@@ -55,7 +55,7 @@ apply_ghostty() {
 apply_tmux() {
     command -v tmux >/dev/null || return 0
     local f="$STATE_DIR/tmux.conf"
-    local bg surface fg muted accent block ask grn work emph
+    local bg surface fg muted accent block ask grn work
     bg=$(palette_get "$1" bg)
     surface=$(palette_get "$1" surface)
     fg=$(palette_get "$1" fg)
@@ -65,7 +65,6 @@ apply_tmux() {
     ask=$(palette_get "$1" asking)
     grn=$(palette_get "$1" "done")
     work=$(palette_get "$1" working)
-    emph=$(palette_get "$1" emphasis)
     # Built here, not inline in the heredoc, to keep the source under 120 columns;
     # the generated line is byte-identical either way.
     local dseg rec_chip work_chip idle_chip
@@ -84,14 +83,15 @@ apply_tmux() {
     left="#{@host_badge}#{?client_prefix,#[fg=$bg bg=$block bold],#[fg=$bg bg=$accent bold]}"
     left="$left #S #[fg=$fg bg=$surface] "
     # Rails: one rule for every pane - folder + branch on the left, and where
-    # Claude is writing on the right when that pane runs it. Each zone is given
-    # the pane's width and its share of it, so the branch is cut only when the
-    # pane has no room for it (see .tmux.conf).
+    # Claude is writing on the right when that pane runs it. Both zones in the
+    # accent, so the rail reads as chrome instead of blending into the log
+    # scrolling under it. Each zone is given the pane's width and its share of
+    # it, so the branch is cut only when the pane has no room (see .tmux.conf).
     local border rail
     rail="#($HOME/.local/bin/tmux-rail.sh '#{pane_current_path}' '#{pane_width}'"
     rail="$rail '#{?#{E:@rail_agent},2,1}')"
     border="#{?#{==:#{pane_current_command},agentbar},,"
-    border="$border #[fg=$emph]$rail "
+    border="$border #[fg=$accent]$rail "
     border="$border#{?#{E:@rail_agent},#[align=right fg=$accent]→ "
     border="$border#($HOME/.local/bin/tmux-rail.sh '#{@agent_workdir}' '#{pane_width}' 2) , }}"
     cat >"$f" <<EOF
