@@ -46,6 +46,7 @@
       "mcp__plugin_Notion_notion__notion-update-view"
     ]
   },
+  "model": "opus[1m]",
   "hooks": {
     "Notification": [
       {
