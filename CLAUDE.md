@@ -28,7 +28,17 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
   preview, mirroring the sidebar's; colors come from the theme switcher, never hardcoded). **One session order
   everywhere:** the agentbar sidebar's bands (pinned / active / dormant, alphabetical inside each) are the order,
   `Alt-h`/`Alt-l` walk it row by row and wrap, and the `Alt-;` picker popup renders the same bands - all three read
-  `agentbar order`, and `p` (pin) in either view is the only thing that moves a session
+  `agentbar order`, and `p` (pin) in either view is the only thing that moves a session. **Every pane carries a rail**
+  (`pane-border-status top`, `tmux-rail.sh`) and the rule is the same for all of them: LEFT, always, this pane's folder
+  and branch; RIGHT, only when that pane runs Claude, the worktree it is _writing_ in - which its cwd never follows,
+  since the Bash tool's `cd` does not move a pane. Two zones via `#[align=right]`, so the left is anchored at one column
+  and the right grows leftward into rule; nothing shifts as state changes. **The diff pane follows the agent, not the
+  pane:** `tmux-diff-pane.sh` targets `@agent_workdir` (stamped by the agentbar hook from each Edit/Write) and records
+  what is on screen in `@diff_target`; when that worktree is one no agent is touching (`@agent_workdirs`, the recent
+  list) the `◧ diff` chip turns amber and clicking it follows. `tmux-worktree-picker.sh` (the menu's `W`) points it
+  anywhere in the repo family, and per-window auto-follow (`F`, off by default) does it unprompted. The footer holds no
+  per-pane facts at all - gitmux left it, taking ~72ms of git off every status redraw - only the work's commit, its CI
+  and the clock. `tmux-mockup.sh` (`task mockup`) previews the whole frame with fake data on a private server
 - `trace/` → `~/.local/bin/dotfiles-trace` (shared always-on trace log for the tmux/agent stack; see "Debugging" below)
 - `yazi/` → `~/.config/yazi/` (yazi file manager config)
 
@@ -105,6 +115,12 @@ records action _edges_ across the whole interactive stack:
   fired the hook with no `$TMUX_PANE`); `src=hook evt=drop reason=no_pane cwd=… sid=…` flags a hook that arrived with no
   pane to land on. `agentbar doctor` (run `$HOME/dotfiles/apps/agentbar/bin/agentbar doctor`) rolls this into a per-pane
   health check - the one-command way to spot a stale sidebar.
+- **Reading a diff pane showing the wrong tree:** `src=hook evt=workdir pane=… before=… after=…` is every move of an
+  agent's worktree (absent means the agent has only read files, or a hook is not wired - the pane then falls back to its
+  own cwd, the old behaviour). `src=tmux evt=diff action=create|respawn target=…` is what the diff pane was pointed at,
+  and `action=follow from=… to=…` every catch-up; a `to=` that is not where you expected means `@agent_workdir` is
+  stale, so read the `evt=workdir` line above it. `bg=bg` marks an auto-follow (no focus change), `bg=0` an explicit
+  one.
 - **Two writers, one format:** the `dotfiles-trace` CLI (`trace/`, used by all shell/tmux callers) and the Go
   `apps/agentbar/internal/trace` package (used by the sidebar + hook) - keep them in sync on timestamp, escaping, and
   rotation. **Log edges only, never hot loops** (mouse motion, ticks, status redraws, the dictate silence poll, fzf
@@ -147,6 +163,9 @@ here - this repo is public.
 - Bash files in `.bashrc.d/` use `.bash` extension
 - Only `00-path.bash` has a numeric prefix (must load first for PATH); all other files use plain names
 - Each tool init file guards with `command -v tool &>/dev/null || return`
+- Scripts under a `.local/bin/` are executable; a fragment meant to be **sourced** says so in its header comment and
+  stays non-executable (`task perms` enforces both - tmux swallows a `#()` it cannot execute as empty output, so a
+  missing `+x` makes a rail or a status segment silently vanish)
 - Private/work-specific config goes in `~/.bashrc.d/local.bash` (not tracked)
 - `bootstrap.sh` must be idempotent (safe to re-run)
 - `bootstrap.sh` scaffolds the two notes vaults (see "Vault template"); a vault with no git remote is reported once at

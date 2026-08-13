@@ -55,7 +55,7 @@ apply_ghostty() {
 apply_tmux() {
     command -v tmux >/dev/null || return 0
     local f="$STATE_DIR/tmux.conf"
-    local bg surface fg muted accent block ask grn work
+    local bg surface fg muted accent block ask grn work emph
     bg=$(palette_get "$1" bg)
     surface=$(palette_get "$1" surface)
     fg=$(palette_get "$1" fg)
@@ -65,6 +65,7 @@ apply_tmux() {
     ask=$(palette_get "$1" asking)
     grn=$(palette_get "$1" "done")
     work=$(palette_get "$1" working)
+    emph=$(palette_get "$1" emphasis)
     # Built here, not inline in the heredoc, to keep the source under 120 columns;
     # the generated line is byte-identical either way.
     local dseg rec_chip work_chip idle_chip
@@ -72,19 +73,37 @@ apply_tmux() {
     work_chip="#[fg=$ask bg=$surface] ● dictate "
     idle_chip="#[fg=$muted bg=$surface] ● dictate "
     dseg="#{?#{==:#{@dictate},rec},$rec_chip,#{?#{==:#{@dictate},work},$work_chip,$idle_chip}}"
+    # Diff chip: violet normally, amber when the agent is writing in another
+    # worktree (@diff_drift, set in .tmux.conf). Same width either way.
+    local diffseg
+    diffseg="#{?#{E:@diff_drift},#[fg=$ask bg=$surface bold],#[fg=#6c71c4 bg=$surface]}"
+    diffseg="$diffseg ◧ diff#{?@diff_mode,:#{@diff_mode},} "
+    # Session badge: red while the prefix is pending. A chip that appears instead
+    # would shift every segment right of it (see .tmux.conf).
+    local left
+    left="#{@host_badge}#{?client_prefix,#[fg=$bg bg=$block bold],#[fg=$bg bg=$accent bold]}"
+    left="$left #S #[fg=$fg bg=$surface] "
+    # Rails: one rule for every pane - folder + branch on the left, and where
+    # Claude is writing on the right when that pane runs it (see .tmux.conf).
+    local border rail
+    rail="#($HOME/.local/bin/tmux-rail.sh '#{pane_current_path}')"
+    border=" #[fg=$emph]$rail "
+    border="$border#{?#{E:@rail_agent},#[align=right fg=$accent]→ "
+    border="$border#($HOME/.local/bin/tmux-rail.sh '#{@agent_workdir}') , }"
     cat >"$f" <<EOF
 set -g status-style "fg=$fg,bg=$surface"
 set -g window-style "fg=$fg,bg=$bg"
 set -g window-active-style "fg=$fg,bg=$bg"
 set -g pane-border-style "fg=$muted,bg=$bg"
 set -g pane-active-border-style "fg=$accent,bg=$bg"
-set -g status-left "#{@host_badge}#[fg=$bg,bg=$accent,bold] #S #[fg=$fg,bg=$surface] "
+set -g status-left "$left"
 set -g window-status-current-format "#[fg=$bg,bg=$accent,bold] #I:#W#{?window_zoomed_flag, Z,} "
 set -g window-status-format "#{?window_bell_flag,#[fg=$bg bg=$block bold],#[fg=$muted bg=$surface]} #I:#W "
 set -g @dictate_seg "$dseg"
 set -g @submit_seg "#{?@submit_flash,#[fg=$bg bg=$grn]  ⏎ enter  ,#[fg=$work bg=$surface]  ⏎ enter  }"
 set -g @push_seg "#{?@push_flash,#[fg=$bg bg=$grn]  ⇡ commit+push  ,#[fg=$accent bg=$surface]  ⇡ commit+push  }"
-set -g @diff_seg "#[fg=#6c71c4 bg=$surface] ◧ diff#{?@diff_mode,:#{@diff_mode},} "
+set -g @diff_seg "$diffseg"
+set -g pane-border-format "$border"
 EOF
     tmux source-file "$f" 2>/dev/null || true
 }
@@ -102,6 +121,7 @@ apply_fzf() {
     sel=$(palette_get "$1" selection)
     muted=$(palette_get "$1" muted)
     work=$(palette_get "$1" working)
+    emph=$(palette_get "$1" emphasis)
     grn=$(palette_get "$1" "done")
     border=$(palette_get "$1" border)
     cat >"$f" <<EOF
@@ -170,6 +190,7 @@ apply_agent_state() {
     block=$(palette_get "$1" blocked)
     ask=$(palette_get "$1" asking)
     work=$(palette_get "$1" working)
+    emph=$(palette_get "$1" emphasis)
     grn=$(palette_get "$1" "done")
     # The popup's selected row is a solid accent bar (bg+/fg+), deliberately louder than
     # the shell fzf's subtle selection in fzf.sh; gutter/pointer stay off.

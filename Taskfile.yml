@@ -34,9 +34,11 @@ tasks:
       - task: py
       - task: fmt-check
       - task: secrets
+      - task: perms
       - task: clipboard
       - task: picker
       - task: reset
+      - task: diff-target
       - task: test
 
   lint:
@@ -68,6 +70,20 @@ tasks:
         '\b(10\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}|192\.168\.[0-9]{1,3}\.[0-9]{1,3}|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]{1,3}\.[0-9]{1,3})\b'
         && { echo "private IP in a tracked file (see above)" >&2; exit 1; } || true
 
+  perms:
+    desc: Every script under a .local/bin must be executable (tmux runs them directly)
+    cmds:
+      # A new helper without +x fails silently: tmux swallows a #() command it
+      # cannot execute as empty output, so a rail or a status segment just
+      # vanishes. A fragment meant to be sourced says "sourced" in its header and
+      # is exempt - that is the convention, and this is what enforces it.
+      - |
+        bad=$(git ls-files '*/.local/bin/*' | while read -r f; do
+          head -3 "$f" | grep -qi sourced && continue
+          [ -x "$f" ] || echo "  $f"
+        done)
+        [ -z "$bad" ] || { printf 'not executable:\n%s\n' "$bad" >&2; exit 1; }
+
   clipboard:
     desc: Guard the copy path - every tmux trigger must reach clipboard and primary
     cmds:
@@ -84,6 +100,13 @@ tasks:
     desc: Guard the UI reset - sidebar width/place and an even column split
     cmds:
       - bash test/reset.sh
+
+  diff-target:
+    desc: Guard where the diff pane points - the agent's worktree, not the pane's cwd
+    deps:
+      - agentbar:build
+    cmds:
+      - bash test/diff-target.sh
 
   portability:
     desc: Report Linux-only primitives and where they live (a map, not a gate)
@@ -136,8 +159,8 @@ tasks:
       # The shell suites run here too - the awk difference bit the picker, not Go.
       - >-
         docker run --rm -e CI=true -v "$PWD:/src:ro" dotfiles-ci-mirror bash -c 'cp -r /src /work && cd /work && make -C
-        {{.AGENTBAR}} build && bash test/clipboard.sh && bash test/session-picker.sh && bash test/reset.sh && cd
-        {{.AGENTBAR}} && go test ./... -count=1'
+        {{.AGENTBAR}} build && bash test/clipboard.sh && bash test/session-picker.sh && bash test/reset.sh && bash
+        test/diff-target.sh && cd {{.AGENTBAR}} && go test ./... -count=1'
 
   fresh:
     desc: Full bootstrap in a clean Ubuntu container, twice (needs docker, ~10 min)
@@ -211,6 +234,12 @@ tasks:
     dir: "{{.AGENTBAR}}"
     cmds:
       - bin/agentbar mockup
+
+  mockup:
+    desc: Preview the whole UI with fake data on a private tmux server (attach to click around)
+    deps: [agentbar:build]
+    cmds:
+      - bash tmux/.local/bin/tmux-mockup.sh {{.CLI_ARGS}}
 
   agentbar:doctor:
     desc: Audit live Claude panes against the hook trace for state desync

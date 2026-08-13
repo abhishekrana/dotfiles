@@ -110,6 +110,27 @@ launch hunk's native interactive reviewer directly. delta also colors `git add -
 | `y`        | yank to clipboard + primary  |
 | `q`        | exit copy mode               |
 
+### Pane rails
+
+Every pane's top border carries the same two zones. Left, always: that pane's folder and branch. Right, only when the
+pane runs Claude: `→ <worktree>` — where it is actually writing, which its own cwd never follows. Nothing on the left
+moves when the right changes.
+
+### Status bar - the ◧ diff chip
+
+Click it to open the menu; the keys below work inside it. The chip is **violet** while the diff pane shows a worktree an
+agent is working in, **amber** when it shows one none of them is touching - and an amber chip needs no menu: one click
+follows. The footer carries no per-pane facts: just the work's commit, its CI, and the clock.
+
+| Key in the menu | Action                                                                   |
+| --------------- | ------------------------------------------------------------------------ |
+| `w`             | working tree, auto-reload                                                |
+| `s` / `m` / `l` | staged · branch vs main · last commit                                    |
+| `f`             | follow the agent - point the pane at the worktree it is writing in       |
+| `W`             | pick worktree - popup over the repo's worktrees (`j/k/g/G`, `/` filters) |
+| `F`             | auto-follow for this window (off by default)                             |
+| `t` / `x`       | toggle split/stack · close the diff pane                                 |
+
 ### Other
 
 | Key        | Action                                                              |
