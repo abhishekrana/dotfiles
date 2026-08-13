@@ -113,6 +113,15 @@ printf '{"hook_event_name":"PostToolUse","tool_name":"Read","session_id":"t",
     TMUX_PANE="$pane" "$BIN" hook
 eq "a Read does not move it" "$WT/home" "$(t show -pqv -t "$pane" @agent_workdir)"
 
+# Nor does a cwd. Claude resets its shell cwd to the session's own directory
+# after every Bash call, so this fires seconds after an edit in a sibling
+# worktree - and used to drag the rail and the diff pane home with it.
+hook "$WT/other/sub/f.txt"
+printf '{"hook_event_name":"CwdChanged","session_id":"t","cwd":"%s"}\n' "$WT/home" |
+    TMUX_PANE="$pane" "$BIN" hook
+eq "a cwd reset does not move it" "$WT/other" "$(t show -pqv -t "$pane" @agent_workdir)"
+hook "$WT/home/sub/f.txt" # back where the rest of the suite expects it
+
 # The rail's right zone appears only when the agent writes outside its own pane's
 # worktree - a shell pane must never inherit that claim.
 hook "$WT/other/sub/f.txt"

@@ -29,8 +29,10 @@ func TestEditedPath(t *testing.T) {
 		{"bash ignored", editEvent("PostToolUse", "Bash", ""), ""},
 		{"relative ignored", editEvent("PostToolUse", "Edit", "a.go"), ""},
 		{"empty ignored", editEvent("PostToolUse", "Edit", ""), ""},
-		{"cwd change", Event{Name: "CwdChanged", Cwd: "/wt/svc-c"}, "/wt/svc-c"},
-		{"cwd change relative ignored", Event{Name: "CwdChanged", Cwd: "sub"}, ""},
+		// Nor is a cwd: Claude resets its shell cwd to the session's own
+		// directory after every Bash call, and taking that undoes the edit
+		// that just moved the agent to a sibling worktree.
+		{"cwd change ignored", Event{Name: "CwdChanged", Cwd: "/wt/svc-c"}, ""},
 		{"other event ignored", Event{Name: "Stop", Cwd: "/wt/svc-c"}, ""},
 	}
 	for _, c := range cases {

@@ -41,8 +41,9 @@ state (working/permission/asking/done/done-seen/idle), one multi-Claude-on-one-b
 - `cmd/agentbar` - subcommands: `run`, `mockup`, `status`, `order`, `next`/`prev`, `pin`, `hook`, `doctor`
 - `internal/hook` - event JSON → `@agent_*` pane options; `Decide()` is pure; `ResolvePane()` finds the pane by the
   event `cwd` when `$TMUX_PANE` is absent; `workdir.go` stamps `@agent_workdir` (the worktree the agent is _writing_ in,
-  which its pane's cwd never follows) at pane and window scope, from the `file_path` of an Edit/Write `PostToolUse` or a
-  `CwdChanged`
+  which its pane's cwd never follows) at pane and window scope, from the `file_path` of an Edit/Write tool event - a
+  write and nothing else, never a `CwdChanged` (Claude resets its shell cwd home after every Bash call, which would undo
+  the edit that just moved the agent)
 - `internal/tmux` - exec wrapper, `list-panes -a` snapshot, branch cache, status segment
 - `internal/ui` - Bubble Tea TUI: `app.go` (state, mouse, selection sync), `render.go` (blocks, bands, highlight),
   `theme.go`; `model.Arrange` groups sessions into bands

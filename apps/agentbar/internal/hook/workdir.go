@@ -24,6 +24,11 @@ import (
 
 // EditedPath returns the file an event says the agent wrote, or "".
 // Pure; the tool names are the ones that change a file on disk.
+//
+// A cwd is not a write, and CwdChanged is emphatically not one: Claude restores
+// its shell cwd to the session's own directory after every Bash call, so taking
+// it would drag the workdir home again seconds after an edit in a sibling
+// worktree put it right - which is the one case this whole thing exists for.
 func EditedPath(ev Event) string {
 	switch ev.Name {
 	case "PreToolUse", "PostToolUse":
@@ -40,10 +45,6 @@ func EditedPath(ev Event) string {
 			return "" // a relative path is not resolvable from here
 		}
 		return p
-	case "CwdChanged":
-		if filepath.IsAbs(ev.Cwd) {
-			return ev.Cwd
-		}
 	}
 	return ""
 }
