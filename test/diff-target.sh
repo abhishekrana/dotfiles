@@ -84,8 +84,11 @@ mkdir -p "$XDG_RUNTIME_DIR"
 eq "worktree and branch" "home  ⎇ main" "$(bash "$RAIL" "$WT/home")"
 eq "from a subdirectory too" "home  ⎇ main" "$(bash "$RAIL" "$WT/home/sub")"
 eq "a sibling worktree's branch" "other  ⎇ feature" "$(bash "$RAIL" "$WT/other")"
-# The worktree name is the identity and is never cut; the branch is what gives.
-eq "branch capped, name intact" "other  ⎇ featu…" "$(bash "$RAIL" "$WT/other" 6)"
+# The worktree name is the identity and is never cut; the branch is what gives,
+# and only when the pane is too narrow to hold it.
+eq "wide pane, whole branch" "other  ⎇ feature" "$(bash "$RAIL" "$WT/other" 100 2)"
+eq "narrow pane, branch capped" "other  ⎇ featu…" "$(bash "$RAIL" "$WT/other" 30 2)"
+eq "one zone has room two do not" "other  ⎇ feature" "$(bash "$RAIL" "$WT/other" 30 1)"
 eq "nothing outside a checkout" "" "$(bash "$RAIL" "$TMP")"
 eq "nothing for a missing dir" "" "$(bash "$RAIL" "$TMP/nope")"
 

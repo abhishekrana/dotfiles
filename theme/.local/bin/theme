@@ -84,13 +84,16 @@ apply_tmux() {
     left="#{@host_badge}#{?client_prefix,#[fg=$bg bg=$block bold],#[fg=$bg bg=$accent bold]}"
     left="$left #S #[fg=$fg bg=$surface] "
     # Rails: one rule for every pane - folder + branch on the left, and where
-    # Claude is writing on the right when that pane runs it (see .tmux.conf).
+    # Claude is writing on the right when that pane runs it. Each zone is given
+    # the pane's width and its share of it, so the branch is cut only when the
+    # pane has no room for it (see .tmux.conf).
     local border rail
-    rail="#($HOME/.local/bin/tmux-rail.sh '#{pane_current_path}')"
+    rail="#($HOME/.local/bin/tmux-rail.sh '#{pane_current_path}' '#{pane_width}'"
+    rail="$rail '#{?#{E:@rail_agent},2,1}')"
     border="#{?#{==:#{pane_current_command},agentbar},,"
     border="$border #[fg=$emph]$rail "
     border="$border#{?#{E:@rail_agent},#[align=right fg=$accent]→ "
-    border="$border#($HOME/.local/bin/tmux-rail.sh '#{@agent_workdir}') , }}"
+    border="$border#($HOME/.local/bin/tmux-rail.sh '#{@agent_workdir}' '#{pane_width}' 2) , }}"
     cat >"$f" <<EOF
 set -g status-style "fg=$fg,bg=$surface"
 set -g window-style "fg=$fg,bg=$bg"
