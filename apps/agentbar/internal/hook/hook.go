@@ -13,6 +13,7 @@
 //	@agent_seen       "1" once the user visited the pane after done
 //	@agent_session_id Claude session id
 //	@agent_subagents  count of live subagents
+//	@agent_workdir    worktree root the agent last wrote in (see workdir.go)
 package hook
 
 import (
@@ -34,6 +35,12 @@ type Event struct {
 	ToolName         string `json:"tool_name"`
 	Cwd              string `json:"cwd"`    // session working dir; a pane-resolution fallback when TMUX_PANE is absent
 	Source           string `json:"source"` // SessionStart only: startup|resume|clear|compact|fork
+	// Edit/Write tool arguments: which file the agent is about to change, which
+	// names the worktree it is really working in (see workdir.go).
+	ToolInput struct {
+		FilePath     string `json:"file_path"`
+		NotebookPath string `json:"notebook_path"`
+	} `json:"tool_input"`
 }
 
 // Effect is what an event should do to the pane options.

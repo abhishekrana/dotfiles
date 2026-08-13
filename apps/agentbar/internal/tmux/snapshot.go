@@ -16,9 +16,10 @@ import (
 // loop in Snapshot indexes fields by position in this format.
 const snapFormat = "#{session_name}\t#{session_attached}\t#{window_index}\t#{window_active}\t" +
 	"#{pane_id}\t#{pane_active}\t#{pane_current_command}\t#{pane_current_path}\t" +
-	"#{@agent_present}\t#{@agent_state}\t#{@agent_since}\t#{@agent_seen}\t#{@agent_subagents}"
+	"#{@agent_present}\t#{@agent_state}\t#{@agent_since}\t#{@agent_seen}\t#{@agent_subagents}\t" +
+	"#{@agent_workdir}"
 
-const snapFields = 13
+const snapFields = 14
 
 // agentCommands guards against zombies: a pane whose Claude died without
 // SessionEnd keeps its options, but its foreground command changes.
@@ -90,11 +91,19 @@ func Snapshot(r Runner, bc *BranchCache, currentSession string) model.Snapshot {
 			_, _ = r.Run("set-option", "-pq", "-t", f[4], "@agent_seen", "1")
 			seen = true
 		}
+		// The branch of the worktree the agent WRITES in, not the one its pane
+		// sits in: a session started in one checkout edits another all day, and
+		// the pane's cwd never follows, so this line used to name a branch
+		// nothing was happening on.
+		dir := f[7]
+		if wd := f[13]; wd != "" {
+			dir = wd
+		}
 		sess.Agents = append(sess.Agents, model.Agent{
 			PaneID:      f[4],
 			WindowIndex: windowIdx,
 			Command:     f[6],
-			Branch:      bc.Get(f[7]),
+			Branch:      bc.Get(dir),
 			State:       state,
 			Seen:        seen,
 			Since:       time.Unix(since, 0),

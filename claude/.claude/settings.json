@@ -48,6 +48,16 @@
   },
   "model": "opus[1m]",
   "hooks": {
+    "CwdChanged": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -x \"$HOME/dotfiles/apps/agentbar/bin/agentbar\" ] && \"$HOME/dotfiles/apps/agentbar/bin/agentbar\" hook || true"
+          }
+        ]
+      }
+    ],
     "Notification": [
       {
         "hooks": [
@@ -60,6 +70,17 @@
     ],
     "PermissionRequest": [
       {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -x \"$HOME/dotfiles/apps/agentbar/bin/agentbar\" ] && \"$HOME/dotfiles/apps/agentbar/bin/agentbar\" hook || true"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
         "hooks": [
           {
             "type": "command",

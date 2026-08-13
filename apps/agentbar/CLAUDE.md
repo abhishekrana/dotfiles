@@ -40,7 +40,9 @@ state (working/permission/asking/done/done-seen/idle), one multi-Claude-on-one-b
 
 - `cmd/agentbar` - subcommands: `run`, `mockup`, `status`, `order`, `next`/`prev`, `pin`, `hook`, `doctor`
 - `internal/hook` - event JSON → `@agent_*` pane options; `Decide()` is pure; `ResolvePane()` finds the pane by the
-  event `cwd` when `$TMUX_PANE` is absent
+  event `cwd` when `$TMUX_PANE` is absent; `workdir.go` stamps `@agent_workdir` (the worktree the agent is _writing_ in,
+  which its pane's cwd never follows) at pane and window scope, from the `file_path` of an Edit/Write `PostToolUse` or a
+  `CwdChanged`
 - `internal/tmux` - exec wrapper, `list-panes -a` snapshot, branch cache, status segment
 - `internal/ui` - Bubble Tea TUI: `app.go` (state, mouse, selection sync), `render.go` (blocks, bands, highlight),
   `theme.go`; `model.Arrange` groups sessions into bands
@@ -77,6 +79,18 @@ state (working/permission/asking/done/done-seen/idle), one multi-Claude-on-one-b
   and prunes dead session names, and a read restores it when the option is empty. tmux drops user options when its
   server exits, and pins are now the only thing that reorders the bar, so losing them flattens it to alphabetical.
 - `hook` must never exit non-zero or block; Claude Code waits on it.
+- `@agent_workdir` is stamped at pane, window AND session scope, so one `#{@agent_workdir}` reference resolves by tmux's
+  own hierarchy wherever it is read - the agent's pane, a sibling shell, the diff pane, another window of the session.
+  `@agent_workdirs` (the last five, newest first, pipe-_wrapped_ so `#{m:*|dir|*,…}` tests membership without a shorter
+  name matching a longer one) follows the same path. `@agent_elsewhere` is pane-scoped ONLY - it means "this agent
+  writes outside its own pane's worktree", which a shell pane must not inherit. An edit inside the already-stamped
+  worktree writes nothing and runs no `git`; a file outside any repo leaves the last known workdir alone rather than
+  blanking it.
+- A session-scope `set-option` cannot take a pane id: tmux errors and **abandons the rest of the command chain**, so the
+  options after it silently never land. Resolve `#{session_name}` first and target that.
+- `@agentbar-workdir-cmd` is this package's ONLY hook into anything outside it: an optional command run detached
+  (`AGENTBAR_PANE`, `AGENTBAR_WORKDIR` in its environment) after the workdir changed. Unset by default; the dotfiles
+  point it at `tmux-diff-pane.sh autofollow`. Keep the knowledge one-way - nothing here may know what the command does.
 - Sidebar liveness is `#{pane_current_command} == agentbar` everywhere; never wrap the binary in a shell (breaks it).
 - Mouse actions fire on release, not press.
 - Trace action edges via `internal/trace` (`start`/`click`/`jump`/`switch`/`pin` + latency, hook `event`/`drop`) -

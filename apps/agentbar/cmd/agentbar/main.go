@@ -209,6 +209,12 @@ func runHook() {
 	if hook.ShouldNotify(prev, ef, notifyOpt) {
 		hook.Notify(r, pane, ef.State)
 	}
+	// Where the agent is writing, which the pane's cwd does not follow. Only a
+	// change is traced or acted on; an edit in the same worktree costs nothing.
+	if wdFrom, wdTo := hook.ApplyWorkdir(r, pane, ev); wdTo != "" {
+		trace.Log("hook", "workdir", "pane", pane, "before", wdFrom, "after", wdTo)
+		hook.RunWorkdirCmd(r, pane, wdTo)
+	}
 	// Ground truth for state-drift debugging: every event Claude sent us, the
 	// state it moved the pane to, and whether the write failed. sid ties a line
 	// to its session (so a resume/fork that swaps session id is visible), and
