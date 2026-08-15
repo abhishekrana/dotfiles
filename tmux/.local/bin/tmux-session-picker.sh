@@ -182,8 +182,8 @@ band_row() {
 # group, and only when they actually separate two non-empty bands (a one-band
 # list shows none), exactly as the sidebar does it.
 build_lines() {
-    local -A STATE_BY_SESSION
-    local sess cmd present state prev current ordered band name path branch icon mark header
+    local -A STATE_BY_SESSION WORKDIR_BY_SESSION DIR_BY_SESSION DIR_VOTES PANES_IN
+    local sess cmd present state wd path seen prev current ordered band name branch icon mark header
     local headed=
     local -A count
 
@@ -195,14 +195,40 @@ build_lines() {
     # stamped @agent_present=1 and its foreground command is still claude/node
     # (guards a pane whose Claude died but left its options behind) - the same
     # filter the sidebar uses.
-    while IFS=$'\t' read -r sess cmd present state; do
+    # Optional fields carry a "-" placeholder: tab is IFS whitespace, so bash
+    # collapses a run of empty ones into a single separator and every field after
+    # them shifts left - a pane with no @agent_* options would lose its path.
+    while IFS=$'\t' read -r sess cmd present state wd path; do
+        [ "$state" = - ] && state=
+        [ "$wd" = - ] && wd=
+        # The directory that names a session: where most of its panes sit. NOT the
+        # session's active pane - that is usually the sidebar, whose cwd is only
+        # wherever that process started, or the diff pane, pointed at whatever
+        # worktree you asked for; both named a branch the session was not on. The
+        # sidebar is excluded outright, and one stray shell cannot outvote the rest.
+        if [ "$cmd" != agentbar ] && [ -n "$path" ]; then
+            seen=$((${PANES_IN[$sess$'\t'$path]:-0} + 1))
+            PANES_IN[$sess$'\t'$path]=$seen
+            if [ "$seen" -gt "${DIR_VOTES[$sess]:-0}" ]; then
+                DIR_VOTES[$sess]=$seen
+                DIR_BY_SESSION[$sess]=$path
+            fi
+        fi
         [ "$present" = 1 ] || continue
         case $cmd in claude | node) ;; *) continue ;; esac
+        # The worktree the agent WRITES in, like the sidebar's own branch line.
+        if [ -n "$wd" ] && [ -z "${WORKDIR_BY_SESSION[$sess]:-}" ]; then
+            WORKDIR_BY_SESSION[$sess]=$wd
+        fi
         prev=${STATE_BY_SESSION[$sess]:-}
         if [ "$(agent_state_rank "$state")" -gt "$(agent_state_rank "$prev")" ]; then
             STATE_BY_SESSION[$sess]=$state
         fi
-    done < <(tmux list-panes -a -F $'#{session_name}\t#{pane_current_command}\t#{@agent_present}\t#{@agent_state}')
+    done < <(tmux list-panes -a -F "$(
+        printf '#{session_name}\t#{pane_current_command}\t#{?@agent_present,1,0}\t'
+        printf '#{?@agent_state,#{@agent_state},-}\t#{?@agent_workdir,#{@agent_workdir},-}\t'
+        printf '#{pane_current_path}'
+    )")
 
     while IFS=$'\t' read -r band name; do
         [ -n "$name" ] && count[$band]=$((${count[$band]:-0} + 1))
@@ -236,7 +262,7 @@ build_lines() {
             fi
             prev=$band
         fi
-        path=$(tmux display-message -p -t "$name" '#{pane_current_path}' 2>/dev/null || true)
+        path=${WORKDIR_BY_SESSION[$name]:-${DIR_BY_SESSION[$name]:-}}
         branch=
         if [ -n "$path" ] && [ -d "$path" ]; then
             branch=$(git -C "$path" symbolic-ref --short HEAD 2>/dev/null ||
@@ -300,16 +326,24 @@ skip_down="transform([ {1} = $BAND_MARK ] && echo down || true)"
 # park the cursor on it, so bounce back down instead (FZF_POS is 1-based).
 skip_up="transform([ {1} = $BAND_MARK ] && { [ \"\$FZF_POS\" -gt 1 ] && echo up || echo down; })"
 
+# --height/--border are explicit to override FZF_DEFAULT_OPTS, which the popup
+# inherits from the server's environment: its --height=80% inside an already 85%
+# popup left a dead band at the bottom while the session list was still scrolling,
+# and its --border drew a second frame inside tmux's own. The preview is a fixed
+# 12 rows - enough for the header block and the windows - so every extra row the
+# client has goes to the list.
+#
 # --sync + start:pos ensures the initial cursor position fires exactly once,
 # at startup. Using load:pos here would re-fire on every reload, snapping
 # the cursor back to the original session after rename/pin/kill/new.
 target=$(
     printf '%s\n' "$lines" |
         fzf --ansi --sync --reverse --no-input --highlight-line \
+            --height=100% --border=none \
             --header='? for help' --header-first \
             --delimiter=$'\t' --with-nth=2 \
             --preview "$HOME/.local/bin/tmux-session-preview.sh {1}" \
-            --preview-window=down:16 \
+            --preview-window=down:12 \
             --pointer=' ' \
             --color="$_popup_fzf_color" \
             --bind "start:pos($current_pos)" \

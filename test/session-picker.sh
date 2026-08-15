@@ -151,6 +151,54 @@ themed=$(XDG_CONFIG_HOME="$TMP/config" "$PICKER" --list | grep -F api |
     grep -oE $'\033\[38;2;255;0;255m' | head -1)
 eq "the glyph color follows the active flavor" $'\033[38;2;255;0;255m' "$themed"
 
+printf '\npicker: the branch names the session, not whatever pane is focused\n'
+
+# The regression: the row's branch came from `display-message -t <session>`, i.e.
+# the session's ACTIVE pane. That is usually the sidebar - whose cwd is only
+# wherever that process started - or the diff pane, sitting in whatever worktree
+# it was pointed at. Every session then reported the same unrelated branch.
+tmux kill-server 2>/dev/null
+g() { git -c user.email=t@t -c user.name=t -c init.defaultBranch=main "$@"; }
+repo() { # repo <dir> <branch>
+    mkdir -p "$1"
+    g init -q "$1"
+    : >"$1/f"
+    g -C "$1" add -A
+    g -C "$1" commit -qm init
+    g -C "$1" checkout -q -b "$2"
+}
+repo "$TMP/work" work-branch
+repo "$TMP/decoy" decoy-branch
+repo "$TMP/edited" edited-branch
+cp /usr/bin/sleep "$TMP/shim/agentbar" # a pane that reports as the sidebar
+
+# The last word of the row: session names and branches carry no spaces.
+branch_of() {
+    "$PICKER" --list | sed 's/\x1b\[[0-9;]*m//g' |
+        awk -F'\t' -v n="$1" '$1 == n { print $NF }' | awk '{ print $NF }'
+}
+
+tmux new-session -d -s solo -x 200 -y 40 -c "$TMP/work"
+tmux split-window -t solo -c "$TMP/decoy" "agentbar 60" # focused, and elsewhere
+eq "tmux calls the sidebar's cwd the session's path" "$TMP/decoy" \
+    "$(tmux display-message -p -t solo '#{pane_current_path}')"
+eq "the row shows the session's own branch" "work-branch" "$(branch_of solo)"
+
+pane=$(tmux split-window -d -t solo -c "$TMP/work" -P -F '#{pane_id}' "claude 60")
+printf '{"hook_event_name":"SessionStart","session_id":"t"}' | TMUX_PANE="$pane" "$BIN" hook
+tmux set -p -t "$pane" @agent_workdir "$TMP/edited"
+eq "an agent's worktree wins, as on the sidebar" "edited-branch" "$(branch_of solo)"
+
+tmux new-session -d -s crowd -x 200 -y 40 -c "$TMP/decoy" # one stray pane
+tmux split-window -d -t crowd -c "$TMP/work"
+tmux split-window -d -t crowd -c "$TMP/work"
+eq "one stray pane cannot outvote the rest" "work-branch" "$(branch_of crowd)"
+
+# A pane with no @agent_* options must still report its path: tab is IFS
+# whitespace, so a run of empty fields collapses and shifts the rest left.
+tmux new-session -d -s plain -x 200 -y 40 -c "$TMP/work"
+eq "a session with no agent still gets its branch" "work-branch" "$(branch_of plain)"
+
 printf '\npicker: no binary means no crash\n'
 
 tmux kill-server 2>/dev/null
