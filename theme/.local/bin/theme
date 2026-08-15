@@ -67,16 +67,22 @@ apply_tmux() {
     work=$(palette_get "$1" working)
     # Built here, not inline in the heredoc, to keep the source under 120 columns;
     # the generated line is byte-identical either way.
-    local dseg rec_chip work_chip idle_chip
+    # One space of padding inside every chip and one between them, so the row's
+    # gaps are all the same three columns. Keep it that way when editing labels.
+    local dseg dsend rec_chip work_chip idle_chip rec2 work2 idle2
     rec_chip="#[fg=$block bg=$surface] ● dictate "
     work_chip="#[fg=$ask bg=$surface] ● dictate "
     idle_chip="#[fg=$muted bg=$surface] ● dictate "
     dseg="#{?#{==:#{@dictate},rec},$rec_chip,#{?#{==:#{@dictate},work},$work_chip,$idle_chip}}"
+    rec2="#[fg=$block bg=$surface] ● dictate+send "
+    work2="#[fg=$ask bg=$surface] ● dictate+send "
+    idle2="#[fg=$muted bg=$surface] ● dictate+send "
+    dsend="#{?#{==:#{@dictate},rec},$rec2,#{?#{==:#{@dictate},work},$work2,$idle2}}"
     # Diff chip: violet normally, amber when the agent is writing in another
     # worktree (@diff_drift, set in .tmux.conf). Same width either way.
     local diffseg
     diffseg="#{?#{E:@diff_drift},#[fg=$ask bg=$surface bold],#[fg=#6c71c4 bg=$surface]}"
-    diffseg="$diffseg ◧ diff#{?@diff_mode,:#{@diff_mode},} "
+    diffseg="$diffseg ◧ changes "
     # Session badge: red while the prefix is pending. A chip that appears instead
     # would shift every segment right of it (see .tmux.conf).
     local left
@@ -104,8 +110,9 @@ set -g status-left "$left"
 set -g window-status-current-format "#[fg=$bg,bg=$accent,bold] #I:#W#{?window_zoomed_flag, Z,} "
 set -g window-status-format "#{?window_bell_flag,#[fg=$bg bg=$block bold],#[fg=$muted bg=$surface]} #I:#W "
 set -g @dictate_seg "$dseg"
-set -g @submit_seg "#{?@submit_flash,#[fg=$bg bg=$grn]  ⏎ enter  ,#[fg=$work bg=$surface]  ⏎ enter  }"
-set -g @push_seg "#{?@push_flash,#[fg=$bg bg=$grn]  ⇡ commit+push  ,#[fg=$accent bg=$surface]  ⇡ commit+push  }"
+set -g @dictsend_seg "$dsend"
+set -g @submit_seg "#{?@submit_flash,#[fg=$bg bg=$grn] ⏎ send ,#[fg=$work bg=$surface] ⏎ send }"
+set -g @push_seg "#{?@push_flash,#[fg=$bg bg=$grn] ⇡ commit+push ,#[fg=$accent bg=$surface] ⇡ commit+push }"
 set -g @diff_seg "$diffseg"
 set -g pane-border-format "$border"
 EOF

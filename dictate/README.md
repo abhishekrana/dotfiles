@@ -24,9 +24,10 @@ elevated privilege; CPU by default, and on the GPU once the opt-in backend is in
   disables it.
 - Feedback & mouse control: a clickable `● dictate` segment sits dead-centre in the tmux status bar - grey idle, red
   recording, amber transcribing. Click it to toggle, same as the key. Same width in every state, so nothing shifts. A
-  `⏎ enter` button beside it submits - it presses Enter in the pane the transcript went to, so the whole loop is
-  mouse-only. A `⇡ commit+push` button beside that types "commit and push" + Enter into the same pane, a one-click way
-  to tell the agent to commit and push.
+  `⏎ send` button beside it submits - it presses Enter in the pane the transcript went to. Next to those,
+  `● dictate+send` does the whole loop in one press-pair: it records, types the transcript, and presses Enter for you,
+  so you never reach for the keyboard. A `⇡ commit+push` button types "commit and push" + Enter into the same pane, a
+  one-click way to tell the agent to commit and push, and `◧ changes` opens the diff pane.
 
 ## Targeting
 
@@ -55,6 +56,7 @@ dictate --check               # verify parec + tmux, and show the target pane
 
 ```bash
 dictate --toggle              # start/stop (this is what the shortcut runs)
+dictate --toggle --send       # same, but presses Enter once the transcript lands
 dictate --target              # show which pane the transcript goes to
 dictate --test                # record 5 s and print the transcript
 dictate --serve-stop          # stop the model server (e.g. to pick up new config)

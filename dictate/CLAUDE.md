@@ -63,9 +63,23 @@ values still resolve.
 
 - The script sets `@dictate` to `"rec"` (red) / `"work"` (amber) / unset (idle grey). `tmux/.tmux.conf` renders that via
   `@dictate_seg`, and its status bar defines the mouse ranges `dictate` -> `dictate --toggle`, `submit` ->
-  `dictate --send` (⏎ enter), and `push` -> `dictate --type 'commit and push'` (types the phrase + Enter). Renaming a
-  state string or a range means editing `tmux.conf` too. The `@*_seg` chips are also regenerated per-flavor by
-  `theme/.local/bin/theme` (`apply_tmux`), so relabel/recolor a chip in both. Chip colors also appear in `design/*.md`.
+  `dictate --send` (⏎ send), `dictsend` -> `dictate --toggle --send` (records, types, then presses Enter), and `push` ->
+  `dictate --type 'commit and push'` (types the phrase + Enter). Renaming a state string or a range means editing
+  `tmux.conf` too. The `@*_seg` chips are also regenerated per-flavor by `theme/.local/bin/theme` (`apply_tmux`), so
+  relabel/recolor a chip in both. Chip colors also appear in `design/*.md`.
+
+## Footer chips
+
+- Five ranges, in this order: `dictate` · `submit` · `dictsend` · `push` · `diff`. **One space of padding inside every
+  chip and one between them** - every gap is the same three columns. The old row mixed one- and two-space padding and
+  read as ragged; keep it uniform when editing a label.
+- **Labels name the effect, not the key.** `⏎ send` rather than "enter", `◧ changes` rather than "diff", because a
+  status bar has no tooltips and a first-time reader gets one chance. Glyphs alone were rejected: a bare glyph is a 2-3
+  column click target, too small to hit.
+- `dictate+send` is one press-pair, not a second recorder: the first press drops `SEND_FILE` beside the PCM buffer and
+  the second reads it _before_ `cleanup()` removes it, then presses Enter once the transcript is in the pane. Both
+  dictate chips share the `@dictate` colour states, so the whole pair lights up while the mic is open.
+- **Hover is impossible** - tmux 3.7b rejects `MouseMoveStatus`; only Down/Up/Drag/Wheel exist for the status line.
 
 ## Tracing
 
