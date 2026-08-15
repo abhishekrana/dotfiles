@@ -110,7 +110,7 @@ tasks:
       - bash test/diff-target.sh
 
   gwtm:
-    desc: Guard gwtm - ff, rebase when local, merge when pushed, and never half-done
+    desc: Guard gwtm - ff, merge (never a rebase), and never half-done
     cmds:
       - bash test/gwtm.sh
 

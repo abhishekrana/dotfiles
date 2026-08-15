@@ -6,38 +6,38 @@ Commands and keys to internalize for this setup. Sorted by frequency of use.
 
 ## Shell (Bash + Tools)
 
-| Key / Command       | Action                                                                    |
-| ------------------- | ------------------------------------------------------------------------- |
-| `cd <partial>`      | zoxide smart jump (learns from usage)                                     |
-| `cdi <partial>`     | zoxide interactive (pick from matches)                                    |
-| `Ctrl+R`            | fzf fuzzy search shell history                                            |
-| `Ctrl+T`            | fzf insert file path (bat preview)                                        |
-| `Alt+C`             | fzf cd into directory (powered by fd)                                     |
-| `rfv [query]`       | live ripgrep + fzf, opens nvim at line                                    |
-| `gs`                | git status                                                                |
-| `gd` / `gds`        | hunk: review working tree / latest commit                                 |
-| `gdw`               | hunk working-tree review, auto-reload                                     |
-| `gl` / `gp` / `gf`  | git log / push / fetch                                                    |
-| `gb`                | git branches sorted by recent use                                         |
-| `gbr`               | remote branches + tip author (last 500)                                   |
-| `gdm`               | hunk: review merge request (vs main)                                      |
-| `gw`                | live-watch `git diff --stat` (current shell)                              |
-| `gwta`              | add worktree: <dir> <branch>                                              |
-| `gwts`              | fzf-switch worktree (cd into pick)                                        |
-| `gwtm`              | worktree's branch onto latest origin/main (ff · rebase · merge if pushed) |
-| `gwtls`             | list worktrees                                                            |
-| `gwtrm`             | remove a worktree (not rm -rf)                                            |
-| `gwt`               | git worktree (raw passthrough)                                            |
-| `lazygit`           | terminal git UI                                                           |
-| `lazydocker`        | terminal docker UI                                                        |
-| `bat <file>`        | cat with syntax highlighting (paged)                                      |
-| `rg <pattern>`      | ripgrep - fast recursive search                                           |
-| `fd <pattern>`      | fast find files (respects .gitignore)                                     |
-| `fd -t d <pattern>` | find directories only                                                     |
-| `vim`               | nvim (clean start, no session restore)                                    |
-| `vimr`              | nvim, restore saved session for cwd                                       |
-| `ta`                | attach/create tmux session named for cwd                                  |
-| `cheat`             | view this cheatsheet (bat)                                                |
+| Key / Command       | Action                                                                 |
+| ------------------- | ---------------------------------------------------------------------- |
+| `cd <partial>`      | zoxide smart jump (learns from usage)                                  |
+| `cdi <partial>`     | zoxide interactive (pick from matches)                                 |
+| `Ctrl+R`            | fzf fuzzy search shell history                                         |
+| `Ctrl+T`            | fzf insert file path (bat preview)                                     |
+| `Alt+C`             | fzf cd into directory (powered by fd)                                  |
+| `rfv [query]`       | live ripgrep + fzf, opens nvim at line                                 |
+| `gs`                | git status                                                             |
+| `gd` / `gds`        | hunk: review working tree / latest commit                              |
+| `gdw`               | hunk working-tree review, auto-reload                                  |
+| `gl` / `gp` / `gf`  | git log / push / fetch                                                 |
+| `gb`                | git branches sorted by recent use                                      |
+| `gbr`               | remote branches + tip author (last 500)                                |
+| `gdm`               | hunk: review merge request (vs main)                                   |
+| `gw`                | live-watch `git diff --stat` (current shell)                           |
+| `gwta`              | add worktree: <dir> <branch>                                           |
+| `gwts`              | fzf-switch worktree (cd into pick)                                     |
+| `gwtm`              | worktree's branch onto latest origin/main (ff · merge, never a rebase) |
+| `gwtls`             | list worktrees                                                         |
+| `gwtrm`             | remove a worktree (not rm -rf)                                         |
+| `gwt`               | git worktree (raw passthrough)                                         |
+| `lazygit`           | terminal git UI                                                        |
+| `lazydocker`        | terminal docker UI                                                     |
+| `bat <file>`        | cat with syntax highlighting (paged)                                   |
+| `rg <pattern>`      | ripgrep - fast recursive search                                        |
+| `fd <pattern>`      | fast find files (respects .gitignore)                                  |
+| `fd -t d <pattern>` | find directories only                                                  |
+| `vim`               | nvim (clean start, no session restore)                                 |
+| `vimr`              | nvim, restore saved session for cwd                                    |
+| `ta`                | attach/create tmux session named for cwd                               |
+| `cheat`             | view this cheatsheet (bat)                                             |
 
 ---
 

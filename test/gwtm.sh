@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-# Guards gwtm, the one alias that rewrites history. All it has to get right is
-# WHICH tool it picks: rebase when the branch is unpushed, merge when it is on
-# origin. The wrong one either buries the branch in merge commits or rewrites
-# published history, and neither is visible until later. Run against a throwaway
-# origin.
+# Guards gwtm, the alias that moves a worktree's branch onto main. It merges,
+# always - a rebase here would rewrite commits that are already made, and on a
+# pushed branch already published, which is not visible until later. Run against
+# a throwaway origin.
 set -uo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -92,6 +91,7 @@ fresh
 echo mine >mine.txt
 git add -A
 git commit -qm "my work"
+mine=$(git rev-parse HEAD)
 advance two
 git pull -q --no-edit origin main # the merge commit a plain `git pull` leaves
 advance three
@@ -99,8 +99,8 @@ git fetch -q origin
 eq "diverged: 2 of ours (one a merge), 1 behind" "2/1" "$(state)"
 gwtm >/dev/null 2>&1
 eq "succeeds" "0" "$?"
-eq "our commit on top of main, nothing behind" "1/0" "$(state)"
-eq "the pull merge is gone" "0" "$(git log --oneline --merges origin/main..HEAD | grep -c .)"
+eq "main is in, nothing behind" "0" "$(git rev-list --count HEAD..origin/main)"
+eq "our unpushed commit was not rewritten" "1" "$(git rev-list HEAD | grep -c "$mine")"
 eq "our work survived" "mine" "$(cat mine.txt)"
 
 printf '\nown commits, branch is on origin\n'
@@ -116,27 +116,15 @@ eq "up to date with main" "0" "$(git rev-list --count HEAD..origin/main)"
 eq "the pushed commit was not rewritten" "1" "$(git rev-list HEAD | grep -c "$pushed")"
 
 # A conflict is git's to report and yours to resolve - gwtm adds nothing. What it
-# must not do is lose the branch or pick the tool that rewrites a pushed one.
-printf '\nconflict, never pushed\n'
+# must not do is lose the branch or leave it half-done.
+printf '\nconflict\n'
 fresh
-clash
-gwtm >/dev/null 2>&1
-eq "fails" "1" "$?"
-eq "left in the rebase, to resolve or abort" "1" "$(git rev-parse -q --verify REBASE_HEAD | grep -c .)"
-git rebase --abort
-
-printf '\nconflict, branch is on origin\n'
-fresh
-echo seed >seeded.txt
-git add -A
-git commit -qm "published work"
-git push -q -u origin wt-9
 clash
 before=$(git rev-parse HEAD)
 gwtm >/dev/null 2>&1
 eq "fails" "1" "$?"
-eq "a merge, not a rewrite" "1" "$(git rev-parse -q --verify MERGE_HEAD | grep -c .)"
-eq "the pushed tip is still there" "$before" "$(git rev-parse HEAD)"
+eq "left in the merge, to resolve or abort" "1" "$(git rev-parse -q --verify MERGE_HEAD | grep -c .)"
+eq "our tip is still there" "$before" "$(git rev-parse HEAD)"
 git merge --abort
 
 printf '\ndirty tree\n'

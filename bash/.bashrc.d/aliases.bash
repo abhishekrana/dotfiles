@@ -80,11 +80,10 @@ gwts() {
 }
 
 # gwtm: put this worktree's branch (named after the worktree dir, created off
-# origin/main if missing) on the latest origin/main. Rebase when the branch is ours
-# alone - which also clears the `git pull` merges that make a branch
-# un-fast-forwardable for good - and merge when it is on origin, since published
-# history is never rewritten. Either way it fast-forwards when we have no commits
-# of our own, and --autostash keeps a dirty tree out of the way.
+# origin/main if missing) on the latest origin/main. Always a merge, never a
+# rebase - nothing already committed is rewritten, pushed or not - and it
+# fast-forwards when we have no commits of our own. --autostash keeps a dirty
+# tree out of the way.
 gwtm() {
     local root name
     root=$(git rev-parse --show-toplevel 2>/dev/null) || {
@@ -98,11 +97,7 @@ gwtm() {
     else
         git switch -c "$name" origin/main || return
     fi
-    if git show-ref --verify --quiet "refs/remotes/origin/$name"; then
-        git merge --no-edit --autostash origin/main
-    else
-        git rebase --autostash origin/main
-    fi
+    git merge --no-edit --autostash origin/main
 }
 
 # Docker
