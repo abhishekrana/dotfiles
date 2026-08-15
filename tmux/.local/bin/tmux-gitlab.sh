@@ -15,7 +15,11 @@
 # Only local git commands run on every status redraw; network calls (glab) are
 # throttled to TTL and never block the status bar.
 
-TTL=30 # seconds a cache entry stays fresh
+# Seconds a cache entry stays fresh. A newly created MR or ticket is invisible
+# until the entry expires, and the bar then paints it at the next redraw
+# (status-interval, 5s) - so this is most of the "why is my MR not showing yet".
+# Lower costs more `glab` calls, which take ~2.6s each but run detached.
+TTL=${TMUX_GITLAB_TTL:-15}
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/tmux-gitlab"
 
 # Solarized Light styles (match .tmux.conf).
@@ -48,16 +52,38 @@ ci_glyph() {
     esac
 }
 
-# Cache file for a repo+branch pair.
-cache_file() { printf '%s/%s' "$CACHE_DIR" "$(printf '%s' "$1::$2" | md5sum | cut -c1-16)"; }
+# Cache key for a repo+branch pair. Parameter expansion, not md5sum: this runs on
+# every status redraw and a fork costs more than the string work. Tail-truncated
+# so a deep worktree plus a long branch cannot exceed NAME_MAX.
+cache_key() {
+    local s="$1::$2"
+    s=${s//[^A-Za-z0-9]/_}
+    # Only truncate when it is actually too long: bash returns EMPTY for
+    # ${s: -n} when n exceeds the length, it does not clamp to the whole string.
+    [ ${#s} -gt 180 ] && s=${s: -180}
+    printf '%s' "$s"
+}
+cache_file() { printf '%s/%s' "$CACHE_DIR" "$(cache_key "$1" "$2")"; }
 
 # Echo "<toplevel>\t<branch>" for a GitLab checkout, or return 1 (not a repo,
 # detached HEAD, or a non-GitLab remote -- stay silent in all three cases).
 git_info() {
-    local path="$1" top branch remote
-    top=$(git -C "$path" rev-parse --show-toplevel 2>/dev/null) || return 1
-    branch=$(git -C "$path" symbolic-ref --quiet --short HEAD 2>/dev/null) || return 1
-    remote=$(git -C "$path" remote get-url origin 2>/dev/null) || return 1
+    local path="$1" out top branch remote memo
+    # One rev-parse for both facts: three git forks per redraw was most of this
+    # script's cost, and the toplevel and branch come out of the same call.
+    out=$(git -C "$path" rev-parse --show-toplevel --abbrev-ref HEAD 2>/dev/null) || return 1
+    top=${out%%$'\n'*}
+    branch=${out##*$'\n'}
+    { [ -n "$top" ] && [ -n "$branch" ] && [ "$branch" != HEAD ]; } || return 1
+    # Whether origin is GitLab is a property of the checkout, not of this redraw,
+    # so it is answered once per worktree and then read back with a builtin.
+    memo="$CACHE_DIR/remote-$(cache_key "$top" '')"
+    if [ -f "$memo" ]; then
+        read -r remote <"$memo"
+    else
+        remote=$(git -C "$path" remote get-url origin 2>/dev/null) || return 1
+        mkdir -p "$CACHE_DIR" 2>/dev/null && printf '%s\n' "$remote" >"$memo"
+    fi
     case "$remote" in *gitlab*) ;; *) return 1 ;; esac
     printf '%s\t%s\n' "$top" "$branch"
 }
@@ -79,21 +105,24 @@ cmd_render() {
     branch=${info#*$'\t'}
     cache=$(cache_file "$top" "$branch")
 
-    # Refresh in the background when missing or older than TTL. Touch first so the
-    # next redraw (~5s) doesn't spawn another refresh while this one is running.
-    local now mtime
-    now=$(date +%s)
-    mtime=$([ -f "$cache" ] && stat -c %Y "$cache" 2>/dev/null || echo 0)
-    if [ $((now - mtime)) -ge "$TTL" ]; then
-        [ -f "$cache" ] && touch "$cache"
+    # Age comes from the `updated` key the refresh writes and $EPOCHSECONDS, so
+    # neither `date` nor `stat` is forked here. flock in cmd_refresh is what stops
+    # a slow refresh from being started again by the next redraw.
+    local issue='' mr='' ci='' updated=0 k v out=''
+    if [ -f "$cache" ]; then
+        while IFS='=' read -r k v; do
+            case "$k" in
+                issue_iid) issue=$v ;;
+                mr_iid) mr=$v ;;
+                ci_status) ci=$v ;;
+                updated) updated=$v ;;
+            esac
+        done <"$cache"          # one pass for every key, not one pass per key
+    fi
+    if [ $((EPOCHSECONDS - updated)) -ge "$TTL" ]; then
         setsid -f "$0" refresh "$path" >/dev/null 2>&1 || ("$0" refresh "$path" >/dev/null 2>&1 &)
     fi
-
     [ -f "$cache" ] || return 0
-    local issue mr ci out=''
-    issue=$(cache_get "$cache" issue_iid)
-    mr=$(cache_get "$cache" mr_iid)
-    ci=$(cache_get "$cache" ci_status)
     # No "issue"/"MR" words: # and ! are GitLab's own notation for them, and the
     # footer is short of columns. CI keeps its word as the click target, with the
     # state in a glyph beside it.
@@ -162,6 +191,7 @@ cmd_refresh() {
         printf 'mr_url=%s\n' "$mr_url"
         printf 'ci_status=%s\n' "$ci_status"
         printf 'ci_url=%s\n' "$ci_url"
+        printf 'updated=%s\n' "$EPOCHSECONDS"
     } >"$tmp" && mv -f "$tmp" "$cache"
 }
 
