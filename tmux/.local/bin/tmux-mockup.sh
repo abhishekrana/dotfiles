@@ -169,7 +169,7 @@ grep -v -e "^run '~/.tmux/plugins/tpm/tpm'" \
 # Point this package's own scripts at the checkout, not ~/.local/bin: a script
 # added since the last `stow` has no symlink there yet, and tmux swallows a
 # missing #() command as empty output - so the mock would quietly show less than
-# the change does. Installed tools ($HOME/.local/bin/gitmux and friends) are
+# the change does. Installed tools ($HOME/.local/bin and friends) are
 # left alone.
 repoify() { # repoify <file> - point this package's scripts at the checkout
     local f=$1 n

@@ -22,7 +22,7 @@ case "$(uname -s)" in
         export OS_KIND="linux"
         RUST_MUSL="x86_64-unknown-linux-musl" # delta fd git-cliff zoxide
         RUST_GNU="x86_64-unknown-linux-gnu"   # ruff yazi
-        GO_SLUG="linux_amd64"                 # fzf gitmux shfmt task
+        GO_SLUG="linux_amd64"                 # fzf shfmt task
         GOREL_SLUG="Linux_x86_64"             # lazydocker lazygit
         GITLEAKS_SLUG="linux_x64"
         GO_DIST="linux-amd64"
@@ -43,7 +43,6 @@ FD_VERSION="10.4.2"
 FZF_VERSION="0.74.1"
 GIT_CLIFF_VERSION="2.13.1"
 GITLEAKS_VERSION="8.30.1"
-GITMUX_VERSION="0.11.5"
 GO_VERSION="1.26.5"
 HUNK_VERSION="0.17.6"
 LAZYDOCKER_VERSION="0.25.2"
@@ -245,24 +244,6 @@ install_gitleaks() {
     ok "gitleaks $GITLEAKS_VERSION installed"
 }
 
-install_gitmux() {
-    if [ -x "$LOCAL_BIN/gitmux" ] && [ -f "$LOCAL_BIN/.gitmux-version" ] &&
-        grep -q "$GITMUX_VERSION" "$LOCAL_BIN/.gitmux-version"; then
-        ok "gitmux $GITMUX_VERSION already installed"
-        return
-    fi
-    log "Installing gitmux $GITMUX_VERSION..."
-    local url
-    url=$(gh_url arl/gitmux "v${GITMUX_VERSION}" "gitmux_v${GITMUX_VERSION}_${GO_SLUG}.tar.gz")
-    local tmp
-    tmp=$(mktemp -d)
-    curl -sSL "$url" | tar xz -C "$tmp"
-    mv "$tmp/gitmux" "$LOCAL_BIN/gitmux"
-    chmod +x "$LOCAL_BIN/gitmux"
-    echo "$GITMUX_VERSION" >"$LOCAL_BIN/.gitmux-version"
-    rm -rf "$tmp"
-    ok "gitmux $GITMUX_VERSION installed"
-}
 
 install_go() {
     if [ -x "$LOCAL_BIN/go" ] && "$LOCAL_BIN/go" version 2>/dev/null | grep -q "go${GO_VERSION} "; then
@@ -631,7 +612,6 @@ all_tools() {
     install_ghostty
     install_git_cliff
     install_gitleaks
-    install_gitmux
     install_go
     install_hunk
     install_lazydocker

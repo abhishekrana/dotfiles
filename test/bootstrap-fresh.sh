@@ -34,7 +34,7 @@ export PATH=\$HOME/.local/bin:\$PATH
 echo
 echo \"--- binaries ---\"
 fail=0
-for b in fzf fd delta lazygit lazydocker yazi zoxide gitmux nvim ghostty \
+for b in fzf fd delta lazygit lazydocker yazi zoxide nvim ghostty \
   git-cliff gitleaks ruff shellcheck shfmt task; do
   if v=\$(\"\$b\" --version 2>/dev/null | head -1); then
     printf \"OK   %-12s %s\n\" \"\$b\" \"\$v\"
@@ -46,7 +46,7 @@ done
 
 echo
 echo \"--- symlinks ---\"
-for f in ~/.tmux.conf ~/.gitmux.conf ~/.bashrc.d ~/.config/nvim ~/.local/bin/tmux-gitlab.sh; do
+for f in ~/.tmux.conf ~/.bashrc.d ~/.config/nvim ~/.local/bin/tmux-gitlab.sh; do
   if [ -L \"\$f\" ]; then printf \"OK   %s\n\" \"\$f\"
   else printf \"MISS %s\n\" \"\$f\"; fail=1; fi
 done
