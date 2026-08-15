@@ -63,10 +63,11 @@ TMUX_CMD  = os.environ.get("DICTATE_TMUX_CMD", "claude")
 TMUX_TGT  = os.environ.get("DICTATE_TMUX_TARGET", "")
 # Whisper reads this as the text preceding the clip, so listed words become far
 # likelier to come out - which cuts both ways. Only add a term after hearing it
-# fail, then re-run the sample clips: `worktree`, `gitleaks` and `dotfiles`
-# earned their place ("work tree", "get leaks", ".files"), `origin/main` was
-# tried and dropped (it pulled "diff pane" into "diff_main"), and `agentbar`
-# was tried and dropped because prompting it did not stop "agent sidebar".
+# fail, then re-run the sample clips: `worktree` and `dotfiles` earned their
+# place ("work tree", ".files"), `origin/main` was tried and dropped (it pulled
+# "diff pane" into "diff_main"), and `agentbar` was tried and dropped because
+# prompting it did not stop "agent sidebar". `gitleaks` fixes "get leaks" but is
+# left out by preference - and dropping it stopped the prompt deleting "radv".
 #
 # NOT alphabetical, deliberately: order changes the bias. Sorting this list
 # turned "task check" into "taskcheck" and appended a stray "merge request",
@@ -74,8 +75,8 @@ TMUX_TGT  = os.environ.get("DICTATE_TMUX_TARGET", "")
 # term goes last.
 PROMPT    = os.environ.get(
     "DICTATE_PROMPT",
-    "Dictation for a coding terminal. Terms: worktree, git, gitleaks, dotfiles, tmux, "
-    "issues, tickets, bugs, features, Claude Code, Python, JSON, API, YAML, merge request.",
+    "Dictation for a coding terminal. Terms: worktree, git, dotfiles, tmux, issues, "
+    "tickets, bugs, features, Claude Code, Python, JSON, API, YAML, merge request.",
 )
 RATE = 16000  # Whisper wants 16 kHz mono
 

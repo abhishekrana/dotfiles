@@ -17,8 +17,8 @@ runs `small.en` int8 on the CPU, in-process. Measured on a Radeon 860M over five
 - **`large-v3-turbo` lost on both axes** - slower than the CPU backend on real-length clips, and no better on the
   technical vocabulary. Do not assume the bigger model wins here; re-measure before switching to one.
 - **The prompt moves accuracy more than the model does, in both directions.** Terms in `DICTATE_PROMPT` come out right;
-  terms absent from it come out as "work tree", "get leaks", "source reuse port". But each entry is also a word that can
-  be hallucinated into unclear audio: adding `origin/main` turned "diff pane" into "diff_main". **Add a term only after
+  terms absent from it come out as "work tree", ".files", "source reuse port". But each entry is also a word that can be
+  hallucinated into unclear audio: adding `origin/main` turned "diff pane" into "diff_main". **Add a term only after
   hearing it fail, then re-run the clips and check nothing common broke** - a vocabulary dump trades frequent words for
   rare ones. Prompting a term is not a guarantee either: `agentbar` never displaced "agent sidebar".
 - **The prompt's word order is load-bearing, and is not alphabetical.** Sorting the same terms turned "task check" into
