@@ -69,15 +69,19 @@ apply_tmux() {
     # the generated line is byte-identical either way.
     # One space of padding inside every chip and one between them, so the row's
     # gaps are all the same three columns. Keep it that way when editing labels.
-    local dseg dsend rec_chip work_chip idle_chip rec2 work2 idle2
-    rec_chip="#[fg=$block bg=$surface] ● dictate "
-    work_chip="#[fg=$ask bg=$surface] ● dictate "
-    idle_chip="#[fg=$muted bg=$surface] ● dictate "
-    dseg="#{?#{==:#{@dictate},rec},$rec_chip,#{?#{==:#{@dictate},work},$work_chip,$idle_chip}}"
-    rec2="#[fg=$block bg=$surface] ● dictate+send "
-    work2="#[fg=$ask bg=$surface] ● dictate+send "
-    idle2="#[fg=$muted bg=$surface] ● dictate+send "
-    dsend="#{?#{==:#{@dictate},rec},$rec2,#{?#{==:#{@dictate},work},$work2,$idle2}}"
+    #
+    # Each chip colours only when @dictate_src names it (set by the script from the
+    # chip you clicked). Colour is the only feedback a status bar has, so it must
+    # say WHICH button is working - never key two chips off one state.
+    local dseg dsend
+    dchip() { # dchip <src> <label> -> a chip that reacts only to its own source
+        local mine="#{==:#{@dictate_src},$1}"
+        printf '#{?#{&&:%s,#{==:#{@dictate},rec}},#[fg=%s bg=%s]%s,' "$mine" "$block" "$surface" "$2"
+        printf '#{?#{&&:%s,#{==:#{@dictate},work}},#[fg=%s bg=%s]%s,' "$mine" "$ask" "$surface" "$2"
+        printf '#[fg=%s bg=%s]%s}}' "$muted" "$surface" "$2"
+    }
+    dseg=$(dchip dictate " ● dictate ")
+    dsend=$(dchip dictsend " ● dictate+send ")
     # Diff chip: violet normally, amber when the agent is writing in another
     # worktree (@diff_drift, set in .tmux.conf). Same width either way.
     local diffseg

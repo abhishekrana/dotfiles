@@ -132,12 +132,18 @@ def trace(evt, **kv):
         pass
 
 
-def set_state(state):
-    # drives the centred @dictate status segment: "rec" (red) | "work" (amber) | "" idle (grey)
+def set_state(state, src=None):
+    # @dictate is the state - "rec" (red) | "work" (amber) | "" idle (grey) - and
+    # @dictate_src names the chip that started it, so only that chip lights up.
+    # Colour is the only feedback a status bar has; two chips sharing one state
+    # would say "something is recording" where you asked "which button did I hit".
     if state:
         tmux("set", "-g", "@dictate", state)
+        if src:
+            tmux("set", "-g", "@dictate_src", src)
     else:
         tmux("set", "-gu", "@dictate")
+        tmux("set", "-gu", "@dictate_src")
     tmux("refresh-client", "-S")
 
 
@@ -570,7 +576,7 @@ def start_recording(autosend=False):
     p = subprocess.Popen(parec_cmd(), stdout=f, stderr=subprocess.DEVNULL,
                          start_new_session=True)  # survives this short-lived process
     open(PID_FILE, "w").write(str(p.pid))
-    set_state("rec")
+    set_state("rec", "dictsend" if autosend else "dictate")
     trace("rec", action="start")
     if SILENCE > 0:                            # spawn the silence watcher (auto-stop)
         exe = os.path.realpath(shutil.which("dictate") or sys.argv[0])
