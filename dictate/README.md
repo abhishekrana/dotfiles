@@ -70,7 +70,7 @@ button in the status bar).
 
 | Var                   | Default        | Notes                                                       |
 | --------------------- | -------------- | ----------------------------------------------------------- |
-| `DICTATE_BACKEND`     | auto           | `whispercpp` when installed, else `faster-whisper`          |
+| `DICTATE_BACKEND`     | auto           | `gpu` when installed, else `cpu`                            |
 | `DICTATE_MODEL`       | `small.en`     | see models below                                            |
 | `DICTATE_COMPUTE`     | `int8`         | ctranslate2 compute type                                    |
 | `DICTATE_IDLE`        | `300`          | seconds before the model server self-exits                  |
@@ -95,7 +95,7 @@ Put per-machine overrides in `~/.bashrc.d/local.bash` (untracked), e.g. `export 
 `distil-small.en` (fast English), `large-v3-turbo` (most accurate, slower on CPU - multilingual, so keep
 `DICTATE_LANG=en`). English-only `.en` models beat the same-size multilingual model for English.
 
-### GPU backend (`whispercpp`)
+### GPU backend (`DICTATE_BACKEND=gpu`)
 
 Whisper pads every clip to a 30-second window, so on CPU a two-second "yes, do that" costs the same as a long sentence.
 Any Vulkan-capable GPU removes most of that - an AMD or Intel iGPU is enough. Installing it _is_ the switch; there is no
@@ -108,7 +108,12 @@ dictate --serve-stop                 # the running server still holds the CPU ba
 
 `DICTATE_BACKEND` is resolved from what is installed, not from the environment, because the two launchers that matter -
 the GNOME shortcut and the tmux status chip - never source `~/.bashrc.d`, so an export there would reach only a fresh
-interactive shell. Set `DICTATE_BACKEND=faster-whisper` to force the CPU back.
+interactive shell. Set `DICTATE_BACKEND=cpu` to force the CPU back.
+
+The two backends are named for the hardware, not the projects behind them (`gpu` is whisper.cpp via Vulkan, `cpu` is
+[faster-whisper](https://github.com/SYSTRAN/faster-whisper)) - "faster-whisper" is upstream's name for being quicker
+than OpenAI's reference implementation, and using it as a backend label read as a claim about _this_ machine, where it
+is the slower of the two. The old values still work.
 
 **The GPU is an optimisation, never a dependency.** Nothing here is AMD-specific: `mesa-vulkan-drivers` covers Intel and
 AMD, NVIDIA works through its own ICD, and the install step checks a real GPU is visible (`llvmpipe`, Mesa's software
@@ -118,11 +123,11 @@ truncated - dictation falls back to faster-whisper and says so, rather than fail
 
 Measured on a Radeon 860M (RDNA 3.5), warm server, five dictated clips of 16-24s (102s of audio in total):
 
-| Backend                         | Total | Notes                                             |
-| ------------------------------- | ----- | ------------------------------------------------- |
-| GPU `small.en-q8_0` (default)   | 3.6s  | 2.7× faster than the CPU backend                  |
-| CPU `small.en` (faster-whisper) | 9.7s  | the fallback when whisper.cpp is not installed    |
-| GPU `large-v3-turbo-q5_0`       | 10.7s | slowest, and no better on the terms that mattered |
+| Backend                           | Total | Notes                                          |
+| --------------------------------- | ----- | ---------------------------------------------- |
+| `gpu` - `small.en-q8_0` (default) | 3.6s  | 2.7× faster than the CPU backend               |
+| `cpu` - `small.en` faster-whisper | 9.7s  | the fallback when whisper.cpp is not installed |
+| `gpu` - `large-v3-turbo-q5_0`     | 10.7s | slowest, no better on the terms that mattered  |
 
 `large-v3-turbo` is the interesting negative result: on real-length clips it is slower than the CPU it was meant to
 beat, and it read the same technical vocabulary no better. Fetch it (`ggml-large-v3-turbo-q5_0.bin`, ~570MB) and set

@@ -15,9 +15,10 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
 - `clip/` → `~/.local/bin/clip` (copy stdin to the clipboard; picks wl-copy, xclip or pbcopy. Every copy path - tmux
   `copy-command`, `tmux-yank.sh`, fzf's Ctrl-Y, nvim - goes through it, so the backend is chosen in one place)
 - `dictate/` → `~/.local/bin/dictate` (toggle-key local Whisper dictation into tmux; opt-in. Has its own nested
-  `CLAUDE.md` - read it before touching the script. Its deps are opt-in too: `./bootstrap.sh dictate-deps`. Two
-  backends, picked by what is installed, not by an env var: `whispercpp` on any Vulkan GPU (AMD or Intel iGPU, NVIDIA)
-  once installed by `./install.sh whisper-vulkan` - same `small.en`, measured 2.7× faster than the CPU backend)
+  `CLAUDE.md` - read it before touching the script. Its deps are opt-in too: `./bootstrap.sh dictate-deps`. Two backends
+  named for the hardware and picked by what is installed, not by an env var: `gpu` (whisper.cpp via Vulkan, on an AMD or
+  Intel iGPU or NVIDIA) once installed by `./install.sh whisper-vulkan`, else `cpu` (faster-whisper) - same `small.en`,
+  measured 2.7× faster on the GPU)
 - `ghostty/` → `~/.config/ghostty/` (Ghostty terminal config)
 - `git/` → `~/.config/git/config` (delta pager, merge settings)
 - `hunk/` → `~/.config/hunk/` (hunk diff viewer config, Solarized Light theme)

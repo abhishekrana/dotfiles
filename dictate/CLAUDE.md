@@ -5,11 +5,12 @@ Keep it a single file - do not split it into a package.
 
 ## Backends (`DICTATE_BACKEND`)
 
-Two, resolved from what is installed rather than from the environment: **`whispercpp`** runs `small.en` through
-whisper.cpp against Vulkan on whatever GPU is present when `./install.sh whisper-vulkan` has been run, else
-**`faster-whisper`** runs `small.en` int8 on the CPU, in-process. Measured on a Radeon 860M over five dictated clips
-(102s of audio): GPU `small.en` **3.6s** total, CPU `small.en` **9.7s**, GPU `large-v3-turbo` **10.7s**. Install with
-`./install.sh whisper-vulkan`; `DICTATE_BACKEND=faster-whisper` forces the CPU back.
+Two, named for the hardware and resolved from what is installed rather than from the environment: **`gpu`** runs
+`small.en` through whisper.cpp against Vulkan on whatever GPU is present when `./install.sh whisper-vulkan` has been
+run, else **`faster-whisper`** runs `small.en` int8 on the CPU, in-process. Measured on a Radeon 860M over five dictated
+clips (102s of audio): GPU `small.en` **3.6s** total, CPU `small.en` **9.7s**, GPU `large-v3-turbo` **10.7s**. Install
+with `./install.sh whisper-vulkan`; `DICTATE_BACKEND=cpu` forces the CPU back, and the old `whispercpp`/`faster-whisper`
+values still resolve.
 
 - **The backend is detected, not configured, on purpose.** The GNOME shortcut and the tmux status chip both launch
   `dictate` without sourcing `~/.bashrc.d`, so an env var set there reaches only a fresh interactive shell - the path
