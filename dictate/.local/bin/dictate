@@ -673,17 +673,22 @@ def self_test():
     f.close()
     pcm = open(PCM_FILE, "rb").read(); os.remove(PCM_FILE)
     log("■ transcribing…")
+    t0 = time.time()
     text = transcribe(model, np, pcm)
-    print("\nTRANSCRIPT:", repr(text))
+    ms = int((time.time() - t0) * 1000)
+    # --test is how backends get compared, so it reports its own cost: the
+    # toggle path's `result` trace never fires here (nothing is sent anywhere).
+    trace("result", outcome="test", backend=BACKEND, chars=len(text), ms=ms)
+    print(f"\nTRANSCRIPT: {text!r}\n  {BACKEND}, {ms} ms for {len(pcm)/(RATE*2):.1f}s of audio")
 
 
-USAGE = """dictate - toggle-key local speech-to-text into tmux (CPU, zero privilege).
+USAGE = """dictate - toggle-key local speech-to-text into tmux (local, zero privilege).
 
   dictate --toggle                     start/stop (bind this to a key)
   dictate --target                     show which pane the transcript goes to
   dictate --install-shortcut [KEYS…]   bind GNOME keys (default <Super>backslash + <Super>z)
   dictate --check                      verify parec + tmux, report server state
-  dictate --test                       record & print a transcript
+  dictate --test                       record & print a transcript, with its backend and ms
   dictate --serve-stop                 stop the model server (to pick up new config)
 
 Docs: ~/dotfiles/dictate/README.md
