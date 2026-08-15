@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# Guards gwtm, the one alias that rewrites history. What it must get right is
-# WHICH tool it picks - ff when the branch has nothing of its own, rebase when it
-# does and is unpushed, merge when it is on origin - because the wrong one either
-# drops a commit or rewrites published history. Each path runs against a throwaway
-# origin, conflicts included: whichever tool was chosen, a conflict must leave the
-# branch exactly as it started, with no half-finished rebase and no MERGING tree.
+# Guards gwtm, the one alias that rewrites history. All it has to get right is
+# WHICH tool it picks: rebase when the branch is unpushed, merge when it is on
+# origin. The wrong one either buries the branch in merge commits or rewrites
+# published history, and neither is visible until later. Run against a throwaway
+# origin.
 set -uo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -98,9 +97,8 @@ git pull -q --no-edit origin main # the merge commit a plain `git pull` leaves
 advance three
 git fetch -q origin
 eq "diverged: 2 of ours (one a merge), 1 behind" "2/1" "$(state)"
-out=$(gwtm 2>&1)
+gwtm >/dev/null 2>&1
 eq "succeeds" "0" "$?"
-has "says it rebased" "$out" "rebasing onto origin/main"
 eq "our commit on top of main, nothing behind" "1/0" "$(state)"
 eq "the pull merge is gone" "0" "$(git log --oneline --merges origin/main..HEAD | grep -c .)"
 eq "our work survived" "mine" "$(cat mine.txt)"
@@ -113,21 +111,19 @@ git commit -qm "my work"
 git push -q -u origin wt-9
 pushed=$(git rev-parse HEAD)
 advance four
-out=$(gwtm 2>&1)
-has "says it merged instead" "$out" "merging, not rewriting"
+gwtm >/dev/null 2>&1
 eq "up to date with main" "0" "$(git rev-list --count HEAD..origin/main)"
 eq "the pushed commit was not rewritten" "1" "$(git rev-list HEAD | grep -c "$pushed")"
 
+# A conflict is git's to report and yours to resolve - gwtm adds nothing. What it
+# must not do is lose the branch or pick the tool that rewrites a pushed one.
 printf '\nconflict, never pushed\n'
 fresh
 clash
-before=$(git rev-parse HEAD)
-out=$(gwtm 2>&1)
-eq "reports the failure" "1" "$?"
-has "advises the rebase" "$out" "git rebase origin/main"
-eq "branch exactly as it was" "$before" "$(git rev-parse HEAD)"
-eq "no rebase left in progress" "" "$(git rev-parse -q --verify REBASE_HEAD)"
-eq "working tree clean" "0" "$(git status --porcelain | grep -c .)"
+gwtm >/dev/null 2>&1
+eq "fails" "1" "$?"
+eq "left in the rebase, to resolve or abort" "1" "$(git rev-parse -q --verify REBASE_HEAD | grep -c .)"
+git rebase --abort
 
 printf '\nconflict, branch is on origin\n'
 fresh
@@ -137,12 +133,11 @@ git commit -qm "published work"
 git push -q -u origin wt-9
 clash
 before=$(git rev-parse HEAD)
-out=$(gwtm 2>&1)
-eq "reports the failure" "1" "$?"
-has "advises the merge, not a rewrite" "$out" "git merge origin/main"
-eq "branch exactly as it was" "$before" "$(git rev-parse HEAD)"
-eq "not left MERGING" "" "$(git rev-parse -q --verify MERGE_HEAD)"
-eq "working tree clean" "0" "$(git status --porcelain | grep -c .)"
+gwtm >/dev/null 2>&1
+eq "fails" "1" "$?"
+eq "a merge, not a rewrite" "1" "$(git rev-parse -q --verify MERGE_HEAD | grep -c .)"
+eq "the pushed tip is still there" "$before" "$(git rev-parse HEAD)"
+git merge --abort
 
 printf '\ndirty tree\n'
 fresh

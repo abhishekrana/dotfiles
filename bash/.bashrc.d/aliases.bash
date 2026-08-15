@@ -80,14 +80,13 @@ gwts() {
 }
 
 # gwtm: put this worktree's branch (named after the worktree dir, created off
-# origin/main if missing) on the latest origin/main, with the tool its state allows:
-#   ff      nothing of our own
-#   rebase  our own commits, branch not on origin - also clears `git pull` merges,
-#           which are what make a branch un-fast-forwardable for good
-#   merge   our own commits, branch on origin - never rewrite pushed history
-# --autostash, so a dirty tree is fine. On conflict: abort, restore, say what to run.
+# origin/main if missing) on the latest origin/main. Rebase when the branch is ours
+# alone - which also clears the `git pull` merges that make a branch
+# un-fast-forwardable for good - and merge when it is on origin, since published
+# history is never rewritten. Either way it fast-forwards when we have no commits
+# of our own, and --autostash keeps a dirty tree out of the way.
 gwtm() {
-    local root name ahead
+    local root name
     root=$(git rev-parse --show-toplevel 2>/dev/null) || {
         echo "not in a git repo" >&2
         return 1
@@ -99,23 +98,11 @@ gwtm() {
     else
         git switch -c "$name" origin/main || return
     fi
-    # The common case. stderr is git's generic divergence hint - dropped for ours.
-    git merge --ff-only --autostash origin/main 2>/dev/null && return
-    ahead=$(git rev-list --count origin/main..HEAD)
-    # One op, one failure path: ${op[0]} names the command, its --abort and the advice.
-    local -a op
     if git show-ref --verify --quiet "refs/remotes/origin/$name"; then
-        echo "gwtm: $name is on origin ($ahead of its own) - merging, not rewriting" >&2
-        op=(merge --no-edit --autostash origin/main)
+        git merge --no-edit --autostash origin/main
     else
-        echo "gwtm: $name has $ahead commits of its own - rebasing onto origin/main" >&2
-        op=(rebase --autostash origin/main)
+        git rebase --autostash origin/main
     fi
-    git "${op[@]}" && return
-    git "${op[0]}" --abort 2>/dev/null
-    echo "gwtm: conflicts with origin/main - $name left as it was." >&2
-    echo "gwtm: resolve by hand with: git ${op[0]} origin/main" >&2
-    return 1
 }
 
 # Docker
