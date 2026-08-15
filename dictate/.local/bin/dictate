@@ -226,29 +226,58 @@ def transcribe(model, np, pcm):
 # `whisper-server` child that ours owns for its lifetime and posts each clip to
 # over loopback. A per-call `whisper-cli` measured 410ms slower - process start
 # plus Vulkan context setup, paid on every single dictation.
+def close_backend(model):
+    """Terminate a whispercpp child; a no-op for faster-whisper's plain object.
+    Every path that calls load_model() must call this - the child holds the GPU
+    and a port, and outlives its parent otherwise."""
+    if BACKEND != "whispercpp" or not hasattr(model, "terminate"):
+        return
+    model.terminate()
+    try:
+        model.wait(timeout=5)
+    except Exception:
+        model.kill()
+
+
+def port_taken(port):
+    try:
+        socket.create_connection(("127.0.0.1", port), 0.3).close()
+        return True
+    except OSError:
+        return False
+
+
 def load_whispercpp():
     for path, what in ((WCPP_BIN, "binary"), (WCPP_MODEL, "model")):
         if not os.path.exists(path):
             raise RuntimeError(f"whispercpp {what} missing: {path} (./install.sh whisper-vulkan)")
-    log(f"starting whisper-server on :{WCPP_PORT} with {os.path.basename(WCPP_MODEL)}…")
+    # Never share a port. whisper-server sets SO_REUSEPORT, so a second one binds
+    # happily alongside the first and the kernel hands each connection to either -
+    # which silently transcribes with whichever model got there first. Take a port
+    # nobody answers on, and the server we talk to is provably the one we started.
+    port = next((p for p in range(WCPP_PORT, WCPP_PORT + 20) if not port_taken(p)), None)
+    if port is None:
+        raise RuntimeError(f"no free port in {WCPP_PORT}..{WCPP_PORT + 19}")
+    if port != WCPP_PORT:
+        log(f"note: :{WCPP_PORT} is busy (stale whisper-server?) - using :{port}")
+    log(f"starting whisper-server on :{port} with {os.path.basename(WCPP_MODEL)}…")
     t0 = time.time()
     # -bs/-bo match DICTATE_BEAM and -nf drops temperature fallback, so one clip
     # is one pass; -nt is text only. Same knobs the faster-whisper path uses.
     proc = subprocess.Popen(
-        [WCPP_BIN, "-m", WCPP_MODEL, "--host", "127.0.0.1", "--port", str(WCPP_PORT),
+        [WCPP_BIN, "-m", WCPP_MODEL, "--host", "127.0.0.1", "--port", str(port),
          "-nt", "-nf", "-bs", str(BEAM), "-bo", str(BEAM)],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
+    proc.port = port                               # what transcribe_whispercpp posts to
     deadline = time.time() + 60                    # cold start: model load + GPU upload
     while time.time() < deadline:
         if proc.poll() is not None:
             raise RuntimeError(f"whisper-server exited with {proc.returncode}")
-        try:
-            socket.create_connection(("127.0.0.1", WCPP_PORT), 0.5).close()
+        if port_taken(port):                       # ours, since it was free above
             log(f"whisper-server ready in {time.time() - t0:.1f}s")
             return proc
-        except OSError:
-            time.sleep(0.1)
+        time.sleep(0.1)
     proc.terminate()
     raise RuntimeError("whisper-server did not come up within 60s")
 
@@ -280,7 +309,7 @@ def transcribe_whispercpp(proc, pcm):
                  f"\r\nContent-Type: audio/wav\r\n\r\n".encode())
     parts.append(wav_bytes(pcm) + f"\r\n--{bnd}--\r\n".encode())
     req = urllib.request.Request(
-        f"http://127.0.0.1:{WCPP_PORT}/inference", data=b"".join(parts),
+        f"http://127.0.0.1:{proc.port}/inference", data=b"".join(parts),
         headers={"Content-Type": f"multipart/form-data; boundary={bnd}"},
     )
     with urllib.request.urlopen(req, timeout=120) as r:
@@ -323,11 +352,7 @@ def serve():
     open(SRV_PID, "w").write(str(os.getpid()))
 
     def _bye(*_):
-        # The whispercpp child holds the GPU and the port: it must not outlive us,
-        # or the next server's bind fails and the VRAM stays spoken for.
-        if BACKEND == "whispercpp" and hasattr(model, "terminate"):
-            try: model.terminate(); model.wait(timeout=5)
-            except Exception: pass
+        close_backend(model)                   # must not outlive us: GPU + port
         for p in (SOCK_FILE, SRV_PID):
             try: os.remove(p)
             except OSError: pass
@@ -524,7 +549,10 @@ def stop_and_send(pid):
             log(f"server path failed ({e!r}); using in-process"); text = None
         if text is None:                          # server unreachable → in-process
             model, np = load_model()
-            text = transcribe(model, np, pcm)
+            try:
+                text = transcribe(model, np, pcm)
+            finally:
+                close_backend(model)
         if not text:
             log("(no speech)"); flash("no speech")
             trace("result", outcome="empty", ms=int((time.time() - t_start) * 1000)); return
@@ -674,7 +702,10 @@ def self_test():
     pcm = open(PCM_FILE, "rb").read(); os.remove(PCM_FILE)
     log("■ transcribing…")
     t0 = time.time()
-    text = transcribe(model, np, pcm)
+    try:
+        text = transcribe(model, np, pcm)
+    finally:
+        close_backend(model)                       # serve()'s _bye() is not in play here
     ms = int((time.time() - t0) * 1000)
     # --test is how backends get compared, so it reports its own cost: the
     # toggle path's `result` trace never fires here (nothing is sent anywhere).
