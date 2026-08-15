@@ -29,24 +29,25 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
 - `nvim/` → `~/.config/nvim/` (LazyVim config)
 - `theme/` → `~/.local/bin/theme` (theme switcher; re-skins the terminal stack across the four flavors from
   `design/palette.toml`, writing per-tool files into `~/.config/theme/`)
-- `tmux/` → `~/.tmux.conf`, `~/.local/bin/` scripts (`tmux-gitlab.sh` GitLab status, session picker, resurrect guard,
-  yank, `tmux-reset.sh` the `prefix + R` UI reset - reload + default geometry, nothing killed, `tmux-agent-state.sh` the
-  sourced agent-state language - glyphs, colors and state ranking shared by the picker and its preview, mirroring the
-  sidebar's; colors come from the theme switcher, never hardcoded). **One session order everywhere:** the agentbar
-  sidebar's bands (pinned / active / dormant, alphabetical inside each) are the order, `Alt-h`/`Alt-l` walk it row by
-  row and wrap, and the `Alt-;` picker popup renders the same bands - all three read `agentbar order`, and `p` (pin) in
-  either view is the only thing that moves a session. **Every pane carries a rail** (`pane-border-status top`,
-  `tmux-rail.sh`) and the rule is the same for all of them: LEFT, always, this pane's folder and branch; RIGHT, only
-  when that pane runs Claude, the worktree it is _writing_ in - which its cwd never follows, since the Bash tool's `cd`
-  does not move a pane. Two zones via `#[align=right]`, so the left is anchored at one column and the right grows
-  leftward into rule; nothing shifts as state changes. **A fresh diff pane follows the agent, not the pane:**
-  `tmux-diff-pane.sh` targets `@agent_workdir` (stamped by the agentbar hook from each Edit/Write) and records what is
-  on screen in `@diff_target`. **The target then sticks** - a mode item changes what you see, not where you look; only
-  `f` (follow), `tmux-worktree-picker.sh` (the menu's `W`) and per-window auto-follow (`F`, off by default) re-point a
-  live pane. An amber `◧ diff` chip (the worktree is in no agent's `@agent_workdirs`) reports that and nothing else - a
-  click only opens the menu. The footer holds no per-pane facts at all - dropping the git-status plugin took ~72ms of
-  git off every status redraw - only the work's commit (7-char sha), its CI and the clock. `tmux-mockup.sh`
-  (`task mockup`) previews the whole frame with fake data on a private server
+- `tmux/` → `~/.tmux.conf`, `~/.local/bin/` scripts (`tmux-gitlab.sh` GitLab status - `#issue !mr CI ✓`, no words: the
+  sigils are GitLab's own notation and the glyph is fixed-width so a flipping pipeline never shifts the clock - session
+  picker, resurrect guard, yank, `tmux-reset.sh` the `prefix + R` UI reset - reload + default geometry, nothing killed,
+  `tmux-agent-state.sh` the sourced agent-state language - glyphs, colors and state ranking shared by the picker and its
+  preview, mirroring the sidebar's; colors come from the theme switcher, never hardcoded). **One session order
+  everywhere:** the agentbar sidebar's bands (pinned / active / dormant, alphabetical inside each) are the order,
+  `Alt-h`/`Alt-l` walk it row by row and wrap, and the `Alt-;` picker popup renders the same bands - all three read
+  `agentbar order`, and `p` (pin) in either view is the only thing that moves a session. **Every pane carries a rail**
+  (`pane-border-status top`, `tmux-rail.sh`) and the rule is the same for all of them: LEFT, always, this pane's folder
+  and branch; RIGHT, only when that pane runs Claude, the worktree it is _writing_ in - which its cwd never follows,
+  since the Bash tool's `cd` does not move a pane. Two zones via `#[align=right]`, so the left is anchored at one column
+  and the right grows leftward into rule; nothing shifts as state changes. **A fresh diff pane follows the agent, not
+  the pane:** `tmux-diff-pane.sh` targets `@agent_workdir` (stamped by the agentbar hook from each Edit/Write) and
+  records what is on screen in `@diff_target`. **The target then sticks** - a mode item changes what you see, not where
+  you look; only `f` (follow), `tmux-worktree-picker.sh` (the menu's `W`) and per-window auto-follow (`F`, off by
+  default) re-point a live pane. An amber `◧ diff` chip (the worktree is in no agent's `@agent_workdirs`) reports that
+  and nothing else - a click only opens the menu. The footer holds no per-pane facts at all - dropping the git-status
+  plugin took ~72ms of git off every status redraw - only the work's commit (7-char sha), its CI and the clock.
+  `tmux-mockup.sh` (`task mockup`) previews the whole frame with fake data on a private server
 - `trace/` → `~/.local/bin/dotfiles-trace` (shared always-on trace log for the tmux/agent stack; see "Debugging" below)
 - `yazi/` → `~/.config/yazi/` (yazi file manager config)
 

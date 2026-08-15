@@ -34,7 +34,19 @@ ci_color() { # pipeline status -> fg style
     esac
 }
 
-ci_word() { case "$1" in success) printf 'passed' ;; *) printf '%s' "$1" ;; esac }
+# One fixed-width glyph per state, not a word: the colour already says which
+# state it is, and a word that changes length ("passed" -> "running") would shift
+# the clock left and right as pipelines flip. Glyphs are single-width and NOT
+# emoji-presentation (⏸ renders double in some terminals; ● ○ do not).
+ci_glyph() {
+    case "$1" in
+        success) printf '✓' ;;
+        failed) printf '✗' ;;
+        running | preparing | pending | created | waiting_for_resource | scheduled | manual) printf '●' ;;
+        canceled | skipped) printf '○' ;;
+        *) printf '·' ;;
+    esac
+}
 
 # Cache file for a repo+branch pair.
 cache_file() { printf '%s/%s' "$CACHE_DIR" "$(printf '%s' "$1::$2" | md5sum | cut -c1-16)"; }
@@ -82,9 +94,12 @@ cmd_render() {
     issue=$(cache_get "$cache" issue_iid)
     mr=$(cache_get "$cache" mr_iid)
     ci=$(cache_get "$cache" ci_status)
-    [ -n "$issue" ] && out+=" ${C_ISSUE}#[range=user|gl-issue]issue #${issue}#[norange]"
-    [ -n "$mr" ] && out+=" ${C_MR}#[range=user|gl-mr]MR !${mr}#[norange]"
-    [ -n "$ci" ] && out+=" $(ci_color "$ci")#[range=user|gl-ci]CI $(ci_word "$ci")#[norange]"
+    # No "issue"/"MR" words: # and ! are GitLab's own notation for them, and the
+    # footer is short of columns. CI keeps its word as the click target, with the
+    # state in a glyph beside it.
+    [ -n "$issue" ] && out+=" ${C_ISSUE}#[range=user|gl-issue]#${issue}#[norange]"
+    [ -n "$mr" ] && out+=" ${C_MR}#[range=user|gl-mr]!${mr}#[norange]"
+    [ -n "$ci" ] && out+=" $(ci_color "$ci")#[range=user|gl-ci]CI $(ci_glyph "$ci")#[norange]"
     [ -n "$out" ] && printf '%s%s' "$out" "$C_RESET"
 }
 
