@@ -60,7 +60,7 @@ SPIRV_HEADERS_VERSION="vulkan-sdk-1.4.357.0"
 TASK_VERSION="3.52.0"
 TMUX_VERSION="3.7b"
 WHISPER_CPP_VERSION="1.9.2"
-WHISPER_CPP_MODEL="ggml-large-v3-turbo-q5_0.bin" # what dictate's whispercpp backend loads
+WHISPER_CPP_MODEL="ggml-small.en-q8_0.bin" # what dictate's whispercpp backend loads
 YAZI_VERSION="26.5.6"
 ZOXIDE_VERSION="0.10.0"
 
@@ -511,9 +511,9 @@ install_tpm() {
 
 # whisper.cpp built against Vulkan, for dictate's `whispercpp` backend: the
 # Radeon iGPU runs the same Whisper models several times faster than the CPU
-# does, which is what buys large-v3-turbo at small.en's latency. Opt-in (not in
+# does - measured 792ms against 1892ms for 20s of audio. Opt-in (not in
 # all_tools) - it needs apt packages, compiles for a few minutes, and pulls a
-# ~570MB model. Built static, so what lands on PATH is one self-contained binary.
+# ~260MB model. Built static, so what lands on PATH is one self-contained binary.
 install_whisper_cpp() {
     local models="$HOME/.local/share/whisper-cpp/models" src
     if [ -x "$LOCAL_BIN/whisper-server" ] && [ -f "$models/$WHISPER_CPP_MODEL" ]; then
@@ -563,7 +563,7 @@ install_whisper_cpp() {
     rm -rf "$src"
     ok "whisper-server installed"
     if [ ! -f "$models/$WHISPER_CPP_MODEL" ]; then
-        log "Downloading $WHISPER_CPP_MODEL (~570MB)..."
+        log "Downloading $WHISPER_CPP_MODEL (~260MB)..."
         mkdir -p "$models"
         curl -sSLo "$models/$WHISPER_CPP_MODEL" \
             "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/$WHISPER_CPP_MODEL"

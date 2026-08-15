@@ -17,7 +17,7 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
 - `dictate/` → `~/.local/bin/dictate` (toggle-key local Whisper dictation into tmux; opt-in. Has its own nested
   `CLAUDE.md` - read it before touching the script. Its deps are opt-in too: `./bootstrap.sh dictate-deps`. Two backends
   via `DICTATE_BACKEND`: `faster-whisper` on the CPU (default) and `whispercpp` on the AMD iGPU via Vulkan, installed by
-  `./install.sh whisper-vulkan` - that one is what makes `large-v3-turbo` cost about what `small.en` costs on the CPU)
+  `./install.sh whisper-vulkan` - same `small.en`, measured 2.7× faster than the CPU backend)
 - `ghostty/` → `~/.config/ghostty/` (Ghostty terminal config)
 - `git/` → `~/.config/git/config` (delta pager, merge settings)
 - `hunk/` → `~/.config/hunk/` (hunk diff viewer config, Solarized Light theme)

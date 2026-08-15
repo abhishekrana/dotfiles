@@ -6,9 +6,17 @@ Keep it a single file - do not split it into a package.
 ## Backends (`DICTATE_BACKEND`)
 
 Two, and the default never changes without asking: **`faster-whisper`** (default) runs `small.en` int8 on the CPU,
-in-process. **`whispercpp`** runs whisper.cpp against Vulkan on the AMD iGPU, which is what makes `large-v3-turbo`
-affordable - measured on a Radeon 860M, warm, 3s clip: `small.en` CPU 2455ms, `large-v3-turbo` GPU ~2100ms, `small.en`
-GPU ~400ms. Install it with `./install.sh whisper-vulkan`, switch with `DICTATE_BACKEND=whispercpp`.
+in-process. **`whispercpp`** runs `small.en` through whisper.cpp against Vulkan on the AMD iGPU. Measured on a Radeon
+860M over five dictated clips (102s of audio): GPU `small.en` **3.6s** total, CPU `small.en` **9.7s**, GPU
+`large-v3-turbo` **10.7s**. Install with `./install.sh whisper-vulkan`, switch with `DICTATE_BACKEND=whispercpp`.
+
+- **`large-v3-turbo` lost on both axes** - slower than the CPU backend on real-length clips, and no better on the
+  technical vocabulary. Do not assume the bigger model wins here; re-measure before switching to one.
+- **The prompt moves accuracy more than the model does, in both directions.** Terms in `DICTATE_PROMPT` come out right;
+  terms absent from it come out as "work tree", "get leaks", "source reuse port". But each entry is also a word that can
+  be hallucinated into unclear audio: adding `origin/main` and `merge request` turned "diff pane" into "diff_main" and
+  appended a stray "merge". **Add a term only after hearing it fail, then re-run the clips and check nothing common
+  broke** - a vocabulary dump trades frequent words for rare ones.
 
 - **Keep faster-whisper as the CPU path.** whisper.cpp's own CPU build measured _slower_ than faster-whisper here
   (3143ms vs 2455ms on the same clip) - CTranslate2's int8 kernels win on CPU. The GPU is the only reason to switch.

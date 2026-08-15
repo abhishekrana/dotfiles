@@ -101,20 +101,28 @@ Whisper pads every clip to a 30-second window, so on CPU a two-second "yes, do t
 An AMD iGPU removes most of that. Install once, then switch:
 
 ```sh
-./install.sh whisper-vulkan          # apt deps + builds whisper.cpp with Vulkan + model (~570MB)
+./install.sh whisper-vulkan          # apt deps + builds whisper.cpp with Vulkan + model (~260MB)
 export DICTATE_BACKEND=whispercpp    # in ~/.bashrc.d/local.bash
 dictate --serve-stop                 # the running server holds the old backend
 ```
 
-Measured on a Radeon 860M (RDNA 3.5), warm server, 3s clip: `large-v3-turbo` **~2100ms** vs `small.en` on CPU
-**2455ms** - a far better model at slightly lower latency. Point it at `ggml-small.en-q8_0.bin` instead and the same GPU
-does **~400ms**, ~6× faster than the CPU default, at `small.en` accuracy. Pick by which you want.
+Measured on a Radeon 860M (RDNA 3.5), warm server, five dictated clips of 16-24s (102s of audio in total):
 
-| Var                        | Default                                                          |
-| -------------------------- | ---------------------------------------------------------------- |
-| `DICTATE_WHISPERCPP_BIN`   | `~/.local/bin/whisper-server`                                    |
-| `DICTATE_WHISPERCPP_MODEL` | `~/.local/share/whisper-cpp/models/ggml-large-v3-turbo-q5_0.bin` |
-| `DICTATE_WHISPERCPP_PORT`  | `8178`                                                           |
+| Backend                         | Total | Notes                                             |
+| ------------------------------- | ----- | ------------------------------------------------- |
+| GPU `small.en-q8_0` (default)   | 3.6s  | 2.7× faster than the CPU backend                  |
+| CPU `small.en` (faster-whisper) | 9.7s  | the default backend                               |
+| GPU `large-v3-turbo-q5_0`       | 10.7s | slowest, and no better on the terms that mattered |
+
+`large-v3-turbo` is the interesting negative result: on real-length clips it is slower than the CPU it was meant to
+beat, and it read the same technical vocabulary no better. Fetch it (`ggml-large-v3-turbo-q5_0.bin`, ~570MB) and set
+`DICTATE_WHISPERCPP_MODEL` if your own audio disagrees - noisy input or unusual proper nouns are where it should win.
+
+| Var                        | Default                                                    |
+| -------------------------- | ---------------------------------------------------------- |
+| `DICTATE_WHISPERCPP_BIN`   | `~/.local/bin/whisper-server`                              |
+| `DICTATE_WHISPERCPP_MODEL` | `~/.local/share/whisper-cpp/models/ggml-small.en-q8_0.bin` |
+| `DICTATE_WHISPERCPP_PORT`  | `8178`                                                     |
 
 The step installs what a fresh Ubuntu lacks (`cmake`, `glslc`, `libvulkan-dev`, `mesa-vulkan-drivers`, `vulkan-tools`)
 and stops before compiling if no GPU is visible. It is **not** worth using on CPU - whisper.cpp's CPU build measured

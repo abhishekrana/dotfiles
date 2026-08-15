@@ -42,10 +42,16 @@ BEAM      = int(os.environ.get("DICTATE_BEAM", "1"))
 LATENCY   = os.environ.get("DICTATE_LATENCY", "50")  # ms; low so parec flushes promptly
 TMUX_CMD  = os.environ.get("DICTATE_TMUX_CMD", "claude")
 TMUX_TGT  = os.environ.get("DICTATE_TMUX_TARGET", "")
+# Whisper reads this as the text preceding the clip, so listed words become far
+# likelier to come out - which cuts both ways, and short beats comprehensive.
+# Only add a term after hearing it fail, then re-run the clips: `worktree` and
+# `gitleaks` earned their place ("work tree", "get leaks"), while `origin/main`
+# and `merge request` were tried and dropped - they pulled "diff pane" into
+# "diff_main" and appended a stray "merge", breaking common words to fix rare ones.
 PROMPT    = os.environ.get(
     "DICTATE_PROMPT",
-    "Dictation for a coding terminal. Terms: git, npm, Python, TypeScript, "
-    "async, await, API, JSON, YAML, stdout, regex, Claude Code.",
+    "Dictation for a coding terminal. Terms: git, worktree, gitleaks, Python, "
+    "TypeScript, API, JSON, YAML, stdout, regex, Claude Code.",
 )
 RATE = 16000  # Whisper wants 16 kHz mono
 
@@ -67,9 +73,12 @@ MIN_PCM  = int(RATE * 2 * 0.3)                         # < 0.3 s = stray tap, no
 # whispercpp backend: whisper.cpp's own server, held resident by ours and spoken
 # to over loopback. Installed by `./install.sh whisper-vulkan`.
 WCPP_BIN   = os.environ.get("DICTATE_WHISPERCPP_BIN", os.path.expanduser("~/.local/bin/whisper-server"))
+# small.en, not large-v3-turbo: measured on the same five clips, turbo was both
+# slower (2205ms vs 792ms on 20s of audio) and no more accurate on the terms that
+# matter. Point this at ggml-large-v3-turbo-q5_0.bin if a harder clip proves otherwise.
 WCPP_MODEL = os.environ.get(
     "DICTATE_WHISPERCPP_MODEL",
-    os.path.expanduser("~/.local/share/whisper-cpp/models/ggml-large-v3-turbo-q5_0.bin"),
+    os.path.expanduser("~/.local/share/whisper-cpp/models/ggml-small.en-q8_0.bin"),
 )
 WCPP_PORT  = int(os.environ.get("DICTATE_WHISPERCPP_PORT", "8178"))
 
