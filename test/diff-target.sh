@@ -204,6 +204,24 @@ HOME="$TMP/home" bash "$PICKER"
 eq "picking a row re-points the pane" "$WT/third" "$(t show -wqv -t "$win" @diff_target)"
 eq "and keeps the same diff pane" "$diffpane" "$(t show -wqv -t "$win" @diff_pane)"
 
+printf '\nmode switches keep the target\n'
+# The regression this guards: a mode item re-resolved the target, so picking
+# "Staged" while the pane showed a worktree you chose yourself (or one the agent
+# has since left) dragged it back to the agent's tree. A live pane's target
+# sticks; only follow / the picker / auto-follow move it.
+hook "$WT/home/sub/f.txt" # the agent moves away from what the pane shows
+eq "the pane is on the picked worktree" "$WT/third" "$(t show -wqv -t "$win" @diff_target)"
+eq "the agent is writing elsewhere" "$WT/home" "$(t show -pqv -t "$pane" @agent_workdir)"
+bash "$DIFF" staged
+eq "staged stays on it" "$WT/third" "$(t show -wqv -t "$win" @diff_target)"
+eq "and the mode changed" "staged" "$(t show -wqv -t "$win" @diff_mode)"
+eq "same diff pane" "$diffpane" "$(t show -wqv -t "$win" @diff_pane)"
+bash "$DIFF" work
+eq "and back to work, still on it" "$WT/third" "$(t show -wqv -t "$win" @diff_target)"
+# A layout flip is the same rule.
+bash "$DIFF" layout
+eq "a layout flip does not move it" "$WT/third" "$(t show -wqv -t "$win" @diff_target)"
+
 printf '\nclose\n'
 bash "$DIFF" close
 eq "target cleared" "" "$(t show -wqv -t "$win" @diff_target)"

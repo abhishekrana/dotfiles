@@ -12,13 +12,14 @@
 #   tmux-diff-pane.sh close                      kill the diff pane
 #   tmux-diff-pane.sh --run <mode> <layout>      (internal) the command run INSIDE the pane
 #
-# The pane follows the AGENT, not the pane's cwd: @agent_workdir (stamped by the
-# agentbar hook on every Edit/Write) is the target, so a session whose Claude
-# edits a sibling worktree gets that worktree's diff instead of its own clean
-# one. @diff_target records what is on screen; when no agent is touching that
-# worktree the chip turns amber, and a click on it follows. Auto-follow (off by
-# default, per window) does the same unprompted, via the hook. The pane's own
-# rail names the worktree it shows - that comes from its cwd, not from here.
+# A pane opened from scratch follows the AGENT, not the pane's cwd: @agent_workdir
+# (stamped by the agentbar hook on every Edit/Write) is the target, so a session
+# whose Claude edits a sibling worktree gets that worktree's diff, not its own
+# clean one. After that the target STICKS: @diff_target is what is on screen and
+# every mode switch re-uses it, so only follow / the picker / auto-follow (off by
+# default, per window) move a live pane. An amber chip only reports that the agent
+# is elsewhere; the menu's `f` acts on it. The pane's rail names what it shows,
+# from its cwd, not from here.
 #
 # State is WINDOW-scoped: @diff_pane / @diff_mode / @diff_layout are set on the
 # active window, so every window owns an independent diff pane (and the chip label
@@ -120,10 +121,11 @@ agent_workdir() {
 }
 
 # cmd_ensure <mode> [dir] [bg]
-#   dir  target worktree; default is where the agent is writing (resolve_repo)
+#   dir  target worktree; default is what the live pane already shows, else where
+#        the agent is writing (resolve_repo)
 #   bg   "bg" respawns without focusing, for auto-follow
 cmd_ensure() {
-    local mode="$1" want="${2:-}" bg="${3:-}" diff hunk layout
+    local mode="$1" want="${2:-}" bg="${3:-}" diff hunk layout cur
     set_mode_args "$mode" || {
         tmux display-message "diff: unknown mode '$mode'"
         return 0
@@ -138,8 +140,13 @@ cmd_ensure() {
     diff=$(opt_get @diff_pane)
     pane_alive "$diff" || diff=''
 
-    resolve_repo "$diff"
-    [ -n "$want" ] && REPO="$want" # explicit target: follow / picker
+    resolve_repo "$diff" # also picks SRC_PANE, which the split path needs
+    if [ -n "$want" ]; then
+        REPO="$want" # explicit target: follow / picker / auto-follow
+    elif [ -n "$diff" ]; then
+        cur=$(opt_get @diff_target) # sticky: a mode switch never moves a live pane
+        [ -d "${cur:-}" ] && REPO="$cur"
+    fi
     [ -n "${REPO:-}" ] || {
         tmux display-message "diff: no source pane"
         return 0
@@ -297,8 +304,7 @@ cmd_flip_layout() {
     mode=$(opt_get @diff_mode)
     diff=$(opt_get @diff_pane)
     if [ -n "$mode" ] && pane_alive "$diff"; then
-        # Same target: a layout flip must not re-resolve and move the pane.
-        cmd_ensure "$mode" "$(opt_get @diff_target)"
+        cmd_ensure "$mode" # sticky target: a layout flip never moves the pane
     else
         tmux display-message "diff: layout -> $new (applies when you open a diff)"
     fi

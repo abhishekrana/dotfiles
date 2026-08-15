@@ -36,13 +36,14 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
   (`pane-border-status top`, `tmux-rail.sh`) and the rule is the same for all of them: LEFT, always, this pane's folder
   and branch; RIGHT, only when that pane runs Claude, the worktree it is _writing_ in - which its cwd never follows,
   since the Bash tool's `cd` does not move a pane. Two zones via `#[align=right]`, so the left is anchored at one column
-  and the right grows leftward into rule; nothing shifts as state changes. **The diff pane follows the agent, not the
-  pane:** `tmux-diff-pane.sh` targets `@agent_workdir` (stamped by the agentbar hook from each Edit/Write) and records
-  what is on screen in `@diff_target`; when that worktree is one no agent is touching (`@agent_workdirs`, the recent
-  list) the `◧ diff` chip turns amber and clicking it follows. `tmux-worktree-picker.sh` (the menu's `W`) points it
-  anywhere in the repo family, and per-window auto-follow (`F`, off by default) does it unprompted. The footer holds no
-  per-pane facts at all - gitmux left it, taking ~72ms of git off every status redraw - only the work's commit, its CI
-  and the clock. `tmux-mockup.sh` (`task mockup`) previews the whole frame with fake data on a private server
+  and the right grows leftward into rule; nothing shifts as state changes. **A fresh diff pane follows the agent, not
+  the pane:** `tmux-diff-pane.sh` targets `@agent_workdir` (stamped by the agentbar hook from each Edit/Write) and
+  records what is on screen in `@diff_target`. **The target then sticks** - a mode item changes what you see, not where
+  you look; only `f` (follow), `tmux-worktree-picker.sh` (the menu's `W`) and per-window auto-follow (`F`, off by
+  default) re-point a live pane. An amber `◧ diff` chip (the worktree is in no agent's `@agent_workdirs`) reports that
+  and nothing else - a click only opens the menu. The footer holds no per-pane facts at all - gitmux left it, taking
+  ~72ms of git off every status redraw - only the work's commit, its CI and the clock. `tmux-mockup.sh` (`task mockup`)
+  previews the whole frame with fake data on a private server
 - `trace/` → `~/.local/bin/dotfiles-trace` (shared always-on trace log for the tmux/agent stack; see "Debugging" below)
 - `yazi/` → `~/.config/yazi/` (yazi file manager config)
 

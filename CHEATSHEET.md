@@ -118,9 +118,10 @@ moves when the right changes.
 
 ### Status bar - the ◧ diff chip
 
-Click it to open the menu; the keys below work inside it. The chip is **violet** while the diff pane shows a worktree an
-agent is working in, **amber** when it shows one none of them is touching - and an amber chip needs no menu: one click
-follows. The footer carries no per-pane facts: just the work's commit, its CI, and the clock.
+Click it to open the menu - that is all a click does. The chip is **violet** while the diff pane shows a worktree an
+agent is working in, **amber** when it shows one none of them is touching; amber is a report, `f` is what follows. The
+pane's worktree sticks: the mode keys change what you see, not where you look, and only `f`, `W` and auto-follow move
+it. The footer carries no per-pane facts: just the work's commit, its CI, and the clock.
 
 | Key in the menu | Action                                                                   |
 | --------------- | ------------------------------------------------------------------------ |
