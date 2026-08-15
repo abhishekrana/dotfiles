@@ -31,7 +31,7 @@ Setup:
 
 Commands: run `dictate --help`. Env-var config (DICTATE_*): see dictate/README.md.
 """
-import os, sys, time, signal, shutil, socket, subprocess
+import os, re, sys, time, signal, shutil, socket, subprocess
 
 # whispercpp backend: whisper.cpp's own server, held resident by ours and spoken
 # to over loopback. Installed by `./install.sh whisper-vulkan`.
@@ -216,9 +216,19 @@ def send_text(text):
 
 # ---- transcription -------------------------------------------------------
 def load_model():
-    """Return (handle, np) for the configured backend - the shape serve() holds."""
+    """Return (handle, np) for the configured backend - the shape serve() holds.
+
+    The GPU is an optimisation, never a dependency: if whisper.cpp cannot start
+    (driver gone, GPU disabled, model truncated, port wedged) this falls back to
+    the CPU rather than failing the dictation. BACKEND only says what to TRY -
+    every caller dispatches on the handle it gets back, so the fallback routes
+    itself."""
     if BACKEND == "whispercpp":
-        return load_whispercpp(), None
+        try:
+            return load_whispercpp(), None
+        except Exception as e:
+            log(f"whispercpp unavailable ({e}) - falling back to the CPU")
+            trace("fallback", to="faster-whisper", why=str(e)[:80])
     log(f"loading model {MODEL!r} (first run downloads it)…")
     from faster_whisper import WhisperModel
     import numpy as np
@@ -231,7 +241,7 @@ def load_model():
 def transcribe(model, np, pcm):
     if len(pcm) < MIN_PCM:  # < 0.3 s of audio
         return ""
-    if BACKEND == "whispercpp":
+    if is_whispercpp(model):               # the handle decides, not BACKEND
         return transcribe_whispercpp(model, pcm)
     audio = np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768.0
     # condition_on_previous_text=False + vad_filter are the anti-hallucination
@@ -249,11 +259,17 @@ def transcribe(model, np, pcm):
 # `whisper-server` child that ours owns for its lifetime and posts each clip to
 # over loopback. A per-call `whisper-cli` measured 410ms slower - process start
 # plus Vulkan context setup, paid on every single dictation.
+def is_whispercpp(model):
+    """A whisper-server child, not a faster-whisper model. Asked of the handle
+    rather than BACKEND, so a GPU->CPU fallback routes to the right code."""
+    return hasattr(model, "port") and hasattr(model, "terminate")
+
+
 def close_backend(model):
     """Terminate a whispercpp child; a no-op for faster-whisper's plain object.
     Every path that calls load_model() must call this - the child holds the GPU
     and a port, and outlives its parent otherwise."""
-    if BACKEND != "whispercpp" or not hasattr(model, "terminate"):
+    if not is_whispercpp(model):
         return
     model.terminate()
     try:
@@ -337,6 +353,15 @@ def transcribe_whispercpp(proc, pcm):
     )
     with urllib.request.urlopen(req, timeout=120) as r:
         text = r.read().decode("utf-8", "replace")
+    # whisper.cpp narrates non-speech as [BLANK_AUDIO] / [SOUND] / (music); the
+    # faster-whisper path returns "" for the same audio, and a stray toggle must
+    # not type a token into the pane. Strip them, then let "" mean no speech.
+    # [BLANK_AUDIO], [END], [SOUND], [_BEG_]… - the set is open-ended, so the rule
+    # is shape, not a name list: SQUARE-bracketed all-caps is never speech (you
+    # would say "open bracket"), while parentheses are dictated, so only the
+    # known non-speech words are stripped there - "(dev mode)" survives.
+    text = re.sub(r"\[[A-Z_][A-Z_ ]{1,24}\]", " ", text)
+    text = re.sub(r"\((?:blank[_ ]audio|silence|music|sound|noise)\)", " ", text, flags=re.IGNORECASE)
     return " ".join(text.split())                  # collapse whitespace (never send Enter)
 
 
@@ -730,10 +755,13 @@ def self_test():
     finally:
         close_backend(model)                       # serve()'s _bye() is not in play here
     ms = int((time.time() - t0) * 1000)
-    # --test is how backends get compared, so it reports its own cost: the
-    # toggle path's `result` trace never fires here (nothing is sent anywhere).
-    trace("result", outcome="test", backend=BACKEND, chars=len(text), ms=ms)
-    print(f"\nTRANSCRIPT: {text!r}\n  {BACKEND}, {ms} ms for {len(pcm)/(RATE*2):.1f}s of audio")
+    # --test is how backends get compared, so it reports its own cost. The name
+    # comes from the handle, not BACKEND: after a GPU->CPU fallback the global
+    # still says whispercpp, and a benchmark that mislabels itself is worse than
+    # none. The toggle path's `result` trace never fires here, so this one does.
+    used = "whispercpp" if is_whispercpp(model) else "faster-whisper"
+    trace("result", outcome="test", backend=used, chars=len(text), ms=ms)
+    print(f"\nTRANSCRIPT: {text!r}\n  {used}, {ms} ms for {len(pcm)/(RATE*2):.1f}s of audio")
 
 
 USAGE = """dictate - toggle-key local speech-to-text into tmux (local, zero privilege).

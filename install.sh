@@ -510,7 +510,7 @@ install_tpm() {
 }
 
 # whisper.cpp built against Vulkan, for dictate's `whispercpp` backend: the
-# Radeon iGPU runs the same Whisper models several times faster than the CPU
+# GPU runs the same Whisper models several times faster than the CPU
 # does - measured 792ms against 1892ms for 20s of audio. Opt-in (not in
 # all_tools) - it needs apt packages, compiles for a few minutes, and pulls a
 # ~260MB model. Built static, so what lands on PATH is one self-contained binary.
@@ -520,8 +520,8 @@ install_whisper_cpp() {
         ok "whisper.cpp (Vulkan) already installed"
         return
     fi
-    # Everything a fresh Ubuntu lacks for this: mesa-vulkan-drivers is the RADV
-    # ICD, without which Vulkan enumerates no device at all and the build is for
+    # Everything a fresh Ubuntu lacks for this: mesa-vulkan-drivers carries the
+    # AMD and Intel ICDs, without which Vulkan enumerates no device and the build is for
     # nothing; cmake is not in install_apt_packages (tmux builds with autotools,
     # agentbar with Go); glslc compiles the shaders, libvulkan-dev carries the
     # headers and link lib, vulkan-tools gives vulkaninfo. Same dpkg -s guard the
