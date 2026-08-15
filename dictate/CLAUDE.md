@@ -5,11 +5,15 @@ Keep it a single file - do not split it into a package.
 
 ## Backends (`DICTATE_BACKEND`)
 
-Two, and the default never changes without asking: **`faster-whisper`** (default) runs `small.en` int8 on the CPU,
-in-process. **`whispercpp`** runs `small.en` through whisper.cpp against Vulkan on the AMD iGPU. Measured on a Radeon
-860M over five dictated clips (102s of audio): GPU `small.en` **3.6s** total, CPU `small.en` **9.7s**, GPU
-`large-v3-turbo` **10.7s**. Install with `./install.sh whisper-vulkan`, switch with `DICTATE_BACKEND=whispercpp`.
+Two, resolved from what is installed rather than from the environment: **`whispercpp`** runs `small.en` through
+whisper.cpp against Vulkan on the AMD iGPU when `./install.sh whisper-vulkan` has been run, else **`faster-whisper`**
+runs `small.en` int8 on the CPU, in-process. Measured on a Radeon 860M over five dictated clips (102s of audio): GPU
+`small.en` **3.6s** total, CPU `small.en` **9.7s**, GPU `large-v3-turbo` **10.7s**. Install with
+`./install.sh whisper-vulkan`; `DICTATE_BACKEND=faster-whisper` forces the CPU back.
 
+- **The backend is detected, not configured, on purpose.** The GNOME shortcut and the tmux status chip both launch
+  `dictate` without sourcing `~/.bashrc.d`, so an env var set there reaches only a fresh interactive shell - the path
+  used least. Having installed the binary and model is the opt-in signal; do not replace this with an env var.
 - **`large-v3-turbo` lost on both axes** - slower than the CPU backend on real-length clips, and no better on the
   technical vocabulary. Do not assume the bigger model wins here; re-measure before switching to one.
 - **The prompt moves accuracy more than the model does, in both directions.** Terms in `DICTATE_PROMPT` come out right;

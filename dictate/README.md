@@ -2,7 +2,7 @@
 
 Toggle-key local speech-to-text into tmux. Tap a key to start, tap again to stop - the clip is transcribed offline with
 [faster-whisper](https://github.com/SYSTRAN/faster-whisper) and typed into your active tmux pane. Fully local, zero
-elevated privilege; CPU by default, with an opt-in GPU backend (see below).
+elevated privilege; CPU by default, and on the GPU once the opt-in backend is installed (see below).
 
 ## How it works
 
@@ -68,24 +68,24 @@ button in the status bar).
 
 ## Config (env vars)
 
-| Var                   | Default          | Notes                                                       |
-| --------------------- | ---------------- | ----------------------------------------------------------- |
-| `DICTATE_BACKEND`     | `faster-whisper` | or `whispercpp` - GPU, see below                            |
-| `DICTATE_MODEL`       | `small.en`       | see models below                                            |
-| `DICTATE_COMPUTE`     | `int8`           | ctranslate2 compute type                                    |
-| `DICTATE_IDLE`        | `300`            | seconds before the model server self-exits                  |
-| `DICTATE_LANG`        | `en`             | language                                                    |
-| `DICTATE_SOURCE`      | system default   | PipeWire/Pulse source name                                  |
-| `DICTATE_PROMPT`      | coding terms     | `initial_prompt` to bias vocabulary                         |
-| `DICTATE_BEAM`        | `1`              | beam size (1 = fast, 5 = more accurate)                     |
-| `DICTATE_LATENCY`     | `50`             | `parec` latency ms (low = flush promptly)                   |
-| `DICTATE_SILENCE`     | `2.0`            | auto-stop after this much trailing silence (`0` = off)      |
-| `DICTATE_MAXSECS`     | `120`            | hard cap on a single recording                              |
-| `DICTATE_VAD_RMS`     | `300`            | int16 RMS above which audio counts as speech (tune per mic) |
-| `DICTATE_DUCK`        | `1`              | mute other audio while recording (`0`/`off` disables)       |
-| `DICTATE_TMUX_CMD`    | `claude`         | pane command treated as the target app                      |
-| `DICTATE_TMUX_TARGET` | _(unset)_        | force a pane (pane id or `session:win.pane`)                |
-| `DICTATE_TEST_SECS`   | `5`              | seconds recorded by `--test`                                |
+| Var                   | Default        | Notes                                                       |
+| --------------------- | -------------- | ----------------------------------------------------------- |
+| `DICTATE_BACKEND`     | auto           | `whispercpp` when installed, else `faster-whisper`          |
+| `DICTATE_MODEL`       | `small.en`     | see models below                                            |
+| `DICTATE_COMPUTE`     | `int8`         | ctranslate2 compute type                                    |
+| `DICTATE_IDLE`        | `300`          | seconds before the model server self-exits                  |
+| `DICTATE_LANG`        | `en`           | language                                                    |
+| `DICTATE_SOURCE`      | system default | PipeWire/Pulse source name                                  |
+| `DICTATE_PROMPT`      | coding terms   | `initial_prompt` to bias vocabulary                         |
+| `DICTATE_BEAM`        | `1`            | beam size (1 = fast, 5 = more accurate)                     |
+| `DICTATE_LATENCY`     | `50`           | `parec` latency ms (low = flush promptly)                   |
+| `DICTATE_SILENCE`     | `2.0`          | auto-stop after this much trailing silence (`0` = off)      |
+| `DICTATE_MAXSECS`     | `120`          | hard cap on a single recording                              |
+| `DICTATE_VAD_RMS`     | `300`          | int16 RMS above which audio counts as speech (tune per mic) |
+| `DICTATE_DUCK`        | `1`            | mute other audio while recording (`0`/`off` disables)       |
+| `DICTATE_TMUX_CMD`    | `claude`       | pane command treated as the target app                      |
+| `DICTATE_TMUX_TARGET` | _(unset)_      | force a pane (pane id or `session:win.pane`)                |
+| `DICTATE_TEST_SECS`   | `5`            | seconds recorded by `--test`                                |
 
 Put per-machine overrides in `~/.bashrc.d/local.bash` (untracked), e.g. `export DICTATE_SOURCE=...`.
 
@@ -98,20 +98,23 @@ Put per-machine overrides in `~/.bashrc.d/local.bash` (untracked), e.g. `export 
 ### GPU backend (`whispercpp`)
 
 Whisper pads every clip to a 30-second window, so on CPU a two-second "yes, do that" costs the same as a long sentence.
-An AMD iGPU removes most of that. Install once, then switch:
+An AMD iGPU removes most of that. Installing it _is_ the switch - there is no env var to set:
 
 ```sh
 ./install.sh whisper-vulkan          # apt deps + builds whisper.cpp with Vulkan + model (~260MB)
-export DICTATE_BACKEND=whispercpp    # in ~/.bashrc.d/local.bash
-dictate --serve-stop                 # the running server holds the old backend
+dictate --serve-stop                 # the running server still holds the CPU backend
 ```
+
+`DICTATE_BACKEND` is resolved from what is installed, not from the environment, because the two launchers that matter -
+the GNOME shortcut and the tmux status chip - never source `~/.bashrc.d`, so an export there would reach only a fresh
+interactive shell. Set `DICTATE_BACKEND=faster-whisper` to force the CPU back.
 
 Measured on a Radeon 860M (RDNA 3.5), warm server, five dictated clips of 16-24s (102s of audio in total):
 
 | Backend                         | Total | Notes                                             |
 | ------------------------------- | ----- | ------------------------------------------------- |
 | GPU `small.en-q8_0` (default)   | 3.6s  | 2.7× faster than the CPU backend                  |
-| CPU `small.en` (faster-whisper) | 9.7s  | the default backend                               |
+| CPU `small.en` (faster-whisper) | 9.7s  | the fallback when whisper.cpp is not installed    |
 | GPU `large-v3-turbo-q5_0`       | 10.7s | slowest, and no better on the terms that mattered |
 
 `large-v3-turbo` is the interesting negative result: on real-length clips it is slower than the CPU it was meant to

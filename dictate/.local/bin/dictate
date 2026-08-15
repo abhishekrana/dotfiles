@@ -33,7 +33,26 @@ Commands: run `dictate --help`. Env-var config (DICTATE_*): see dictate/README.m
 """
 import os, sys, time, signal, shutil, socket, subprocess
 
-BACKEND   = os.environ.get("DICTATE_BACKEND", "faster-whisper")  # or "whispercpp" (GPU)
+# whispercpp backend: whisper.cpp's own server, held resident by ours and spoken
+# to over loopback. Installed by `./install.sh whisper-vulkan`.
+WCPP_BIN   = os.environ.get("DICTATE_WHISPERCPP_BIN", os.path.expanduser("~/.local/bin/whisper-server"))
+# small.en, not large-v3-turbo: measured on the same five clips, turbo was both
+# slower (2205ms vs 792ms on 20s of audio) and no more accurate on the terms that
+# matter. Point this at ggml-large-v3-turbo-q5_0.bin if a harder clip proves otherwise.
+WCPP_MODEL = os.environ.get(
+    "DICTATE_WHISPERCPP_MODEL",
+    os.path.expanduser("~/.local/share/whisper-cpp/models/ggml-small.en-q8_0.bin"),
+)
+WCPP_PORT  = int(os.environ.get("DICTATE_WHISPERCPP_PORT", "8178"))
+
+# Backend, resolved from what is installed rather than from the environment:
+# dictation is launched by a GNOME shortcut and a tmux run-shell, and NEITHER
+# sources ~/.bashrc.d - so an env var set there reaches the one path (a fresh
+# interactive shell) that is used least. Having run `./install.sh whisper-vulkan`
+# is the opt-in; DICTATE_BACKEND=faster-whisper still forces the CPU back.
+BACKEND   = os.environ.get("DICTATE_BACKEND") or (
+    "whispercpp" if os.path.exists(WCPP_BIN) and os.path.exists(WCPP_MODEL) else "faster-whisper"
+)
 MODEL     = os.environ.get("DICTATE_MODEL", "small.en")
 COMPUTE   = os.environ.get("DICTATE_COMPUTE", "int8")
 LANG      = os.environ.get("DICTATE_LANG", "en")
@@ -70,17 +89,6 @@ DUCK     = os.environ.get("DICTATE_DUCK", "1").strip().lower()  # mute other aud
 CHUNK    = 65536
 MIN_PCM  = int(RATE * 2 * 0.3)                         # < 0.3 s = stray tap, not speech
 
-# whispercpp backend: whisper.cpp's own server, held resident by ours and spoken
-# to over loopback. Installed by `./install.sh whisper-vulkan`.
-WCPP_BIN   = os.environ.get("DICTATE_WHISPERCPP_BIN", os.path.expanduser("~/.local/bin/whisper-server"))
-# small.en, not large-v3-turbo: measured on the same five clips, turbo was both
-# slower (2205ms vs 792ms on 20s of audio) and no more accurate on the terms that
-# matter. Point this at ggml-large-v3-turbo-q5_0.bin if a harder clip proves otherwise.
-WCPP_MODEL = os.environ.get(
-    "DICTATE_WHISPERCPP_MODEL",
-    os.path.expanduser("~/.local/share/whisper-cpp/models/ggml-small.en-q8_0.bin"),
-)
-WCPP_PORT  = int(os.environ.get("DICTATE_WHISPERCPP_PORT", "8178"))
 
 
 def log(*a):
