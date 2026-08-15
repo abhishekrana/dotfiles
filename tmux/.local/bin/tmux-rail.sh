@@ -42,19 +42,30 @@ case $zones in 1 | 2) ;; *) zones=1 ;; esac
 reserve=$((4 * zones + 2))
 [ -n "$dir" ] && [ -d "$dir" ] || exit 0
 
-memo=${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}/dotfiles-rail-$(id -u)
-mkdir -p "$memo" 2>/dev/null || true
-key=$memo/$(printf '%s-%s-%s-%s' "$dir" "$width" "$zones" "$only_branch" | tr -c 'A-Za-z0-9' '_')
+# Every pane border runs this twice per redraw, so the memo-HIT path forks
+# nothing: $UID not `id -u`, parameter expansion not `tr`, $EPOCHSECONDS not
+# `date`, the stamp stored in the file's first line not `stat`, and $(<file)
+# not `cat`. Six forks per hit became zero.
+memo=${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}/dotfiles-rail-$UID
+[ -d "$memo" ] || mkdir -p "$memo" 2>/dev/null || true
+k="$dir-$width-$zones-$only_branch"
+key=$memo/${k//[^A-Za-z0-9]/_}
 
 # 3 seconds: long enough that a redraw storm reads the file, short enough that a
-# branch switch shows up while you are still looking at the pane.
+# branch switch shows up while you are still looking at the pane. The file is
+# "<epoch>\n<label>", so its age is readable without stat'ing it.
 if [ -f "$key" ]; then
-    now=$(date +%s)
-    at=$(stat -c %Y "$key" 2>/dev/null || echo 0)
-    if [ $((now - at)) -lt 3 ]; then
-        cat "$key"
-        exit 0
-    fi
+    memo_body=$(<"$key")
+    memo_at=${memo_body%%$'\n'*}
+    case $memo_at in
+        '' | *[!0-9]*) ;; # not a stamped memo (older format): fall through and rebuild
+        *)
+            if [ $((EPOCHSECONDS - memo_at)) -lt 3 ]; then
+                printf '%s' "${memo_body#*$'\n'}"
+                exit 0
+            fi
+            ;;
+    esac
 fi
 
 root=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null) || exit 0
@@ -80,4 +91,5 @@ else
     fi
 fi
 
-printf '%s' "$label" | tee "$key" 2>/dev/null || printf '%s' "$label"
+printf '%s\n%s' "$EPOCHSECONDS" "$label" >"$key" 2>/dev/null
+printf '%s' "$label"
