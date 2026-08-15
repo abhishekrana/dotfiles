@@ -520,13 +520,28 @@ install_whisper_cpp() {
         ok "whisper.cpp (Vulkan) already installed"
         return
     fi
-    # glslc compiles the shaders, libvulkan-dev supplies headers + link lib, and
-    # vulkan-tools is how you check the GPU is seen (`vulkaninfo --summary`).
-    # The RADV driver itself comes with mesa on any AMD desktop install.
-    if ! command -v glslc &>/dev/null || [ ! -f /usr/include/vulkan/vulkan.h ]; then
-        log "Installing Vulkan build deps (glslc, libvulkan-dev, vulkan-tools)..."
+    # Everything a fresh Ubuntu lacks for this: mesa-vulkan-drivers is the RADV
+    # ICD, without which Vulkan enumerates no device at all and the build is for
+    # nothing; cmake is not in install_apt_packages (tmux builds with autotools,
+    # agentbar with Go); glslc compiles the shaders, libvulkan-dev carries the
+    # headers and link lib, vulkan-tools gives vulkaninfo. Same dpkg -s guard the
+    # base package list uses, so a re-run installs nothing.
+    local pkgs=()
+    for pkg in cmake glslc libvulkan-dev mesa-vulkan-drivers vulkan-tools; do
+        dpkg -s "$pkg" &>/dev/null || pkgs+=("$pkg")
+    done
+    if [ ${#pkgs[@]} -gt 0 ]; then
+        log "Installing Vulkan build deps: ${pkgs[*]}"
         sudo apt-get update -qq
-        sudo apt-get install -y -qq glslc libvulkan-dev vulkan-tools
+        sudo apt-get install -y -qq "${pkgs[@]}"
+    fi
+    # A real GPU has to be visible before spending five minutes compiling for it.
+    # llvmpipe is Mesa's software rasterizer - it enumerates like a device and
+    # would be slower than the CPU backend we already have.
+    if ! vulkaninfo --summary 2>/dev/null | grep deviceName | grep -qv llvmpipe; then
+        warn "no Vulkan GPU visible (check: vulkaninfo --summary)"
+        warn "dictate's whispercpp backend needs one; leaving DICTATE_BACKEND=faster-whisper"
+        return 1
     fi
     src=$(mktemp -d)
     log "Building whisper.cpp $WHISPER_CPP_VERSION with Vulkan (a few minutes)..."

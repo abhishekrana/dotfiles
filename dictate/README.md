@@ -101,7 +101,7 @@ Whisper pads every clip to a 30-second window, so on CPU a two-second "yes, do t
 An AMD iGPU removes most of that. Install once, then switch:
 
 ```sh
-./install.sh whisper-vulkan          # builds whisper.cpp with Vulkan + fetches the model (~570MB)
+./install.sh whisper-vulkan          # apt deps + builds whisper.cpp with Vulkan + model (~570MB)
 export DICTATE_BACKEND=whispercpp    # in ~/.bashrc.d/local.bash
 dictate --serve-stop                 # the running server holds the old backend
 ```
@@ -116,7 +116,8 @@ does **~400ms**, ~6× faster than the CPU default, at `small.en` accuracy. Pick 
 | `DICTATE_WHISPERCPP_MODEL` | `~/.local/share/whisper-cpp/models/ggml-large-v3-turbo-q5_0.bin` |
 | `DICTATE_WHISPERCPP_PORT`  | `8178`                                                           |
 
-Needs a Vulkan-capable GPU (`vulkaninfo --summary`). It is **not** worth using on CPU - whisper.cpp's CPU build measured
+The step installs what a fresh Ubuntu lacks (`cmake`, `glslc`, `libvulkan-dev`, `mesa-vulkan-drivers`, `vulkan-tools`)
+and stops before compiling if no GPU is visible. It is **not** worth using on CPU - whisper.cpp's CPU build measured
 slower than faster-whisper's, so the CPU default stays `faster-whisper`.
 
 ## Uninstall
