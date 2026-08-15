@@ -40,17 +40,17 @@ esac
 # Pinned versions (update these to upgrade)
 DELTA_VERSION="0.19.2"
 FD_VERSION="10.4.2"
-FZF_VERSION="0.74.1"
+FZF_VERSION="0.74.2"
 GIT_CLIFF_VERSION="2.13.1"
 GITLEAKS_VERSION="8.30.1"
-GO_VERSION="1.26.5"
-HUNK_VERSION="0.17.6"
+GO_VERSION="1.26.6"
+HUNK_VERSION="0.18.2"
 LAZYDOCKER_VERSION="0.25.2"
-LAZYGIT_VERSION="0.63.1"
+LAZYGIT_VERSION="0.64.1"
 LEAF_VERSION="1.27.1"
 NEOVIM_VERSION="0.12.4"
-NERD_FONT_VERSION="3.4.0"
-RUFF_VERSION="0.16.0"
+NERD_FONT_VERSION="3.5.0"
+RUFF_VERSION="0.16.3"
 SHELLCHECK_VERSION="0.11.0"
 SHFMT_VERSION="3.13.1"
 # Ubuntu 24.04 ships no SPIRV-Headers package, and whisper.cpp's Vulkan backend
@@ -60,7 +60,7 @@ TASK_VERSION="3.52.0"
 TMUX_VERSION="3.7b"
 WHISPER_CPP_VERSION="1.9.2"
 WHISPER_CPP_MODEL="ggml-small.en-q8_0.bin" # what dictate's whispercpp backend loads
-YAZI_VERSION="26.5.6"
+YAZI_VERSION="26.8.15"
 ZOXIDE_VERSION="0.10.0"
 
 # URL of a GitHub release asset: gh_url <owner/repo> <tag> <asset>
