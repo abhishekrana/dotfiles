@@ -6,6 +6,7 @@
 #   ./install.sh all             everything (bootstrap.sh calls this)
 #   ./install.sh gate-tools      only what `task check` needs (CI calls this)
 #   ./install.sh install_tmux    one step by name
+#   ./install.sh whisper-vulkan  whisper.cpp on the GPU for dictate (opt-in)
 #
 # Sourced by bootstrap.sh, which adds the machine wiring (stow, vaults, bashrc).
 set -euo pipefail
@@ -53,8 +54,13 @@ NERD_FONT_VERSION="3.4.0"
 RUFF_VERSION="0.16.0"
 SHELLCHECK_VERSION="0.11.0"
 SHFMT_VERSION="3.13.1"
+# Ubuntu 24.04 ships no SPIRV-Headers package, and whisper.cpp's Vulkan backend
+# needs the spv:: constants; pinned here like everything else it downloads.
+SPIRV_HEADERS_VERSION="vulkan-sdk-1.4.357.0"
 TASK_VERSION="3.52.0"
 TMUX_VERSION="3.7b"
+WHISPER_CPP_VERSION="1.9.2"
+WHISPER_CPP_MODEL="ggml-large-v3-turbo-q5_0.bin" # what dictate's whispercpp backend loads
 YAZI_VERSION="26.5.6"
 ZOXIDE_VERSION="0.10.0"
 
@@ -503,6 +509,53 @@ install_tpm() {
     ok "TPM installed - run 'prefix + I' in tmux to install plugins"
 }
 
+# whisper.cpp built against Vulkan, for dictate's `whispercpp` backend: the
+# Radeon iGPU runs the same Whisper models several times faster than the CPU
+# does, which is what buys large-v3-turbo at small.en's latency. Opt-in (not in
+# all_tools) - it needs apt packages, compiles for a few minutes, and pulls a
+# ~570MB model. Built static, so what lands on PATH is one self-contained binary.
+install_whisper_cpp() {
+    local models="$HOME/.local/share/whisper-cpp/models" src
+    if [ -x "$LOCAL_BIN/whisper-server" ] && [ -f "$models/$WHISPER_CPP_MODEL" ]; then
+        ok "whisper.cpp (Vulkan) already installed"
+        return
+    fi
+    # glslc compiles the shaders, libvulkan-dev supplies headers + link lib, and
+    # vulkan-tools is how you check the GPU is seen (`vulkaninfo --summary`).
+    # The RADV driver itself comes with mesa on any AMD desktop install.
+    if ! command -v glslc &>/dev/null || [ ! -f /usr/include/vulkan/vulkan.h ]; then
+        log "Installing Vulkan build deps (glslc, libvulkan-dev, vulkan-tools)..."
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq glslc libvulkan-dev vulkan-tools
+    fi
+    src=$(mktemp -d)
+    log "Building whisper.cpp $WHISPER_CPP_VERSION with Vulkan (a few minutes)..."
+    git clone -q --depth 1 --branch "$SPIRV_HEADERS_VERSION" \
+        https://github.com/KhronosGroup/SPIRV-Headers.git "$src/spirv-src"
+    cmake -S "$src/spirv-src" -B "$src/spirv-build" -DCMAKE_INSTALL_PREFIX="$src/spirv" >/dev/null
+    cmake --install "$src/spirv-build" >/dev/null
+    git clone -q --depth 1 --branch "v$WHISPER_CPP_VERSION" \
+        https://github.com/ggml-org/whisper.cpp.git "$src/whisper.cpp"
+    # CMAKE_CXX_FLAGS as well as CMAKE_PREFIX_PATH: whisper.cpp find_package()s
+    # SPIRV-Headers but never puts its include dir on the compile line, so the
+    # spv:: constants go missing without this.
+    cmake -S "$src/whisper.cpp" -B "$src/build" -DCMAKE_BUILD_TYPE=Release \
+        -DGGML_VULKAN=1 -DBUILD_SHARED_LIBS=OFF \
+        -DCMAKE_PREFIX_PATH="$src/spirv" -DCMAKE_CXX_FLAGS="-I$src/spirv/include" \
+        -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON >/dev/null
+    cmake --build "$src/build" -j "$(nproc)" --target whisper-server >/dev/null
+    install -Dm755 "$src/build/bin/whisper-server" "$LOCAL_BIN/whisper-server"
+    rm -rf "$src"
+    ok "whisper-server installed"
+    if [ ! -f "$models/$WHISPER_CPP_MODEL" ]; then
+        log "Downloading $WHISPER_CPP_MODEL (~570MB)..."
+        mkdir -p "$models"
+        curl -sSLo "$models/$WHISPER_CPP_MODEL" \
+            "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/$WHISPER_CPP_MODEL"
+    fi
+    ok "whisper.cpp ready - enable with DICTATE_BACKEND=whispercpp"
+}
+
 install_yazi() {
     if [ -x "$LOCAL_BIN/yazi" ] && "$LOCAL_BIN/yazi" --version 2>/dev/null | grep -q "$YAZI_VERSION"; then
         ok "yazi $YAZI_VERSION already installed"
@@ -586,6 +639,7 @@ run_step() {
         all) all_tools ;;
         gate-tools) gate_tools ;;
         dictate-deps) install_dictate_deps ;;
+        whisper-vulkan) install_whisper_cpp ;;
         install_*)
             declare -F "$1" >/dev/null || {
                 warn "no such step: $1"
@@ -601,7 +655,7 @@ run_step() {
 }
 
 usage() {
-    echo "usage: ./install.sh <step>...   (all | gate-tools | dictate-deps | install_*)"
+    echo "usage: ./install.sh <step>...   (all | gate-tools | dictate-deps | whisper-vulkan | install_*)"
     echo "steps:"
     declare -F | awk '{print $3}' | grep '^install_' | sed 's/^/  /'
 }

@@ -1,12 +1,27 @@
 # CLAUDE.md
 
-Toggle-key local speech-to-text into tmux (faster-whisper, CPU-only). See `README.md` for usage and config; this file is
-for hacking on the script. Keep it a single file - do not split it into a package.
+Toggle-key local speech-to-text into tmux. See `README.md` for usage and config; this file is for hacking on the script.
+Keep it a single file - do not split it into a package.
+
+## Backends (`DICTATE_BACKEND`)
+
+Two, and the default never changes without asking: **`faster-whisper`** (default) runs `small.en` int8 on the CPU,
+in-process. **`whispercpp`** runs whisper.cpp against Vulkan on the AMD iGPU, which is what makes `large-v3-turbo`
+affordable - measured on a Radeon 860M, warm, 3s clip: `small.en` CPU 2455ms, `large-v3-turbo` GPU ~2100ms, `small.en`
+GPU ~400ms. Install it with `./install.sh whisper-vulkan`, switch with `DICTATE_BACKEND=whispercpp`.
+
+- **Keep faster-whisper as the CPU path.** whisper.cpp's own CPU build measured _slower_ than faster-whisper here
+  (3143ms vs 2455ms on the same clip) - CTranslate2's int8 kernels win on CPU. The GPU is the only reason to switch.
+- whisper.cpp has no usable in-process binding, so `whispercpp` holds a **`whisper-server` child** and posts each clip
+  to it over loopback. Per-call `whisper-cli` was 410ms slower - process start plus Vulkan context setup, every time.
+  The child must die with `serve()` (it holds the GPU and the port), which is what `_bye()` handles.
+- The multipart POST is built by hand from stdlib: the script keeps its two PEP 723 deps and adds no HTTP library.
 
 ## Packaging (why it is a stow package, not an app)
 
 - One self-contained Python script run via `#!/usr/bin/env -S uv run --script`; deps are declared inline (PEP 723:
-  `faster-whisper`, `numpy`). There is nothing to build, so it is **not** an `apps/` build target.
+  `faster-whisper`, `numpy`). There is nothing to build, so it is **not** an `apps/` build target. The `whispercpp`
+  backend's binary is a downloaded tool, so it is pinned and built in `install.sh` like every other one - not here.
 - It is a **stow package** -> `~/.local/bin/dictate` (a symlink). It must stay on PATH under the short name `dictate`,
   because the GNOME shortcut, `tmux/.tmux.conf` (`$HOME/.local/bin/dictate`), and the script's own self-re-exec
   (`shutil.which("dictate")`, used to spawn `--serve`/`--watch`) all resolve it by that name. Stow is what provides it;

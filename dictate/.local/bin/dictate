@@ -33,6 +33,7 @@ Commands: run `dictate --help`. Env-var config (DICTATE_*): see dictate/README.m
 """
 import os, sys, time, signal, shutil, socket, subprocess
 
+BACKEND   = os.environ.get("DICTATE_BACKEND", "faster-whisper")  # or "whispercpp" (GPU)
 MODEL     = os.environ.get("DICTATE_MODEL", "small.en")
 COMPUTE   = os.environ.get("DICTATE_COMPUTE", "int8")
 LANG      = os.environ.get("DICTATE_LANG", "en")
@@ -62,6 +63,15 @@ VAD_RMS  = float(os.environ.get("DICTATE_VAD_RMS", "300"))  # int16 RMS above th
 DUCK     = os.environ.get("DICTATE_DUCK", "1").strip().lower()  # mute other audio while recording (0/off = don't)
 CHUNK    = 65536
 MIN_PCM  = int(RATE * 2 * 0.3)                         # < 0.3 s = stray tap, not speech
+
+# whispercpp backend: whisper.cpp's own server, held resident by ours and spoken
+# to over loopback. Installed by `./install.sh whisper-vulkan`.
+WCPP_BIN   = os.environ.get("DICTATE_WHISPERCPP_BIN", os.path.expanduser("~/.local/bin/whisper-server"))
+WCPP_MODEL = os.environ.get(
+    "DICTATE_WHISPERCPP_MODEL",
+    os.path.expanduser("~/.local/share/whisper-cpp/models/ggml-large-v3-turbo-q5_0.bin"),
+)
+WCPP_PORT  = int(os.environ.get("DICTATE_WHISPERCPP_PORT", "8178"))
 
 
 def log(*a):
@@ -183,6 +193,9 @@ def send_text(text):
 
 # ---- transcription -------------------------------------------------------
 def load_model():
+    """Return (handle, np) for the configured backend - the shape serve() holds."""
+    if BACKEND == "whispercpp":
+        return load_whispercpp(), None
     log(f"loading model {MODEL!r} (first run downloads it)…")
     from faster_whisper import WhisperModel
     import numpy as np
@@ -195,6 +208,8 @@ def load_model():
 def transcribe(model, np, pcm):
     if len(pcm) < MIN_PCM:  # < 0.3 s of audio
         return ""
+    if BACKEND == "whispercpp":
+        return transcribe_whispercpp(model, pcm)
     audio = np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768.0
     # condition_on_previous_text=False + vad_filter are the anti-hallucination
     # flags for dictation; faster-whisper's default thresholds handle the rest.
@@ -204,6 +219,73 @@ def transcribe(model, np, pcm):
     )
     text = "".join(s.text for s in segments)
     return " ".join(text.split())  # collapse whitespace/newlines (never send Enter)
+
+
+# ---- whispercpp backend (whisper.cpp on the GPU, via its own server) ------
+# whisper.cpp has no in-process binding here, so the resident model lives in a
+# `whisper-server` child that ours owns for its lifetime and posts each clip to
+# over loopback. A per-call `whisper-cli` measured 410ms slower - process start
+# plus Vulkan context setup, paid on every single dictation.
+def load_whispercpp():
+    for path, what in ((WCPP_BIN, "binary"), (WCPP_MODEL, "model")):
+        if not os.path.exists(path):
+            raise RuntimeError(f"whispercpp {what} missing: {path} (./install.sh whisper-vulkan)")
+    log(f"starting whisper-server on :{WCPP_PORT} with {os.path.basename(WCPP_MODEL)}…")
+    t0 = time.time()
+    # -bs/-bo match DICTATE_BEAM and -nf drops temperature fallback, so one clip
+    # is one pass; -nt is text only. Same knobs the faster-whisper path uses.
+    proc = subprocess.Popen(
+        [WCPP_BIN, "-m", WCPP_MODEL, "--host", "127.0.0.1", "--port", str(WCPP_PORT),
+         "-nt", "-nf", "-bs", str(BEAM), "-bo", str(BEAM)],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    deadline = time.time() + 60                    # cold start: model load + GPU upload
+    while time.time() < deadline:
+        if proc.poll() is not None:
+            raise RuntimeError(f"whisper-server exited with {proc.returncode}")
+        try:
+            socket.create_connection(("127.0.0.1", WCPP_PORT), 0.5).close()
+            log(f"whisper-server ready in {time.time() - t0:.1f}s")
+            return proc
+        except OSError:
+            time.sleep(0.1)
+    proc.terminate()
+    raise RuntimeError("whisper-server did not come up within 60s")
+
+
+def wav_bytes(pcm):
+    """Wrap raw 16 kHz mono s16le PCM in a WAV container - what the server takes."""
+    import io, wave
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(RATE)
+        w.writeframes(pcm)
+    return buf.getvalue()
+
+
+def transcribe_whispercpp(proc, pcm):
+    """POST the clip to the resident server. The multipart body is built by hand
+    so the script keeps its two PEP 723 deps and adds no HTTP library."""
+    import urllib.request
+    if proc.poll() is not None:                    # died since it was loaded
+        raise RuntimeError(f"whisper-server gone (exit {proc.returncode})")
+    bnd = "----dictate" + os.urandom(8).hex()
+    parts = [
+        f"--{bnd}\r\nContent-Disposition: form-data; name=\"{k}\"\r\n\r\n{v}\r\n".encode()
+        for k, v in (("response_format", "text"), ("language", LANG), ("prompt", PROMPT))
+    ]
+    parts.append(f"--{bnd}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"a.wav\""
+                 f"\r\nContent-Type: audio/wav\r\n\r\n".encode())
+    parts.append(wav_bytes(pcm) + f"\r\n--{bnd}--\r\n".encode())
+    req = urllib.request.Request(
+        f"http://127.0.0.1:{WCPP_PORT}/inference", data=b"".join(parts),
+        headers={"Content-Type": f"multipart/form-data; boundary={bnd}"},
+    )
+    with urllib.request.urlopen(req, timeout=120) as r:
+        text = r.read().decode("utf-8", "replace")
+    return " ".join(text.split())                  # collapse whitespace (never send Enter)
 
 
 # ---- lazy model server (spawned on first use, self-exits when idle) ------
@@ -241,6 +323,11 @@ def serve():
     open(SRV_PID, "w").write(str(os.getpid()))
 
     def _bye(*_):
+        # The whispercpp child holds the GPU and the port: it must not outlive us,
+        # or the next server's bind fails and the VRAM stays spoken for.
+        if BACKEND == "whispercpp" and hasattr(model, "terminate"):
+            try: model.terminate(); model.wait(timeout=5)
+            except Exception: pass
         for p in (SOCK_FILE, SRV_PID):
             try: os.remove(p)
             except OSError: pass
@@ -558,6 +645,15 @@ def check():
     _, lbl = resolve_target()
     log(f"OK - parec + tmux present. Transcript would go to: {lbl}")
     log(f"model server: {'up' if server_up() else 'down (spawns on first dictation)'}")
+    if BACKEND == "whispercpp":
+        # Report the pieces before a dictation needs them: a missing binary or
+        # model only surfaces mid-transcribe otherwise, with the mic already shut.
+        for path, what in ((WCPP_BIN, "binary"), (WCPP_MODEL, "model")):
+            log(f"whispercpp {what}: {path} {'✓' if os.path.exists(path) else '✗ MISSING'}")
+        if not (os.path.exists(WCPP_BIN) and os.path.exists(WCPP_MODEL)):
+            log("run ./install.sh whisper-vulkan")
+    else:
+        log(f"backend: {BACKEND} ({MODEL}, {COMPUTE}, cpu)")
 
 
 def self_test():

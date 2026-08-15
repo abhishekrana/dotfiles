@@ -1,8 +1,8 @@
 # dictate
 
 Toggle-key local speech-to-text into tmux. Tap a key to start, tap again to stop - the clip is transcribed offline with
-[faster-whisper](https://github.com/SYSTRAN/faster-whisper) and typed into your active tmux pane. CPU-only, fully local,
-zero elevated privilege.
+[faster-whisper](https://github.com/SYSTRAN/faster-whisper) and typed into your active tmux pane. Fully local, zero
+elevated privilege; CPU by default, with an opt-in GPU backend (see below).
 
 ## How it works
 
@@ -68,23 +68,24 @@ button in the status bar).
 
 ## Config (env vars)
 
-| Var                   | Default        | Notes                                                       |
-| --------------------- | -------------- | ----------------------------------------------------------- |
-| `DICTATE_MODEL`       | `small.en`     | see models below                                            |
-| `DICTATE_COMPUTE`     | `int8`         | ctranslate2 compute type                                    |
-| `DICTATE_IDLE`        | `300`          | seconds before the model server self-exits                  |
-| `DICTATE_LANG`        | `en`           | language                                                    |
-| `DICTATE_SOURCE`      | system default | PipeWire/Pulse source name                                  |
-| `DICTATE_PROMPT`      | coding terms   | `initial_prompt` to bias vocabulary                         |
-| `DICTATE_BEAM`        | `1`            | beam size (1 = fast, 5 = more accurate)                     |
-| `DICTATE_LATENCY`     | `50`           | `parec` latency ms (low = flush promptly)                   |
-| `DICTATE_SILENCE`     | `2.0`          | auto-stop after this much trailing silence (`0` = off)      |
-| `DICTATE_MAXSECS`     | `120`          | hard cap on a single recording                              |
-| `DICTATE_VAD_RMS`     | `300`          | int16 RMS above which audio counts as speech (tune per mic) |
-| `DICTATE_DUCK`        | `1`            | mute other audio while recording (`0`/`off` disables)       |
-| `DICTATE_TMUX_CMD`    | `claude`       | pane command treated as the target app                      |
-| `DICTATE_TMUX_TARGET` | _(unset)_      | force a pane (pane id or `session:win.pane`)                |
-| `DICTATE_TEST_SECS`   | `5`            | seconds recorded by `--test`                                |
+| Var                   | Default          | Notes                                                       |
+| --------------------- | ---------------- | ----------------------------------------------------------- |
+| `DICTATE_BACKEND`     | `faster-whisper` | or `whispercpp` - GPU, see below                            |
+| `DICTATE_MODEL`       | `small.en`       | see models below                                            |
+| `DICTATE_COMPUTE`     | `int8`           | ctranslate2 compute type                                    |
+| `DICTATE_IDLE`        | `300`            | seconds before the model server self-exits                  |
+| `DICTATE_LANG`        | `en`             | language                                                    |
+| `DICTATE_SOURCE`      | system default   | PipeWire/Pulse source name                                  |
+| `DICTATE_PROMPT`      | coding terms     | `initial_prompt` to bias vocabulary                         |
+| `DICTATE_BEAM`        | `1`              | beam size (1 = fast, 5 = more accurate)                     |
+| `DICTATE_LATENCY`     | `50`             | `parec` latency ms (low = flush promptly)                   |
+| `DICTATE_SILENCE`     | `2.0`            | auto-stop after this much trailing silence (`0` = off)      |
+| `DICTATE_MAXSECS`     | `120`            | hard cap on a single recording                              |
+| `DICTATE_VAD_RMS`     | `300`            | int16 RMS above which audio counts as speech (tune per mic) |
+| `DICTATE_DUCK`        | `1`              | mute other audio while recording (`0`/`off` disables)       |
+| `DICTATE_TMUX_CMD`    | `claude`         | pane command treated as the target app                      |
+| `DICTATE_TMUX_TARGET` | _(unset)_        | force a pane (pane id or `session:win.pane`)                |
+| `DICTATE_TEST_SECS`   | `5`              | seconds recorded by `--test`                                |
 
 Put per-machine overrides in `~/.bashrc.d/local.bash` (untracked), e.g. `export DICTATE_SOURCE=...`.
 
@@ -93,6 +94,30 @@ Put per-machine overrides in `~/.bashrc.d/local.bash` (untracked), e.g. `export 
 `small.en` is the CPU sweet spot (~95% of large-v3 accuracy at ~6× the speed). Alternatives: `base.en` (faster),
 `distil-small.en` (fast English), `large-v3-turbo` (most accurate, slower on CPU - multilingual, so keep
 `DICTATE_LANG=en`). English-only `.en` models beat the same-size multilingual model for English.
+
+### GPU backend (`whispercpp`)
+
+Whisper pads every clip to a 30-second window, so on CPU a two-second "yes, do that" costs the same as a long sentence.
+An AMD iGPU removes most of that. Install once, then switch:
+
+```sh
+./install.sh whisper-vulkan          # builds whisper.cpp with Vulkan + fetches the model (~570MB)
+export DICTATE_BACKEND=whispercpp    # in ~/.bashrc.d/local.bash
+dictate --serve-stop                 # the running server holds the old backend
+```
+
+Measured on a Radeon 860M (RDNA 3.5), warm server, 3s clip: `large-v3-turbo` **~2100ms** vs `small.en` on CPU
+**2455ms** - a far better model at slightly lower latency. Point it at `ggml-small.en-q8_0.bin` instead and the same GPU
+does **~400ms**, ~6× faster than the CPU default, at `small.en` accuracy. Pick by which you want.
+
+| Var                        | Default                                                          |
+| -------------------------- | ---------------------------------------------------------------- |
+| `DICTATE_WHISPERCPP_BIN`   | `~/.local/bin/whisper-server`                                    |
+| `DICTATE_WHISPERCPP_MODEL` | `~/.local/share/whisper-cpp/models/ggml-large-v3-turbo-q5_0.bin` |
+| `DICTATE_WHISPERCPP_PORT`  | `8178`                                                           |
+
+Needs a Vulkan-capable GPU (`vulkaninfo --summary`). It is **not** worth using on CPU - whisper.cpp's CPU build measured
+slower than faster-whisper's, so the CPU default stays `faster-whisper`.
 
 ## Uninstall
 
