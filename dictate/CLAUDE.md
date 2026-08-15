@@ -18,9 +18,12 @@ runs `small.en` int8 on the CPU, in-process. Measured on a Radeon 860M over five
   technical vocabulary. Do not assume the bigger model wins here; re-measure before switching to one.
 - **The prompt moves accuracy more than the model does, in both directions.** Terms in `DICTATE_PROMPT` come out right;
   terms absent from it come out as "work tree", "get leaks", "source reuse port". But each entry is also a word that can
-  be hallucinated into unclear audio: adding `origin/main` and `merge request` turned "diff pane" into "diff_main" and
-  appended a stray "merge". **Add a term only after hearing it fail, then re-run the clips and check nothing common
-  broke** - a vocabulary dump trades frequent words for rare ones.
+  be hallucinated into unclear audio: adding `origin/main` turned "diff pane" into "diff_main". **Add a term only after
+  hearing it fail, then re-run the clips and check nothing common broke** - a vocabulary dump trades frequent words for
+  rare ones. Prompting a term is not a guarantee either: `agentbar` never displaced "agent sidebar".
+- **The prompt's word order is load-bearing, and is not alphabetical.** Sorting the same terms turned "task check" into
+  "taskcheck" and appended a stray "merge request"; proven-failing terms first and the loosest term last measured clean.
+  Do not tidy it into alphabetical order without re-running the clips.
 
 - **Keep faster-whisper as the CPU path.** whisper.cpp's own CPU build measured _slower_ than faster-whisper here
   (3143ms vs 2455ms on the same clip) - CTranslate2's int8 kernels win on CPU. The GPU is the only reason to switch.
