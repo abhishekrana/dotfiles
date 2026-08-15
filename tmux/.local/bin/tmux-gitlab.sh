@@ -52,6 +52,34 @@ ci_glyph() {
     esac
 }
 
+# ⇢ for open, not ⇄: a merge request points one way, at main, and has not landed
+# yet - which pairs with ✔ for arrived. Arrows also keep the MR's alphabet
+# distinct from CI's ticks and dots, so two indicators do not blur into one.
+#
+# GitLab has four MR states - opened, merged, closed, locked - and `draft` is a
+# separate boolean alongside them, not a fifth state. Conflicts are orthogonal
+# too: an open MR that will not merge keeps the open glyph and turns red, rather
+# than spending a sixth symbol (and ⚠ is emoji-presentation, so it would render
+# double in some terminals and shift the clock).
+mr_glyph() { # <state> <draft> -> one single-width glyph
+    case "$1" in
+        merged) printf '✔' ;;
+        closed) printf '✕' ;;
+        locked) printf '⊘' ;;
+        opened) [ "$2" = true ] && printf '✎' || printf '⇢' ;;
+        *) printf '·' ;;
+    esac
+}
+
+mr_color() { # <state> <conflicts> -> fg style
+    case "$1" in
+        merged) printf '#[fg=#859900]' ;;                                    # green
+        closed) printf '#[fg=#657b83]' ;;                                    # base00
+        locked) printf '#[fg=#586e75]' ;;                                    # base01
+        *) [ "$2" = true ] && printf '#[fg=#dc322f]' || printf '%s' "$C_MR" ;; # red if it will not merge
+    esac
+}
+
 # Cache key for a repo+branch pair. Parameter expansion, not md5sum: this runs on
 # every status redraw and a fork costs more than the string work. Tail-truncated
 # so a deep worktree plus a long branch cannot exceed NAME_MAX.
@@ -109,11 +137,15 @@ cmd_render() {
     # neither `date` nor `stat` is forked here. flock in cmd_refresh is what stops
     # a slow refresh from being started again by the next redraw.
     local issue='' mr='' ci='' updated=0 k v out=''
+    local mr_state='' mr_draft='' mr_conflicts=''
     if [ -f "$cache" ]; then
         while IFS='=' read -r k v; do
             case "$k" in
                 issue_iid) issue=$v ;;
                 mr_iid) mr=$v ;;
+                mr_state) mr_state=$v ;;
+                mr_draft) mr_draft=$v ;;
+                mr_conflicts) mr_conflicts=$v ;;
                 ci_status) ci=$v ;;
                 updated) updated=$v ;;
             esac
@@ -127,7 +159,10 @@ cmd_render() {
     # footer is short of columns. CI keeps its word as the click target, with the
     # state in a glyph beside it.
     [ -n "$issue" ] && out+=" ${C_ISSUE}#[range=user|gl-issue]#${issue}#[norange]"
-    [ -n "$mr" ] && out+=" ${C_MR}#[range=user|gl-mr]!${mr}#[norange]"
+    if [ -n "$mr" ]; then
+        out+=" $(mr_color "$mr_state" "$mr_conflicts")#[range=user|gl-mr]"
+        out+="!${mr} $(mr_glyph "$mr_state" "$mr_draft")#[norange]"
+    fi
     [ -n "$ci" ] && out+=" $(ci_color "$ci")#[range=user|gl-ci]CI $(ci_glyph "$ci")#[norange]"
     [ -n "$out" ] && printf '%s%s' "$out" "$C_RESET"
 }
@@ -147,11 +182,22 @@ cmd_refresh() {
     cd "$path" || return 0
 
     # Merge request for this branch.
-    local mr_json mr_iid='' mr_url=''
-    mr_json=$(glab mr list --source-branch="$branch" -F json 2>/dev/null)
+    # --all, because glab lists only OPEN merge requests by default: without it the
+    # segment does not change when yours merges, it disappears, and "merged" is
+    # indistinguishable from "never had one". Newest first, so a branch reused
+    # across several MRs shows the current one rather than an old closed one.
+    local mr_json mr_iid='' mr_url='' mr_state='' mr_draft='' mr_conflicts=''
+    mr_json=$(glab mr list --source-branch="$branch" --all -F json 2>/dev/null)
     if [ -n "$mr_json" ]; then
-        mr_iid=$(printf '%s' "$mr_json" | jq -r '.[0].iid // empty' 2>/dev/null)
-        mr_url=$(printf '%s' "$mr_json" | jq -r '.[0].web_url // empty' 2>/dev/null)
+        local mr_one
+        mr_one=$(printf '%s' "$mr_json" | jq -c 'sort_by(.iid) | reverse | .[0] // empty' 2>/dev/null)
+        if [ -n "$mr_one" ]; then
+            mr_iid=$(printf '%s' "$mr_one" | jq -r '.iid // empty' 2>/dev/null)
+            mr_url=$(printf '%s' "$mr_one" | jq -r '.web_url // empty' 2>/dev/null)
+            mr_state=$(printf '%s' "$mr_one" | jq -r '.state // empty' 2>/dev/null)
+            mr_draft=$(printf '%s' "$mr_one" | jq -r '.draft // false' 2>/dev/null)
+            mr_conflicts=$(printf '%s' "$mr_one" | jq -r '.has_conflicts // false' 2>/dev/null)
+        fi
     fi
 
     # Issue: branch-name prefix (e.g. 42-fix-login), else the MR's first closing issue.
@@ -189,6 +235,9 @@ cmd_refresh() {
         printf 'issue_url=%s\n' "$issue_url"
         printf 'mr_iid=%s\n' "$mr_iid"
         printf 'mr_url=%s\n' "$mr_url"
+        printf 'mr_state=%s\n' "$mr_state"
+        printf 'mr_draft=%s\n' "$mr_draft"
+        printf 'mr_conflicts=%s\n' "$mr_conflicts"
         printf 'ci_status=%s\n' "$ci_status"
         printf 'ci_url=%s\n' "$ci_url"
         printf 'updated=%s\n' "$EPOCHSECONDS"
