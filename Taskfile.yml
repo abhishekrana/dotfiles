@@ -36,6 +36,7 @@ tasks:
       - task: secrets
       - task: perms
       - task: clipboard
+      - task: gwtm
       - task: picker
       - task: reset
       - task: diff-target
@@ -107,6 +108,11 @@ tasks:
       - agentbar:build
     cmds:
       - bash test/diff-target.sh
+
+  gwtm:
+    desc: Guard gwtm - ff, rebase when local, merge when pushed, and never half-done
+    cmds:
+      - bash test/gwtm.sh
 
   portability:
     desc: Report Linux-only primitives and where they live (a map, not a gate)

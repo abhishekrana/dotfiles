@@ -79,11 +79,15 @@ gwts() {
     cd "$dir" || return
 }
 
-# gwtm: switch to the branch named after the current worktree dir (create it off
-# origin/main if missing), then fast-forward it to origin/main. --ff-only aborts
-# on divergence instead of dropping commits.
+# gwtm: put this worktree's branch (named after the worktree dir, created off
+# origin/main if missing) on the latest origin/main, with the tool its state allows:
+#   ff      nothing of our own
+#   rebase  our own commits, branch not on origin - also clears `git pull` merges,
+#           which are what make a branch un-fast-forwardable for good
+#   merge   our own commits, branch on origin - never rewrite pushed history
+# --autostash, so a dirty tree is fine. On conflict: abort, restore, say what to run.
 gwtm() {
-    local root name
+    local root name ahead
     root=$(git rev-parse --show-toplevel 2>/dev/null) || {
         echo "not in a git repo" >&2
         return 1
@@ -95,7 +99,23 @@ gwtm() {
     else
         git switch -c "$name" origin/main || return
     fi
-    git merge --ff-only origin/main
+    # The common case. stderr is git's generic divergence hint - dropped for ours.
+    git merge --ff-only --autostash origin/main 2>/dev/null && return
+    ahead=$(git rev-list --count origin/main..HEAD)
+    # One op, one failure path: ${op[0]} names the command, its --abort and the advice.
+    local -a op
+    if git show-ref --verify --quiet "refs/remotes/origin/$name"; then
+        echo "gwtm: $name is on origin ($ahead of its own) - merging, not rewriting" >&2
+        op=(merge --no-edit --autostash origin/main)
+    else
+        echo "gwtm: $name has $ahead commits of its own - rebasing onto origin/main" >&2
+        op=(rebase --autostash origin/main)
+    fi
+    git "${op[@]}" && return
+    git "${op[0]}" --abort 2>/dev/null
+    echo "gwtm: conflicts with origin/main - $name left as it was." >&2
+    echo "gwtm: resolve by hand with: git ${op[0]} origin/main" >&2
+    return 1
 }
 
 # Docker
