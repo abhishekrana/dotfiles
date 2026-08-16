@@ -84,7 +84,7 @@ TMUX_TGT  = os.environ.get("DICTATE_TMUX_TARGET", "")
 PROMPT    = os.environ.get(
     "DICTATE_PROMPT",
     "Dictation for a coding terminal. Terms: worktree, git, dotfiles, tmux, issues, "
-    "tickets, bugs, features, Claude Code, Python, JSON, API, YAML, merge request.",
+    "tickets, bugs, features, Claude Code, skill, Python, JSON, API, YAML, merge request.",
 )
 RATE = 16000  # Whisper wants 16 kHz mono
 
