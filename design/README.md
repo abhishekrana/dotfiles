@@ -242,8 +242,8 @@ Described here as intent and anatomy - the shared parts every tool reuses, not t
 - **Selection & hover.** A `selection` fill plus a one-cell `accent` rail. Focus, not decoration.
 - **Status widgets.** The small indicators - dictate, notify toggle, agent tally, attention count - are one family: a
   `surface` chip, a state dot, a right-aligned value. Recording is the only place red appears outside _blocked_;
-  transcribing borrows the _asking_ amber. Where a chip row holds several buttons, exactly one rests in a lit hue - the
-  one used most - and the rest go grey: a toolbar with no hierarchy is read left to right every time.
+  transcribing borrows the _asking_ amber. In a row of chips exactly one rests lit - the one used most - and the rest go
+  grey.
 - **Status-bar segments.** Identity segments (host, session) keep their own colors; window tabs use `accent` for the
   active one and the state language for any window whose agent needs you.
 - **Diff rows.** Added and removed lines tinted from `add` / `remove`, a blue hunk marker, and an `emphasis` file path -

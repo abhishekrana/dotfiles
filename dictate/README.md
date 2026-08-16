@@ -26,9 +26,9 @@ elevated privilege; CPU by default, and on the GPU once the opt-in backend is in
   recording, amber transcribing. Click it to toggle, same as the key. Same width in every state, so nothing shifts. A
   `⏎ send` button beside it submits - it presses Enter in the pane the transcript went to. Next to those,
   `● dictate+send` does the whole loop in one press-pair: it records, types the transcript, and presses Enter for you,
-  so you never reach for the keyboard - it rests in teal rather than grey, the row's one highlight, being the button
-  most reached for. A `⇡ commit+push` button types "commit and push" + Enter into the same pane, a one-click way to tell
-  the agent to commit and push, and `◧ changes` opens the diff pane.
+  so you never reach for the keyboard; it rests in teal, the row's one lit chip. A `⇡ commit+push` button types "commit
+  and push" + Enter into the same pane, a one-click way to tell the agent to commit and push, and `◧ changes` opens the
+  diff pane.
 
 ## Targeting
 

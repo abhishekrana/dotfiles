@@ -73,9 +73,8 @@ apply_tmux() {
     # Each chip colours only when @dictate_src names it (set by the script from the
     # chip you clicked). Colour is the only feedback a status bar has, so it must
     # say WHICH button is working - never key two chips off one state.
-    # dictate+send rests in `working`, the row's one highlight: it is the chip
-    # reached for most, and grey reads as unavailable. Teal because it is the only
-    # free hue that cannot be mistaken for that chip's own rec/work states.
+    # dictate+send rests in `working`, the row's one lit chip; the rest stay grey.
+    # Never a warm hue - it collides with that chip's own rec/work states.
     local dseg dsend
     dchip() { # dchip <src> <label> <resting fg> -> a chip that reacts only to its own source
         local mine="#{==:#{@dictate_src},$1}"
