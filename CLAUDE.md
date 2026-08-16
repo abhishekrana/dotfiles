@@ -8,48 +8,60 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
 
 - `bash/` → `~/.bashrc.d/` (shell customizations)
 - `bat/` → `~/.config/bat/`
-- `claude/` → `~/.claude/settings.json`, `~/.claude/statusline-command.sh`, `~/.claude/skills/` (settings.json wires the
-  agentbar hook on every Claude lifecycle event + the statusLine; agent state comes from that plugin's `@agent_*` pane
-  options, not local hook scripts. Claude Code does NOT load a user-level `~/.claude/settings.local.json` - anything
-  that must take effect goes in `settings.json`)
-- `clip/` → `~/.local/bin/clip` (copy stdin to the clipboard; picks wl-copy, xclip or pbcopy. Every copy path - tmux
-  `copy-command`, `tmux-yank.sh`, fzf's Ctrl-Y, nvim - goes through it, so the backend is chosen in one place)
-- `dictate/` → `~/.local/bin/dictate` (toggle-key local Whisper dictation into tmux; opt-in. Has its own nested
-  `CLAUDE.md` - read it before touching the script. Its deps are opt-in too: `./bootstrap.sh dictate-deps`. Two backends
-  named for the hardware and picked by what is installed, not by an env var: `gpu` (whisper.cpp via Vulkan, on an AMD or
-  Intel iGPU or NVIDIA) once installed by `./install.sh whisper-vulkan`, else `cpu` (faster-whisper) - same `small.en`,
-  measured 2.7× faster on the GPU)
+- `claude/` → `~/.claude/settings.json`, `~/.claude/statusline-command.sh`, `~/.claude/skills/`. `settings.json` wires
+  the agentbar hook on every Claude lifecycle event plus the statusLine; agent state comes from that plugin's `@agent_*`
+  pane options, not local hook scripts. Claude Code does not load a user-level `~/.claude/settings.local.json`, so
+  anything that must take effect goes in `settings.json`.
+- `clip/` → `~/.local/bin/clip` (copy stdin to the clipboard; picks wl-copy, xclip or pbcopy). Every copy path - tmux
+  `copy-command`, `tmux-yank.sh`, fzf's Ctrl-Y, nvim - goes through it, so the backend is chosen in one place.
+- `dictate/` → `~/.local/bin/dictate` (toggle-key local Whisper dictation into tmux; opt-in). Has its own nested
+  `CLAUDE.md` - read it before touching the script. Deps are opt-in too: `./bootstrap.sh dictate-deps`. Two backends,
+  named for the hardware and picked by what is installed rather than an env var: `gpu` (whisper.cpp via Vulkan, on an
+  AMD or Intel iGPU or NVIDIA) once `./install.sh whisper-vulkan` has run, else `cpu` (faster-whisper). Same `small.en`,
+  measured 2.7× faster on the GPU.
 - `ghostty/` → `~/.config/ghostty/` (Ghostty terminal config)
 - `git/` → `~/.config/git/config` (delta pager, merge settings)
 - `hunk/` → `~/.config/hunk/` (hunk diff viewer config, Solarized Light theme)
-- `leaf/` → `~/.config/leaf/` (leaf markdown previewer config. Carries a full Solarized Light palette as
+- `leaf/` → `~/.config/leaf/` (leaf markdown previewer config). Carries a full Solarized Light palette as
   `[themes.solarized-light]`, since leaf ships only `solarized-dark`; that registration is what lets the theme switcher
   drive leaf by name via `LEAF_THEME`. **leaf writes this file itself** - a first run with no config seeds upstream's
-  sample there, which then blocks `stow leaf`, so the backup step in `bootstrap.sh` is load-bearing)
+  sample there, which blocks `stow leaf`, so the backup step in `bootstrap.sh` is load-bearing.
 - `nvim/` → `~/.config/nvim/` (LazyVim config)
 - `theme/` → `~/.local/bin/theme` (theme switcher; re-skins the terminal stack across the four flavors from
   `design/palette.toml`, writing per-tool files into `~/.config/theme/`)
-- `tmux/` → `~/.tmux.conf`, `~/.local/bin/` scripts (`tmux-gitlab.sh` GitLab status - `#issue !mr CI ✓`, no words: the
-  sigils are GitLab's own notation and the glyph is fixed-width so a flipping pipeline never shifts the clock - session
-  picker, resurrect guard, yank, `tmux-reset.sh` the `prefix + R` UI reset - reload + default geometry, nothing killed,
-  `tmux-agent-state.sh` the sourced agent-state language - glyphs, colors and state ranking shared by the picker and its
-  preview, mirroring the sidebar's; colors come from the theme switcher, never hardcoded). **One session order
-  everywhere:** the agentbar sidebar's bands (pinned / active / dormant, alphabetical inside each) are the order,
-  `Alt-h`/`Alt-l` walk it row by row and wrap, and the `Alt-;` picker popup renders the same bands - all three read
-  `agentbar order`, and `p` (pin) in either view is the only thing that moves a session. **Every pane carries a rail**
-  (`pane-border-status top`, `tmux-rail.sh`) and the rule is the same for all of them: LEFT, always, this pane's folder
-  and branch; RIGHT, only when that pane runs Claude, the worktree it is _writing_ in - which its cwd never follows,
-  since the Bash tool's `cd` does not move a pane. Two zones via `#[align=right]`, so the left is anchored at one column
-  and the right grows leftward into rule; nothing shifts as state changes. **A fresh diff pane follows the agent, not
-  the pane:** `tmux-diff-pane.sh` targets `@agent_workdir` (stamped by the agentbar hook from each Edit/Write) and
-  records what is on screen in `@diff_target`. **The target then sticks** - a mode item changes what you see, not where
-  you look; only `f` (follow), `tmux-worktree-picker.sh` (the menu's `W`) and per-window auto-follow (`F`, off by
-  default) re-point a live pane. An amber `◧ diff` chip (the worktree is in no agent's `@agent_workdirs`) reports that
-  and nothing else - a click only opens the menu. The footer holds no per-pane facts at all - dropping the git-status
-  plugin took ~72ms of git off every status redraw - only the work's commit (7-char sha), its CI and the clock.
-  `tmux-mockup.sh` (`task mockup`) previews the whole frame with fake data on a private server
-- `trace/` → `~/.local/bin/dotfiles-trace` (shared always-on trace log for the tmux/agent stack; see "Debugging" below)
+- `tmux/` → `~/.tmux.conf`, `~/.local/bin/` scripts - see [tmux](#tmux) below
+- `trace/` → `~/.local/bin/dotfiles-trace` (shared always-on trace log for the tmux/agent stack; see "Debugging")
 - `yazi/` → `~/.config/yazi/` (yazi file manager config)
+
+### tmux
+
+Scripts in `tmux/.local/bin/`:
+
+- `tmux-gitlab.sh` - GitLab status, `#issue !mr CI ✓`. No words: the sigils are GitLab's own notation, and the CI glyph
+  is fixed-width so a flipping pipeline never shifts the clock.
+- `tmux-agent-state.sh` - sourced agent-state language: glyphs, colors and state ranking shared by the session picker
+  and its preview, mirroring the sidebar's. Colors come from the theme switcher, never hardcoded.
+- `tmux-reset.sh` - the `prefix + R` UI reset: reload + default geometry, nothing killed.
+- `tmux-mockup.sh` - `task mockup`, previews the whole frame with fake data on a private server.
+- Session picker, resurrect guard, yank.
+
+Rules:
+
+- **One session order everywhere.** The agentbar sidebar's bands (pinned / active / dormant, alphabetical inside each)
+  are the order, `Alt-h`/`Alt-l` walk it row by row and wrap, and the `Alt-;` picker popup renders the same bands. All
+  three read `agentbar order`, and `p` (pin) in either view is the only thing that moves a session.
+- **Every pane carries a rail** (`pane-border-status top`, `tmux-rail.sh`), same rule for all of them. LEFT, always:
+  this pane's folder and branch. RIGHT, only when that pane runs Claude: the worktree it is _writing_ in, which its cwd
+  never follows, since the Bash tool's `cd` does not move a pane. Two zones via `#[align=right]` - the left anchored at
+  one column, the right growing leftward into rule - so nothing shifts as state changes.
+- **A fresh diff pane follows the agent, not the pane.** `tmux-diff-pane.sh` targets `@agent_workdir` (stamped by the
+  agentbar hook from each Edit/Write) and records what is on screen in `@diff_target`.
+- **The target then sticks.** A mode item changes what you see, not where you look; only `f` (follow),
+  `tmux-worktree-picker.sh` (the menu's `W`) and per-window auto-follow (`F`, off by default) re-point a live pane.
+- An amber `◧ diff` chip means the worktree is in no agent's `@agent_workdirs`, and reports nothing else. A click only
+  opens the menu.
+- **The footer holds no per-pane facts** - only the work's commit (7-char sha), its CI and the clock. Dropping the
+  git-status plugin took ~72ms of git off every status redraw.
 
 ## Apps (built from source)
 
@@ -71,7 +83,7 @@ so CI installs with the same code a machine does:
 ./install.sh                 # list the steps
 ./install.sh all             # every tool (bootstrap.sh calls this)
 ./install.sh gate-tools      # just what `task check` needs (CI calls this)
-./install.sh install_tmux     # one step by name
+./install.sh install_tmux    # one step by name
 ./install.sh dictate-deps    # uv + pulseaudio-utils, opt-in
 ./install.sh whisper-vulkan  # whisper.cpp built against Vulkan for dictate's GPU backend, opt-in
 ```
@@ -89,9 +101,8 @@ so CI installs with the same code a machine does:
 
 ## Debugging (trace log)
 
-**When something in the tmux/agent workflow misbehaves - a status-bar click didn't register, the sidebar shows the wrong
-agent state, a session switch felt slow, dictation went nowhere - look at the trace log first.** It is always on and
-records action _edges_ across the whole interactive stack:
+**Read the trace log first** when anything in the tmux/agent workflow misbehaves. It is always on and records action
+_edges_ across the whole interactive stack.
 
 - **Where:** `${XDG_STATE_HOME:-~/.local/state}/dotfiles/trace.log` (outside the repo, never committed). Size-capped at
   1 MiB with one rotation (`trace.log.1`).
@@ -100,48 +111,50 @@ records action _edges_ across the whole interactive stack:
   `dotfiles-trace path` prints the file.
 - **Format:** logfmt - `ts=<iso ms> src=… evt=… pid=… k=v …`. The on-screen status clock is `%H:%M:%S`, so a screenshot
   anchors to a log window.
-- **Reading the flaky-click case:** a `src=tmux evt=click range=…` line means tmux _received_ the click (so any failure
-  is downstream - our bug); _no_ line for a click you made means the terminal dropped the event before tmux (the known
-  Ghostty+tmux status-click bug, not fixable here).
-- **Reading the flaky-copy case:** every copy path goes through `clip`, so each one leaves
-  `src=clip evt=copy backend=… sel=… bytes=… rc=… wl=… dsp=…`, and a mouse yank adds
-  `src=yank evt=copy bytes=… rc=… rc_primary=…` for the tmux edge above it. Read it in this order: **no `src=yank`
-  line** means tmux never fired the yank (the selection or the binding, not the clipboard); **`bytes=0`** means an empty
-  drag - nothing was selected, so nothing was copied; **`rc` non-zero** means the backend itself failed, and
-  `wl=`/`dsp=` say why - a long-lived tmux server keeps the `WAYLAND_DISPLAY` it started with, so after a re-login
-  `wl-copy` cannot reach the compositor and every copy fails until the server is restarted or its environment updated.
-- **Reading a drifted layout:** a squeezed sidebar or a skewed split is a screen change - tmux takes a shrink evenly
-  from every pane and has no fixed-size pane. `src=sidebar evt=pin` is the `window-resized` hook fixing the width
-  itself; `prefix + R` logs `src=tmux evt=reset … changed=N` plus one `evt=layout win=… before=… after=…` per window it
-  changed, and nothing when nothing had drifted.
-- **Reading a session jump that went to the wrong place:** `Alt-h`/`Alt-l` log
-  `src=agentbar evt=switch session=… from=… key=prev|next ms=…` - the session it landed on and the one it left. No line
-  at all means the binary never ran, so the binding fell through to tmux's own alphabetical `switch-client` (rebuild
-  it); a line whose `session=` is not the neighbouring row means the bands moved under you - `agentbar order` prints the
-  list the keys walk, and `src=agentbar evt=pin session=… pinned=…` is every pin change, from either the sidebar or the
-  picker popup.
-- **Reading state drift:** `src=hook evt=event name=… prev=… new=… sid=…` is ground truth of what Claude told the
-  sidebar (`via=cwd` means the pane was recovered by the cwd fallback - a resumed / `claude daemon run` session that
-  fired the hook with no `$TMUX_PANE`); `src=hook evt=drop reason=no_pane cwd=… sid=…` flags a hook that arrived with no
-  pane to land on. `agentbar doctor` (run `$HOME/dotfiles/apps/agentbar/bin/agentbar doctor`) rolls this into a per-pane
-  health check - the one-command way to spot a stale sidebar.
-- **Reading a diff pane showing the wrong tree:** `src=hook evt=workdir pane=… before=… after=…` is every move of an
-  agent's worktree (absent means the agent has only read files, or a hook is not wired - the pane then falls back to its
-  own cwd, the old behaviour). `src=tmux evt=diff action=create|respawn target=…` is what the diff pane was pointed at,
-  and `action=follow from=… to=…` every catch-up; a `to=` that is not where you expected means `@agent_workdir` is
-  stale, so read the `evt=workdir` line above it. `bg=bg` marks an auto-follow (no focus change), `bg=0` an explicit
-  one.
+
+What to read, by symptom:
+
+- **A click did nothing.** `src=tmux evt=click range=…` means tmux received it, so the failure is downstream - our bug.
+  No line for a click you made means the terminal dropped the event first: the known Ghostty+tmux status-click bug, not
+  fixable here.
+- **A copy did nothing.** Every copy path goes through `clip`, leaving
+  `src=clip evt=copy backend=… sel=… bytes=… rc=… wl=… dsp=…`; a mouse yank adds
+  `src=yank evt=copy bytes=… rc=… rc_primary=…` for the tmux edge above it. Read in this order: **no `src=yank` line**
+  means tmux never fired the yank (the selection or the binding, not the clipboard); **`bytes=0`** means an empty drag;
+  **`rc` non-zero** means the backend failed, and `wl=`/`dsp=` say why. A long-lived tmux server keeps the
+  `WAYLAND_DISPLAY` it started with, so after a re-login `wl-copy` cannot reach the compositor until the server is
+  restarted or its environment updated.
+- **The layout drifted.** A squeezed sidebar or skewed split is a screen change: tmux takes a shrink evenly from every
+  pane and has no fixed-size pane. `src=sidebar evt=pin` is the `window-resized` hook fixing the width itself.
+  `prefix + R` logs `src=tmux evt=reset … changed=N` plus one `evt=layout win=… before=… after=…` per window changed,
+  and nothing when nothing had drifted.
+- **A session jump landed wrong.** `Alt-h`/`Alt-l` log `src=agentbar evt=switch session=… from=… key=prev|next ms=…`. No
+  line means the binary never ran, so the binding fell through to tmux's alphabetical `switch-client` - rebuild it. A
+  `session=` that is not the neighbouring row means the bands moved under you; `agentbar order` prints the list the keys
+  walk, and `src=agentbar evt=pin session=… pinned=…` is every pin change from either view.
+- **The sidebar state looks stale.** `src=hook evt=event name=… prev=… new=… sid=…` is ground truth of what Claude told
+  the sidebar (`via=cwd` means the pane was recovered by the cwd fallback - a resumed or `claude daemon run` session
+  that fired the hook with no `$TMUX_PANE`). `src=hook evt=drop reason=no_pane cwd=… sid=…` flags a hook that arrived
+  with no pane to land on. `$HOME/dotfiles/apps/agentbar/bin/agentbar doctor` rolls this into a per-pane health check -
+  the one-command way to spot a stale sidebar.
+- **The diff pane shows the wrong tree.** `src=hook evt=workdir pane=… before=… after=…` is every move of an agent's
+  worktree; absent means the agent has only read files, or a hook is not wired - the pane then falls back to its own
+  cwd. `src=tmux evt=diff action=create|respawn target=…` is what the pane was pointed at, and
+  `action=follow from=… to=…` every catch-up; a `to=` you did not expect means `@agent_workdir` is stale, so read the
+  `evt=workdir` line above it. `bg=bg` marks an auto-follow (no focus change), `bg=0` an explicit one.
+
+Writing to it:
+
 - **Two writers, one format:** the `dotfiles-trace` CLI (`trace/`, used by all shell/tmux callers) and the Go
-  `apps/agentbar/internal/trace` package (used by the sidebar + hook) - keep them in sync on timestamp, escaping, and
-  rotation. **Log edges only, never hot loops** (mouse motion, ticks, status redraws, the dictate silence poll, fzf
-  preview/list, statusline) - that keeps it free.
-- **Toggles:** `tmux set -g @agentbar-trace-verbose on` adds the noisy sidebar events (mouse motion, ticks) for a live
-  hunt (effect within ~1s, no restart). `DOTFILES_TRACE=0` disables entirely; for tmux `run-shell` children use
+  `apps/agentbar/internal/trace` package (used by the sidebar + hook). Keep them in sync on timestamp, escaping, and
+  rotation.
+- **Log edges only, never hot loops** (mouse motion, ticks, status redraws, the dictate silence poll, fzf preview/list,
+  statusline) - that keeps it free.
+- **Toggles:** `tmux set -g @agentbar-trace-verbose on` adds the noisy sidebar events for a live hunt (effect within
+  ~1s, no restart). `DOTFILES_TRACE=0` disables entirely; for tmux `run-shell` children use
   `tmux set-environment -g DOTFILES_TRACE 0`.
 
 ### Tracing a new feature
-
-Trace a new interactive feature the same way, so the evidence is there the first time it misbehaves:
 
 - One `dotfiles-trace log <src> <evt> k=v ...` per action edge, never in a hot loop. Reuse an existing `src`.
 - Log the outcome, not the intent - `rc=`, `bytes=` are what separate "it ran" from "it worked".
@@ -167,6 +180,7 @@ here - this repo is public.
   in the system `.bashrc`
 - **Prefer `~/.local/bin`** for tool installations over system-wide installs
 - **Keep it simple**: no unnecessary abstractions, no over-engineering
+- **Keep comments and docs terse**: state the rule, not the story around it. History belongs in the commit message.
 
 ## Conventions
 
