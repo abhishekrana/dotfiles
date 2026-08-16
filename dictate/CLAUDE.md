@@ -77,8 +77,13 @@ values still resolve.
   status bar has no tooltips and a first-time reader gets one chance. Glyphs alone were rejected: a bare glyph is a 2-3
   column click target, too small to hit.
 - `dictate+send` is one press-pair, not a second recorder: the first press drops `SEND_FILE` beside the PCM buffer and
-  the second reads it _before_ `cleanup()` removes it, then presses Enter once the transcript is in the pane. Both
-  dictate chips share the `@dictate` colour states, so the whole pair lights up while the mic is open.
+  the second reads it _before_ `cleanup()` removes it, then presses Enter once the transcript is in the pane. Only the
+  chip you clicked lights up - both read `@dictate`, but each colours itself only when `@dictate_src` names it.
+- **One chip in the row is highlighted, and it is `dictate+send`** - `working` teal at rest, where the other four are
+  grey, blue or violet. It is the button reached for most and grey reads as unavailable. The hue is forced: the chip's
+  own states are red (recording) and amber (transcribing), so anything warm - orange included - makes idle and busy look
+  alike. `⏎ send` gave the teal up and went grey to keep the row at one highlight; if you ever recolor either, move the
+  highlight rather than adding a second.
 - **Hover is impossible** - tmux 3.7b rejects `MouseMoveStatus`; only Down/Up/Drag/Wheel exist for the status line.
 
 ## Tracing

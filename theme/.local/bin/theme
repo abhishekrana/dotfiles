@@ -73,15 +73,18 @@ apply_tmux() {
     # Each chip colours only when @dictate_src names it (set by the script from the
     # chip you clicked). Colour is the only feedback a status bar has, so it must
     # say WHICH button is working - never key two chips off one state.
+    # dictate+send rests in `working`, the row's one highlight: it is the chip
+    # reached for most, and grey reads as unavailable. Teal because it is the only
+    # free hue that cannot be mistaken for that chip's own rec/work states.
     local dseg dsend
-    dchip() { # dchip <src> <label> -> a chip that reacts only to its own source
+    dchip() { # dchip <src> <label> <resting fg> -> a chip that reacts only to its own source
         local mine="#{==:#{@dictate_src},$1}"
         printf '#{?#{&&:%s,#{==:#{@dictate},rec}},#[fg=%s bg=%s]%s,' "$mine" "$block" "$surface" "$2"
         printf '#{?#{&&:%s,#{==:#{@dictate},work}},#[fg=%s bg=%s]%s,' "$mine" "$ask" "$surface" "$2"
-        printf '#[fg=%s bg=%s]%s}}' "$muted" "$surface" "$2"
+        printf '#[fg=%s bg=%s]%s}}' "$3" "$surface" "$2"
     }
-    dseg=$(dchip dictate " ● dictate ")
-    dsend=$(dchip dictsend " ● dictate+send ")
+    dseg=$(dchip dictate " ● dictate " "$muted")
+    dsend=$(dchip dictsend " ● dictate+send " "$work")
     # Diff chip: violet normally, amber when the agent is writing in another
     # worktree (@diff_drift, set in .tmux.conf). Same width either way.
     local diffseg
@@ -115,7 +118,7 @@ set -g window-status-current-format "#[fg=$bg,bg=$accent,bold] #I:#W#{?window_zo
 set -g window-status-format "#{?window_bell_flag,#[fg=$bg bg=$block bold],#[fg=$muted bg=$surface]} #I:#W "
 set -g @dictate_seg "$dseg"
 set -g @dictsend_seg "$dsend"
-set -g @submit_seg "#{?@submit_flash,#[fg=$bg bg=$grn] ⏎ send ,#[fg=$work bg=$surface] ⏎ send }"
+set -g @submit_seg "#{?@submit_flash,#[fg=$bg bg=$grn] ⏎ send ,#[fg=$muted bg=$surface] ⏎ send }"
 set -g @push_seg "#{?@push_flash,#[fg=$bg bg=$grn] ⇡ commit+push ,#[fg=$accent bg=$surface] ⇡ commit+push }"
 set -g @diff_seg "$diffseg"
 set -g pane-border-format "$border"
