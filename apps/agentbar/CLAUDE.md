@@ -43,7 +43,7 @@ state (working/permission/asking/done/done-seen/idle), one multi-Claude-on-one-b
   event `cwd` when `$TMUX_PANE` is absent; `workdir.go` stamps `@agent_workdir` (the worktree the agent is _writing_ in,
   which its pane's cwd never follows) at pane and window scope, from the `file_path` of an Edit/Write tool event - a
   write and nothing else, never a `CwdChanged` (Claude resets its shell cwd home after every Bash call, which would undo
-  the edit that just moved the agent)
+  the edit that just moved the agent); `ClearWorkdir` drops it again at a session boundary
 - `internal/tmux` - exec wrapper, `list-panes -a` snapshot, branch cache, status segment
 - `internal/ui` - Bubble Tea TUI: `app.go` (state, mouse, selection sync), `render.go` (blocks, bands, highlight),
   `theme.go`; `model.Arrange` groups sessions into bands
@@ -87,6 +87,11 @@ state (working/permission/asking/done/done-seen/idle), one multi-Claude-on-one-b
   writes outside its own pane's worktree", which a shell pane must not inherit. An edit inside the already-stamped
   worktree writes nothing and runs no `git`; a file outside any repo leaves the last known workdir alone rather than
   blanking it.
+- **A new agent context drops all three** (`ClearWorkdir`: every `SessionStart` but `compact`, and `SessionEnd`). Pane
+  options outlive the Claude session, so without it a fresh agent in a recycled pane - a `/clear`, a resume, a restart -
+  inherits the dead one's write target and every reader names a worktree it has never written in. `compact` is the
+  exception: same session, same task. Session scope goes only when the last registered agent does, since a sibling agent
+  in another window shares that copy.
 - A session-scope `set-option` cannot take a pane id: tmux errors and **abandons the rest of the command chain**, so the
   options after it silently never land. Resolve `#{session_name}` first and target that.
 - `@agentbar-workdir-cmd` is this package's ONLY hook into anything outside it: an optional command run detached

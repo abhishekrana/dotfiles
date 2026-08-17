@@ -227,5 +227,51 @@ bash "$DIFF" close
 eq "target cleared" "" "$(t show -wqv -t "$win" @diff_target)"
 eq "auto-follow preference kept" "on" "$(t show -wqv -t "$win" @diff_follow)"
 
+printf '\nsession boundaries drop the inherited workdir\n'
+# The regression: pane options outlive the Claude session, so a new agent in a
+# recycled pane inherited the dead one's write target - and the rail, the
+# sidebar's branch headline and a fresh diff pane all named a worktree it had
+# never written in, with nothing on screen saying so.
+sess_hook() { # sess_hook <pane> <event> [source]
+    printf '{"hook_event_name":"%s","session_id":"boundary","source":"%s"}\n' "$2" "${3:-}" |
+        TMUX_PANE="$1" "$BIN" hook
+}
+
+hook "$WT/other/sub/f.txt" # the agent writes outside its pane's worktree
+eq "stamped before the boundary" "$WT/other" "$(t show -pqv -t "$pane" @agent_workdir)"
+eq "and flagged elsewhere" "1" "$(t show -pqv -t "$pane" @agent_elsewhere)"
+sess_hook "$pane" SessionEnd
+eq "SessionEnd drops the pane copy" "" "$(t show -pqv -t "$pane" @agent_workdir)"
+eq "and the window copy" "" "$(t show -wqv -t "$win" @agent_workdir)"
+eq "and the recent list" "" "$(t show -pqv -t "$pane" @agent_workdirs)"
+eq "and the elsewhere flag" "" "$(t show -pqv -t "$pane" @agent_elsewhere)"
+
+# A /clear is the case that bit: same pane, same process, brand new context.
+hook "$WT/other/sub/f.txt"
+sess_hook "$pane" SessionStart clear
+eq "a /clear starts clean" "" "$(t show -pqv -t "$pane" @agent_workdir)"
+
+# Compaction is not a new context - same session, same task, still writing there -
+# so it is the one SessionStart that must keep the target.
+hook "$WT/other/sub/f.txt"
+sess_hook "$pane" SessionStart compact
+eq "compact keeps the target" "$WT/other" "$(t show -pqv -t "$pane" @agent_workdir)"
+
+# Session scope is shared with the session's other windows, so it may only go
+# when the last registered agent does - otherwise one agent quitting blanks a
+# sibling that is still writing.
+t new-window -d -t s -c "$WT/home" "exec $TMP/shim/claude 300"
+sib=$(t list-panes -s -t s -F '#{pane_id} #{pane_current_command}' |
+    awk -v self="$pane" '$2=="claude" && $1!=self && !f {print $1; f=1}')
+eq "a second agent pane exists" "1" "$([ -n "$sib" ] && echo 1)"
+sess_hook "$sib" SessionStart startup
+eq "sibling agent registered" "1" "$(t show -pqv -t "$sib" @agent_present)"
+hook "$WT/other/sub/f.txt" # re-stamp: the sibling's start cleared the session copy
+eq "session copy stamped" "$WT/other" "$(t show -qv -t "$pane" @agent_workdir)"
+sess_hook "$pane" SessionEnd
+eq "a live sibling keeps the session copy" "$WT/other" "$(t show -qv -t "$pane" @agent_workdir)"
+sess_hook "$sib" SessionEnd
+eq "last agent out drops it" "" "$(t show -qv -t "$pane" @agent_workdir)"
+
 printf '\n%s passed, %s failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

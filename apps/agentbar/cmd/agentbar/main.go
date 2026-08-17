@@ -209,6 +209,14 @@ func runHook() {
 	if hook.ShouldNotify(prev, ef, notifyOpt) {
 		hook.Notify(r, pane, ef.State)
 	}
+	// A new or ended agent context must not inherit the previous session's write
+	// target: the pane option outlives the Claude session. Before the stamp below,
+	// so the two never fight over one event.
+	if ef.ClearWorkdir {
+		if wdFrom := hook.ClearWorkdir(r, pane); wdFrom != "" {
+			trace.Log("hook", "workdir", "pane", pane, "before", wdFrom, "after", "")
+		}
+	}
 	// Where the agent is writing, which the pane's cwd does not follow. Only a
 	// change is traced or acted on; an edit in the same worktree costs nothing.
 	if wdFrom, wdTo := hook.ApplyWorkdir(r, pane, ev); wdTo != "" {

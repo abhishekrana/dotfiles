@@ -48,6 +48,7 @@ type Effect struct {
 	State         model.AgentState // "" = leave state alone
 	Register      bool             // stamp presence + session id
 	ClearAll      bool             // session ended: drop everything
+	ClearWorkdir  bool             // new agent context: drop the inherited write target
 	SubagentDelta int
 }
 
@@ -55,7 +56,13 @@ type Effect struct {
 func Decide(ev Event) Effect {
 	switch ev.Name {
 	case "SessionStart":
-		return Effect{Register: true, State: model.StateIdle}
+		// A fresh context has written nothing yet, and pane options outlive the
+		// Claude session: without ClearWorkdir the previous session's write
+		// target survives into this one (a /clear, a resume, or just a new
+		// session in the same pane) and the rail, the sidebar's branch and a
+		// fresh diff pane all name a worktree this agent never touched.
+		// compact is the exception - same session, same task, still writing there.
+		return Effect{Register: true, State: model.StateIdle, ClearWorkdir: ev.Source != "compact"}
 	case "UserPromptSubmit", "PreToolUse":
 		// PreToolUse also registers: it repairs presence for sessions
 		// that started before the hooks were installed.
@@ -96,7 +103,7 @@ func Decide(ev Event) Effect {
 	case "SubagentStop":
 		return Effect{SubagentDelta: -1}
 	case "SessionEnd":
-		return Effect{ClearAll: true}
+		return Effect{ClearAll: true, ClearWorkdir: true}
 	}
 	return Effect{}
 }
@@ -144,7 +151,9 @@ func ResolvePane(r tmux.Runner, ev Event) (pane, via string) {
 	return matches[0].id, "cwd"
 }
 
-// allOptions is everything Apply may set; ClearAll unsets each.
+// allOptions is everything Apply may set; ClearAll unsets each. The workdir
+// options are NOT here: ApplyWorkdir stamps them at three scopes, so ClearWorkdir
+// in workdir.go owns dropping them - see Effect.ClearWorkdir.
 var allOptions = []string{
 	"@agent_present", "@agent_state", "@agent_since",
 	"@agent_seen", "@agent_session_id", "@agent_subagents",

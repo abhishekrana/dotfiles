@@ -154,6 +154,56 @@ func ApplyWorkdir(r tmux.Runner, pane string, ev Event) (before, after string) {
 	return cur, root
 }
 
+// ClearWorkdir drops the stamped write target when the agent context is new or
+// gone, and returns what it dropped (for the trace); "" when there was nothing.
+// Pane options outlive the Claude session, so without this a fresh agent in a
+// recycled pane inherits the previous one's worktree and every reader of
+// @agent_workdir - the rail's right zone, the sidebar's branch headline, a fresh
+// diff pane - keeps naming a tree it has never written in.
+//
+// Scope mirrors ApplyWorkdir, with one asymmetry: pane and window always, but
+// session only once no other registered agent is left in it. A sibling agent in
+// another window shares that copy and may still be writing.
+func ClearWorkdir(r tmux.Runner, pane string) string {
+	before := tmux.PaneOption(r, pane, "@agent_workdir")
+	args := []string{
+		"set-option", "-pqu", "-t", pane, "@agent_workdir",
+		";", "set-option", "-pqu", "-t", pane, "@agent_workdirs",
+		";", "set-option", "-pqu", "-t", pane, "@agent_elsewhere",
+		";", "set-option", "-wqu", "-t", pane, "@agent_workdir",
+		";", "set-option", "-wqu", "-t", pane, "@agent_workdirs",
+	}
+	// Session scope cannot be targeted by pane id - tmux errors and abandons the
+	// rest of the chain - so resolve the name first, as ApplyWorkdir does.
+	sess, _ := r.Run("display-message", "-p", "-t", pane, "#{session_name}")
+	if sess = strings.TrimSpace(sess); sess != "" && !sessionHasAgent(r, sess, pane) {
+		args = append(args,
+			";", "set-option", "-qu", "-t", sess, "@agent_workdir",
+			";", "set-option", "-qu", "-t", sess, "@agent_workdirs")
+	}
+	if _, err := r.Run(args...); err != nil {
+		return ""
+	}
+	return before
+}
+
+// sessionHasAgent reports whether any pane in sess other than except still has a
+// registered agent. On an unreadable session it answers true: keeping a stale
+// session-scope copy is cheap, blanking a live agent's is not.
+func sessionHasAgent(r tmux.Runner, sess, except string) bool {
+	out, err := r.Run("list-panes", "-s", "-t", sess, "-F", "#{pane_id}\t#{@agent_present}")
+	if err != nil {
+		return true
+	}
+	for ln := range strings.SplitSeq(out, "\n") {
+		id, present, _ := strings.Cut(ln, "\t")
+		if id != except && strings.TrimSpace(present) == "1" {
+			return true
+		}
+	}
+	return false
+}
+
 // RunWorkdirCmd fires the command in @agentbar-workdir-cmd after the workdir
 // changed, with AGENTBAR_PANE and AGENTBAR_WORKDIR in its environment. The one
 // seam this package has to anything outside it: unset by default, and started

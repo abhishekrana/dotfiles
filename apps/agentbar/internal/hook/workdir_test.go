@@ -125,6 +125,87 @@ func TestPushWorkdir(t *testing.T) {
 	}
 }
 
+// A new agent context must not inherit the previous session's write target;
+// pane options outlive the Claude session. compact is the one SessionStart that
+// keeps it - same session, same task, still writing in that worktree.
+func TestDecideClearsWorkdirOnNewContext(t *testing.T) {
+	cases := []struct {
+		name string
+		ev   Event
+		want bool
+	}{
+		{"fresh start", Event{Name: "SessionStart", Source: "startup"}, true},
+		{"clear", Event{Name: "SessionStart", Source: "clear"}, true},
+		{"resume", Event{Name: "SessionStart", Source: "resume"}, true},
+		{"fork", Event{Name: "SessionStart", Source: "fork"}, true},
+		{"compact keeps it", Event{Name: "SessionStart", Source: "compact"}, false},
+		{"session end", Event{Name: "SessionEnd"}, true},
+		// A working agent's target must survive its own tool calls.
+		{"pre tool use", Event{Name: "PreToolUse", ToolName: "Edit"}, false},
+		{"stop", Event{Name: "Stop"}, false},
+		{"cwd change", Event{Name: "CwdChanged"}, false},
+	}
+	for _, c := range cases {
+		if got := Decide(c.ev).ClearWorkdir; got != c.want {
+			t.Errorf("%s: ClearWorkdir = %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
+// Pane and window scope always go, and the previous value comes back for the
+// trace so a surprising blank rail is one grep away.
+func TestClearWorkdirDropsPaneAndWindowScope(t *testing.T) {
+	f := &fakeRunner{
+		options: map[string]string{"@agent_workdir": "/wt/svc-b"},
+		display: "sess",
+	}
+	if before := ClearWorkdir(f, "%1"); before != "/wt/svc-b" {
+		t.Fatalf("ClearWorkdir returned %q, want the dropped value", before)
+	}
+	got := strings.Join(f.calls, " | ")
+	for _, want := range []string{
+		"set-option -pqu -t %1 @agent_workdir",
+		"set-option -pqu -t %1 @agent_workdirs",
+		"set-option -pqu -t %1 @agent_elsewhere",
+		"set-option -wqu -t %1 @agent_workdir",
+		"set-option -wqu -t %1 @agent_workdirs",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in calls: %s", want, got)
+		}
+	}
+}
+
+// The session copy is shared with the other windows of the session, so it may
+// only be dropped once the last registered agent is gone.
+func TestClearWorkdirSessionScopeWaitsForTheLastAgent(t *testing.T) {
+	sibling := &fakeRunner{
+		options: map[string]string{"@agent_workdir": "/wt/svc-b"},
+		display: "sess",
+		panes:   "%1\t\n%7\t1\n", // %7 is another agent, still registered
+	}
+	ClearWorkdir(sibling, "%1")
+	if got := strings.Join(sibling.calls, " | "); strings.Contains(got, "-qu -t sess") {
+		t.Errorf("a live sibling agent must keep the session copy: %s", got)
+	}
+
+	last := &fakeRunner{
+		options: map[string]string{"@agent_workdir": "/wt/svc-b"},
+		display: "sess",
+		panes:   "%1\t\n%7\t\n", // nothing registered anywhere
+	}
+	ClearWorkdir(last, "%1")
+	got := strings.Join(last.calls, " | ")
+	for _, want := range []string{
+		"set-option -qu -t sess @agent_workdir",
+		"set-option -qu -t sess @agent_workdirs",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("last agent out must drop %q: %s", want, got)
+		}
+	}
+}
+
 // The list is pipe-WRAPPED so a tmux format can test membership with
 // #{m:*|dir|*,list} without a shorter name matching a longer one.
 func TestPushWorkdirWrapsForMembership(t *testing.T) {

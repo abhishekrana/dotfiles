@@ -139,9 +139,10 @@ What to read, by symptom:
   the one-command way to spot a stale sidebar.
 - **The diff pane shows the wrong tree.** `src=hook evt=workdir pane=… before=… after=…` is every move of an agent's
   worktree; absent means the agent has only read files, or a hook is not wired - the pane then falls back to its own
-  cwd. `src=tmux evt=diff action=create|respawn target=…` is what the pane was pointed at, and
-  `action=follow from=… to=…` every catch-up; a `to=` you did not expect means `@agent_workdir` is stale, so read the
-  `evt=workdir` line above it. `bg=bg` marks an auto-follow (no focus change), `bg=0` an explicit one.
+  cwd. An empty `after=` is a session boundary dropping it, so a new agent cannot inherit the last one's target.
+  `src=tmux evt=diff action=create|respawn target=…` is what the pane was pointed at, and `action=follow from=… to=…`
+  every catch-up; a `to=` you did not expect means `@agent_workdir` is stale, so read the `evt=workdir` line above it.
+  `bg=bg` marks an auto-follow (no focus change), `bg=0` an explicit one.
 
 Writing to it:
 
