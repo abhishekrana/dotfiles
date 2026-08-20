@@ -6,8 +6,8 @@ elevated privilege; CPU by default, and on the GPU once the opt-in backend is in
 
 ## How it works
 
-- A GNOME custom shortcut runs `dictate --toggle`. First press records the mic via `parec`; second press ships the clip
-  to a local model server for transcription and injects the text with `tmux send-keys`.
+- A GNOME custom shortcut runs `dictate --toggle --send`. First press records the mic via `parec`; second press ships
+  the clip to a local model server for transcription, injects the text with `tmux send-keys`, and presses Enter.
 - Runs entirely in userspace - no sudo, no groups, no `/dev/*` access. tmux owns the pane's pty, so writing to it is
   ordinary I/O.
 - **Lazy model server:** the first dictation spawns a background `dictate --serve` that loads faster-whisper once and
@@ -49,15 +49,19 @@ cd ~/dotfiles && ./bootstrap.sh dictate-deps
 ## Setup
 
 ```bash
-dictate --install-shortcut    # bind Super+\ and Super+Z to `dictate --toggle`
+dictate --install-shortcut    # bind the Copilot key to `dictate --toggle --send`
 dictate --check               # verify parec + tmux, and show the target pane
 ```
+
+One key is bound: the **Copilot key**, between AltGr and right Ctrl. Its string is `<Shift><Super>XF86TouchpadOff` - the
+key emits `LeftMeta`+`LeftShift`+`F23`, and `KEY_F23`'s keycode carries the `XF86TouchpadOff` keysym, so `F23` does not
+match. Pass keys to bind others; the dconf list ends up matching the arguments exactly.
 
 ## Usage
 
 ```bash
-dictate --toggle              # start/stop (this is what the shortcut runs)
-dictate --toggle --send       # same, but presses Enter once the transcript lands
+dictate --toggle              # start/stop
+dictate --toggle --send       # same, but presses Enter once the transcript lands (the shortcut runs this)
 dictate --target              # show which pane the transcript goes to
 dictate --test                # record 5 s and print the transcript
 dictate --serve-stop          # stop the model server (e.g. to pick up new config)
@@ -66,8 +70,8 @@ dictate --serve-stop          # stop the model server (e.g. to pick up new confi
 The server picks up its config (model, prompt, etc.) at spawn time, so after changing a `DICTATE_*` env var run
 `dictate --serve-stop` (or wait for the idle timeout) so the next dictation starts a fresh server.
 
-Dictated newlines are collapsed to spaces, so speech never submits a prompt - you press Enter yourself (or click the `⏎`
-button in the status bar).
+Dictated newlines are collapsed to spaces, so the speech itself can never submit a prompt - only `--send` presses Enter,
+whether from the key, the `dictate+send` chip, or the `⏎ send` chip.
 
 ## Config (env vars)
 

@@ -84,6 +84,16 @@ values still resolve.
   (transcribing), so orange blurs idle into busy. To recolor, move the highlight - do not add a second.
 - **Hover is impossible** - tmux 3.7b rejects `MouseMoveStatus`; only Down/Up/Drag/Wheel exist for the status line.
 
+## Key binding
+
+- **One shortcut: the Copilot key, running `--toggle --send`.** `--install-shortcut` resets every `dictate*` keybinding
+  it does not install, so the dconf list matches its arguments exactly.
+- **The string is `<Shift><Super>XF86TouchpadOff`, not `F23`.** The key emits `LeftMeta`+`LeftShift`+`F23`, and
+  `KEY_F23`'s keycode carries the `XF86TouchpadOff` keysym, so `F23` does not match. GNOME's static touchpad-off grab is
+  on the bare keysym, which the held modifiers do not match either - the touchpad is unaffected.
+- **The numpad's Backspace and `=` cannot be bound.** They emit the main-row scancodes (`0xe`, `0xd`), so no layer -
+  hwdb, keyd, xkb, GNOME - can distinguish them.
+
 ## Tracing
 
 - `log()` prints to stderr, which is **discarded** in every real launch context (tmux `run-shell -b`, the GNOME

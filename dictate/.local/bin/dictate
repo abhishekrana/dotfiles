@@ -6,9 +6,9 @@
 """
 dictate - toggle-key local speech-to-text into tmux, CPU-only.
 
-A GNOME shortcut runs `dictate --toggle`: first press records the mic, second
-press transcribes locally with faster-whisper and types the text into your
-active tmux pane via `tmux send-keys`. Runs entirely in userspace - no sudo, no
+A GNOME shortcut runs `dictate --toggle --send`: first press records the mic,
+second press transcribes locally with faster-whisper, types the text into your
+active tmux pane via `tmux send-keys`, and presses Enter. Runs entirely in userspace - no sudo, no
 groups, no device access. The mic opens only while recording, during which other
 audio output is muted so the mic can't pick up your speakers (DICTATE_DUCK=0 to
 disable). Recording also
@@ -26,7 +26,7 @@ otherwise a `claude` pane in your current session, otherwise the most-recent
 `claude` pane. Override with DICTATE_TMUX_TARGET (a pane id or session:win.pane).
 
 Setup:
-  dictate --install-shortcut     # bind Super+\\ and Super+Z to `dictate --toggle`
+  dictate --install-shortcut     # bind the Copilot key to `dictate --toggle --send`
   dictate --check                # verify parec + tmux
 
 Commands: run `dictate --help`. Env-var config (DICTATE_*): see dictate/README.md.
@@ -711,7 +711,10 @@ def toggle(autosend=False):
 
 
 # ---- GNOME custom shortcut (user-level, no sudo) -------------------------
-DEFAULT_BINDINGS = ["<Super>backslash", "<Super>z"]
+# The Copilot key emits LeftMeta+LeftShift+F23 as one press, and F23's keycode
+# resolves to the XF86TouchpadOff keysym - binding "F23" never fires. GNOME's
+# bare-XF86TouchpadOff grab (disable touchpad) cannot match the held modifiers.
+DEFAULT_BINDINGS = ["<Shift><Super>XF86TouchpadOff"]
 
 
 def install_shortcut(bindings):
@@ -719,21 +722,26 @@ def install_shortcut(bindings):
     import ast
     bindings = bindings or DEFAULT_BINDINGS
     exe = os.path.realpath(shutil.which("dictate") or sys.argv[0])
-    cmd = f"{exe} --toggle"
+    cmd = f"{exe} --toggle --send"
     base = "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/"
     schema = "org.gnome.settings-daemon.plugins.media-keys"
 
     raw = subprocess.run(["gsettings", "get", schema, "custom-keybindings"],
                          capture_output=True, text=True).stdout.strip()
     lst = [] if raw.startswith("@as") else ast.literal_eval(raw)
-    keep = [p for p in lst if not p.rstrip("/").rsplit("/", 1)[-1].startswith("dictate")]
+    mine = [p for p in lst if p.rstrip("/").rsplit("/", 1)[-1].startswith("dictate")]
+    keep = [p for p in lst if p not in mine]
     ours = []
     for i, b in enumerate(bindings):
         path = base + ("dictate" if i == 0 else f"dictate-{i}") + "/"
         ours.append(path)
         kb = f"{schema}.custom-keybinding:{path}"
-        for key, val in (("name", f"Dictate toggle {b}"), ("command", cmd), ("binding", b)):
+        for key, val in (("name", f"Dictate+send {b}"), ("command", cmd), ("binding", b)):
             subprocess.run(["gsettings", "set", kb, key, val], check=True)
+    # Binding fewer keys than last time would strand the dropped ones' keys.
+    for path in (p for p in mine if p not in ours):
+        subprocess.run(["gsettings", "reset-recursively",
+                        f"{schema}.custom-keybinding:{path}"], check=False)
     subprocess.run(["gsettings", "set", schema, "custom-keybindings", str(keep + ours)], check=True)
     log(f"bound {' + '.join(bindings)} -> {cmd}")
     log("Change these in Settings ▸ Keyboard ▸ Custom Shortcuts.")
@@ -796,7 +804,7 @@ USAGE = """dictate - toggle-key local speech-to-text into tmux (local, zero priv
 
   dictate --toggle [--send]            start/stop (--send also presses Enter)
   dictate --target                     show which pane the transcript goes to
-  dictate --install-shortcut [KEYS…]   bind GNOME keys (default <Super>backslash + <Super>z)
+  dictate --install-shortcut [KEYS…]   bind GNOME keys to dictate+send (default: the Copilot key)
   dictate --check                      verify parec + tmux, report server state
   dictate --test                       record & print a transcript, with its backend and ms
   dictate --serve-stop                 stop the model server (to pick up new config)
