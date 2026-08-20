@@ -31,7 +31,9 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
   `design/palette.toml`, writing per-tool files into `~/.config/theme/`)
 - `tmux/` → `~/.tmux.conf`, `~/.local/bin/` scripts - see [tmux](#tmux) below
 - `trace/` → `~/.local/bin/dotfiles-trace` (shared always-on trace log for the tmux/agent stack; see "Debugging")
-- `yazi/` → `~/.config/yazi/` (yazi file manager config)
+- `yazi/` → `~/.config/yazi/` (yazi file manager config). `package.toml` is machine-managed: `ya pkg install` rewrites
+  it, so commit exactly what `ya` writes and never comment it. `zoxide` is bundled in yazi core - listing it as a dep
+  fails.
 
 ### tmux
 
@@ -247,6 +249,12 @@ git push origin v0.2.0                  # fires release.yml
 SemVer, `v`-prefixed. **This repo stays on 0.x - do not bump to 1.0.** Pre-1.0 shifts the meanings down one: a release
 needing manual steps bumps the MINOR, everything else bumps the PATCH. `task release-notes` previews what the next
 release would publish; `task changelog` prepends to `CHANGELOG.md` rather than regenerating it.
+
+**A tag with no published Release is not a release.** Before tagging, check the newest tag has one. If it does not, fix
+the failure and ask whether to re-tag that version or bump - never tag over it.
+
+**Green `task check` does not mean the release will publish.** `release.yml` also runs `test/bootstrap-fresh.sh`, which
+the gate does not. Run `task fresh` before tagging.
 
 ## Tasks
 
