@@ -116,12 +116,18 @@ Every pane's top border carries the same two zones. Left, always: that pane's fo
 pane runs Claude: `→ <worktree>` — where it is actually writing, which its own cwd never follows. Nothing on the left
 moves when the right changes.
 
+### Status bar - the ⛭ settings chip
+
+Far right, past the clock. Click it for a centred dialogue: setting names down the left, their values down the right,
+every value on screen. Click a value or press `↵` and it applies at once - there is no save step, and the dialogue stays
+open so you can try another. `j`/`k` move, `q` closes.
+
 ### Status bar - the ◧ diff chip
 
 Click it to open the menu - that is all a click does. The chip is **violet** while the diff pane shows a worktree an
 agent is working in, **amber** when it shows one none of them is touching; amber is a report, `f` is what follows. The
 pane's worktree sticks: the mode keys change what you see, not where you look, and only `f`, `W` and auto-follow move
-it. The footer carries no per-pane facts: just the work's commit, its CI, and the clock.
+it. The footer carries no per-pane facts: the work's commit, its CI, the clock, and the ⛭ chip.
 
 | Key in the menu | Action                                                                   |
 | --------------- | ------------------------------------------------------------------------ |

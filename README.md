@@ -29,7 +29,7 @@ Development environment for Ubuntu 24.04 - shell, tmux, Neovim, terminal, and CL
 | `dictate` | Toggle-key local speech-to-text into tmux (faster-whisper on CPU, or whisper.cpp on the GPU)                               | `~/.local/bin/`               |
 | `ghostty` | Ghostty terminal config (Solarized Light, block cursor, cursor trail shader)                                               | `~/.config/ghostty/`          |
 | `git`     | Git tool settings (delta pager, staging/blame, merge)                                                                      | `~/.config/git/config`        |
-| `hunk`    | hunk diff viewer config (Solarized Light theme, side-by-side)                                                              | `~/.config/hunk/`             |
+| `hunk`    | hunk diff viewer config (stacked/unified, themed by the switcher)                                                          | `~/.config/hunk/`             |
 | `leaf`    | leaf markdown previewer config, carrying a full Solarized Light palette (leaf ships only `solarized-dark`)                 | `~/.config/leaf/`             |
 | `nvim`    | Neovim config (LazyVim, LSP, plugins)                                                                                      | `~/.config/nvim/`             |
 | `theme`   | Theme switcher - re-skins the terminal stack across four flavors (`design/palette.toml`)                                   | `~/.local/bin/theme`          |
@@ -137,8 +137,8 @@ runs from any terminal.)
 
 Day-to-day keybindings and commands - shell aliases, tmux, Neovim (LazyVim), hunk, Ghostty - live in
 **[CHEATSHEET.md](CHEATSHEET.md)** (also viewable in the terminal via the `cheat` alias). Re-skin the whole terminal
-stack with `theme <flavor>` (`solarized-light` · `solarized-dark` · `catppuccin-latte` · `catppuccin-mocha`); see
-[`design/theme-switcher.md`](design/theme-switcher.md).
+stack with the ⛭ chip at the far right of the status bar, or `theme <flavor>` (`solarized-light` · `solarized-dark` ·
+`catppuccin-latte` · `catppuccin-mocha`); see [`design/theme-switcher.md`](design/theme-switcher.md).
 
 ## Development
 

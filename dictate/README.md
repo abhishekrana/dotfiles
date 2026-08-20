@@ -48,7 +48,7 @@ it after; `dictate --check` reports whether it is there.
 
 ```bash
 dictate --install-shortcut    # bind the Copilot key to `dictate --toggle --send`
-dictate --check               # verify parec + tmux, and show the target pane
+dictate --check               # parec + tmux, the target pane, the model cache and the bound key
 ```
 
 One key is bound: the **Copilot key**, between AltGr and right Ctrl. Its string is `<Shift><Super>XF86TouchpadOff` - the
