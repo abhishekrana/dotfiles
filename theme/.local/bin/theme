@@ -125,7 +125,7 @@ set -g @dictsend_seg "$dsend"
 set -g @submit_seg "#{?@submit_flash,#[fg=$bg bg=$grn] ⏎ send ,#[fg=$muted bg=$surface] ⏎ send }"
 set -g @push_seg "#{?@push_flash,#[fg=$bg bg=$grn] ⇡ commit+push ,#[fg=$accent bg=$surface] ⇡ commit+push }"
 set -g @diff_seg "$diffseg"
-set -g @settings_seg "#[fg=$muted bg=$surface]  ⚙  "
+set -g @settings_seg "#[fg=$muted bg=$surface]⛭ "
 set -g @theme_flavor "$1"
 set -g pane-border-format "$border"
 EOF
