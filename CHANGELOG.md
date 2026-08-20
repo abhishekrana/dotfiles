@@ -7,6 +7,64 @@ This repo stays on **0.x** by choice. Pre-1.0 SemVer puts the breaking signal on
 manual steps on the machine - a re-login, a re-stow, a GNOME shortcut, a systemd unit - bumps **0.x** and says which;
 PATCH is for everything else.
 
+## [0.2.0] - 2026-08-20
+
+### Added
+
+- **dictate**: Make dictate+send the row's one highlight (c1bff82)
+- **dictate**: Prompt for "skill" (5e7ffa6)
+- **bash**: Gwtm merges, never rebases (e88578a)
+- **tmux**: Show whether the merge request is open, merged or closed (13e1415)
+- **dictate**: A dictate+send chip, and a footer that reads as a toolbar (ccf7d08)
+- **dictate**: Drop gitleaks from the prompt (a95d5cc)
+- **dictate**: The prompt vocabulary you actually speak, in the order that measured clean (f48424d)
+- **dictate**: Pick the backend from what is installed, not the environment (634121f)
+- **dictate**: --test reports its backend and cost (5f74e89)
+- **dictate**: Run Whisper on the GPU, behind a backend switch (cc6eacb)
+- **bash**: Gwtm finishes the job instead of aborting (6cbbfe3)
+- **needs manual steps** - **leaf**: Add leaf markdown previewer, themed by the switcher (1cc116b)
+- **needs manual steps** - **tmux**: Pane rails, and a diff pane that follows the agent (c39e18e)
+- **agentbar**: Stamp the worktree an agent is writing in (3bf0092)
+
+### Changed
+
+- **tmux**: Drop the issue/MR words, and a fixed-width CI glyph (a855eef)
+- **tmux**: Drop gitmux, and abbreviate the footer sha to 7 (d915c2f)
+- **dictate**: Name the backends for the hardware, and stop --test eating a live dictation (27ebf92)
+- **bash**: Cut gwtm back to the one rule that matters (ab938fd)
+
+### Documentation
+
+- State the rules in CLAUDE.md, drop the narration (c87b5bf)
+- **dictate**: State the chip rule, drop the prose around it (00f3978)
+
+### Fixed
+
+- **agentbar**: Drop the agent's workdir at a session boundary (ba62426)
+- **dictate**: Light up only the chip you clicked (623c651)
+- **dictate**: The GPU is an optimisation, never a dependency (c9c99d3)
+- **dictate**: Drop committed **pycache** and ignore it (c4524d5)
+- **dictate**: Never share a whisper-server, never orphan one (80a0229)
+- **install**: Make the Vulkan step work on a fresh Ubuntu (0baa2fa)
+- **tmux**: Name a session by its own worktree, and use the whole popup (18a1d1a)
+- **tmux**: Keep the diff pane where you pointed it (a8081bd)
+- **agentbar**: Never move the agent's workdir on a cwd change (1cfcc1f)
+- **tmux**: Draw both rail zones in the accent (fec9630)
+- **tmux**: Size the rail's branch cap to the pane (f9ae1c4)
+- **tmux**: Leave the sidebar's rail blank (666db84)
+
+### Maintenance
+
+- **install**: Bump pinned tool versions (fea1ebd)
+- **lint**: Ignore **pycache** so importing dictate cannot dirty the tree (1a2a138)
+- **claude**: Pin the model to opus[1m] (1da0a78)
+
+### Performance
+
+- **tmux**: Make the rail's memo hit fork nothing (8ce9356)
+- **tmux**: Halve the GitLab segment's cost on every status redraw (e2c80b3)
+- **dictate**: Default the GPU backend to small.en, and prompt only for words heard failing (e25677e)
+
 ## [0.1.4] - 2026-08-05
 
 ### Fixed
