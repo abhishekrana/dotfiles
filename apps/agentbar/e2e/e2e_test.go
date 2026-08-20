@@ -134,6 +134,22 @@ func (s *server) tmux(args ...string) string {
 	return out
 }
 
+// killServer kills the server and waits for it to actually be gone. kill-server
+// returns before the process exits, so a new-session straight after it can reach
+// the dying socket and fail with "server exited unexpectedly" - a flake that only
+// showed up under load, and only in the full suite.
+func (s *server) killServer() {
+	s.t.Helper()
+	_, _ = s.tmuxErr("kill-server")
+	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); {
+		if _, err := s.tmuxErr("list-sessions"); err != nil {
+			return // the socket has stopped answering
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	s.t.Fatal("tmux server still answering 5s after kill-server")
+}
+
 // newSession creates a detached session and returns its first pane id.
 func (s *server) newSession(name string) string {
 	s.t.Helper()
@@ -1614,7 +1630,7 @@ func TestPinsSurviveServerRestart(t *testing.T) {
 	s.ptyClient("api")
 	s.agentbar("pin", "blog")
 
-	s.tmux("kill-server")
+	s.killServer()
 	s.newSession("api") // fresh server: @agentbar-pins is gone
 	s.agentPane("api")
 	s.newSession("blog")
