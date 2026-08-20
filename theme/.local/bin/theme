@@ -36,10 +36,15 @@ palette_get() {
 
 valid() { case " $FLAVORS " in *" $1 "*) return 0 ;; *) return 1 ;; esac }
 
-# The sidebar reads @agentbar-theme at launch; running instances need a restart.
+# The sidebar reads @agentbar-theme at launch, so it needs a restart to recolour.
+# Only the current session's: restarting every sidebar at once storms this client.
 apply_sidebar() {
     command -v tmux >/dev/null || return 0
     tmux set -g @agentbar-theme "$1" 2>/dev/null || true
+    local session
+    session=$(tmux display -p '#{session_name}' 2>/dev/null) || return 0
+    [ -n "$session" ] || return 0
+    "$HOME/dotfiles/apps/agentbar/scripts/restart.sh" "$session" 2>/dev/null || true
 }
 
 # Ghostty applies a built-in theme by name. Write it to a non-repo file that the main
@@ -120,6 +125,8 @@ set -g @dictsend_seg "$dsend"
 set -g @submit_seg "#{?@submit_flash,#[fg=$bg bg=$grn] ⏎ send ,#[fg=$muted bg=$surface] ⏎ send }"
 set -g @push_seg "#{?@push_flash,#[fg=$bg bg=$grn] ⇡ commit+push ,#[fg=$accent bg=$surface] ⇡ commit+push }"
 set -g @diff_seg "$diffseg"
+set -g @settings_seg "#[fg=$muted bg=$surface]  ⚙  "
+set -g @theme_flavor "$1"
 set -g pane-border-format "$border"
 EOF
     tmux source-file "$f" 2>/dev/null || true
@@ -278,7 +285,7 @@ main() {
     msg="→ $flavor (accent $accent)."
     msg="$msg Ghostty + tmux reload now; new shells pick up fzf/bat;"
     msg="$msg next git diff / nvim launch / Alt-; popup picks up delta / nvim / popup;"
-    echo "$msg restart sidebars with prefix+e twice."
+    echo "$msg this session's sidebar restarted, others on prefix+R."
 }
 
 main "$@"

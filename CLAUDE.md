@@ -63,8 +63,12 @@ Rules:
   `tmux-worktree-picker.sh` (the menu's `W`) and per-window auto-follow (`F`, off by default) re-point a live pane.
 - An amber `◧ diff` chip means the worktree is in no agent's `@agent_workdirs`, and reports nothing else. A click only
   opens the menu.
-- **The footer holds no per-pane facts** - only the work's commit (7-char sha), its CI and the clock. Dropping the
-  git-status plugin took ~72ms of git off every status redraw.
+- **Picking a theme is applying it.** The `⚙` settings menu has no save step. `theme <flavor>` re-skins tmux and ghostty
+  and restarts the current session's sidebar; other sessions recolour on `prefix + R`, because restarting every sidebar
+  at once storms this client.
+- **The footer holds no per-pane facts** - the work's commit (7-char sha), its CI, the clock, and the `⚙` settings chip
+  at the far right, where its fixed width cannot reflow the clock. Dropping the git-status plugin took ~72ms of git off
+  every status redraw.
 
 ## Apps (built from source)
 
