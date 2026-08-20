@@ -73,9 +73,9 @@ mr_glyph() { # <state> <draft> -> one single-width glyph
 
 mr_color() { # <state> <conflicts> -> fg style
     case "$1" in
-        merged) printf '#[fg=#859900]' ;;                                    # green
-        closed) printf '#[fg=#657b83]' ;;                                    # base00
-        locked) printf '#[fg=#586e75]' ;;                                    # base01
+        merged) printf '#[fg=#859900]' ;;                                      # green
+        closed) printf '#[fg=#657b83]' ;;                                      # base00
+        locked) printf '#[fg=#586e75]' ;;                                      # base01
         *) [ "$2" = true ] && printf '#[fg=#dc322f]' || printf '%s' "$C_MR" ;; # red if it will not merge
     esac
 }
@@ -149,7 +149,7 @@ cmd_render() {
                 ci_status) ci=$v ;;
                 updated) updated=$v ;;
             esac
-        done <"$cache"          # one pass for every key, not one pass per key
+        done <"$cache" # one pass for every key, not one pass per key
     fi
     if [ $((EPOCHSECONDS - updated)) -ge "$TTL" ]; then
         setsid -f "$0" refresh "$path" >/dev/null 2>&1 || ("$0" refresh "$path" >/dev/null 2>&1 &)

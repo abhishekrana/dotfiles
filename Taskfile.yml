@@ -32,6 +32,7 @@ tasks:
       - task: lint
       - task: width
       - task: py
+      - task: fmt-sh
       - task: fmt-check
       - task: secrets
       - task: perms
@@ -58,6 +59,11 @@ tasks:
     desc: Lint the Python scripts (rules and 120-column limit in ruff.toml)
     cmds:
       - ruff check {{.PY_FILES}}
+
+  fmt-sh:
+    desc: Check shell formatting (shfmt -i 4 -ci; `shfmt -w` to fix)
+    cmds:
+      - shfmt -i 4 -ci -d {{.SHELL_FILES}}
 
   secrets:
     desc: Scan for credentials (gitleaks) and private IPs in tracked files
