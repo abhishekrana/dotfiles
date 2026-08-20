@@ -41,6 +41,7 @@ tasks:
       - task: picker
       - task: reset
       - task: diff-target
+      - task: theme
       - task: test
 
   lint:
@@ -173,6 +174,11 @@ tasks:
         docker run --rm -e CI=true -v "$PWD:/src:ro" dotfiles-ci-mirror bash -c 'cp -r /src /work && cd /work && make -C
         {{.AGENTBAR}} build && bash test/clipboard.sh && bash test/session-picker.sh && bash test/reset.sh && bash
         test/diff-target.sh && cd {{.AGENTBAR}} && go test ./... -count=1'
+
+  theme:
+    desc: Every flavor writes its own colors into every generated per-tool file
+    cmds:
+      - bash test/theme.sh
 
   fresh:
     desc: End-to-end fresh-machine test in a clean Ubuntu container (needs docker, ~10 min)
