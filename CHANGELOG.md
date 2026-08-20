@@ -40,6 +40,7 @@ PATCH is for everything else.
 
 ### Fixed
 
+- **yazi**: Drop the zoxide dep, it is bundled in yazi core (f08d11a)
 - **agentbar**: Drop the agent's workdir at a session boundary (ba62426)
 - **dictate**: Light up only the chip you clicked (623c651)
 - **dictate**: The GPU is an optimisation, never a dependency (c9c99d3)
