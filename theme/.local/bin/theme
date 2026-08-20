@@ -245,6 +245,13 @@ _popup_fzf_color="$sel,border:$border,info:$muted,prompt:$emph"
 EOF
 }
 
+# hunk takes the flavor as a --theme flag it reads at startup, so the live diff
+# pane has to be re-run. Only this window's, like the sidebar.
+apply_hunk() {
+    command -v tmux >/dev/null || return 0
+    "$HOME/.local/bin/tmux-diff-pane.sh" retint >/dev/null 2>&1 || true
+}
+
 # nvim reads the flavor at startup from ~/.config/theme/nvim.lua (colorscheme + background).
 apply_nvim() {
     local scheme bg
@@ -285,12 +292,13 @@ main() {
     apply_env "$flavor"
     apply_delta "$flavor"
     apply_nvim "$flavor"
+    apply_hunk
     local msg accent
     accent=$(palette_get "$flavor" accent)
     msg="→ $flavor (accent $accent)."
-    msg="$msg Ghostty + tmux reload now; new shells pick up fzf/bat;"
-    msg="$msg next git diff / nvim launch / Alt-; popup picks up delta / nvim / popup;"
-    echo "$msg this session's sidebar restarted, others on prefix+R."
+    msg="$msg Ghostty, tmux, this session's sidebar and its diff pane reload now;"
+    msg="$msg new shells pick up fzf/bat; the next nvim launch and Alt-; popup pick up"
+    echo "$msg nvim / popup. Other sidebars on prefix+R."
 }
 
 main "$@"

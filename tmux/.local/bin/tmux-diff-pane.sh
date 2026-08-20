@@ -310,6 +310,17 @@ cmd_flip_layout() {
     fi
 }
 
+# Re-run the live diff pane so hunk picks up a new flavor: it reads --theme at
+# startup only. Sticky target - this never moves the pane. No-op without one.
+cmd_retint() {
+    local mode diff
+    resolve_context
+    [ -n "${WIN:-}" ] || return 0
+    mode=$(opt_get @diff_mode)
+    diff=$(opt_get @diff_pane)
+    [ -n "$mode" ] && pane_alive "$diff" && cmd_ensure "$mode"
+}
+
 cmd_close() {
     local diff
     resolve_context
@@ -335,6 +346,7 @@ case "${1:-}" in
     autofollow-toggle) cmd_follow_toggle ;;
     pick) cmd_pick ;;
     layout) cmd_flip_layout ;;
+    retint) cmd_retint ;;
     close) cmd_close ;;
     *)
         tmux display-message \

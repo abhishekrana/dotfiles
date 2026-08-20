@@ -68,8 +68,9 @@ Rules:
   opens the menu.
 - **Picking a theme is applying it.** The `⛭` chip opens a centred dialogue with every value on screen; a click or Enter
   applies one and the dialogue stays open, so there is no save step and nothing to drill into. `theme <flavor>` re-skins
-  tmux and ghostty and restarts the current session's sidebar; other sessions recolour on `prefix + R`, because
-  restarting every sidebar at once storms this client.
+  tmux and ghostty and re-runs the current session's sidebar and diff pane - hunk takes the flavor as a startup flag, so
+  the pane has to be respawned; other sessions recolour on `prefix + R`, because restarting every sidebar at once storms
+  this client.
 - **The footer holds no per-pane facts** - the work's commit (7-char sha), its CI, the clock, and the `⚙` settings chip
   at the far right, where its fixed width cannot reflow the clock. Dropping the git-status plugin took ~72ms of git off
   every status redraw.
