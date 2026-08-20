@@ -10,6 +10,7 @@ From the repo root, `task agentbar:build` / `agentbar:test` / `agentbar:unit` / 
 delegate to these targets; `task check` at the root runs the suite as part of the release gate.
 
 ```bash
+make gen                # theme_gen.go from design/palette.toml (build/test run it)
 make build              # bin/agentbar
 make unit               # go test -short ./...
 make e2e                # full lifecycle against throwaway tmux servers
@@ -46,7 +47,8 @@ state (working/permission/asking/done/done-seen/idle), one multi-Claude-on-one-b
   the edit that just moved the agent); `ClearWorkdir` drops it again at a session boundary
 - `internal/tmux` - exec wrapper, `list-panes -a` snapshot, branch cache, status segment
 - `internal/ui` - Bubble Tea TUI: `app.go` (state, mouse, selection sync), `render.go` (blocks, bands, highlight),
-  `theme.go`; `model.Arrange` groups sessions into bands
+  `theme.go` (the struct and the state map) and `theme_gen.go` (the four flavors, generated); `model.Arrange` groups
+  sessions into bands
 - `internal/doctor` - `agentbar doctor` self-check: audits live Claude panes vs the hook trace; pure
   `ParsePanes`/`ParseHealth`/`Render`
 - `internal/trace` - writer for the shared dotfiles trace log; must match the `dotfiles-trace` CLI byte-for-byte on
@@ -103,6 +105,8 @@ state (working/permission/asking/done/done-seen/idle), one multi-Claude-on-one-b
   always-on, best-effort, never fails the hook. Never trace hot paths (`Snapshot`, `StatusSegment`, the 200ms tick,
   mouse motion); motion + ticks are `Logv` (verbose-gated via `@agentbar-trace-verbose`). See the repo-root CLAUDE.md
   "Debugging" section.
+- **Never edit `theme_gen.go`.** A flavor is defined once, in `design/palette.toml`; `scripts/gen-theme.sh` emits the
+  Go. `make build`/`make test` run it, and the dotfiles `task check` fails if the committed file is stale.
 - Comments: one short line, only for what the code can't say.
 - After changing behavior, add or extend an e2e test that fails without the change.
 - This project lives in the dotfiles monorepo at `apps/agentbar/` and loads via a `run-shell` line in `tmux/.tmux.conf`

@@ -108,5 +108,23 @@ for flavor in $FLAVORS; do
     done
 done
 
+# The sidebar's flavors are generated from the same palette. A palette edit that
+# skipped the generator would ship a sidebar on the old colors.
+printf '\nsidebar codegen\n'
+gen="$REPO/apps/agentbar/scripts/gen-theme.sh"
+committed="$REPO/apps/agentbar/internal/ui/theme_gen.go"
+if [ -x "$gen" ]; then
+    fresh=$(mktemp)
+    THEME_GEN_OUT="$fresh" THEME_PALETTE="$PALETTE" "$gen"
+    if cmp -s "$fresh" "$committed"; then
+        ok "theme_gen.go is current with palette.toml"
+    else
+        no "theme_gen.go is stale" "run: make -C apps/agentbar gen"
+    fi
+    rm -f "$fresh"
+else
+    no "generator missing" "$gen"
+fi
+
 printf '\n%d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
