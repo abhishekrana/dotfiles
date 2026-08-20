@@ -46,6 +46,18 @@ list_rows() {
     group "Theme" "$(current_flavor)" "theme:" $FLAVORS
 }
 
+# fzf's reload resets the cursor to the first row, so after applying we put it back
+# on the row that is now active. Printed as one fzf action, for a transform bind.
+do_pos() {
+    local cur i=1 f
+    cur=$(current_flavor)
+    for f in $FLAVORS; do
+        [ "$f" = "$cur" ] && break
+        i=$((i + 1))
+    done
+    printf 'pos(%d)' "$i"
+}
+
 do_apply() {
     case "${1:-}" in
         theme:*) "$HOME/.local/bin/theme" "${1#theme:}" >/dev/null 2>&1 ;;
@@ -61,12 +73,16 @@ case "${1:-}" in
         do_apply "${2:-}"
         exit 0
         ;;
+    --pos)
+        do_pos
+        exit 0
+        ;;
 esac
 
 # ---- fzf -------------------------------------------------------------------
 # A bind string must stay on one line: a newline in it makes fzf read the tail as
 # an action name.
-step="execute-silent($SELF --apply {1})+reload($SELF --list)"
+step="execute-silent($SELF --apply {1})+reload-sync($SELF --list)+transform($SELF --pos)"
 
 # Mouse: a click is a pick, same as Enter. double-click has to be bound too - its
 # default is accept, which would close the dialogue on the second click.
