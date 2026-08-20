@@ -83,7 +83,7 @@ values still resolve.
 - **One chip rests lit, and it is `dictate+send`** (`working` teal); `dictate` and `⏎ send` rest grey. It is the one
   used most, and grey reads as unavailable. Never a warm hue: the chip's own states are red (recording) and amber
   (transcribing), so orange blurs idle into busy. To recolor, move the highlight - do not add a second.
-- **Hover is impossible** - tmux 3.7b rejects `MouseMoveStatus`; only Down/Up/Drag/Wheel exist for the status line.
+- **Hover is impossible** - tmux has no `MouseMoveStatus`; only Down/Up/Drag/Wheel exist for the status line.
 
 ## Key binding
 

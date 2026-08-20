@@ -60,7 +60,7 @@ SHFMT_VERSION="3.13.1"
 # needs the spv:: constants; pinned here like everything else it downloads.
 SPIRV_HEADERS_VERSION="vulkan-sdk-1.4.357.0"
 TASK_VERSION="3.52.0"
-TMUX_VERSION="3.7b"
+TMUX_VERSION="3.7c"
 WHISPER_CPP_VERSION="1.9.2"
 WHISPER_CPP_MODEL="ggml-small.en-q8_0.bin" # what dictate's whispercpp backend loads
 YAZI_VERSION="26.8.15"
