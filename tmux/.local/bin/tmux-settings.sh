@@ -17,6 +17,9 @@ set -uo pipefail
 
 SELF=$(realpath "${BASH_SOURCE[0]}")
 STATE="${XDG_CONFIG_HOME:-$HOME/.config}/theme"
+# Absolute, because a tmux popup inherits the server's minimal PATH. Overridable
+# so the interaction test can stand a recorder in for the real switcher.
+THEME_BIN="${THEME_BIN:-$HOME/.local/bin/theme}"
 FLAVORS="solarized-light solarized-dark catppuccin-latte catppuccin-mocha"
 
 # Popup palette, the same one the session and worktree pickers use: a solid
@@ -60,7 +63,7 @@ do_pos() {
 
 do_apply() {
     case "${1:-}" in
-        theme:*) "$HOME/.local/bin/theme" "${1#theme:}" >/dev/null 2>&1 ;;
+        theme:*) "$THEME_BIN" "${1#theme:}" >/dev/null 2>&1 ;;
     esac
 }
 

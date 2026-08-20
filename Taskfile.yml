@@ -42,6 +42,7 @@ tasks:
       - task: reset
       - task: diff-target
       - task: theme
+      - task: settings
       - task: test
 
   lint:
@@ -179,6 +180,11 @@ tasks:
     desc: Every flavor writes its own colors into every generated per-tool file
     cmds:
       - bash test/theme.sh
+
+  settings:
+    desc: The ⛭ dialogue applies the row you picked and leaves the cursor on it
+    cmds:
+      - bash test/settings.sh
 
   fresh:
     desc: End-to-end fresh-machine test in a clean Ubuntu container (needs docker, ~10 min)
