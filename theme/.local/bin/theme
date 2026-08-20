@@ -184,6 +184,11 @@ export THEME="$1"
 export BAT_THEME="$bat"
 export LEAF_THEME="$leaf"
 EOF
+    # tmux froze its global environment when the server started, so panes created
+    # after a switch still inherit the flavor that was current back then.
+    tmux set-environment -g THEME "$1" 2>/dev/null || true
+    tmux set-environment -g BAT_THEME "$bat" 2>/dev/null || true
+    tmux set-environment -g LEAF_THEME "$leaf" 2>/dev/null || true
 }
 
 # delta reads its colors from git config; write the flavor's block to a file git includes

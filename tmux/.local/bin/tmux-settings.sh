@@ -19,9 +19,10 @@ SELF=$(realpath "${BASH_SOURCE[0]}")
 STATE="${XDG_CONFIG_HOME:-$HOME/.config}/theme"
 FLAVORS="solarized-light solarized-dark catppuccin-latte catppuccin-mocha"
 
-# Themed fzf colors. _fzf_color is the name that file actually defines.
-# shellcheck source=/dev/null
-[ -f "$STATE/fzf.sh" ] && . "$STATE/fzf.sh"
+# Popup palette, the same one the session and worktree pickers use: a solid
+# accent selection bar, louder than the shell fzf's.
+# shellcheck source=tmux/.local/bin/tmux-agent-state.sh
+. "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/tmux-agent-state.sh"
 
 current_flavor() { cat "$STATE/current" 2>/dev/null || echo solarized-light; }
 title() { echo "$1" | tr '-' ' ' | sed 's/\b\(.\)/\u\1/g'; }
@@ -72,14 +73,13 @@ step="execute-silent($SELF --apply {1})+reload($SELF --list)"
 #
 # --height/--border explicit: FZF_DEFAULT_OPTS comes from the server and would
 # draw a second frame inside tmux's own and leave a dead band below.
-# shellcheck disable=SC2086  # _fzf_color is a word list of --color flags
 "$SELF" --list |
     fzf --ansi --sync --no-input --highlight-line --reverse \
         --height=100% --border=none --no-preview \
         --delimiter=$'\t' --with-nth=2 \
         --pointer='▸' \
         --header='click or ↵ to apply · q close' --header-first \
-        ${_fzf_color:-} \
+        --color="${_popup_fzf_color:-}" \
         --bind "enter:$step" \
         --bind "left-click:$step" \
         --bind "double-click:$step" \
