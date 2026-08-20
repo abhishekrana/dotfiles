@@ -77,7 +77,7 @@ install_apt_packages() {
     # chafa: image previews for yazi
     # imagemagick: convert/identify, used by image.nvim to render images in nvim
     local pkgs=(
-        bat bison build-essential chafa curl direnv fontconfig imagemagick jq
+        bat bison build-essential chafa curl direnv fontconfig git imagemagick jq
         libevent-dev libncurses-dev pkg-config ripgrep software-properties-common
         stow tree unzip wget wl-clipboard xclip
     )
