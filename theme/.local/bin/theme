@@ -221,8 +221,10 @@ EOF
 # switch lands the next time you press Alt-;.
 apply_agent_state() {
     local f="$STATE_DIR/agent-state.sh"
-    local bg accent emph muted border block ask work grn
+    local bg accent emph muted border block ask work grn mode fg
     bg=$(palette_get "$1" bg)
+    mode=$(palette_get "$1" mode)
+    fg=$(palette_get "$1" fg)
     accent=$(palette_get "$1" accent)
     emph=$(palette_get "$1" emphasis)
     muted=$(palette_get "$1" muted)
@@ -235,13 +237,17 @@ apply_agent_state() {
     # The popup's selected row is a solid accent bar (bg+/fg+), deliberately louder than
     # the shell fzf's subtle selection in fzf.sh; gutter/pointer stay off.
     local sel="bg+:$accent,fg+:$bg,gutter:-1,pointer:-1,hl:$accent,hl+:$bg"
+    # A popup inherits FZF_DEFAULT_OPTS from the tmux server, which froze at the
+    # flavor that was current when the server started. Carry the base mode and the
+    # ground here, so a popup never paints itself on the old theme's background.
+    local base="$mode,fg:$fg,bg:$bg"
     cat >"$f" <<EOF
 _state_blocked="$block"
 _state_asking="$ask"
 _state_working="$work"
 _state_done="$grn"
 _state_muted="$muted"
-_popup_fzf_color="$sel,border:$border,info:$muted,prompt:$emph"
+_popup_fzf_color="$base,$sel,border:$border,info:$muted,prompt:$emph"
 EOF
 }
 

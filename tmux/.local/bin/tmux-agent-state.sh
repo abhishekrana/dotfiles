@@ -17,7 +17,7 @@ _state_asking="#b58900"
 _state_working="#2aa198"
 _state_done="#859900"
 _state_muted="#93a1a1"
-_popup_fzf_color="bg+:#268bd2,fg+:#fdf6e3,gutter:-1,pointer:-1,hl:#268bd2"
+_popup_fzf_color="light,fg:#657b83,bg:#fdf6e3,bg+:#268bd2,fg+:#fdf6e3,gutter:-1,pointer:-1,hl:#268bd2"
 _popup_fzf_color+=",hl+:#fdf6e3,border:#93a1a1,info:#93a1a1,prompt:#586e75"
 
 _theme_state_file="${XDG_CONFIG_HOME:-$HOME/.config}/theme/agent-state.sh"
