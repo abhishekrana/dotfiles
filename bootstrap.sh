@@ -260,14 +260,52 @@ build_apps() {
 }
 
 # =============================================================================
-# Opt-in: dictate deps (uv + parec/pactl)
-# =============================================================================
-
-# Not part of the default run - the dictate package is opt-in. Install its
-# non-stock deps only when asked:  ./bootstrap.sh dictate-deps
-# =============================================================================
 # Main
 # =============================================================================
+
+bootstrap_usage() {
+    cat <<'EOF'
+usage: ./bootstrap.sh [--help]
+
+Sets up this machine: tools, stow packages, ~/.bashrc, vaults, resurrect timer,
+apps/. Idempotent. dictate gets the Vulkan Whisper backend when a GPU is
+visible, the CPU one otherwise.
+
+Per-step CLI: ./install.sh, run it to list the steps.
+Unattended: nothing prompts; the apt steps need sudo, asked for once up front.
+EOF
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -h | --help)
+            bootstrap_usage
+            exit 0
+            ;;
+        *)
+            warn "unknown option: $1" >&2
+            bootstrap_usage >&2
+            exit 2
+            ;;
+    esac
+    shift
+done
+
+# Everything lands under $HOME; as root that becomes /root and leaves
+# root-owned files behind. install.sh sudo's the steps that need it.
+if [ "$(id -u)" -eq 0 ]; then
+    warn "run bootstrap.sh as your own user, not root - it installs into \$HOME" >&2
+    exit 2
+fi
+
+# Ask once here rather than at the first apt step.
+if ! sudo -n true 2>/dev/null; then
+    log "The apt steps need sudo - authenticating once now..."
+    sudo -v || {
+        warn "cannot acquire sudo; pre-cache with 'sudo -v' or add a NOPASSWD entry" >&2
+        exit 2
+    }
+fi
 
 log "Starting dotfiles bootstrap..."
 all_tools

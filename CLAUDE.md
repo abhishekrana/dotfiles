@@ -14,10 +14,11 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
   anything that must take effect goes in `settings.json`.
 - `clip/` → `~/.local/bin/clip` (copy stdin to the clipboard; picks wl-copy, xclip or pbcopy). Every copy path - tmux
   `copy-command`, `tmux-yank.sh`, fzf's Ctrl-Y, nvim - goes through it, so the backend is chosen in one place.
-- `dictate/` → `~/.local/bin/dictate` (toggle-key local Whisper dictation into tmux; opt-in). Has its own nested
-  `CLAUDE.md` - read it before touching the script. Deps are opt-in too: `./bootstrap.sh dictate-deps`. Two backends,
-  named for the hardware and picked by what is installed rather than an env var: `gpu` (whisper.cpp via Vulkan, on an
-  AMD or Intel iGPU or NVIDIA) once `./install.sh whisper-vulkan` has run, else `cpu` (faster-whisper). Same `small.en`,
+- `dictate/` → `~/.local/bin/dictate` (toggle-key local Whisper dictation into tmux). Has its own nested `CLAUDE.md` -
+  read it before touching the script. `bootstrap.sh` installs its deps (`uv`, `pulseaudio-utils`); the model is not
+  prefetched, so the first dictation downloads it. Two backends, named for the hardware and picked by what is installed
+  rather than an env var: `gpu` (whisper.cpp via Vulkan, on an AMD or Intel iGPU or NVIDIA) once a GPU is visible, else
+  `cpu` (faster-whisper). `bootstrap.sh` installs the GPU build when it can and falls back otherwise. Same `small.en`,
   measured 2.7× faster on the GPU.
 - `ghostty/` → `~/.config/ghostty/` (Ghostty terminal config)
 - `git/` → `~/.config/git/config` (delta pager, merge settings)
@@ -86,13 +87,13 @@ so CI installs with the same code a machine does:
 ./install.sh all             # every tool (bootstrap.sh calls this)
 ./install.sh gate-tools      # just what `task check` needs (CI calls this)
 ./install.sh install_tmux    # one step by name
-./install.sh dictate-deps    # uv + pulseaudio-utils, opt-in
-./install.sh whisper-vulkan  # whisper.cpp built against Vulkan for dictate's GPU backend, opt-in
+./install.sh dictate-deps    # uv + pulseaudio-utils (also part of `all`)
+./install.sh whisper-vulkan  # whisper.cpp built against Vulkan for dictate's GPU backend (also part of `all`)
 ```
 
 `bootstrap.sh` sources it and adds the machine wiring: stow, the `.bashrc` patch, the vaults, the resurrect timer and
-`apps/` builds. Steps that need the stowed configs in place (`install_bat_themes`, `install_nvim_plugins`) run after
-`stow_packages`.
+`apps/` builds. It takes no arguments - run a single step through `install.sh`. Steps that need the stowed configs in
+place (`install_bat_themes`, `install_nvim_plugins`) run after `stow_packages`.
 
 **tmux is pinned and built from source.** Ubuntu 24.04 ships 3.4, which the sidebar's e2e suite fails on.
 

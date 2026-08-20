@@ -35,7 +35,7 @@ echo
 echo \"--- binaries ---\"
 fail=0
 for b in fzf fd delta lazygit lazydocker yazi zoxide nvim ghostty \
-  git-cliff gitleaks ruff shellcheck shfmt task; do
+  git-cliff gitleaks ruff shellcheck shfmt task uv parec pactl; do
   if v=\$(\"\$b\" --version 2>/dev/null | head -1); then
     printf \"OK   %-12s %s\n\" \"\$b\" \"\$v\"
   else
@@ -46,7 +46,7 @@ done
 
 echo
 echo \"--- symlinks ---\"
-for f in ~/.tmux.conf ~/.bashrc.d ~/.config/nvim ~/.local/bin/tmux-gitlab.sh; do
+for f in ~/.tmux.conf ~/.bashrc.d ~/.config/nvim ~/.local/bin/tmux-gitlab.sh ~/.local/bin/dictate; do
   if [ -L \"\$f\" ]; then printf \"OK   %s\n\" \"\$f\"
   else printf \"MISS %s\n\" \"\$f\"; fail=1; fi
 done
@@ -61,6 +61,14 @@ for d in ~/vaults/personal ~/vaults/work ~/.local/share/nvim/lazy; do
 done
 if [ -x ~/dotfiles/apps/agentbar/bin/agentbar ]; then printf \"OK   %s\n\" \"agentbar built\"
   else printf \"MISS %s\n\" \"agentbar\"; fail=1; fi
+
+echo
+echo \"--- dictate ---\"
+if uv run --no-project --python 3.12 python -V >/dev/null 2>&1; then
+  printf \"OK   %s\n\" \"uv provisions the interpreter the dictate shebang declares\"
+else
+  printf \"MISS %s\n\" \"uv run - the dictate shebang would fail\"; fail=1
+fi
 
 echo
 echo \"--- 2nd run (idempotency) ---\"

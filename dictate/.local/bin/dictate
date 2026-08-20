@@ -748,6 +748,26 @@ def install_shortcut(bindings):
 
 
 # ---- checks --------------------------------------------------------------
+def cpu_model_cached():
+    """Whether the faster-whisper model is in the HF cache. Nothing prefetches
+    it, so an absent one means the first dictation fetches ~460MB."""
+    hub = os.environ.get("HF_HUB_CACHE") or os.path.join(
+        os.environ.get("HF_HOME") or os.path.expanduser("~/.cache/huggingface"), "hub")
+    d = os.path.join(hub, f"models--Systran--faster-whisper-{MODEL}")
+    return os.path.isdir(d) and bool(os.listdir(d))
+
+
+def gnome_binding():
+    """The key bound to dictate, or "" - an uninstalled shortcut is the usual
+    reason a key does nothing."""
+    if not shutil.which("gsettings"):
+        return ""
+    kb = ("org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:"
+          "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/dictate/")
+    out = subprocess.run(["gsettings", "get", kb, "binding"], capture_output=True, text=True)
+    return out.stdout.strip().strip("'") if out.returncode == 0 else ""
+
+
 def check():
     require("parec"); require("tmux")
     if not panes():
@@ -764,6 +784,8 @@ def check():
             log("run ./install.sh whisper-vulkan")
     else:
         log(f"backend: cpu - faster-whisper ({MODEL}, {COMPUTE})")
+        log(f"model cache: {'✓' if cpu_model_cached() else '✗ absent - the first dictation downloads ~460MB'}")
+    log(f"shortcut: {gnome_binding() or '✗ none - run dictate --install-shortcut'}")
 
 
 def self_test():

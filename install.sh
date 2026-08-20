@@ -11,6 +11,9 @@
 # Sourced by bootstrap.sh, which adds the machine wiring (stow, vaults, bashrc).
 set -euo pipefail
 
+# Unattended apt: without this a debconf-configuring package blocks on a prompt.
+export DEBIAN_FRONTEND=noninteractive
+
 LOCAL_BIN="$HOME/.local/bin"
 
 # The only place a platform is decided. Release-asset names are grouped by
@@ -243,7 +246,6 @@ install_gitleaks() {
     rm -rf "$tmp"
     ok "gitleaks $GITLEAKS_VERSION installed"
 }
-
 
 install_go() {
     if [ -x "$LOCAL_BIN/go" ] && "$LOCAL_BIN/go" version 2>/dev/null | grep -q "go${GO_VERSION} "; then
@@ -501,6 +503,12 @@ install_whisper_cpp() {
         ok "whisper.cpp (Vulkan) already installed"
         return
     fi
+    # No DRM render node means no GPU to compile for - skip before apt-installing
+    # the toolchain. vulkaninfo below is authoritative but needs those packages.
+    if ! compgen -G "/dev/dri/renderD*" >/dev/null; then
+        warn "no DRM render node - skipping whisper.cpp; dictate uses the cpu backend"
+        return 1
+    fi
     # Everything a fresh Ubuntu lacks for this: mesa-vulkan-drivers carries the
     # AMD and Intel ICDs, without which Vulkan enumerates no device and the build is for
     # nothing; cmake is not in install_apt_packages (tmux builds with autotools,
@@ -607,6 +615,7 @@ all_tools() {
     install_apt_packages
     install_nodejs
     install_delta
+    install_dictate_deps
     install_fd
     install_fzf
     install_ghostty
@@ -625,6 +634,9 @@ all_tools() {
     install_task
     install_tmux
     install_tpm
+    # Attempted, never required: the non-zero return is for an explicit
+    # `./install.sh whisper-vulkan`; setup must not fail without a GPU.
+    install_whisper_cpp || warn "dictate: optimized backend unavailable - using the cpu one"
     install_yazi
     install_zoxide
 }
