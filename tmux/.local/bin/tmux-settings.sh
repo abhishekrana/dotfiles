@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# Settings dialogue for the footer's ⛭ chip: categories on the left, the
-# highlighted category's choices on the right. Enter opens a category, then Enter
-# on a choice applies it; h goes back.
+# Settings dialogue for the footer's ⛭ chip: setting names down the left, their
+# values down the right, every value on its own row. Click a value or press Enter
+# on it to apply - there is no submenu and nothing to open, because every value is
+# already on screen.
 #
-# Enter always runs the row's action and reloads the list, so the script decides
-# what a row means and no fzf `transform` is involved. The level on screen lives
-# in $SETTINGS_STATE, inherited by every fzf child.
+# fzf has one cursor and its preview pane cannot be focused, so a dialogue with a
+# cursor on each side would need a TUI of its own. Showing every value instead
+# makes two cursors unnecessary.
 #
-# Adding a category: a row in list_root, an arm in list_level, one in do_choices.
+# Adding a setting: a group() call in list_rows and an arm in do_apply.
 #
 # Subcommands (invoked by fzf callbacks):
-#   --list             rows for the current level
-#   --enter  ACTION    run one row's action
-#   --choices ACTION   the right-hand pane
+#   --list           the rows
+#   --apply ACTION   apply one row
 set -uo pipefail
 
 SELF=$(realpath "${BASH_SOURCE[0]}")
@@ -24,99 +24,65 @@ FLAVORS="solarized-light solarized-dark catppuccin-latte catppuccin-mocha"
 [ -f "$STATE/fzf.sh" ] && . "$STATE/fzf.sh"
 
 current_flavor() { cat "$STATE/current" 2>/dev/null || echo solarized-light; }
-level() { cat "${SETTINGS_STATE:-/dev/null}" 2>/dev/null; }
 title() { echo "$1" | tr '-' ' ' | sed 's/\b\(.\)/\u\1/g'; }
 
-# A choice line, marked when it is the one in effect.
-choice() {
-    if [ "$1" = "$2" ]; then
-        printf '  \033[32m●\033[0m %s\n' "$(title "$1")"
-    else
-        printf '    %s\n' "$(title "$1")"
-    fi
+# group <label> <current> <action-prefix> <value>...
+# The label prints once, on the group's first row, so it reads as a left column.
+group() {
+    local label=$1 cur=$2 prefix=$3 v mark
+    shift 3
+    for v in "$@"; do
+        [ "$v" = "$cur" ] && mark='\033[32m●\033[0m' || mark=' '
+        printf '%s%s\t  \033[1m%-11s\033[0m \033[2m│\033[0m %b %s\n' \
+            "$prefix" "$v" "$label" "$mark" "$(title "$v")"
+        label=''
+    done
 }
 
 # ---- rows: "<action>TAB<display>", fzf shows field 2 and binds read field 1 --
-list_root() {
-    printf 'open:theme\t  %-12s %s  ›\n' "Theme" "$(title "$(current_flavor)")"
+# shellcheck disable=SC2086  # FLAVORS is a word list, one value per row
+list_rows() {
+    group "Theme" "$(current_flavor)" "theme:" $FLAVORS
 }
 
-list_level() {
-    local cur f
-    case "$(level)" in
-        theme)
-            printf 'back\t  \033[2m‹ back\033[0m\n'
-            cur=$(current_flavor)
-            for f in $FLAVORS; do
-                printf 'theme:%s\t%s\n' "$f" "$(choice "$f" "$cur")"
-            done
-            ;;
-        *) list_root ;;
-    esac
-}
-
-do_enter() {
+do_apply() {
     case "${1:-}" in
-        open:*) printf '%s' "${1#open:}" >"${SETTINGS_STATE:?}" ;;
-        back) : >"${SETTINGS_STATE:?}" ;;
         theme:*) "$HOME/.local/bin/theme" "${1#theme:}" >/dev/null 2>&1 ;;
-    esac
-}
-
-# The right-hand pane: what the highlighted category holds.
-do_choices() {
-    local cur f
-    case "${1:-}" in
-        open:theme)
-            cur=$(current_flavor)
-            for f in $FLAVORS; do choice "$f" "$cur"; done
-            ;;
     esac
 }
 
 case "${1:-}" in
     --list)
-        list_level
+        list_rows
         exit 0
         ;;
-    --enter)
-        do_enter "${2:-}"
-        exit 0
-        ;;
-    --choices)
-        do_choices "${2:-}"
+    --apply)
+        do_apply "${2:-}"
         exit 0
         ;;
 esac
 
 # ---- fzf -------------------------------------------------------------------
-SETTINGS_STATE=$(mktemp)
-export SETTINGS_STATE
-trap 'rm -f "$SETTINGS_STATE"' EXIT
-
 # A bind string must stay on one line: a newline in it makes fzf read the tail as
 # an action name.
-step="execute-silent($SELF --enter {1})+reload($SELF --list)"
+step="execute-silent($SELF --apply {1})+reload($SELF --list)"
 
 # Mouse: a click is a pick, same as Enter. double-click has to be bound too - its
 # default is accept, which would close the dialogue on the second click.
-
+#
 # --height/--border explicit: FZF_DEFAULT_OPTS comes from the server and would
 # draw a second frame inside tmux's own and leave a dead band below.
 # shellcheck disable=SC2086  # _fzf_color is a word list of --color flags
 "$SELF" --list |
-    fzf --ansi --sync --reverse --no-input --highlight-line \
-        --height=100% --border=none \
+    fzf --ansi --sync --no-input --highlight-line --reverse \
+        --height=100% --border=none --no-preview \
         --delimiter=$'\t' --with-nth=2 \
         --pointer='▸' \
-        --header='click or ↵ · h back · q close' --header-first \
-        --preview "$SELF --choices {1}" \
-        --preview-window='right:50%:border-left' \
+        --header='click or ↵ to apply · q close' --header-first \
         ${_fzf_color:-} \
         --bind "enter:$step" \
         --bind "left-click:$step" \
         --bind "double-click:$step" \
-        --bind "h:execute-silent($SELF --enter back)+reload($SELF --list)" \
         --bind 'j:down,k:up' \
         --bind 'q:abort,esc:abort' \
         >/dev/null || true

@@ -44,9 +44,9 @@ Scripts in `tmux/.local/bin/`:
   is fixed-width so a flipping pipeline never shifts the clock.
 - `tmux-agent-state.sh` - sourced agent-state language: glyphs, colors and state ranking shared by the session picker
   and its preview, mirroring the sidebar's. Colors come from the theme switcher, never hardcoded.
-- `tmux-settings.sh` - the `⛭` chip's dialogue: categories on the left, the highlighted one's choices on the right.
-  Enter runs a row's action and reloads the list, so no fzf `transform` is involved; the level on screen lives in a temp
-  file. Add a category with a row in `list_root`, an arm in `list_level` and one in `do_choices`.
+- `tmux-settings.sh` - the `⛭` chip's dialogue: setting names down the left, their values down the right, one value per
+  row. No submenu - fzf has one cursor and its preview cannot be focused, so showing every value is what removes the
+  need for two. Add a setting with a `group()` call in `list_rows` and an arm in `do_apply`.
 - `tmux-reset.sh` - the `prefix + R` UI reset: reload + default geometry, nothing killed.
 - `tmux-mockup.sh` - `task mockup`, previews the whole frame with fake data on a private server.
 - Session picker, resurrect guard, yank.
@@ -66,8 +66,8 @@ Rules:
   `tmux-worktree-picker.sh` (the menu's `W`) and per-window auto-follow (`F`, off by default) re-point a live pane.
 - An amber `◧ diff` chip means the worktree is in no agent's `@agent_workdirs`, and reports nothing else. A click only
   opens the menu.
-- **Picking a theme is applying it.** The `⛭` chip opens a centred dialogue of categories - Enter drills in, `h` goes
-  back - and there is no save step: Enter on a flavor applies it and the dialogue stays open. `theme <flavor>` re-skins
+- **Picking a theme is applying it.** The `⛭` chip opens a centred dialogue with every value on screen; a click or Enter
+  applies one and the dialogue stays open, so there is no save step and nothing to drill into. `theme <flavor>` re-skins
   tmux and ghostty and restarts the current session's sidebar; other sessions recolour on `prefix + R`, because
   restarting every sidebar at once storms this client.
 - **The footer holds no per-pane facts** - the work's commit (7-char sha), its CI, the clock, and the `⚙` settings chip
