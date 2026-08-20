@@ -98,6 +98,9 @@ trap 'rm -f "$SETTINGS_STATE"' EXIT
 # an action name.
 step="execute-silent($SELF --enter {1})+reload($SELF --list)"
 
+# Mouse: a click is a pick, same as Enter. double-click has to be bound too - its
+# default is accept, which would close the dialogue on the second click.
+
 # --height/--border explicit: FZF_DEFAULT_OPTS comes from the server and would
 # draw a second frame inside tmux's own and leave a dead band below.
 # shellcheck disable=SC2086  # _fzf_color is a word list of --color flags
@@ -106,11 +109,13 @@ step="execute-silent($SELF --enter {1})+reload($SELF --list)"
         --height=100% --border=none \
         --delimiter=$'\t' --with-nth=2 \
         --pointer='▸' \
-        --header='↵ open · h back · q close' --header-first \
+        --header='click or ↵ · h back · q close' --header-first \
         --preview "$SELF --choices {1}" \
         --preview-window='right:50%:border-left' \
         ${_fzf_color:-} \
         --bind "enter:$step" \
+        --bind "left-click:$step" \
+        --bind "double-click:$step" \
         --bind "h:execute-silent($SELF --enter back)+reload($SELF --list)" \
         --bind 'j:down,k:up' \
         --bind 'q:abort,esc:abort' \
