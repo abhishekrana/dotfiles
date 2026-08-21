@@ -213,7 +213,9 @@ in_row() { # in_row <session> <text>
 has() { in_row "$2" "$3" && ok "$1" || no "$1" "row [$2] has no [$3]"; }
 hasnt() { in_row "$2" "$3" && no "$1" "row [$2] still shows [$3]" || ok "$1"; }
 
-tmux select-pane -t "$pane" -T '✳ Ship the parser'
+# ◐ rather than ✳ on purpose: the marker glyph varies per pane, so the row must
+# strip whichever one Claude used.
+tmux select-pane -t "$pane" -T '◐ Ship the parser'
 has "the row shows Claude's title for the session" solo "Ship the parser"
 hasnt "and drops the branch, which the session line carries" solo edited-branch
 has "an untitled session falls back to its branch" plain work-branch

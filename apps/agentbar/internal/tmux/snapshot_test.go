@@ -119,11 +119,17 @@ func TestSnapshotReadsAgentTitle(t *testing.T) {
 func TestAgentTitle(t *testing.T) {
 	for in, want := range map[string]string{
 		"✳ Ship the parser":     "Ship the parser",
+		"◐ Ship the parser":     "Ship the parser", // the glyph varies per pane
+		"◑ Ship the parser":     "Ship the parser",
 		"Ship the parser":       "Ship the parser",
 		titlePlaceholder:        "",
 		"✳ " + titlePlaceholder: "",
+		"◐ " + titlePlaceholder: "",
 		"box":                   "",
 		"":                      "",
+		// Only a marker goes: an ASCII first character is part of the title.
+		"\"quoted\" thing": "\"quoted\" thing",
+		"1 of 3 ready":     "1 of 3 ready",
 	} {
 		if got := agentTitle(in, "box"); got != want {
 			t.Errorf("agentTitle(%q) = %q, want %q", in, got, want)

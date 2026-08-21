@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/abhishekrana/agentbar/internal/model"
 )
@@ -32,7 +34,12 @@ const titlePlaceholder = "Claude Code"
 
 // agentTitle is Claude's own title for the session, read from the terminal
 // title it sets on its pane - the generated one, or a rename, whichever it is
-// currently showing. The leading glyph is not always there.
+// currently showing.
+//
+// Claude marks that title with a leading glyph, and the set is open-ended: ✳ on
+// one pane, ◐ or ◑ on another, and it has changed between versions. So strip by
+// shape rather than by a list - one non-ASCII rune followed by a space is a
+// marker, never the title, which the transcript's own aiTitle confirms.
 //
 // Two values mean "not titled yet": Claude's own placeholder, and the hostname,
 // which is what tmux seeds pane_title with until something sets one - so a
@@ -42,7 +49,10 @@ const titlePlaceholder = "Claude Code"
 // This is the one thing the sidebar takes from a pane property rather than a
 // hook: state stays hooks-only, but no hook carries the title.
 func agentTitle(s, host string) string {
-	s = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(s), "✳"))
+	s = strings.TrimSpace(s)
+	if r, size := utf8.DecodeRuneInString(s); r > unicode.MaxASCII && strings.HasPrefix(s[size:], " ") {
+		s = strings.TrimSpace(s[size:])
+	}
 	if s == titlePlaceholder || s == host {
 		return ""
 	}
