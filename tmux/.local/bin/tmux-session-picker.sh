@@ -182,9 +182,10 @@ band_row() {
 # group, and only when they actually separate two non-empty bands (a one-band
 # list shows none), exactly as the sidebar does it.
 build_lines() {
-    local -A STATE_BY_SESSION WORKDIR_BY_SESSION DIR_BY_SESSION DIR_VOTES PANES_IN
-    local sess cmd present state wd path seen prev current ordered band name branch icon mark header
-    local headed=
+    local -A STATE_BY_SESSION WORKDIR_BY_SESSION DIR_BY_SESSION DIR_VOTES PANES_IN TITLE_BY_SESSION
+    local sess cmd present state wd path title seen prev current ordered band name branch icon mark header
+    local labels headed=
+    labels=$(agent_labels)
     local -A count
 
     ordered=$(ordered_sessions)
@@ -198,9 +199,10 @@ build_lines() {
     # Optional fields carry a "-" placeholder: tab is IFS whitespace, so bash
     # collapses a run of empty ones into a single separator and every field after
     # them shifts left - a pane with no @agent_* options would lose its path.
-    while IFS=$'\t' read -r sess cmd present state wd path; do
+    while IFS=$'\t' read -r sess cmd present state wd title path; do
         [ "$state" = - ] && state=
         [ "$wd" = - ] && wd=
+        [ "$title" = - ] && title=
         # The directory that names a session: where most of its panes sit. NOT the
         # session's active pane - that is usually the sidebar, whose cwd is only
         # wherever that process started, or the diff pane, pointed at whatever
@@ -220,6 +222,10 @@ build_lines() {
         if [ -n "$wd" ] && [ -z "${WORKDIR_BY_SESSION[$sess]:-}" ]; then
             WORKDIR_BY_SESSION[$sess]=$wd
         fi
+        # Claude's own name for the session - the sidebar's headline in name mode.
+        if [ -z "${TITLE_BY_SESSION[$sess]:-}" ]; then
+            TITLE_BY_SESSION[$sess]=$(agent_title "$title")
+        fi
         prev=${STATE_BY_SESSION[$sess]:-}
         if [ "$(agent_state_rank "$state")" -gt "$(agent_state_rank "$prev")" ]; then
             STATE_BY_SESSION[$sess]=$state
@@ -227,7 +233,7 @@ build_lines() {
     done < <(tmux list-panes -a -F "$(
         printf '#{session_name}\t#{pane_current_command}\t#{?@agent_present,1,0}\t'
         printf '#{?@agent_state,#{@agent_state},-}\t#{?@agent_workdir,#{@agent_workdir},-}\t'
-        printf '#{pane_current_path}'
+        printf '#{?pane_title,#{pane_title},-}\t#{pane_current_path}'
     )")
 
     while IFS=$'\t' read -r band name; do
@@ -264,7 +270,10 @@ build_lines() {
         fi
         path=${WORKDIR_BY_SESSION[$name]:-${DIR_BY_SESSION[$name]:-}}
         branch=
-        if [ -n "$path" ] && [ -d "$path" ]; then
+        # Name mode shows what the sidebar shows, so the two views never
+        # disagree; a session with no name keeps its branch, as there too.
+        [ "$labels" = name ] && branch=${TITLE_BY_SESSION[$name]:-}
+        if [ -z "$branch" ] && [ -n "$path" ] && [ -d "$path" ]; then
             branch=$(git -C "$path" symbolic-ref --short HEAD 2>/dev/null ||
                 git -C "$path" rev-parse --short HEAD 2>/dev/null ||
                 true)

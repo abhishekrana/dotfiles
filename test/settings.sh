@@ -69,8 +69,11 @@ start() {
 pane() { tmux list-panes -a -F '#{pane_id}' 2>/dev/null | head -1; }
 snap() { tmux capture-pane -p -t "$(pane)" 2>/dev/null; }
 
-# row <glyph> - which list item (1-based) carries the glyph, or 0.
+# row <glyph> - which Theme row (1-based in that group) carries the glyph, or 0.
 row() { snap | sed -n '2,5p' | grep -n -- "$1" | head -1 | cut -d: -f1; }
+
+# lrow <glyph> - the same for the Labels group, which follows the four flavors.
+lrow() { snap | sed -n '6,7p' | grep -n -- "$1" | head -1 | cut -d: -f1; }
 
 keys() {
     tmux send-keys -t "$(pane)" "$@"
@@ -125,6 +128,29 @@ start solarized-light
 click 3
 eq "a click on another row applies it" "catppuccin-latte" "$(applied)"
 eq "cursor on the clicked row" 3 "$(row '▸')"
+
+# ---- labels group -----------------------------------------------------------
+# The second group is what proves the dialogue is not theme-only: its rows sit
+# below the flavors, and applying one must leave the cursor there rather than
+# snapping back to the Theme group.
+printf '\nlabels\n'
+start solarized-light
+out=$(snap)
+grep -q "Labels" <<<"$out" && ok "the Labels group has its own label" || no "no Labels label"
+for want in Branch Name; do
+    grep -qF "$want" <<<"$out" && ok "shows $want" || no "missing $want"
+done
+eq "branch is the marked default" 1 "$(lrow '●')"
+
+click 6
+eq "a click applies the label mode" name "$(tmux show-option -gqv @agent_labels)"
+eq "the marker moved inside the group" 2 "$(lrow '●')"
+eq "the cursor stayed in the group" 2 "$(lrow '▸')"
+eq "and the theme was left alone" "" "$(applied)"
+
+click 5
+eq "clicking back applies branch" branch "$(tmux show-option -gqv @agent_labels)"
+eq "cursor back on the first row" 1 "$(lrow '▸')"
 
 # ---- closing ----------------------------------------------------------------
 printf '\nclose\n'

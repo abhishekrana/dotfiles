@@ -515,3 +515,33 @@ func TestTabNoAttentionIsNoop(t *testing.T) {
 		}
 	}
 }
+
+// `l` flips the label mode globally: the option is what every other sidebar
+// reads on its next poll, so one press re-labels the whole bar.
+func TestLabelKeyTogglesOption(t *testing.T) {
+	r := &fakeRunner{}
+	a := testApp(r)
+	if a.byName {
+		t.Fatal("labels should start on the branch")
+	}
+	press := func() App {
+		m, _ := a.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
+		return m.(App)
+	}
+	a = press()
+	if !a.byName {
+		t.Error("first l did not switch to names")
+	}
+	wrote := false
+	for _, c := range r.calls {
+		if strings.Join(c, " ") == "set-option -g @agent_labels name" {
+			wrote = true
+		}
+	}
+	if !wrote {
+		t.Errorf("no `set-option -g @agent_labels name`; calls=%v", r.calls)
+	}
+	if a = press(); a.byName {
+		t.Error("second l did not switch back to the branch")
+	}
+}

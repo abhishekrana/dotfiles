@@ -21,6 +21,11 @@ STATE="${XDG_CONFIG_HOME:-$HOME/.config}/theme"
 # so the interaction test can stand a recorder in for the real switcher.
 THEME_BIN="${THEME_BIN:-$HOME/.local/bin/theme}"
 FLAVORS="solarized-light solarized-dark catppuccin-latte catppuccin-mocha"
+LABELS="branch name"
+# The cursor must land back on the row just applied, so the dialogue never jumps
+# between groups. fzf's transform bind runs after the reload, when {1} is already
+# the first row again - so --apply leaves its group name here for --pos to read.
+LAST="${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}/dotfiles-settings-last-$UID"
 
 # Popup palette, the same one the session and worktree pickers use: a solid
 # accent selection bar, louder than the shell fzf's.
@@ -28,6 +33,13 @@ FLAVORS="solarized-light solarized-dark catppuccin-latte catppuccin-mocha"
 . "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/tmux-agent-state.sh"
 
 current_flavor() { cat "$STATE/current" 2>/dev/null || echo solarized-light; }
+# What heads a sidebar row: Claude's own name for the session, or the git branch.
+current_labels() {
+    case "$(tmux show-option -gqv @agent_labels 2>/dev/null)" in
+        name) echo name ;;
+        *) echo branch ;;
+    esac
+}
 title() { echo "$1" | tr '-' ' ' | sed 's/\b\(.\)/\u\1/g'; }
 
 # group <label> <current> <action-prefix> <value>...
@@ -47,23 +59,43 @@ group() {
 # shellcheck disable=SC2086  # FLAVORS is a word list, one value per row
 list_rows() {
     group "Theme" "$(current_flavor)" "theme:" $FLAVORS
+    group "Labels" "$(current_labels)" "labels:" $LABELS
 }
 
 # fzf's reload resets the cursor to the first row, so after applying we put it back
 # on the row that is now active. Printed as one fzf action, for a transform bind.
 do_pos() {
-    local cur i=1 f
-    cur=$(current_flavor)
-    for f in $FLAVORS; do
-        [ "$f" = "$cur" ] && break
+    local cur i=1 v group values
+    group=$(cat "$LAST" 2>/dev/null || echo theme)
+    case $group in
+        labels)
+            # Rows are contiguous, so the Labels group starts after the flavors.
+            # shellcheck disable=SC2086  # word list, deliberately unquoted
+            set -- $FLAVORS
+            i=$(($# + 1))
+            cur=$(current_labels)
+            values=$LABELS
+            ;;
+        *)
+            cur=$(current_flavor)
+            values=$FLAVORS
+            ;;
+    esac
+    # shellcheck disable=SC2086  # word list, deliberately unquoted
+    for v in $values; do
+        [ "$v" = "$cur" ] && break
         i=$((i + 1))
     done
     printf 'pos(%d)' "$i"
 }
 
 do_apply() {
+    printf '%s' "${1%%:*}" >"$LAST" 2>/dev/null || true
     case "${1:-}" in
         theme:*) "$THEME_BIN" "${1#theme:}" >/dev/null 2>&1 ;;
+        # Global and re-read every poll, so every sidebar re-labels itself on its
+        # next tick - nothing restarts and no row moves.
+        labels:*) tmux set-option -g @agent_labels "${1#labels:}" 2>/dev/null || true ;;
     esac
 }
 

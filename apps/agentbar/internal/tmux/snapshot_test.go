@@ -27,10 +27,10 @@ func (f *fakeRunner) Run(args ...string) (string, error) {
 
 // Lines as tmux emits them: tab-separated, empty user options at the end
 // of the last line (must not be lost - regression for the TrimSpace bug).
-const fixture = "beta\t1\t1\t1\t%9\t1\tbash\t/tmp\t\t\t\t\t\t\n" +
-	"app\t1\t2\t1\t%3\t1\tclaude\t/tmp\t1\tdone\t1700000000\t\t2\t/wt/other\n" +
-	"app\t1\t1\t0\t%2\t0\tbash\t/tmp\t1\tworking\t1700000000\t\t\t\n" +
-	"app\t1\t3\t0\t%5\t1\tnode\t/tmp\t1\tworking\t1700000000\t\t\t"
+const fixture = "beta\t1\t1\t1\t%9\t1\tbash\t/tmp\t\t\t\t\t\t\thost\n" +
+	"app\t1\t2\t1\t%3\t1\tclaude\t/tmp\t1\tdone\t1700000000\t\t2\t/wt/other\t✳ Ship the parser\n" +
+	"app\t1\t1\t0\t%2\t0\tbash\t/tmp\t1\tworking\t1700000000\t\t\t\thost\n" +
+	"app\t1\t3\t0\t%5\t1\tnode\t/tmp\t1\tworking\t1700000000\t\t\t\t"
 
 func TestSnapshotParsesFilters(t *testing.T) {
 	r := &fakeRunner{panes: fixture}
@@ -95,5 +95,36 @@ func TestCurrentSessionFallsBackOffAStalePane(t *testing.T) {
 	}}
 	if got := CurrentSession(own); got != "payments" {
 		t.Errorf("CurrentSession = %q, want the pane's own session payments", got)
+	}
+}
+
+// The title is Claude's own name for the session, read from the pane title.
+func TestSnapshotReadsAgentTitle(t *testing.T) {
+	snap := Snapshot(&fakeRunner{panes: fixture}, NewBranchCache(), "app")
+	agents := snap.Sessions[0].Agents
+	if len(agents) != 2 {
+		t.Fatalf("want 2 agents, got %d", len(agents))
+	}
+	if got := agents[0].Title; got != "Ship the parser" {
+		t.Errorf("title = %q, want %q (glyph stripped)", got, "Ship the parser")
+	}
+	if got := agents[1].Title; got != "" {
+		t.Errorf("a pane with no title must read as no title, got %q", got)
+	}
+}
+
+// The glyph Claude prefixes is optional, and its pre-prompt placeholder name
+// means the session has no name yet.
+func TestAgentTitle(t *testing.T) {
+	for in, want := range map[string]string{
+		"✳ Ship the parser":     "Ship the parser",
+		"Ship the parser":       "Ship the parser",
+		titlePlaceholder:        "",
+		"✳ " + titlePlaceholder: "",
+		"":                      "",
+	} {
+		if got := agentTitle(in); got != want {
+			t.Errorf("agentTitle(%q) = %q, want %q", in, got, want)
+		}
 	}
 }

@@ -50,6 +50,7 @@ type Agent struct {
 	WindowIndex int
 	Command     string // pane's current command (claude/node); the row label
 	Branch      string // git branch of the pane's cwd
+	Title       string // Claude's own name for the session; "" before its first prompt
 	State       AgentState
 	Seen        bool      // done + visited since finishing: render dimmed
 	Since       time.Time // last state transition

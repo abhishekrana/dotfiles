@@ -58,3 +58,20 @@ agent_state_rank() {
         *) printf 0 ;;
     esac
 }
+
+# agent_title <pane-title> - Claude's own name for a session, as it publishes it
+# in its pane title: the leading glyph is optional, and the pre-prompt
+# placeholder means the session has no name yet. Mirrors agentTitle in
+# apps/agentbar/internal/tmux/snapshot.go - change them together.
+agent_title() {
+    local t=${1#✳}
+    t=${t# }
+    [ "$t" = "Claude Code" ] && t=
+    printf '%s' "$t"
+}
+
+# agent_labels - the label mode every surface reads: "name" heads a row with
+# Claude's session name, anything else (the default) with the git branch.
+agent_labels() {
+    tmux show-option -gqv @agent_labels 2>/dev/null
+}

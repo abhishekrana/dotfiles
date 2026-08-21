@@ -77,6 +77,7 @@ picked up on their next restart.
 | `Tab`           | jump to the next agent waiting on you (permission/asking), cycling across sessions - the work queue |
 | `p`             | pin / unpin the selected session - pinned sessions float to a band at the top                       |
 | `n`, click chip | toggle desktop notifications (footer shows the state)                                               |
+| `l`             | head each row with Claude's name for the session instead of the git branch, everywhere              |
 | `q`             | hide the sidebar everywhere (same as toggle)                                                        |
 
 Clicking a session name switches to it - the one way to reach a session with no agents running (it just
@@ -116,6 +117,23 @@ switching.
 
 Agent states: `working` (teal spinner) · `permission` (red) · `asking` (amber) · `done` (green until you visit the pane,
 then gray) · `idle` (gray). Each agent shows its git branch and live subagent count.
+
+## Row labels
+
+Each agent block is headed by the git branch of the worktree it writes in. That is the wrong name whenever a checkout
+has no branch of its own, and half of a dozen worktrees usually don't - so `l` (or the Labels row in the dotfiles `⛭`
+dialogue) heads rows with **the name Claude gives its own session** instead:
+
+```text
+ api-server                     api-server
+ feat/rate-limit-rollout   →    Rate limit middleware rollout
+   ⠼ claude  working  2m          ⠼ claude  working  2m
+```
+
+Claude Code generates that name itself and publishes it in its pane title; nothing to configure, and a session it has
+not named yet keeps its branch, so no row loses its headline. The mode is the global `@agent_labels` option (`branch` |
+`name`), re-read on every poll - one press re-labels every sidebar on its next tick, with no restart, and the block
+keeps its height either way.
 
 ## Notifications
 
@@ -179,6 +197,7 @@ set -g @agentbar-width '30'             # sidebar width in columns
 set -g @agentbar-theme 'solarized-light' # or 'dark'
 set -g @agentbar-focus 'off'            # 'on' focuses sidebar on open
 set -g @agentbar-autostart 'on'         # 'off' starts with the sidebar closed
+set -g @agent_labels 'branch'           # or 'name' - what heads each row (the `l` key)
 ```
 
 ## Development

@@ -17,14 +17,32 @@ import (
 const snapFormat = "#{session_name}\t#{session_attached}\t#{window_index}\t#{window_active}\t" +
 	"#{pane_id}\t#{pane_active}\t#{pane_current_command}\t#{pane_current_path}\t" +
 	"#{@agent_present}\t#{@agent_state}\t#{@agent_since}\t#{@agent_seen}\t#{@agent_subagents}\t" +
-	"#{@agent_workdir}"
+	"#{@agent_workdir}\t#{pane_title}"
 
-const snapFields = 14
+const snapFields = 15
 
 // agentCommands guards against zombies: a pane whose Claude died without
 // SessionEnd keeps its options, but its foreground command changes.
 // Claude Code runs as `claude` (native) or `node` (npm install).
 var agentCommands = map[string]bool{"claude": true, "node": true}
+
+// titlePlaceholder is what Claude Code names a session before its first
+// prompt, so it reads as no title at all.
+const titlePlaceholder = "Claude Code"
+
+// agentTitle is Claude's own name for the session, read from the terminal
+// title it sets on its pane - the generated one, or a rename, whichever it is
+// currently showing. The leading glyph is not always there.
+//
+// This is the one thing the sidebar takes from a pane property rather than a
+// hook: state stays hooks-only, but no hook carries the title.
+func agentTitle(s string) string {
+	s = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(s), "✳"))
+	if s == titlePlaceholder {
+		return ""
+	}
+	return s
+}
 
 // CurrentSession names the session the sidebar pane lives in, anchored
 // to our own pane: a bare display-message resolves against the attached
@@ -104,6 +122,7 @@ func Snapshot(r Runner, bc *BranchCache, currentSession string) model.Snapshot {
 			WindowIndex: windowIdx,
 			Command:     f[6],
 			Branch:      bc.Get(dir),
+			Title:       agentTitle(f[14]),
 			State:       state,
 			Seen:        seen,
 			Since:       time.Unix(since, 0),

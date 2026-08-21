@@ -1661,3 +1661,34 @@ func TestPinCommandToggles(t *testing.T) {
 		t.Errorf("order after unpin = %q, want the session unpinned", got)
 	}
 }
+
+// The label toggle swaps the block's headline between the branch and Claude's
+// own name for the session. @agent_labels is global and re-read every poll, so
+// a flip reaches every sidebar with no restart - and the row keeps its shape.
+func TestLabelModeSwapsHeadline(t *testing.T) {
+	s := start(t)
+	s.newSession("work")
+	agent := s.agentPane("work")
+	// The pane title is where Claude Code publishes that name.
+	s.tmux("select-pane", "-t", agent, "-T", "✳ Ship the parser")
+	s.hook(agent, `{"hook_event_name":"UserPromptSubmit","session_id":"e2e"}`)
+
+	s.script("open.sh", "work")
+	side := s.sidebarPane("work")
+	waitFor(t, "sidebar shows the agent", 5*time.Second, func() bool {
+		return strings.Contains(s.capture(side), "working")
+	})
+	if strings.Contains(s.captureText(side), "Ship the parser") {
+		t.Error("branch mode must not head the block with the session name")
+	}
+
+	s.tmux("set-option", "-g", "@agent_labels", "name")
+	waitFor(t, "headline became the session name", 5*time.Second, func() bool {
+		return strings.Contains(s.captureText(side), "Ship the parser")
+	})
+
+	s.tmux("set-option", "-g", "@agent_labels", "branch")
+	waitFor(t, "headline went back to the branch", 5*time.Second, func() bool {
+		return !strings.Contains(s.captureText(side), "Ship the parser")
+	})
+}

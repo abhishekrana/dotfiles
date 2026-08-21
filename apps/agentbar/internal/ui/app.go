@@ -26,6 +26,11 @@ const (
 	// wait-for channel signalled by jumps; sidebars adopt the shared
 	// selection immediately instead of on the next tick.
 	refreshChannel = tmux.RefreshChannel
+
+	// @agent_labels values: which text heads an agent block. Branch is the
+	// default, so an unset option is today's sidebar.
+	labelsBranch = "branch"
+	labelsByName = "name"
 )
 
 type tickMsg time.Time
@@ -34,6 +39,7 @@ type snapMsg struct {
 	snap   model.Snapshot
 	sel    string          // global @sidebar_selected at snapshot time
 	notify bool            // global @agent_notify at snapshot time
+	byName bool            // global @agent_labels at snapshot time
 	pins   map[string]bool // global @agentbar-pins at snapshot time
 	signal bool            // woken by the wait-for channel, not the 1s tick
 }
@@ -53,6 +59,7 @@ type App struct {
 	flash      string
 	mockup     bool
 	notify     bool            // desktop-notification toggle (@agent_notify), mirrored for the footer
+	byName     bool            // label mode (@agent_labels): headline is Claude's session name, not the branch
 	pins       map[string]bool // pinned session names (@agentbar-pins), used to regroup on `p`
 
 	// live-mode plumbing (nil in mockup mode)
@@ -93,6 +100,9 @@ func NewLive(theme Theme) App {
 	}
 	if v, err := runner.Run("show-option", "-gqv", "@agent_notify"); err == nil {
 		app.notify = strings.TrimSpace(v) == "on"
+	}
+	if v, err := runner.Run("show-option", "-gqv", "@agent_labels"); err == nil {
+		app.byName = strings.TrimSpace(v) == labelsByName
 	}
 	app.register()
 	trace.Log("agentbar", "start", "pane", os.Getenv("TMUX_PANE"), "session", app.current)
@@ -199,6 +209,7 @@ func (a App) waitRefresh() tea.Cmd {
 func (a App) gather(signal bool) snapMsg {
 	sel, _ := a.runner.Run("show-option", "-gqv", "@sidebar_selected")
 	notify, _ := a.runner.Run("show-option", "-gqv", "@agent_notify")
+	labels, _ := a.runner.Run("show-option", "-gqv", "@agent_labels")
 	// Re-read the verbose gate each poll so `tmux set -g @agentbar-trace-verbose
 	// on` takes effect within ~1s, no sidebar restart.
 	verbose, _ := a.runner.Run("show-option", "-gqv", "@agentbar-trace-verbose")
@@ -210,6 +221,7 @@ func (a App) gather(signal bool) snapMsg {
 		snap:   snap,
 		sel:    strings.TrimSpace(sel),
 		notify: strings.TrimSpace(notify) == "on",
+		byName: strings.TrimSpace(labels) == labelsByName,
 		pins:   pins,
 		signal: signal,
 	}
@@ -289,34 +301,43 @@ func NewMockup(theme Theme) App {
 		// share it (here a single Claude, working, with two subagents).
 		{Name: "api-server", Current: true, Agents: []model.Agent{
 			{PaneID: "%1", WindowIndex: 1, Command: "claude", Branch: "feat/rate-limit-middleware-rollout",
+				Title: "Rate limit middleware rollout",
 				State: model.StateWorking, Since: now.Add(-2 * time.Minute), Subagents: 2},
 		}},
 		{Name: "blog", Agents: []model.Agent{
 			{PaneID: "%7", WindowIndex: 1, Command: "claude", Branch: "draft/tmux-agents-post",
+				Title: "Draft the parallel agents post",
 				State: model.StateDone, Since: now.Add(-12 * time.Minute)},
 		}},
+		// No Title: never prompted, so name mode falls back to its branch.
 		{Name: "cli", Agents: []model.Agent{
 			{PaneID: "%3", WindowIndex: 1, Command: "claude", Branch: "chore/flag-parsing",
 				State: model.StateIdle, Since: now.Add(-8 * time.Minute)},
 		}},
 		{Name: "dotfiles", Agents: []model.Agent{
 			{PaneID: "%5", WindowIndex: 1, Command: "claude", Branch: "main",
+				Title: "Sidebar label toggle",
 				State: model.StateQuestion, Since: now.Add(-4 * time.Minute)},
 		}},
 		{Name: "notes"},
 		// Three Claudes on one branch: the branch shows once, colored by the
-		// most-urgent of them (here the one waiting on a permission).
+		// most-urgent of them (here the one waiting on a permission). Their names
+		// differ, so name mode heads all three separately.
 		{Name: "payments", Agents: []model.Agent{
 			{PaneID: "%9", WindowIndex: 1, Command: "claude", Branch: "2091-refund-idempotency-keys",
+				Title: "Refund idempotency keys",
 				State: model.StateWorking, Since: now.Add(-6 * time.Minute)},
 			{PaneID: "%10", WindowIndex: 2, Command: "claude", Branch: "2091-refund-idempotency-keys",
+				Title: "Backfill the refund ledger",
 				State: model.StatePermission, Since: now.Add(-30 * time.Second)},
 			{PaneID: "%11", WindowIndex: 3, Command: "claude", Branch: "2091-refund-idempotency-keys",
+				Title: "Retry the dropped webhooks",
 				State: model.StateDone, Since: now.Add(-11 * time.Minute)},
 		}},
 		{Name: "scratch"},
 		{Name: "www", Agents: []model.Agent{
 			{PaneID: "%8", WindowIndex: 1, Command: "claude", Branch: "main",
+				Title: "Bump the pricing copy",
 				State: model.StateDone, Seen: true, Since: now.Add(-33 * time.Minute)},
 		}},
 	}}
@@ -413,6 +434,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case snapMsg:
 		a.setSnapshot(msg.snap)
 		a.notify = msg.notify
+		a.byName = msg.byName
 		if msg.pins != nil {
 			a.pins = msg.pins
 		}
@@ -459,13 +481,13 @@ func (a App) layout() layout {
 	firsts := make([]int, len(a.blocks))
 	for i, b := range a.blocks {
 		firsts[i] = len(l.owners)
-		for n := blockLineCount(b, a.snap); n > 0; n-- {
+		for n := blockLineCount(b, a.snap, a.byName); n > 0; n-- {
 			l.owners = append(l.owners, i)
 		}
 	}
 	if a.blockSelectable(a.cursor) {
 		first := firsts[a.cursor]
-		last := first + blockLineCount(a.blocks[a.cursor], a.snap) - 1
+		last := first + blockLineCount(a.blocks[a.cursor], a.snap, a.byName) - 1
 		if last >= l.start+l.avail {
 			l.start = last - l.avail + 1
 		}
@@ -632,6 +654,8 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return a.togglePin()
 	case "n":
 		return a.toggleNotify()
+	case "l":
+		return a.toggleLabels()
 	}
 	return a, nil
 }
@@ -679,6 +703,27 @@ func (a App) toggleNotify() (tea.Model, tea.Cmd) {
 	return a, nil
 }
 
+// toggleLabels flips the global label mode (@agent_labels) between Claude's
+// own session names and the git branch. Global and read every poll, so one
+// press re-labels every sidebar on its next tick - no restart, nothing moves.
+// The `l` key and the settings dialogue's Labels row both land here.
+func (a App) toggleLabels() (tea.Model, tea.Cmd) {
+	before := labelsBranch
+	if a.byName {
+		before = labelsByName
+	}
+	a.byName = !a.byName
+	after := labelsBranch
+	if a.byName {
+		after = labelsByName
+	}
+	if !a.mockup {
+		_, _ = a.runner.Run("set-option", "-g", "@agent_labels", after)
+	}
+	trace.Log("agentbar", "labels", "before", before, "after", after)
+	return a, nil
+}
+
 // onNotifyChip reports whether (x,y) landed on the footer's notify chip: the
 // status line is the second-from-last row, and the chip sits on its right.
 func (a App) onNotifyChip(x, y int) bool {
@@ -694,7 +739,7 @@ func (a App) View() string {
 	now := time.Now()
 	// Agent commands are only ever "claude"/"node", so the name column is fixed.
 	nameW := 6
-	r := renderer{theme: a.theme, width: a.width, nameW: nameW}
+	r := renderer{theme: a.theme, width: a.width, nameW: nameW, byName: a.byName}
 
 	var b strings.Builder
 	b.WriteString(r.header(a.snap, a.frame) + "\n")

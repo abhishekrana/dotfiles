@@ -34,8 +34,8 @@ tmux -L agentbar-mock attach -t v                             # optional live-te
 ```
 
 `NewMockup` (`internal/ui/app.go`) is the sample fixture - when you change the layout, keep it representative: every
-state (working/permission/asking/done/done-seen/idle), one multi-Claude-on-one-branch session, and all three bands
-(pinned/active/dormant).
+state (working/permission/asking/done/done-seen/idle), one multi-Claude-on-one-branch session, one agent with no name
+(so name mode's branch fallback shows), and all three bands (pinned/active/dormant).
 
 ## Layout
 
@@ -65,7 +65,14 @@ state (working/permission/asking/done/done-seen/idle), one multi-Claude-on-one-b
   reads each pane's branch from its cwd and draws the branch headline once per run of consecutive same-branch agents
   (colored by the most-urgent when several share it). A session's panes usually sit in one worktree (so one branch), but
   tmux doesn't enforce that - don't assume one branch per session; just collapse the agents that actually match.
-- Detection is hooks + pane options only - never scrape pane content.
+- **`@agent_labels` picks what heads an agent block**: `branch` (default, so an unset option is the original sidebar) or
+  `name`, Claude's own name for the session. Global, re-read every poll, so the `l` key or the `⛭` dialogue's Labels row
+  re-labels every sidebar on its next tick - no restart, and the block keeps its height either way. An agent with no
+  name yet falls back to its branch, so a row never loses its headline; the collapse rule is per headline, so Claudes
+  sharing a worktree each get their own name. `blockLineCount` takes the mode for the same reason the renderer does.
+- Detection is hooks + pane options only - never scrape pane content. The one exception is `#{pane_title}`, where Claude
+  Code publishes that name (`agentTitle` strips its glyph and reads the pre-prompt placeholder as no name) - a pane
+  property, read for the label alone. State stays hooks-only.
 - The hook resolves its pane from `$TMUX_PANE`, else by matching the event `cwd` to a Claude pane (`ResolvePane`) -
   resumed / `claude daemon run` sessions fire hooks with no `TMUX_PANE`, and dropping them silently freezes the pane's
   state. A paneless hook that still can't be placed is dropped (traced with `cwd`/`sid`); `agentbar doctor` surfaces

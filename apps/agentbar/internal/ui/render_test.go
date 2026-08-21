@@ -97,13 +97,13 @@ func TestBandDividerSpacing(t *testing.T) {
 	if !dormant.gapAfter {
 		t.Error("dormant divider must add a blank below itself")
 	}
-	if got := blockLineCount(pinned, snap); got != 1 {
+	if got := blockLineCount(pinned, snap, false); got != 1 {
 		t.Errorf("pinned divider = %d lines, want 1 (tight rule)", got)
 	}
-	if got := blockLineCount(active, snap); got != 2 {
+	if got := blockLineCount(active, snap, false); got != 2 {
 		t.Errorf("active divider = %d lines, want 2 (blank + rule)", got)
 	}
-	if got := blockLineCount(dormant, snap); got != 3 {
+	if got := blockLineCount(dormant, snap, false); got != 3 {
 		t.Errorf("dormant divider = %d lines, want 3 (blank + rule + blank)", got)
 	}
 }
@@ -154,17 +154,17 @@ func TestBranchHeadlineCollapsesOnlySameBranch(t *testing.T) {
 		{Command: "claude", Branch: "b", State: model.StateWorking},
 		{Command: "claude", Branch: "b", State: model.StatePermission},
 	}}
-	if !agentShowsBranch(same, 0) {
+	if !showsHeadline(same, 0, false) {
 		t.Error("first agent should show the branch")
 	}
-	if agentShowsBranch(same, 1) {
+	if showsHeadline(same, 1, false) {
 		t.Error("second agent on the same branch should not repeat it")
 	}
 	diff := model.Session{Agents: []model.Agent{
 		{Command: "claude", Branch: "b1", State: model.StateWorking},
 		{Command: "claude", Branch: "b2", State: model.StateWorking},
 	}}
-	if !agentShowsBranch(diff, 1) {
+	if !showsHeadline(diff, 1, false) {
 		t.Error("a different branch in the same session must show its own headline")
 	}
 }
@@ -179,5 +179,64 @@ func TestGroupColorIsMostUrgent(t *testing.T) {
 	}}
 	if got := r.groupColor(sess, 0); got != r.theme.Blocked {
 		t.Errorf("shared branch should take the most-urgent color %v, got %v", r.theme.Blocked, got)
+	}
+}
+
+// Name mode heads the block with Claude's own name for the session instead of
+// the branch; the block keeps its shape, so nothing moves when you flip.
+func TestNameModeHeadlineIsTheSessionName(t *testing.T) {
+	sess := model.Session{Name: "api", Agents: []model.Agent{
+		{Command: "claude", Branch: "4629-startup-fail-fast", Title: "Merge request review",
+			State: model.StateWorking},
+	}}
+	byBranch := testRenderer().agentBlock(sess, 0, false, false, 0, time.Now())
+	r := testRenderer()
+	r.byName = true
+	byName := r.agentBlock(sess, 0, false, false, 0, time.Now())
+	if len(byName) != len(byBranch) {
+		t.Fatalf("label mode must not change the block height: %d vs %d", len(byName), len(byBranch))
+	}
+	if !strings.Contains(byBranch[0], "4629-startup-fail-fast") {
+		t.Errorf("branch mode should head with the branch, got %q", byBranch[0])
+	}
+	if !strings.Contains(byName[0], "Merge request review") {
+		t.Errorf("name mode should head with the name, got %q", byName[0])
+	}
+	if strings.Contains(byName[0], "4629") {
+		t.Errorf("name mode should drop the branch, got %q", byName[0])
+	}
+}
+
+// An agent with no name (never prompted) keeps its branch headline in name
+// mode - a row must never lose its headline.
+func TestNameModeFallsBackToBranch(t *testing.T) {
+	sess := model.Session{Agents: []model.Agent{
+		{Command: "claude", Branch: "chore/flags", State: model.StateIdle},
+	}}
+	if !showsHeadline(sess, 0, true) {
+		t.Fatal("an unnamed agent must still show its branch in name mode")
+	}
+	r := testRenderer()
+	r.byName = true
+	if got := r.agentBlock(sess, 0, false, false, 0, time.Now()); !strings.Contains(got[0], "chore/flags") {
+		t.Errorf("want the branch as fallback headline, got %q", got[0])
+	}
+	if got := blockLineCount(block{kind: blockAgent}, model.Snapshot{Sessions: []model.Session{sess}}, true); got != 2 {
+		t.Errorf("fallback headline must be counted: got %d lines, want 2", got)
+	}
+}
+
+// Claudes sharing a branch collapse to one headline; distinct names do not,
+// so name mode labels each agent in a shared worktree.
+func TestNameModeDoesNotCollapseDistinctNames(t *testing.T) {
+	sess := model.Session{Agents: []model.Agent{
+		{Command: "claude", Branch: "b", Title: "First job", State: model.StateWorking},
+		{Command: "claude", Branch: "b", Title: "Second job", State: model.StatePermission},
+	}}
+	if showsHeadline(sess, 1, false) {
+		t.Error("branch mode should collapse the shared branch")
+	}
+	if !showsHeadline(sess, 1, true) {
+		t.Error("name mode should head each differently-named agent")
 	}
 }

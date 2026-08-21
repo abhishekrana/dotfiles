@@ -42,8 +42,9 @@ Scripts in `tmux/.local/bin/`:
 
 - `tmux-gitlab.sh` - GitLab status, `#issue !mr CI ✓`. No words: the sigils are GitLab's own notation, and the CI glyph
   is fixed-width so a flipping pipeline never shifts the clock.
-- `tmux-agent-state.sh` - sourced agent-state language: glyphs, colors and state ranking shared by the session picker
-  and its preview, mirroring the sidebar's. Colors come from the theme switcher, never hardcoded.
+- `tmux-agent-state.sh` - sourced agent-state language: glyphs, colors, state ranking and the label mode (`agent_title`,
+  `agent_labels`), shared by the session picker and its preview, mirroring the sidebar's. Colors come from the theme
+  switcher, never hardcoded.
 - `tmux-settings.sh` - the `⛭` chip's dialogue: setting names down the left, their values down the right, one value per
   row. No submenu - fzf has one cursor and its preview cannot be focused, so showing every value is what removes the
   need for two. Add a setting with a `group()` call in `list_rows` and an arm in `do_apply`.
@@ -66,6 +67,10 @@ Rules:
   `tmux-worktree-picker.sh` (the menu's `W`) and per-window auto-follow (`F`, off by default) re-point a live pane.
 - An amber `◧ diff` chip means the worktree is in no agent's `@agent_workdirs`, and reports nothing else. A click only
   opens the menu.
+- **One label language everywhere.** `@agent_labels` decides what heads a row - the git branch (default) or the name
+  Claude gives its own session, which it publishes in its pane title. The sidebar's `l` key and the `⛭` dialogue's
+  Labels row write the same global option, and the sidebar and the `Alt-;` picker both read it, so the two views never
+  disagree. A session Claude has not named yet keeps its branch.
 - **Picking a theme is applying it.** The `⛭` chip opens a centred dialogue with every value on screen; a click or Enter
   applies one and the dialogue stays open, so there is no save step and nothing to drill into. `theme <flavor>` re-skins
   tmux and ghostty and re-runs the current session's sidebar and diff pane - hunk takes the flavor as a startup flag, so

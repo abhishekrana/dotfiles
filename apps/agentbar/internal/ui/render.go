@@ -163,9 +163,10 @@ func truncate(s string, width int) string {
 
 // renderer turns a snapshot into the sidebar view.
 type renderer struct {
-	theme Theme
-	width int
-	nameW int // agent-name column width (fixed; commands are only claude/node)
+	theme  Theme
+	width  int
+	nameW  int  // agent-name column width (fixed; commands are only claude/node)
+	byName bool // @agent_labels: headline is Claude's session name, not the branch
 }
 
 // labelW fits the longest state label ("permission").
@@ -298,21 +299,34 @@ func attentionRank(a model.Agent) int {
 	}
 }
 
-// agentShowsBranch reports whether this agent draws the branch headline:
-// true unless it repeats the branch of the previous agent in the session,
-// so several Claudes on one branch show that branch once.
-func agentShowsBranch(sess model.Session, idx int) bool {
-	if sess.Agents[idx].Branch == "" {
+// headlineOf is the agent block's headline text: in name mode Claude's own
+// name for the session, else the branch. Name mode falls back to the branch
+// for an agent that has not been prompted yet (it has no name), so a row
+// never loses its headline.
+func headlineOf(a model.Agent, byName bool) string {
+	if byName && a.Title != "" {
+		return a.Title
+	}
+	return a.Branch
+}
+
+// showsHeadline reports whether this agent draws the headline: true unless it
+// repeats the previous agent's, so several Claudes on one branch show that
+// branch once. Names are per-agent, so name mode rarely collapses.
+func showsHeadline(sess model.Session, idx int, byName bool) bool {
+	h := headlineOf(sess.Agents[idx], byName)
+	if h == "" {
 		return false
 	}
-	return idx == 0 || sess.Agents[idx-1].Branch != sess.Agents[idx].Branch
+	return idx == 0 || headlineOf(sess.Agents[idx-1], byName) != h
 }
 
 // groupColor is the state color of the most-urgent agent in the run of
-// consecutive same-branch agents starting at idx.
+// consecutive agents sharing this headline, starting at idx.
 func (r renderer) groupColor(sess model.Session, idx int) lipgloss.Color {
 	lead := sess.Agents[idx]
-	for j := idx + 1; j < len(sess.Agents) && sess.Agents[j].Branch == lead.Branch; j++ {
+	h := headlineOf(lead, r.byName)
+	for j := idx + 1; j < len(sess.Agents) && headlineOf(sess.Agents[j], r.byName) == h; j++ {
 		if attentionRank(sess.Agents[j]) > attentionRank(lead) {
 			lead = sess.Agents[j]
 		}
@@ -320,17 +334,17 @@ func (r renderer) groupColor(sess model.Session, idx int) lipgloss.Color {
 	return r.stateColor(lead)
 }
 
-// branchRow is the agent block's headline: the branch, colored by state so
-// scanning the list reads as attention at a glance.
-func (r renderer) branchRow(branch string, col lipgloss.Color, lit, bar bool) string {
+// headlineRow is the agent block's headline, colored by state so scanning the
+// list reads as attention at a glance.
+func (r renderer) headlineRow(text string, col lipgloss.Color, lit, bar bool) string {
 	s := lipgloss.NewStyle().Foreground(col).Bold(true)
 	if lit {
 		// The edge occupies column 0 in place of the leading space, so the
-		// branch stays at column 1 whether or not the row is lit.
+		// text stays at column 1 whether or not the row is lit.
 		s = s.Background(r.theme.SelBg)
-		return r.leftEdge(bar) + s.Render(padCol(branch, max(r.width-1, 0)))
+		return r.leftEdge(bar) + s.Render(padCol(text, max(r.width-1, 0)))
 	}
-	return s.Render(padCol(" "+branch, r.width))
+	return s.Render(padCol(" "+text, r.width))
 }
 
 func (r renderer) agentRow(a model.Agent, lit, bar bool, frame int, now time.Time) string {
@@ -378,8 +392,8 @@ func (r renderer) subRow(text string, italic, lit, bar bool) string {
 func (r renderer) agentBlock(sess model.Session, idx int, lit, bar bool, frame int, now time.Time) []string {
 	a := sess.Agents[idx]
 	var lines []string
-	if agentShowsBranch(sess, idx) {
-		lines = append(lines, r.branchRow(a.Branch, r.groupColor(sess, idx), lit, bar))
+	if showsHeadline(sess, idx, r.byName) {
+		lines = append(lines, r.headlineRow(headlineOf(a, r.byName), r.groupColor(sess, idx), lit, bar))
 	}
 	lines = append(lines, r.agentRow(a, lit, bar, frame, now))
 	if a.Subagents > 0 {
@@ -393,7 +407,9 @@ func (r renderer) agentBlock(sess model.Session, idx int, lit, bar bool, frame i
 }
 
 // blockLineCount mirrors each block's rendered line count without rendering.
-func blockLineCount(b block, snap model.Snapshot) int {
+// byName must match the renderer's label mode: it decides whether an agent
+// with no name still draws a headline.
+func blockLineCount(b block, snap model.Snapshot, byName bool) int {
 	if b.kind == blockSection {
 		n := 1 // the divider line
 		if b.pad {
@@ -413,7 +429,7 @@ func blockLineCount(b block, snap model.Snapshot) int {
 	sess := snap.Sessions[b.session]
 	a := sess.Agents[b.agent]
 	n := 1
-	if agentShowsBranch(sess, b.agent) {
+	if showsHeadline(sess, b.agent, byName) {
 		n++
 	}
 	if a.Subagents > 0 {
@@ -430,7 +446,7 @@ func (r renderer) footer(snap model.Snapshot, notify bool) string {
 	} else {
 		status = lipgloss.NewStyle().Foreground(r.theme.Muted).Render(" all quiet")
 	}
-	help := " j/k · ⏎ · p pin · n · q"
+	help := " j/k · ⏎ · p pin · n · l · q"
 	if snap.Attention() > 0 {
 		help = " j/k · tab ⚠ · p pin · q" // tab steps through agents waiting on you
 	}
