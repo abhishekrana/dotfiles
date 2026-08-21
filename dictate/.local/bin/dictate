@@ -26,7 +26,7 @@ otherwise a `claude` pane in your current session, otherwise the most-recent
 `claude` pane. Override with DICTATE_TMUX_TARGET (a pane id or session:win.pane).
 
 Setup:
-  dictate --install-shortcut     # bind the Copilot key to `dictate --toggle --send`
+  dictate --install-shortcut     # bind the Copilot and Pause keys to `dictate --toggle --send`
   dictate --check                # verify parec + tmux
 
 Commands: run `dictate --help`. Env-var config (DICTATE_*): see dictate/README.md.
@@ -714,7 +714,13 @@ def toggle(autosend=False):
 # The Copilot key emits LeftMeta+LeftShift+F23 as one press, and F23's keycode
 # resolves to the XF86TouchpadOff keysym - binding "F23" never fires. GNOME's
 # bare-XF86TouchpadOff grab (disable touchpad) cannot match the held modifiers.
-DEFAULT_BINDINGS = ["<Shift><Super>XF86TouchpadOff"]
+#
+# Pause is the second key on the same action, and is bare on purpose: GNOME
+# claims no shortcut on that keysym, unlike the media pair (play-static holds
+# XF86AudioPlay, pause-static XF86AudioPause), whose static grabs a custom
+# binding cannot outrank. A key that types "Pause" but does nothing here is the
+# media keysym, not this one - `dictate --check` prints what is actually bound.
+DEFAULT_BINDINGS = ["<Shift><Super>XF86TouchpadOff", "Pause"]
 
 
 def install_shortcut(bindings):
@@ -757,15 +763,27 @@ def cpu_model_cached():
     return os.path.isdir(d) and bool(os.listdir(d))
 
 
-def gnome_binding():
-    """The key bound to dictate, or "" - an uninstalled shortcut is the usual
-    reason a key does nothing."""
+def gnome_bindings():
+    """Every key bound to dictate, in install order - an uninstalled shortcut is
+    the usual reason a key does nothing, and reporting only the first hid a
+    second key that never landed."""
     if not shutil.which("gsettings"):
-        return ""
-    kb = ("org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:"
-          "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/dictate/")
-    out = subprocess.run(["gsettings", "get", kb, "binding"], capture_output=True, text=True)
-    return out.stdout.strip().strip("'") if out.returncode == 0 else ""
+        return []
+    import ast
+    schema = "org.gnome.settings-daemon.plugins.media-keys"
+    raw = subprocess.run(["gsettings", "get", schema, "custom-keybindings"],
+                         capture_output=True, text=True).stdout.strip()
+    paths = [] if not raw or raw.startswith("@as") else ast.literal_eval(raw)
+    keys = []
+    for path in paths:
+        if not path.rstrip("/").rsplit("/", 1)[-1].startswith("dictate"):
+            continue
+        kb = f"{schema}.custom-keybinding:{path}"
+        out = subprocess.run(["gsettings", "get", kb, "binding"], capture_output=True, text=True)
+        key = out.stdout.strip().strip("'") if out.returncode == 0 else ""
+        if key:
+            keys.append(key)
+    return keys
 
 
 def check():
@@ -785,7 +803,8 @@ def check():
     else:
         log(f"backend: cpu - faster-whisper ({MODEL}, {COMPUTE})")
         log(f"model cache: {'✓' if cpu_model_cached() else '✗ absent - the first dictation downloads ~460MB'}")
-    log(f"shortcut: {gnome_binding() or '✗ none - run dictate --install-shortcut'}")
+    keys = gnome_bindings()
+    log(f"shortcut: {' + '.join(keys) if keys else '✗ none - run dictate --install-shortcut'}")
 
 
 def self_test():
@@ -826,7 +845,7 @@ USAGE = """dictate - toggle-key local speech-to-text into tmux (local, zero priv
 
   dictate --toggle [--send]            start/stop (--send also presses Enter)
   dictate --target                     show which pane the transcript goes to
-  dictate --install-shortcut [KEYS…]   bind GNOME keys to dictate+send (default: the Copilot key)
+  dictate --install-shortcut [KEYS…]   bind GNOME keys to dictate+send (default: Copilot + Pause)
   dictate --check                      verify parec + tmux, report server state
   dictate --test                       record & print a transcript, with its backend and ms
   dictate --serve-stop                 stop the model server (to pick up new config)

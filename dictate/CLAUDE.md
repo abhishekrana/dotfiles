@@ -87,8 +87,13 @@ values still resolve.
 
 ## Key binding
 
-- **One shortcut: the Copilot key, running `--toggle --send`.** `--install-shortcut` resets every `dictate*` keybinding
-  it does not install, so the dconf list matches its arguments exactly.
+- **Two shortcuts, one action (`--toggle --send`): the Copilot key and Pause.** `--install-shortcut` resets every
+  `dictate*` keybinding it does not install, so the dconf list matches its arguments exactly - which is also why adding
+  a key means adding it to `DEFAULT_BINDINGS`, never installing it by hand.
+- **Pause is bound bare, and is not the media key.** GNOME claims no shortcut on the `Pause` keysym, while
+  `play-static`/`pause-static` hold `XF86AudioPlay`/`XF86AudioPause` with static grabs a custom binding cannot outrank.
+  A keyboard whose key emits the media keysym therefore needs that key, not this one - `--check` prints every bound key
+  so this is diagnosable without dconf spelunking.
 - **The string is `<Shift><Super>XF86TouchpadOff`, not `F23`.** The key emits `LeftMeta`+`LeftShift`+`F23`, and
   `KEY_F23`'s keycode carries the `XF86TouchpadOff` keysym, so `F23` does not match. GNOME's static touchpad-off grab is
   on the bare keysym, which the held modifiers do not match either - the touchpad is unaffected.

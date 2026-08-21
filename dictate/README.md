@@ -47,13 +47,18 @@ it after; `dictate --check` reports whether it is there.
 ## Setup
 
 ```bash
-dictate --install-shortcut    # bind the Copilot key to `dictate --toggle --send`
-dictate --check               # parec + tmux, the target pane, the model cache and the bound key
+dictate --install-shortcut    # bind the Copilot and Pause keys to `dictate --toggle --send`
+dictate --check               # parec + tmux, the target pane, the model cache and the bound keys
 ```
 
-One key is bound: the **Copilot key**, between AltGr and right Ctrl. Its string is `<Shift><Super>XF86TouchpadOff` - the
-key emits `LeftMeta`+`LeftShift`+`F23`, and `KEY_F23`'s keycode carries the `XF86TouchpadOff` keysym, so `F23` does not
-match. Pass keys to bind others; the dconf list ends up matching the arguments exactly.
+Two keys are bound, both to dictate+send:
+
+- the **Copilot key**, between AltGr and right Ctrl, as `<Shift><Super>XF86TouchpadOff` - it emits
+  `LeftMeta`+`LeftShift`+`F23`, and `KEY_F23`'s keycode carries the `XF86TouchpadOff` keysym, so `F23` does not match.
+- **Pause**, bare. GNOME claims no shortcut on that keysym; the media pair is a different one (`XF86AudioPlay` /
+  `XF86AudioPause`), held by static grabs a custom binding cannot outrank.
+
+Pass keys to bind others; the dconf list ends up matching the arguments exactly.
 
 ## Usage
 
