@@ -489,31 +489,40 @@ func TestTabNoAttentionIsNoop(t *testing.T) {
 }
 
 // `h` flips the headline globally: the option is what every other sidebar reads
-// on its next poll, so one press re-heads the whole bar.
+// on its next poll, so one press re-heads the whole bar. The title is the
+// default, so the first press is the one that opts into branches.
 func TestHeadlineKeyTogglesOption(t *testing.T) {
 	r := &fakeRunner{}
 	a := testApp(r)
-	if a.byTitle {
-		t.Fatal("the headline should start on the branch")
-	}
 	press := func() App {
 		m, _ := a.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
 		return m.(App)
 	}
+	a.byTitle = true // as NewLive resolves an unset option
 	a = press()
-	if !a.byTitle {
-		t.Error("first h did not switch to titles")
+	if a.byTitle {
+		t.Error("first h did not switch to branches")
 	}
 	wrote := false
 	for _, c := range r.calls {
-		if strings.Join(c, " ") == "set-option -g @agentbar-headline title" {
+		if strings.Join(c, " ") == "set-option -g @agentbar-headline branch" {
 			wrote = true
 		}
 	}
 	if !wrote {
-		t.Errorf("no `set-option -g @agentbar-headline title`; calls=%v", r.calls)
+		t.Errorf("no `set-option -g @agentbar-headline branch`; calls=%v", r.calls)
 	}
-	if a = press(); a.byTitle {
-		t.Error("second h did not switch back to the branch")
+	if a = press(); !a.byTitle {
+		t.Error("second h did not switch back to titles")
+	}
+}
+
+// The title is the default: only an explicit "branch" opts out, so an unset or
+// unknown option still heads blocks with what Claude called the session.
+func TestHeadlineDefaultsToTitle(t *testing.T) {
+	for v, want := range map[string]bool{"": true, "title": true, "junk": true, "branch": false} {
+		if got := byTitleOpt(v); got != want {
+			t.Errorf("byTitleOpt(%q) = %v, want %v", v, got, want)
+		}
 	}
 }

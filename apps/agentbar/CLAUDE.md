@@ -65,12 +65,17 @@ title mode's branch fallback shows), and all three bands (pinned/active/dormant)
   reads each pane's branch from its cwd and draws the branch headline once per run of consecutive same-branch agents
   (colored by the most-urgent when several share it). A session's panes usually sit in one worktree (so one branch), but
   tmux doesn't enforce that - don't assume one branch per session; just collapse the agents that actually match.
-- **`@agentbar-headline` picks what heads an agent block**: `branch` (default, so an unset option is the original
-  sidebar) or `title`, Claude's own title for the session. Global, re-read every poll, so the `h` key or the `⛭`
-  dialogue's Headline row re-heads every sidebar on its next tick - no restart, and the block keeps its height either
-  way. An untitled agent falls back to its branch, so a row never loses its headline; the collapse rule is per headline,
-  so Claudes sharing a worktree each get their own title. `blockLineCount` takes the mode for the same reason the
-  renderer does. Note the namespace split this follows: `@agent_*` is hook-stamped state, `@agentbar-*` is config.
+- **`@agentbar-headline` picks what heads an agent block**: `title` (the default - Claude's own title for the session)
+  or `branch`. Only an explicit `branch` opts out, resolved in one place per language (`byTitleOpt`, `agent_headline`).
+  Global and re-read every poll, so the `h` key or the `⛭` dialogue's Headline row re-heads every sidebar on its next
+  tick - no restart, and the block keeps its height either way. An untitled agent falls back to its branch, so a row
+  never loses its headline; the collapse rule is per headline, so Claudes sharing a worktree each get their own title.
+  `blockLineCount` takes the mode for the same reason the renderer does. Note the namespace split this follows:
+  `@agent_*` is hook-stamped state, `@agentbar-*` is config.
+- **Two pane titles mean "not titled yet"**: Claude's `Claude Code` placeholder, and the **hostname** - what tmux seeds
+  `pane_title` with until something sets one. Without that second guard, a title-mode row for a Claude that has not
+  titled itself yet reads as the machine's name; `agentTitle` takes `#{host}` from the same `list-panes` call to test
+  it.
 - **Notifications are not a sidebar control.** `@agent_notify` is read by the hook and set from the `⛭` dialogue's
   Notify row - the sidebar has no key and no chip for it, so a setting has one home.
 - Detection is hooks + pane options only - never scrape pane content. The one exception is `#{pane_title}`, where Claude

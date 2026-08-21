@@ -69,10 +69,11 @@ Rules:
   `tmux-worktree-picker.sh` (the menu's `W`) and per-window auto-follow (`F`, off by default) re-point a live pane.
 - An amber `◧ diff` chip means the worktree is in no agent's `@agent_workdirs`, and reports nothing else. A click only
   opens the menu.
-- **One headline everywhere.** `@agentbar-headline` decides what heads a row - the git branch (default) or the title
-  Claude gives its own session, which it publishes in its pane title. The sidebar's `h` key and the `⛭` dialogue's
-  Headline row write the same global option, and the sidebar and the `Alt-;` picker both read it, so the two views never
-  disagree. A session Claude has not titled yet keeps its branch.
+- **One headline everywhere.** `@agentbar-headline` decides what heads a row - the title Claude gives its own session
+  (the default, published in its pane title) or the git branch. The sidebar's `h` key and the `⛭` dialogue's Headline
+  row write the same global option, and the sidebar and the `Alt-;` picker both read it, so the two views never
+  disagree. A session Claude has not titled yet keeps its branch, and so does one whose pane title is still the hostname
+  tmux seeded it with.
 - **Picking a theme is applying it.** The `⛭` chip opens a centred dialogue with every value on screen; a click or Enter
   applies one and the dialogue stays open, so there is no save step and nothing to drill into. `theme <flavor>` re-skins
   tmux and ghostty and re-runs the current session's sidebar and diff pane - hunk takes the flavor as a startup flag, so

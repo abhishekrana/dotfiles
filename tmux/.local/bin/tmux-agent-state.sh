@@ -59,19 +59,24 @@ agent_state_rank() {
     esac
 }
 
-# agent_title <pane-title> - Claude's own title for a session, as it publishes it
-# in its pane title: the leading glyph is optional, and the pre-prompt
-# placeholder means it has no title yet. Mirrors agentTitle in
-# apps/agentbar/internal/tmux/snapshot.go - change them together.
+# agent_title <pane-title> <host> - Claude's own title for a session, as it
+# publishes it in its pane title: the leading glyph is optional, and both the
+# pre-prompt placeholder and the hostname tmux seeds the title with mean it has
+# none yet. Mirrors agentTitle in apps/agentbar/internal/tmux/snapshot.go -
+# change them together.
 agent_title() {
     local t=${1#✳}
     t=${t# }
-    [ "$t" = "Claude Code" ] && t=
+    case $t in "Claude Code" | "$2") t= ;; esac
     printf '%s' "$t"
 }
 
-# agent_headline - what heads a row, for every surface: "title" is Claude's own
-# title for the session, anything else (the default) is the git branch.
+# agent_headline - what heads a row, for every surface: "title" (the default -
+# Claude's own title for the session) or "branch". Resolves the default here so
+# no caller repeats it; mirrors byTitleOpt in apps/agentbar/internal/ui/app.go.
 agent_headline() {
-    tmux show-option -gqv @agentbar-headline 2>/dev/null
+    case "$(tmux show-option -gqv @agentbar-headline 2>/dev/null)" in
+        branch) echo branch ;;
+        *) echo title ;;
+    esac
 }

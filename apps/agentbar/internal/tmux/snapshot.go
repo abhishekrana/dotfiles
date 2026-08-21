@@ -17,9 +17,9 @@ import (
 const snapFormat = "#{session_name}\t#{session_attached}\t#{window_index}\t#{window_active}\t" +
 	"#{pane_id}\t#{pane_active}\t#{pane_current_command}\t#{pane_current_path}\t" +
 	"#{@agent_present}\t#{@agent_state}\t#{@agent_since}\t#{@agent_seen}\t#{@agent_subagents}\t" +
-	"#{@agent_workdir}\t#{pane_title}"
+	"#{@agent_workdir}\t#{pane_title}\t#{host}"
 
-const snapFields = 15
+const snapFields = 16
 
 // agentCommands guards against zombies: a pane whose Claude died without
 // SessionEnd keeps its options, but its foreground command changes.
@@ -30,15 +30,20 @@ var agentCommands = map[string]bool{"claude": true, "node": true}
 // prompt, so it reads as no title at all.
 const titlePlaceholder = "Claude Code"
 
-// agentTitle is Claude's own name for the session, read from the terminal
+// agentTitle is Claude's own title for the session, read from the terminal
 // title it sets on its pane - the generated one, or a rename, whichever it is
 // currently showing. The leading glyph is not always there.
 //
+// Two values mean "not titled yet": Claude's own placeholder, and the hostname,
+// which is what tmux seeds pane_title with until something sets one - so a
+// Claude that has not titled itself falls back to its branch instead of heading
+// the row with the machine's name.
+//
 // This is the one thing the sidebar takes from a pane property rather than a
 // hook: state stays hooks-only, but no hook carries the title.
-func agentTitle(s string) string {
+func agentTitle(s, host string) string {
 	s = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(s), "✳"))
-	if s == titlePlaceholder {
+	if s == titlePlaceholder || s == host {
 		return ""
 	}
 	return s
@@ -122,7 +127,7 @@ func Snapshot(r Runner, bc *BranchCache, currentSession string) model.Snapshot {
 			WindowIndex: windowIdx,
 			Command:     f[6],
 			Branch:      bc.Get(dir),
-			Title:       agentTitle(f[14]),
+			Title:       agentTitle(f[14], f[15]),
 			State:       state,
 			Seen:        seen,
 			Since:       time.Unix(since, 0),

@@ -183,7 +183,7 @@ band_row() {
 # list shows none), exactly as the sidebar does it.
 build_lines() {
     local -A STATE_BY_SESSION WORKDIR_BY_SESSION DIR_BY_SESSION DIR_VOTES PANES_IN TITLE_BY_SESSION
-    local sess cmd present state wd path title seen prev current ordered band name branch icon mark header
+    local sess cmd present state wd path title host seen prev current ordered band name branch icon mark header
     local headline headed=
     headline=$(agent_headline)
     local -A count
@@ -199,7 +199,7 @@ build_lines() {
     # Optional fields carry a "-" placeholder: tab is IFS whitespace, so bash
     # collapses a run of empty ones into a single separator and every field after
     # them shifts left - a pane with no @agent_* options would lose its path.
-    while IFS=$'\t' read -r sess cmd present state wd title path; do
+    while IFS=$'\t' read -r sess cmd present state wd title host path; do
         [ "$state" = - ] && state=
         [ "$wd" = - ] && wd=
         [ "$title" = - ] && title=
@@ -224,7 +224,7 @@ build_lines() {
         fi
         # Claude's own title - the sidebar's headline in title mode.
         if [ -z "${TITLE_BY_SESSION[$sess]:-}" ]; then
-            TITLE_BY_SESSION[$sess]=$(agent_title "$title")
+            TITLE_BY_SESSION[$sess]=$(agent_title "$title" "$host")
         fi
         prev=${STATE_BY_SESSION[$sess]:-}
         if [ "$(agent_state_rank "$state")" -gt "$(agent_state_rank "$prev")" ]; then
@@ -233,7 +233,7 @@ build_lines() {
     done < <(tmux list-panes -a -F "$(
         printf '#{session_name}\t#{pane_current_command}\t#{?@agent_present,1,0}\t'
         printf '#{?@agent_state,#{@agent_state},-}\t#{?@agent_workdir,#{@agent_workdir},-}\t'
-        printf '#{?pane_title,#{pane_title},-}\t#{pane_current_path}'
+        printf '#{?pane_title,#{pane_title},-}\t#{host}\t#{pane_current_path}'
     )")
 
     while IFS=$'\t' read -r band name; do

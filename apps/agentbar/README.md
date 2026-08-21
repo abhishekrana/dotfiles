@@ -9,23 +9,24 @@ you always know which agents are working, which need your attention, and which a
  pinned ·2 ───────────────────
 
  dotfiles
- main
+ Sidebar label toggle
    ? claude  asking       4m
 
  payments
- 2091-refund-idempotency-keys
+ Refund idempotency keys
    ◔ claude  permission  40s
+ Retry the dropped webhooks
    ✓ claude  done        11m
 
  active ·2 ───────────────────
 
  api-server
- feat/rate-limit-rollout
+ Rate limit middleware rollout
    ⠼ claude  working      2m
      ⤷ 2 subagents
 
  blog
- draft/tmux-agents-post
+ Draft the parallel agents post
    ✓ claude  done        12m
 
  dormant ·2 ──────────────────
@@ -76,7 +77,7 @@ picked up on their next restart.
 | `g` / `G`       | first / last row                                                                                    |
 | `Tab`           | jump to the next agent waiting on you (permission/asking), cycling across sessions - the work queue |
 | `p`             | pin / unpin the selected session - pinned sessions float to a band at the top                       |
-| `h`             | head each row with Claude's title for the session instead of the git branch, everywhere             |
+| `h`             | head each row with the git branch instead of Claude's title for the session, everywhere             |
 | `q`             | hide the sidebar everywhere (same as toggle)                                                        |
 
 Clicking a session name switches to it - the one way to reach a session with no agents running (it just
@@ -119,19 +120,21 @@ then gray) · `idle` (gray). Each agent shows its git branch and live subagent c
 
 ## Headline
 
-Each agent block is headed by the git branch of the worktree it writes in. That is the wrong name whenever a checkout
-has no branch of its own, and half of a dozen worktrees usually don't - so `h` (or the Headline row in the dotfiles `⛭`
-dialogue) heads rows with **the title Claude gives its own session** instead:
+Each agent block is headed by **the title Claude gives its own session**. The git branch was the obvious choice and the
+wrong one: it is not a name at all whenever a checkout has no branch of its own, and half of a dozen worktrees usually
+don't. `h` (or the Headline row in the dotfiles `⛭` dialogue) switches back to branches:
 
 ```text
- api-server                     api-server
- feat/rate-limit-rollout   →    Rate limit middleware rollout
-   ⠼ claude  working  2m          ⠼ claude  working  2m
+default (title)                  after `h` (branch)
+
+ api-server                       api-server
+ Rate limit middleware rollout     feat/rate-limit-rollout
+   ⠼ claude  working  2m             ⠼ claude  working  2m
 ```
 
 Claude Code generates that title itself and publishes it in its pane title; nothing to configure, and a session it has
 not titled yet keeps its branch, so no row loses its headline. The mode is the global `@agentbar-headline` option
-(`branch` | `title`), re-read on every poll - one press re-heads every sidebar on its next tick, with no restart, and
+(`title` | `branch`), re-read on every poll - one press re-heads every sidebar on its next tick, with no restart, and
 the block keeps its height either way.
 
 ## Notifications
@@ -197,7 +200,7 @@ set -g @agentbar-width '30'             # sidebar width in columns
 set -g @agentbar-theme 'solarized-light' # or 'dark'
 set -g @agentbar-focus 'off'            # 'on' focuses sidebar on open
 set -g @agentbar-autostart 'on'         # 'off' starts with the sidebar closed
-set -g @agentbar-headline 'branch'      # or 'title' - what heads each row (the `h` key)
+set -g @agentbar-headline 'title'       # or 'branch' - what heads each row (the `h` key)
 ```
 
 ## Development

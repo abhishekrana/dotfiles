@@ -1676,20 +1676,17 @@ func TestHeadlineModeSwapsHeadline(t *testing.T) {
 
 	s.script("open.sh", "work")
 	side := s.sidebarPane("work")
-	waitFor(t, "sidebar shows the agent", 5*time.Second, func() bool {
-		return strings.Contains(s.capture(side), "working")
-	})
-	if strings.Contains(s.captureText(side), "Ship the parser") {
-		t.Error("branch mode must not head the block with the title")
-	}
-
-	s.tmux("set-option", "-g", "@agentbar-headline", "title")
-	waitFor(t, "headline became the title", 5*time.Second, func() bool {
+	waitFor(t, "the title heads the block by default", 5*time.Second, func() bool {
 		return strings.Contains(s.captureText(side), "Ship the parser")
 	})
 
 	s.tmux("set-option", "-g", "@agentbar-headline", "branch")
-	waitFor(t, "headline went back to the branch", 5*time.Second, func() bool {
+	waitFor(t, "branch mode drops the title", 5*time.Second, func() bool {
 		return !strings.Contains(s.captureText(side), "Ship the parser")
+	})
+
+	s.tmux("set-option", "-g", "@agentbar-headline", "title")
+	waitFor(t, "and it comes back", 5*time.Second, func() bool {
+		return strings.Contains(s.captureText(side), "Ship the parser")
 	})
 }

@@ -111,7 +111,7 @@ done
 for want in Branch Title Off On "Solarized Light" "Catppuccin Mocha"; do
     grep -qF "$want" <<<"$out" && ok "shows $want" || no "missing $want"
 done
-eq "the headline defaults to the branch" 1 "$(hrow '●')"
+eq "the headline defaults to the title" 1 "$(hrow '●')"
 eq "notify defaults to off" 1 "$(nrow '●')"
 eq "the active flavor is marked" 1 "$(trow '●')"
 eq "the cursor starts on the first row" 1 "$(hrow '▸')"
@@ -121,7 +121,7 @@ printf '\nkeyboard\n'
 keys j
 eq "j moves down" 2 "$(hrow '▸')"
 keys Enter
-eq "Enter applies the headline" title "$(tmux show-option -gqv @agentbar-headline)"
+eq "Enter applies the headline" branch "$(tmux show-option -gqv @agentbar-headline)"
 eq "the marker follows the choice" 2 "$(hrow '●')"
 eq "and the cursor stays in its group" 2 "$(hrow '▸')"
 eq "the theme was left alone" "" "$(applied)"
@@ -132,7 +132,7 @@ eq "j walks into the next setting" 2 "$(nrow '▸')"
 keys Enter
 eq "Enter applies notify" on "$(tmux show-option -gqv @agent_notify)"
 eq "and the cursor stays there" 2 "$(nrow '▸')"
-eq "the headline was left alone" title "$(tmux show-option -gqv @agentbar-headline)"
+eq "the headline was left alone" branch "$(tmux show-option -gqv @agentbar-headline)"
 
 keys k
 keys Enter
@@ -147,7 +147,7 @@ eq "the marker moved to it" 4 "$(trow '●')"
 eq "the cursor stayed on it" 4 "$(trow '▸')"
 
 click 2
-eq "a click in another area applies there" title "$(tmux show-option -gqv @agentbar-headline)"
+eq "a click in another area applies there" branch "$(tmux show-option -gqv @agentbar-headline)"
 eq "cursor on the clicked row" 2 "$(hrow '▸')"
 eq "without re-applying the theme" "catppuccin-mocha" "$(applied)"
 

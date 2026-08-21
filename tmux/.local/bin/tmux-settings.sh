@@ -23,7 +23,7 @@ STATE="${XDG_CONFIG_HOME:-$HOME/.config}/theme"
 # so the interaction test can stand a recorder in for the real switcher.
 THEME_BIN="${THEME_BIN:-$HOME/.local/bin/theme}"
 FLAVORS="solarized-light solarized-dark catppuccin-latte catppuccin-mocha"
-HEADLINES="branch title"
+HEADLINES="title branch"
 # The cursor must land back on the row just applied, so the dialogue never jumps
 # between groups. fzf's transform bind runs after the reload, when {1} is already
 # the first row again - so --apply leaves its group name here for --pos to read.
@@ -35,14 +35,6 @@ LAST="${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}/dotfiles-settings-last-$UID"
 . "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/tmux-agent-state.sh"
 
 current_flavor() { cat "$STATE/current" 2>/dev/null || echo solarized-light; }
-# What heads a sidebar row: the title Claude gives its own session, or the branch.
-current_headline() {
-    case "$(tmux show-option -gqv @agentbar-headline 2>/dev/null)" in
-        title) echo title ;;
-        *) echo branch ;;
-    esac
-}
-
 # Desktop notifications when an agent needs you. Mirrors agentbar's truthy().
 current_notify() {
     case "$(tmux show-option -gqv @agent_notify 2>/dev/null)" in
@@ -71,7 +63,7 @@ group() {
 # shellcheck disable=SC2086  # FLAVORS is a word list, one value per row
 list_rows() {
     _area=''
-    group agentbar Headline "$(current_headline)" "headline:" $HEADLINES
+    group agentbar Headline "$(agent_headline)" "headline:" $HEADLINES
     group agentbar Notify "$(current_notify)" "notify:" off on
     group theme Theme "$(current_flavor)" "theme:" $FLAVORS
 }

@@ -27,8 +27,9 @@ const (
 	// selection immediately instead of on the next tick.
 	refreshChannel = tmux.RefreshChannel
 
-	// @agentbar-headline values: which text heads an agent block. Branch is
-	// the default, so an unset option is the original sidebar.
+	// @agentbar-headline values: which text heads an agent block. The title is
+	// the default - the branch is the wrong name for a worktree that has none
+	// of its own - so only an explicit "branch" opts out.
 	headlineBranch = "branch"
 	headlineTitle  = "title"
 )
@@ -68,6 +69,10 @@ type App struct {
 	attached string // attachedKey of the last snapshot
 }
 
+// byTitleOpt resolves @agentbar-headline. The default is the title, so an
+// unset (or unknown) value heads blocks with it; one place decides that.
+func byTitleOpt(v string) bool { return strings.TrimSpace(v) != headlineBranch }
+
 // truthy reports whether a tmux option value means "on".
 func truthy(s string) bool {
 	s = strings.TrimSpace(s)
@@ -96,9 +101,8 @@ func NewLive(theme Theme) App {
 		app.lastSel = strings.TrimSpace(sel)
 		app.adoptSelection(app.lastSel)
 	}
-	if v, err := runner.Run("show-option", "-gqv", "@agentbar-headline"); err == nil {
-		app.byTitle = strings.TrimSpace(v) == headlineTitle
-	}
+	v, _ := runner.Run("show-option", "-gqv", "@agentbar-headline")
+	app.byTitle = byTitleOpt(v)
 	app.register()
 	trace.Log("agentbar", "start", "pane", os.Getenv("TMUX_PANE"), "session", app.current)
 	return app
@@ -214,7 +218,7 @@ func (a App) gather(signal bool) snapMsg {
 	return snapMsg{
 		snap:    snap,
 		sel:     strings.TrimSpace(sel),
-		byTitle: strings.TrimSpace(headline) == headlineTitle,
+		byTitle: byTitleOpt(headline),
 		pins:    pins,
 		signal:  signal,
 	}
@@ -336,11 +340,12 @@ func NewMockup(theme Theme) App {
 	}}
 	snap.Sessions = model.Arrange(snap.Sessions, pins)
 	app := App{
-		theme:  theme,
-		hover:  -1,
-		snap:   snap,
-		mockup: true,
-		pins:   pins,
+		theme:   theme,
+		hover:   -1,
+		snap:    snap,
+		mockup:  true,
+		byTitle: true, // the default; `h` previews the branch
+		pins:    pins,
 	}
 	app.rebuild()
 	return app
