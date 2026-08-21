@@ -76,8 +76,7 @@ picked up on their next restart.
 | `g` / `G`       | first / last row                                                                                    |
 | `Tab`           | jump to the next agent waiting on you (permission/asking), cycling across sessions - the work queue |
 | `p`             | pin / unpin the selected session - pinned sessions float to a band at the top                       |
-| `n`, click chip | toggle desktop notifications (footer shows the state)                                               |
-| `l`             | head each row with Claude's name for the session instead of the git branch, everywhere              |
+| `h`             | head each row with Claude's title for the session instead of the git branch, everywhere             |
 | `q`             | hide the sidebar everywhere (same as toggle)                                                        |
 
 Clicking a session name switches to it - the one way to reach a session with no agents running (it just
@@ -118,11 +117,11 @@ switching.
 Agent states: `working` (teal spinner) · `permission` (red) · `asking` (amber) · `done` (green until you visit the pane,
 then gray) · `idle` (gray). Each agent shows its git branch and live subagent count.
 
-## Row labels
+## Headline
 
 Each agent block is headed by the git branch of the worktree it writes in. That is the wrong name whenever a checkout
-has no branch of its own, and half of a dozen worktrees usually don't - so `l` (or the Labels row in the dotfiles `⛭`
-dialogue) heads rows with **the name Claude gives its own session** instead:
+has no branch of its own, and half of a dozen worktrees usually don't - so `h` (or the Headline row in the dotfiles `⛭`
+dialogue) heads rows with **the title Claude gives its own session** instead:
 
 ```text
  api-server                     api-server
@@ -130,19 +129,20 @@ dialogue) heads rows with **the name Claude gives its own session** instead:
    ⠼ claude  working  2m          ⠼ claude  working  2m
 ```
 
-Claude Code generates that name itself and publishes it in its pane title; nothing to configure, and a session it has
-not named yet keeps its branch, so no row loses its headline. The mode is the global `@agent_labels` option (`branch` |
-`name`), re-read on every poll - one press re-labels every sidebar on its next tick, with no restart, and the block
-keeps its height either way.
+Claude Code generates that title itself and publishes it in its pane title; nothing to configure, and a session it has
+not titled yet keeps its branch, so no row loses its headline. The mode is the global `@agentbar-headline` option
+(`branch` | `title`), re-read on every poll - one press re-heads every sidebar on its next tick, with no restart, and
+the block keeps its height either way.
 
 ## Notifications
 
-Off by default. Press `n` (or click the `notify` chip in the footer) to toggle desktop notifications for the whole
-server. When on, the instant any agent needs you - a permission prompt or a question - the plugin fires a `notify-send`
-notification (`Claude · permission` / `Claude · asking`, with the `session:window`). It rides the same Claude Code hooks
-as the sidebar (no pane scraping) and only fires on the transition _into_ an attention state, so a working agent never
-spams you. The footer chip mirrors the state (`notify on` / `notify off`), held in the global `@agent_notify` tmux
-option; it needs `notify-send` (libnotify) installed and no-ops harmlessly without it.
+Off by default. Set it from the `⛭` dialogue's Notify row (dotfiles) or with `tmux set -g @agent_notify on` to get
+desktop notifications for the whole server. When on, the instant any agent needs you - a permission prompt or a
+question - the plugin fires a `notify-send` notification (`Claude · permission` / `Claude · asking`, with the
+`session:window`). It rides the same Claude Code hooks as the sidebar (no pane scraping) and only fires on the
+transition _into_ an attention state, so a working agent never spams you. The footer chip mirrors the state (`notify on`
+/ `notify off`), held in the global `@agent_notify` tmux option; it needs `notify-send` (libnotify) installed and no-ops
+harmlessly without it.
 
 ## Tip: window-tab clicks that need a second try
 
@@ -197,7 +197,7 @@ set -g @agentbar-width '30'             # sidebar width in columns
 set -g @agentbar-theme 'solarized-light' # or 'dark'
 set -g @agentbar-focus 'off'            # 'on' focuses sidebar on open
 set -g @agentbar-autostart 'on'         # 'off' starts with the sidebar closed
-set -g @agent_labels 'branch'           # or 'name' - what heads each row (the `l` key)
+set -g @agentbar-headline 'branch'      # or 'title' - what heads each row (the `h` key)
 ```
 
 ## Development

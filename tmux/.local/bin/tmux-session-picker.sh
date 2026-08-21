@@ -184,8 +184,8 @@ band_row() {
 build_lines() {
     local -A STATE_BY_SESSION WORKDIR_BY_SESSION DIR_BY_SESSION DIR_VOTES PANES_IN TITLE_BY_SESSION
     local sess cmd present state wd path title seen prev current ordered band name branch icon mark header
-    local labels headed=
-    labels=$(agent_labels)
+    local headline headed=
+    headline=$(agent_headline)
     local -A count
 
     ordered=$(ordered_sessions)
@@ -222,7 +222,7 @@ build_lines() {
         if [ -n "$wd" ] && [ -z "${WORKDIR_BY_SESSION[$sess]:-}" ]; then
             WORKDIR_BY_SESSION[$sess]=$wd
         fi
-        # Claude's own name for the session - the sidebar's headline in name mode.
+        # Claude's own title - the sidebar's headline in title mode.
         if [ -z "${TITLE_BY_SESSION[$sess]:-}" ]; then
             TITLE_BY_SESSION[$sess]=$(agent_title "$title")
         fi
@@ -270,9 +270,9 @@ build_lines() {
         fi
         path=${WORKDIR_BY_SESSION[$name]:-${DIR_BY_SESSION[$name]:-}}
         branch=
-        # Name mode shows what the sidebar shows, so the two views never
-        # disagree; a session with no name keeps its branch, as there too.
-        [ "$labels" = name ] && branch=${TITLE_BY_SESSION[$name]:-}
+        # Title mode shows what the sidebar shows, so the two views never
+        # disagree; an untitled session keeps its branch, as there too.
+        [ "$headline" = title ] && branch=${TITLE_BY_SESSION[$name]:-}
         if [ -z "$branch" ] && [ -n "$path" ] && [ -d "$path" ]; then
             branch=$(git -C "$path" symbolic-ref --short HEAD 2>/dev/null ||
                 git -C "$path" rev-parse --short HEAD 2>/dev/null ||

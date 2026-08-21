@@ -59,6 +59,7 @@ trap cleanup EXIT
 start() {
     tmux kill-server 2>/dev/null
     : >"$TMP/applied"
+    rm -f "${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}/dotfiles-settings-last-$UID"
     printf '%s' "$1" >"$XDG_CONFIG_HOME/theme/current"
     # THEME_BIN points the dialogue at the recorder instead of the real switcher.
     tmux new-session -d -s ui -x 80 -y 12 \
@@ -91,66 +92,64 @@ click() {
 
 applied() { tr -d '\n' <"$TMP/applied"; }
 
+# ---- helpers per group -----------------------------------------------------
+# Rows are contiguous and grouped by area, so each group is a span of pane lines
+# (list item N is pane line N+1). A per-group lookup keeps every assertion local:
+# there are now three ● marks on screen, one per group.
+in_span() { snap | sed -n "$2,${3}p" | grep -n -- "$1" | head -1 | cut -d: -f1; }
+hrow() { in_span "$1" 2 3; } # agentbar · Headline
+nrow() { in_span "$1" 4 5; } # agentbar · Notify
+trow() { in_span "$1" 6 9; } # theme · Theme
+
 # ---- the list ---------------------------------------------------------------
 printf '\nlist\n'
 start solarized-light
 out=$(snap)
-grep -q "Theme" <<<"$out" && ok "the setting name is a left column" || no "no Theme label"
-for want in "Solarized Light" "Solarized Dark" "Catppuccin Latte" "Catppuccin Mocha"; do
+for want in agentbar theme Headline Notify Theme; do
+    grep -qF "$want" <<<"$out" && ok "names $want" || no "missing $want"
+done
+for want in Branch Title Off On "Solarized Light" "Catppuccin Mocha"; do
     grep -qF "$want" <<<"$out" && ok "shows $want" || no "missing $want"
 done
-eq "the active flavor is marked" 1 "$(row '●')"
-eq "the cursor starts on the active row" 1 "$(row '▸')"
+eq "the headline defaults to the branch" 1 "$(hrow '●')"
+eq "notify defaults to off" 1 "$(nrow '●')"
+eq "the active flavor is marked" 1 "$(trow '●')"
+eq "the cursor starts on the first row" 1 "$(hrow '▸')"
 
 # ---- keyboard ---------------------------------------------------------------
 printf '\nkeyboard\n'
 keys j
-eq "j moves down" 2 "$(row '▸')"
-keys j
-eq "j again" 3 "$(row '▸')"
-keys k
-eq "k moves back up" 2 "$(row '▸')"
-
+eq "j moves down" 2 "$(hrow '▸')"
 keys Enter
-eq "Enter applies the highlighted flavor" "solarized-dark" "$(applied)"
-eq "the marker follows the choice" 2 "$(row '●')"
-eq "and so does the cursor" 2 "$(row '▸')"
+eq "Enter applies the headline" title "$(tmux show-option -gqv @agentbar-headline)"
+eq "the marker follows the choice" 2 "$(hrow '●')"
+eq "and the cursor stays in its group" 2 "$(hrow '▸')"
+eq "the theme was left alone" "" "$(applied)"
+
+keys j
+keys j
+eq "j walks into the next setting" 2 "$(nrow '▸')"
+keys Enter
+eq "Enter applies notify" on "$(tmux show-option -gqv @agent_notify)"
+eq "and the cursor stays there" 2 "$(nrow '▸')"
+eq "the headline was left alone" title "$(tmux show-option -gqv @agentbar-headline)"
+
+keys k
+keys Enter
+eq "and back off again" off "$(tmux show-option -gqv @agent_notify)"
 
 # ---- mouse ------------------------------------------------------------------
 printf '\nmouse\n'
 start solarized-light
-click 4
-eq "a click applies that row" "catppuccin-mocha" "$(applied)"
-eq "the marker moved to it" 4 "$(row '●')"
-eq "the cursor stayed on it" 4 "$(row '▸')"
+click 8
+eq "a click applies that flavor" "catppuccin-mocha" "$(applied)"
+eq "the marker moved to it" 4 "$(trow '●')"
+eq "the cursor stayed on it" 4 "$(trow '▸')"
 
-start solarized-light
-click 3
-eq "a click on another row applies it" "catppuccin-latte" "$(applied)"
-eq "cursor on the clicked row" 3 "$(row '▸')"
-
-# ---- labels group -----------------------------------------------------------
-# The second group is what proves the dialogue is not theme-only: its rows sit
-# below the flavors, and applying one must leave the cursor there rather than
-# snapping back to the Theme group.
-printf '\nlabels\n'
-start solarized-light
-out=$(snap)
-grep -q "Labels" <<<"$out" && ok "the Labels group has its own label" || no "no Labels label"
-for want in Branch Name; do
-    grep -qF "$want" <<<"$out" && ok "shows $want" || no "missing $want"
-done
-eq "branch is the marked default" 1 "$(lrow '●')"
-
-click 6
-eq "a click applies the label mode" name "$(tmux show-option -gqv @agent_labels)"
-eq "the marker moved inside the group" 2 "$(lrow '●')"
-eq "the cursor stayed in the group" 2 "$(lrow '▸')"
-eq "and the theme was left alone" "" "$(applied)"
-
-click 5
-eq "clicking back applies branch" branch "$(tmux show-option -gqv @agent_labels)"
-eq "cursor back on the first row" 1 "$(lrow '▸')"
+click 2
+eq "a click in another area applies there" title "$(tmux show-option -gqv @agentbar-headline)"
+eq "cursor on the clicked row" 2 "$(hrow '▸')"
+eq "without re-applying the theme" "catppuccin-mocha" "$(applied)"
 
 # ---- closing ----------------------------------------------------------------
 printf '\nclose\n'

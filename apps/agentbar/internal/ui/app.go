@@ -27,21 +27,20 @@ const (
 	// selection immediately instead of on the next tick.
 	refreshChannel = tmux.RefreshChannel
 
-	// @agent_labels values: which text heads an agent block. Branch is the
-	// default, so an unset option is today's sidebar.
-	labelsBranch = "branch"
-	labelsByName = "name"
+	// @agentbar-headline values: which text heads an agent block. Branch is
+	// the default, so an unset option is the original sidebar.
+	headlineBranch = "branch"
+	headlineTitle  = "title"
 )
 
 type tickMsg time.Time
 
 type snapMsg struct {
-	snap   model.Snapshot
-	sel    string          // global @sidebar_selected at snapshot time
-	notify bool            // global @agent_notify at snapshot time
-	byName bool            // global @agent_labels at snapshot time
-	pins   map[string]bool // global @agentbar-pins at snapshot time
-	signal bool            // woken by the wait-for channel, not the 1s tick
+	snap    model.Snapshot
+	sel     string          // global @sidebar_selected at snapshot time
+	byTitle bool            // global @agentbar-headline at snapshot time
+	pins    map[string]bool // global @agentbar-pins at snapshot time
+	signal  bool            // woken by the wait-for channel, not the 1s tick
 }
 
 // App is the Bubble Tea model for the sidebar. In mockup mode the
@@ -58,8 +57,7 @@ type App struct {
 	height     int
 	flash      string
 	mockup     bool
-	notify     bool            // desktop-notification toggle (@agent_notify), mirrored for the footer
-	byName     bool            // label mode (@agent_labels): headline is Claude's session name, not the branch
+	byTitle    bool            // @agentbar-headline: head each block with Claude's title, not the branch
 	pins       map[string]bool // pinned session names (@agentbar-pins), used to regroup on `p`
 
 	// live-mode plumbing (nil in mockup mode)
@@ -98,11 +96,8 @@ func NewLive(theme Theme) App {
 		app.lastSel = strings.TrimSpace(sel)
 		app.adoptSelection(app.lastSel)
 	}
-	if v, err := runner.Run("show-option", "-gqv", "@agent_notify"); err == nil {
-		app.notify = strings.TrimSpace(v) == "on"
-	}
-	if v, err := runner.Run("show-option", "-gqv", "@agent_labels"); err == nil {
-		app.byName = strings.TrimSpace(v) == labelsByName
+	if v, err := runner.Run("show-option", "-gqv", "@agentbar-headline"); err == nil {
+		app.byTitle = strings.TrimSpace(v) == headlineTitle
 	}
 	app.register()
 	trace.Log("agentbar", "start", "pane", os.Getenv("TMUX_PANE"), "session", app.current)
@@ -205,11 +200,10 @@ func (a App) waitRefresh() tea.Cmd {
 	}
 }
 
-// gather takes a fresh snapshot plus the shared selection and notify state.
+// gather takes a fresh snapshot plus the shared selection and headline mode.
 func (a App) gather(signal bool) snapMsg {
 	sel, _ := a.runner.Run("show-option", "-gqv", "@sidebar_selected")
-	notify, _ := a.runner.Run("show-option", "-gqv", "@agent_notify")
-	labels, _ := a.runner.Run("show-option", "-gqv", "@agent_labels")
+	headline, _ := a.runner.Run("show-option", "-gqv", "@agentbar-headline")
 	// Re-read the verbose gate each poll so `tmux set -g @agentbar-trace-verbose
 	// on` takes effect within ~1s, no sidebar restart.
 	verbose, _ := a.runner.Run("show-option", "-gqv", "@agentbar-trace-verbose")
@@ -218,12 +212,11 @@ func (a App) gather(signal bool) snapMsg {
 	snap := tmux.Snapshot(a.runner, a.branches, a.current)
 	snap.Sessions = model.Arrange(snap.Sessions, pins)
 	return snapMsg{
-		snap:   snap,
-		sel:    strings.TrimSpace(sel),
-		notify: strings.TrimSpace(notify) == "on",
-		byName: strings.TrimSpace(labels) == labelsByName,
-		pins:   pins,
-		signal: signal,
+		snap:    snap,
+		sel:     strings.TrimSpace(sel),
+		byTitle: strings.TrimSpace(headline) == headlineTitle,
+		pins:    pins,
+		signal:  signal,
 	}
 }
 
@@ -433,8 +426,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, tick()
 	case snapMsg:
 		a.setSnapshot(msg.snap)
-		a.notify = msg.notify
-		a.byName = msg.byName
+		a.byTitle = msg.byTitle
 		if msg.pins != nil {
 			a.pins = msg.pins
 		}
@@ -481,13 +473,13 @@ func (a App) layout() layout {
 	firsts := make([]int, len(a.blocks))
 	for i, b := range a.blocks {
 		firsts[i] = len(l.owners)
-		for n := blockLineCount(b, a.snap, a.byName); n > 0; n-- {
+		for n := blockLineCount(b, a.snap, a.byTitle); n > 0; n-- {
 			l.owners = append(l.owners, i)
 		}
 	}
 	if a.blockSelectable(a.cursor) {
 		first := firsts[a.cursor]
-		last := first + blockLineCount(a.blocks[a.cursor], a.snap, a.byName) - 1
+		last := first + blockLineCount(a.blocks[a.cursor], a.snap, a.byTitle) - 1
 		if last >= l.start+l.avail {
 			l.start = last - l.avail + 1
 		}
@@ -523,9 +515,6 @@ func (a App) handleMouse(m tea.MouseMsg) (tea.Model, tea.Cmd) {
 		// Always-on: a click that lands nowhere (hit=none) vs a hit whose
 		// jump then fails (see the jump `err`) are different bugs.
 		trace.Log("agentbar", "click", "x", m.X, "y", m.Y, "hit", hitStr)
-		if a.onNotifyChip(m.X, m.Y) {
-			return a.toggleNotify()
-		}
 		if hit >= 0 {
 			a.cursor = hit
 			return a.activate()
@@ -652,10 +641,8 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case "p":
 		return a.togglePin()
-	case "n":
-		return a.toggleNotify()
-	case "l":
-		return a.toggleLabels()
+	case "h":
+		return a.toggleHeadline()
 	}
 	return a, nil
 }
@@ -688,46 +675,23 @@ func (a App) togglePin() (tea.Model, tea.Cmd) {
 	return a, nil
 }
 
-// toggleNotify flips the global desktop-notification switch (@agent_notify),
-// which the hook reads. The `n` key and a click on the footer chip both route
-// here; in mockup mode it just flips the local preview.
-func (a App) toggleNotify() (tea.Model, tea.Cmd) {
-	a.notify = !a.notify
-	if !a.mockup {
-		val := "off"
-		if a.notify {
-			val = "on"
+// toggleHeadline flips what heads each block (@agentbar-headline). Global and
+// read every poll, so one press re-heads every sidebar on its next tick. The
+// `h` key and the settings dialogue's Headline row both land here.
+func (a App) toggleHeadline() (tea.Model, tea.Cmd) {
+	mode := func(byTitle bool) string {
+		if byTitle {
+			return headlineTitle
 		}
-		_, _ = a.runner.Run("set-option", "-g", "@agent_notify", val)
+		return headlineBranch
 	}
-	return a, nil
-}
-
-// toggleLabels flips the global label mode (@agent_labels) between Claude's
-// own session names and the git branch. Global and read every poll, so one
-// press re-labels every sidebar on its next tick - no restart, nothing moves.
-// The `l` key and the settings dialogue's Labels row both land here.
-func (a App) toggleLabels() (tea.Model, tea.Cmd) {
-	before := labelsBranch
-	if a.byName {
-		before = labelsByName
-	}
-	a.byName = !a.byName
-	after := labelsBranch
-	if a.byName {
-		after = labelsByName
-	}
+	before := mode(a.byTitle)
+	a.byTitle = !a.byTitle
 	if !a.mockup {
-		_, _ = a.runner.Run("set-option", "-g", "@agent_labels", after)
+		_, _ = a.runner.Run("set-option", "-g", "@agentbar-headline", mode(a.byTitle))
 	}
-	trace.Log("agentbar", "labels", "before", before, "after", after)
+	trace.Log("agentbar", "headline", "before", before, "after", mode(a.byTitle))
 	return a, nil
-}
-
-// onNotifyChip reports whether (x,y) landed on the footer's notify chip: the
-// status line is the second-from-last row, and the chip sits on its right.
-func (a App) onNotifyChip(x, y int) bool {
-	return a.height > 1 && y == a.height-2 && x >= a.width/2
 }
 
 func (a App) View() string {
@@ -739,7 +703,7 @@ func (a App) View() string {
 	now := time.Now()
 	// Agent commands are only ever "claude"/"node", so the name column is fixed.
 	nameW := 6
-	r := renderer{theme: a.theme, width: a.width, nameW: nameW, byName: a.byName}
+	r := renderer{theme: a.theme, width: a.width, nameW: nameW, byTitle: a.byTitle}
 
 	var b strings.Builder
 	b.WriteString(r.header(a.snap, a.frame) + "\n")
@@ -778,6 +742,6 @@ func (a App) View() string {
 	if a.flash != "" {
 		b.WriteString(" " + a.flash + "\n")
 	}
-	b.WriteString(r.footer(a.snap, a.notify))
+	b.WriteString(r.footer(a.snap))
 	return b.String()
 }

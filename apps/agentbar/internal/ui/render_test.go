@@ -182,42 +182,42 @@ func TestGroupColorIsMostUrgent(t *testing.T) {
 	}
 }
 
-// Name mode heads the block with Claude's own name for the session instead of
-// the branch; the block keeps its shape, so nothing moves when you flip.
-func TestNameModeHeadlineIsTheSessionName(t *testing.T) {
+// Title mode heads the block with Claude's own title instead of the branch;
+// the block keeps its shape, so nothing moves when you flip.
+func TestTitleModeHeadsWithTheTitle(t *testing.T) {
 	sess := model.Session{Name: "api", Agents: []model.Agent{
 		{Command: "claude", Branch: "4629-startup-fail-fast", Title: "Merge request review",
 			State: model.StateWorking},
 	}}
 	byBranch := testRenderer().agentBlock(sess, 0, false, false, 0, time.Now())
 	r := testRenderer()
-	r.byName = true
-	byName := r.agentBlock(sess, 0, false, false, 0, time.Now())
-	if len(byName) != len(byBranch) {
-		t.Fatalf("label mode must not change the block height: %d vs %d", len(byName), len(byBranch))
+	r.byTitle = true
+	byTitle := r.agentBlock(sess, 0, false, false, 0, time.Now())
+	if len(byTitle) != len(byBranch) {
+		t.Fatalf("headline mode must not change the block height: %d vs %d", len(byTitle), len(byBranch))
 	}
 	if !strings.Contains(byBranch[0], "4629-startup-fail-fast") {
 		t.Errorf("branch mode should head with the branch, got %q", byBranch[0])
 	}
-	if !strings.Contains(byName[0], "Merge request review") {
-		t.Errorf("name mode should head with the name, got %q", byName[0])
+	if !strings.Contains(byTitle[0], "Merge request review") {
+		t.Errorf("title mode should head with the title, got %q", byTitle[0])
 	}
-	if strings.Contains(byName[0], "4629") {
-		t.Errorf("name mode should drop the branch, got %q", byName[0])
+	if strings.Contains(byTitle[0], "4629") {
+		t.Errorf("title mode should drop the branch, got %q", byTitle[0])
 	}
 }
 
-// An agent with no name (never prompted) keeps its branch headline in name
-// mode - a row must never lose its headline.
-func TestNameModeFallsBackToBranch(t *testing.T) {
+// An agent Claude has not titled keeps its branch headline in title mode - a
+// row must never lose its headline.
+func TestTitleModeFallsBackToBranch(t *testing.T) {
 	sess := model.Session{Agents: []model.Agent{
 		{Command: "claude", Branch: "chore/flags", State: model.StateIdle},
 	}}
 	if !showsHeadline(sess, 0, true) {
-		t.Fatal("an unnamed agent must still show its branch in name mode")
+		t.Fatal("an untitled agent must still show its branch in title mode")
 	}
 	r := testRenderer()
-	r.byName = true
+	r.byTitle = true
 	if got := r.agentBlock(sess, 0, false, false, 0, time.Now()); !strings.Contains(got[0], "chore/flags") {
 		t.Errorf("want the branch as fallback headline, got %q", got[0])
 	}
@@ -226,9 +226,9 @@ func TestNameModeFallsBackToBranch(t *testing.T) {
 	}
 }
 
-// Claudes sharing a branch collapse to one headline; distinct names do not,
-// so name mode labels each agent in a shared worktree.
-func TestNameModeDoesNotCollapseDistinctNames(t *testing.T) {
+// Claudes sharing a branch collapse to one headline; distinct titles do not,
+// so title mode heads each agent in a shared worktree.
+func TestTitleModeDoesNotCollapseDistinctTitles(t *testing.T) {
 	sess := model.Session{Agents: []model.Agent{
 		{Command: "claude", Branch: "b", Title: "First job", State: model.StateWorking},
 		{Command: "claude", Branch: "b", Title: "Second job", State: model.StatePermission},
@@ -237,6 +237,6 @@ func TestNameModeDoesNotCollapseDistinctNames(t *testing.T) {
 		t.Error("branch mode should collapse the shared branch")
 	}
 	if !showsHeadline(sess, 1, true) {
-		t.Error("name mode should head each differently-named agent")
+		t.Error("title mode should head each differently-titled agent")
 	}
 }

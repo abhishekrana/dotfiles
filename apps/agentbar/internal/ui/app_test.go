@@ -97,34 +97,6 @@ func TestSnapMsgUnknownPaneKeepsCursor(t *testing.T) {
 	}
 }
 
-func TestNotifyKeyTogglesOption(t *testing.T) {
-	r := &fakeRunner{}
-	a := testApp(r)
-	if a.notify {
-		t.Fatal("notify should start off")
-	}
-	press := func() App {
-		m, _ := a.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
-		return m.(App)
-	}
-	a = press()
-	if !a.notify {
-		t.Error("first n did not turn notify on")
-	}
-	wrote := false
-	for _, c := range r.calls {
-		if strings.Join(c, " ") == "set-option -g @agent_notify on" {
-			wrote = true
-		}
-	}
-	if !wrote {
-		t.Errorf("no `set-option -g @agent_notify on`; calls=%v", r.calls)
-	}
-	if a = press(); a.notify {
-		t.Error("second n did not turn notify off")
-	}
-}
-
 func TestSignalSnapAdoptsSelectionImmediately(t *testing.T) {
 	a := testApp(&fakeRunner{})
 	m, cmd := a.Update(snapMsg{snap: twoSessionSnap(), sel: "%6", signal: true})
@@ -516,32 +488,32 @@ func TestTabNoAttentionIsNoop(t *testing.T) {
 	}
 }
 
-// `l` flips the label mode globally: the option is what every other sidebar
-// reads on its next poll, so one press re-labels the whole bar.
-func TestLabelKeyTogglesOption(t *testing.T) {
+// `h` flips the headline globally: the option is what every other sidebar reads
+// on its next poll, so one press re-heads the whole bar.
+func TestHeadlineKeyTogglesOption(t *testing.T) {
 	r := &fakeRunner{}
 	a := testApp(r)
-	if a.byName {
-		t.Fatal("labels should start on the branch")
+	if a.byTitle {
+		t.Fatal("the headline should start on the branch")
 	}
 	press := func() App {
-		m, _ := a.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
+		m, _ := a.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
 		return m.(App)
 	}
 	a = press()
-	if !a.byName {
-		t.Error("first l did not switch to names")
+	if !a.byTitle {
+		t.Error("first h did not switch to titles")
 	}
 	wrote := false
 	for _, c := range r.calls {
-		if strings.Join(c, " ") == "set-option -g @agent_labels name" {
+		if strings.Join(c, " ") == "set-option -g @agentbar-headline title" {
 			wrote = true
 		}
 	}
 	if !wrote {
-		t.Errorf("no `set-option -g @agent_labels name`; calls=%v", r.calls)
+		t.Errorf("no `set-option -g @agentbar-headline title`; calls=%v", r.calls)
 	}
-	if a = press(); a.byName {
-		t.Error("second l did not switch back to the branch")
+	if a = press(); a.byTitle {
+		t.Error("second h did not switch back to the branch")
 	}
 }

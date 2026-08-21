@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
-# Settings dialogue for the footer's ⛭ chip: setting names down the left, their
-# values down the right, every value on its own row. Click a value or press Enter
-# on it to apply - there is no submenu and nothing to open, because every value is
-# already on screen.
+# Settings dialogue for the footer's ⛭ chip: the owning area down the left, its
+# setting names beside them, their values down the right, every value on its own
+# row. Click a value or press Enter on it to apply - there is no submenu and
+# nothing to open, because every value is already on screen.
 #
 # fzf has one cursor and its preview pane cannot be focused, so a dialogue with a
 # cursor on each side would need a TUI of its own. Showing every value instead
-# makes two cursors unnecessary.
+# makes two cursors unnecessary; the area column is the same trick one level
+# deeper, so a growing list adds no rows for nav to skip.
 #
-# Adding a setting: a group() call in list_rows and an arm in do_apply.
+# Adding a setting: a group() call in list_rows and an arm in do_apply. Areas and
+# settings stay alphabetical.
 #
 # Subcommands (invoked by fzf callbacks):
 #   --list           the rows
@@ -21,7 +23,7 @@ STATE="${XDG_CONFIG_HOME:-$HOME/.config}/theme"
 # so the interaction test can stand a recorder in for the real switcher.
 THEME_BIN="${THEME_BIN:-$HOME/.local/bin/theme}"
 FLAVORS="solarized-light solarized-dark catppuccin-latte catppuccin-mocha"
-LABELS="branch name"
+HEADLINES="branch title"
 # The cursor must land back on the row just applied, so the dialogue never jumps
 # between groups. fzf's transform bind runs after the reload, when {1} is already
 # the first row again - so --apply leaves its group name here for --pos to read.
@@ -33,69 +35,69 @@ LAST="${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}/dotfiles-settings-last-$UID"
 . "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/tmux-agent-state.sh"
 
 current_flavor() { cat "$STATE/current" 2>/dev/null || echo solarized-light; }
-# What heads a sidebar row: Claude's own name for the session, or the git branch.
-current_labels() {
-    case "$(tmux show-option -gqv @agent_labels 2>/dev/null)" in
-        name) echo name ;;
+# What heads a sidebar row: the title Claude gives its own session, or the branch.
+current_headline() {
+    case "$(tmux show-option -gqv @agentbar-headline 2>/dev/null)" in
+        title) echo title ;;
         *) echo branch ;;
+    esac
+}
+
+# Desktop notifications when an agent needs you. Mirrors agentbar's truthy().
+current_notify() {
+    case "$(tmux show-option -gqv @agent_notify 2>/dev/null)" in
+        on | 1 | true) echo on ;;
+        *) echo off ;;
     esac
 }
 title() { echo "$1" | tr '-' ' ' | sed 's/\b\(.\)/\u\1/g'; }
 
-# group <label> <current> <action-prefix> <value>...
-# The label prints once, on the group's first row, so it reads as a left column.
+# group <area> <label> <current> <action-prefix> <value>...
+# Area and label print once, on the group's first row: two left columns.
+_area=''
 group() {
-    local label=$1 cur=$2 prefix=$3 v mark
-    shift 3
+    local area=$1 label=$2 cur=$3 prefix=$4 v mark
+    shift 4
+    [ "$area" = "$_area" ] && area='' || _area=$area
     for v in "$@"; do
         [ "$v" = "$cur" ] && mark='\033[32m●\033[0m' || mark=' '
-        printf '%s%s\t  \033[1m%-11s\033[0m \033[2m│\033[0m %b %s\n' \
-            "$prefix" "$v" "$label" "$mark" "$(title "$v")"
-        label=''
+        printf '%s%s\t  \033[2m%-8s\033[0m \033[1m%-8s\033[0m \033[2m│\033[0m %b %s\n' \
+            "$prefix" "$v" "$area" "$label" "$mark" "$(title "$v")"
+        area='' label=''
     done
 }
 
 # ---- rows: "<action>TAB<display>", fzf shows field 2 and binds read field 1 --
 # shellcheck disable=SC2086  # FLAVORS is a word list, one value per row
 list_rows() {
-    group "Theme" "$(current_flavor)" "theme:" $FLAVORS
-    group "Labels" "$(current_labels)" "labels:" $LABELS
+    _area=''
+    group agentbar Headline "$(current_headline)" "headline:" $HEADLINES
+    group agentbar Notify "$(current_notify)" "notify:" off on
+    group theme Theme "$(current_flavor)" "theme:" $FLAVORS
 }
 
 # fzf's reload resets the cursor to the first row, so after applying we put it back
 # on the row that is now active. Printed as one fzf action, for a transform bind.
+# Found by walking the rows: per-group index arithmetic broke at the third group.
 do_pos() {
-    local cur i=1 v group values
-    group=$(cat "$LAST" 2>/dev/null || echo theme)
-    case $group in
-        labels)
-            # Rows are contiguous, so the Labels group starts after the flavors.
-            # shellcheck disable=SC2086  # word list, deliberately unquoted
-            set -- $FLAVORS
-            i=$(($# + 1))
-            cur=$(current_labels)
-            values=$LABELS
-            ;;
-        *)
-            cur=$(current_flavor)
-            values=$FLAVORS
-            ;;
-    esac
-    # shellcheck disable=SC2086  # word list, deliberately unquoted
-    for v in $values; do
-        [ "$v" = "$cur" ] && break
+    local group line i=0
+    group=$(cat "$LAST" 2>/dev/null || echo headline)
+    while IFS= read -r line; do
         i=$((i + 1))
-    done
-    printf 'pos(%d)' "$i"
+        case ${line%%$'\t'*} in "$group":*) ;; *) continue ;; esac
+        case $line in *●*) printf 'pos(%d)' "$i" && return ;; esac
+    done < <(list_rows)
+    printf 'pos(1)'
 }
 
 do_apply() {
     printf '%s' "${1%%:*}" >"$LAST" 2>/dev/null || true
     case "${1:-}" in
         theme:*) "$THEME_BIN" "${1#theme:}" >/dev/null 2>&1 ;;
-        # Global and re-read every poll, so every sidebar re-labels itself on its
-        # next tick - nothing restarts and no row moves.
-        labels:*) tmux set-option -g @agent_labels "${1#labels:}" 2>/dev/null || true ;;
+        # Both are global and re-read every poll, so every sidebar picks them up
+        # on its next tick - nothing restarts and no row moves.
+        headline:*) tmux set-option -g @agentbar-headline "${1#headline:}" 2>/dev/null || true ;;
+        notify:*) tmux set-option -g @agent_notify "${1#notify:}" 2>/dev/null || true ;;
     esac
 }
 

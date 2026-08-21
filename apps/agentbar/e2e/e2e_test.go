@@ -1470,9 +1470,10 @@ func TestResurrectSaveHookClaudeResume(t *testing.T) {
 	}
 }
 
-// TestNotifyToggle: pressing `n` in the sidebar flips the global
-// @agent_notify option (which the hook reads) and the footer chip.
-func TestNotifyToggle(t *testing.T) {
+// TestNotifyIsNotASidebarControl: notifications are set from the settings
+// dialogue (covered by test/settings.sh), so the bar carries no chip and no key
+// - `n` must be inert rather than flipping the option behind your back.
+func TestNotifyIsNotASidebarControl(t *testing.T) {
 	s := start(t)
 	s.newSession("work")
 	s.agentPane("work")
@@ -1481,16 +1482,16 @@ func TestNotifyToggle(t *testing.T) {
 	if side == "" {
 		t.Fatal("no sidebar pane")
 	}
-	waitFor(t, "footer shows notify off", 5*time.Second, func() bool {
-		return strings.Contains(s.capture(side), "notify off")
+	waitFor(t, "sidebar rendered", 5*time.Second, func() bool {
+		return strings.Contains(s.capture(side), "claude")
 	})
-
+	if c := s.capture(side); strings.Contains(c, "notify") {
+		t.Errorf("footer still carries a notify chip: %q", c)
+	}
 	s.tmux("send-keys", "-t", side, "n")
-	waitFor(t, "footer shows notify on", 5*time.Second, func() bool {
-		return strings.Contains(s.capture(side), "notify on")
-	})
-	if got := s.tmux("show-option", "-gqv", "@agent_notify"); got != "on" {
-		t.Errorf("@agent_notify = %q, want on", got)
+	time.Sleep(time.Second)
+	if got := s.tmux("show-option", "-gqv", "@agent_notify"); got != "" {
+		t.Errorf("`n` wrote @agent_notify = %q, want it untouched", got)
 	}
 }
 
@@ -1662,14 +1663,14 @@ func TestPinCommandToggles(t *testing.T) {
 	}
 }
 
-// The label toggle swaps the block's headline between the branch and Claude's
-// own name for the session. @agent_labels is global and re-read every poll, so
-// a flip reaches every sidebar with no restart - and the row keeps its shape.
-func TestLabelModeSwapsHeadline(t *testing.T) {
+// The headline toggle swaps the block's headline between the branch and Claude's
+// own title. @agentbar-headline is global and re-read every poll, so a flip
+// reaches every sidebar with no restart - and the row keeps its shape.
+func TestHeadlineModeSwapsHeadline(t *testing.T) {
 	s := start(t)
 	s.newSession("work")
 	agent := s.agentPane("work")
-	// The pane title is where Claude Code publishes that name.
+	// The pane title is where Claude Code publishes that title.
 	s.tmux("select-pane", "-t", agent, "-T", "✳ Ship the parser")
 	s.hook(agent, `{"hook_event_name":"UserPromptSubmit","session_id":"e2e"}`)
 
@@ -1679,15 +1680,15 @@ func TestLabelModeSwapsHeadline(t *testing.T) {
 		return strings.Contains(s.capture(side), "working")
 	})
 	if strings.Contains(s.captureText(side), "Ship the parser") {
-		t.Error("branch mode must not head the block with the session name")
+		t.Error("branch mode must not head the block with the title")
 	}
 
-	s.tmux("set-option", "-g", "@agent_labels", "name")
-	waitFor(t, "headline became the session name", 5*time.Second, func() bool {
+	s.tmux("set-option", "-g", "@agentbar-headline", "title")
+	waitFor(t, "headline became the title", 5*time.Second, func() bool {
 		return strings.Contains(s.captureText(side), "Ship the parser")
 	})
 
-	s.tmux("set-option", "-g", "@agent_labels", "branch")
+	s.tmux("set-option", "-g", "@agentbar-headline", "branch")
 	waitFor(t, "headline went back to the branch", 5*time.Second, func() bool {
 		return !strings.Contains(s.captureText(side), "Ship the parser")
 	})
