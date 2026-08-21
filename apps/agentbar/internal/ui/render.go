@@ -249,20 +249,6 @@ func (r renderer) sessionMarker(sess model.Session) string {
 	return ""
 }
 
-// forcedMark says a band was chosen by hand rather than by the clock: ⇡ held
-// up by `a`, ⇣ pushed down by `d`. Without it the override is invisible - a
-// session you sank looks exactly like one that went cold on its own, and you
-// cannot tell that pressing the key again would hand it back to the clock.
-func forcedMark(sess model.Session) string {
-	switch sess.Forced {
-	case model.BandActive:
-		return " ⇡"
-	case model.BandDormant:
-		return " ⇣"
-	}
-	return ""
-}
-
 // branchTag is the session's branch as it sits beside the name: "⎇ <branch>",
 // truncated to what is left of the line, or "" when there is no room for a
 // readable stub. The glyph is the pane rail's, so both surfaces name a branch
@@ -290,20 +276,19 @@ func (r renderer) sessionRow(sess model.Session, dim, lit, bar bool) string {
 		marker = ""
 	} else {
 		// 1 lead + name + 2 gap is what precedes the branch.
-		tag = branchTag(sess.Branch, r.width-lipgloss.Width(sess.Name+forcedMark(sess))-3)
+		tag = branchTag(sess.Branch, r.width-lipgloss.Width(sess.Name)-3)
 	}
 	nameColor := r.theme.Emphasis
 	if dim && !lit {
 		nameColor = r.theme.Muted
 	}
-	name := sess.Name + forcedMark(sess)
 	right := marker
 	if tag != "" {
 		right = "" // the branch takes the room the marker would have used
 	}
 	if lit {
 		contentW := max(r.width-1, 0) // column 0 is the edge
-		plain := name
+		plain := sess.Name
 		if tag != "" {
 			plain += "  " + tag
 		}
@@ -312,7 +297,7 @@ func (r renderer) sessionRow(sess model.Session, dim, lit, bar bool) string {
 		return r.leftEdge(bar) + lipgloss.NewStyle().Foreground(nameColor).
 			Background(r.theme.SelBg).Render(padCol(plain, contentW))
 	}
-	left := " " + lipgloss.NewStyle().Foreground(nameColor).Render(name)
+	left := " " + lipgloss.NewStyle().Foreground(nameColor).Render(sess.Name)
 	if tag != "" {
 		left += "  " + lipgloss.NewStyle().Foreground(r.theme.Muted).Render(tag)
 	}

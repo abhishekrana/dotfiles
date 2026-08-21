@@ -111,8 +111,8 @@ title mode's branch fallback shows), and all three bands (pinned/active/dormant)
   until you press another key.
 - **A forced band wins over the clock, except for attention.** `Session.NeedsAttention` pulls a session out of a forced
   dormant: nothing may hide a permission prompt indefinitely. Pinned still beats both.
-- **`forcedMark` is why the override is visible** - `⇡` held up by `a`, `⇣` pushed down by `d`. Without it a session you
-  sank looks exactly like one that went cold on its own, and nothing hints that the key would undo it.
+- **A row never says how it got into its band.** A session placed by hand renders exactly like one the clock put there;
+  every row is the same shape whatever decided it. A marker was tried and rejected as noise.
 - **Positions move on `p`/`a`/`d` and on that threshold, nothing else.** A pinned session never moves, however quiet -
   pins are the user's. Absent an override a session only ever sinks on its own; coming back up takes a real event (a
   prompt, a permission, a new agent).

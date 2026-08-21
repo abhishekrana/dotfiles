@@ -77,7 +77,7 @@ picked up on their next restart.
 | `g` / `G`       | first / last row                                                                                    |
 | `Tab`           | jump to the next agent waiting on you (permission/asking), cycling across sessions - the work queue |
 | `p`             | pin the selected session - pinned sessions float to a band at the top                               |
-| `a` / `d`       | put the session in the active / dormant band by hand (`⇡`/`⇣`); another key moves it                |
+| `a` / `d`       | put the session in the active / dormant band by hand; another key moves it                          |
 | `q`             | hide the sidebar everywhere (same as toggle)                                                        |
 
 Clicking a session name switches to it - the one way to reach a session with no agents running (it just

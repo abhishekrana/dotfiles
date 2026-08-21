@@ -1803,15 +1803,10 @@ func TestBandsPlacedByHand(t *testing.T) {
 		out := s.agentbar("order")
 		return strings.Contains(out, "active\twork") && !strings.Contains(out, "pinned\twork")
 	})
-	waitFor(t, "and the bar marks the override", 5*time.Second, func() bool {
-		return strings.Contains(s.captureText(side), "⇡")
-	})
-
 	// d sinks it now, without waiting out the window.
 	s.agentbar("band", "work", "dormant")
 	waitFor(t, "d sends it to dormant", 5*time.Second, func() bool {
-		return strings.Contains(s.agentbar("order"), "dormant\twork") &&
-			strings.Contains(s.captureText(side), "⇣")
+		return strings.Contains(s.agentbar("order"), "dormant\twork")
 	})
 
 	// The same band again changes nothing.

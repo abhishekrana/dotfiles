@@ -78,10 +78,11 @@ Rules:
   opens the menu.
 - **Three keys, three bands.** `p` pins, `a` puts a session in the active band, `d` sends it to dormant now rather than
   waiting out the window. One key, one destination: pressing it again changes nothing, and pressing another moves it -
-  so `a` on a pinned session unpins and holds it active. `⇡`/`⇣` beside the name says a band was chosen by hand. All
-  three work in the sidebar and the `Alt-;` picker, which share both stores, so `agentbar order` - what `Alt-h`/`Alt-l`
-  walk - always agrees with what you see. A session nobody has placed is left to the clock; a forced dormant still
-  yields to an agent that needs you, since nothing may hide a permission prompt.
+  so `a` on a pinned session unpins and holds it active. A row never says how it got into its band; a hand-placed
+  session looks exactly like one the clock put there. All three keys work in the sidebar and the `Alt-;` picker, which
+  share both stores, so `agentbar order` - what `Alt-h`/`Alt-l` walk - always agrees with what you see. A session nobody
+  has placed is left to the clock; a forced dormant still yields to an agent that needs you, since nothing may hide a
+  permission prompt.
 - **The active band is what you are working on now.** A session with no agents is dormant, and so is one whose agents
   have all gone quiet for longer than `@agentbar-active-for` (default 1h, a `⛭` row). An agent that is working or
   blocked on you keeps its session active however long it has been at it. Nothing runs in the background to make this
