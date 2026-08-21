@@ -399,7 +399,7 @@ func TestClickOnDividerIsNoop(t *testing.T) {
 	// row 0 (the top divider gets no leading blank).
 	a := App{runner: r, current: "api", pins: map[string]bool{"blog": true}}
 	snap := twoSessionSnap()
-	snap.Sessions = model.Arrange(snap.Sessions, a.pins, time.Now(), time.Hour)
+	snap.Sessions = model.Arrange(snap.Sessions, model.Grouping{Pinned: a.pins, Now: time.Now(), ActiveFor: time.Hour})
 	a.setSnapshot(snap)
 	a.width, a.height = 30, 20
 
@@ -491,5 +491,39 @@ func TestTabNoAttentionIsNoop(t *testing.T) {
 		if len(c) > 0 && c[0] == "switch-client" {
 			t.Errorf("tab jumped with nothing waiting: %v", c)
 		}
+	}
+}
+
+// `a` and `d` write the band store, and pressing the same key again hands the
+// session back to the clock - so there is a way out without a third key.
+func TestBandKeysWriteAndClear(t *testing.T) {
+	r := &fakeRunner{}
+	a := testApp(r)
+	press := func(k rune) App {
+		m, _ := a.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{k}})
+		return m.(App)
+	}
+	name := a.snap.Sessions[a.blocks[a.cursor].session].Name
+
+	a = press('d')
+	if got := a.bands[name]; got != model.BandDormant {
+		t.Errorf("d put %s in %q, want dormant", name, got)
+	}
+	a = press('a')
+	if got := a.bands[name]; got != model.BandActive {
+		t.Errorf("a put %s in %q, want active", name, got)
+	}
+	a = press('a')
+	if _, still := a.bands[name]; still {
+		t.Errorf("a twice should hand %s back to the clock, got %q", name, a.bands[name])
+	}
+	wrote := false
+	for _, c := range r.calls {
+		if strings.Contains(strings.Join(c, " "), "@agentbar-bands") {
+			wrote = true
+		}
+	}
+	if !wrote {
+		t.Errorf("no @agentbar-bands write; calls=%v", r.calls)
 	}
 }

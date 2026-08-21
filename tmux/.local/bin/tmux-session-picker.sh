@@ -76,6 +76,8 @@ tmux session picker
   j / k       cursor down / up
   g / G       jump to first / last
   p           pin / unpin session
+  a           keep session in the active band (again to let the clock decide)
+  d           send session to the dormant band (again to let the clock decide)
   r           rename session
   D           kill session (with confirm)
   c           new session (name + start dir)
@@ -150,6 +152,19 @@ do_rename() {
 # the row to its new band - a pin moves it, and leaving the cursor at the old
 # index would aim the next keypress at a different session. Bound as a
 # `transform` action, whose stdout fzf reads as an action list.
+# do_band <session> <active|dormant> - the sidebar's a/d keys, through the same
+# binary so both views drive one store. Repositions like do_pin, for the same
+# gawk/SIGPIPE reason documented there.
+do_band() {
+    local name=$1 band=$2 pos
+    { [ -z "$name" ] || [ "$name" = "$BAND_MARK" ]; } && return 0
+    [ -x "$agentbar_bin" ] || return 0
+    "$agentbar_bin" band "$name" "$band" >/dev/null 2>&1 || return 0
+    pos=$(build_lines | awk -F'\t' -v n="$name" '$1 == n && !p { print NR; p = 1 }')
+    printf 'reload-sync(%s --list)+pos(%s)' "$self" "${pos:-1}"
+    "$HOME/.local/bin/dotfiles-trace" log picker band name="$name" band="$band" 2>/dev/null || true
+}
+
 do_pin() {
     local name=$1 pos
     { [ -z "$name" ] || [ "$name" = "$BAND_MARK" ]; } && return 0
@@ -333,6 +348,10 @@ case "${1:-}" in
         do_pin "${2:-}"
         exit 0
         ;;
+    --band)
+        do_band "${2:-}" "${3:-}"
+        exit 0
+        ;;
     --rename)
         do_rename "${2:-}"
         exit 0
@@ -387,6 +406,8 @@ target=$(
             --bind "enter:transform([ {1} = $BAND_MARK ] && echo ignore || echo accept)" \
             --bind "?:execute($self --help)" \
             --bind "p:transform($self --pin {1})" \
+            --bind "a:transform($self --band {1} active)" \
+            --bind "d:transform($self --band {1} dormant)" \
             --bind "r:execute($self --rename {1})+reload($self --list)" \
             --bind "D:execute($self --kill {1})+reload($self --list)" \
             --bind "c:execute($self --new)+reload($self --list)+last" |

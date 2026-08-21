@@ -100,9 +100,20 @@ title mode's branch fallback shows), and all three bands (pinned/active/dormant)
 - **Nothing owns that transition.** It is `now - timestamp` evaluated at render, on the 1s poll the sidebar already
   runs: no background process, no timer, no persisted state, and `agentbar order` computes the same bands from the same
   pane options. Do not add a watcher - that is the property that keeps this from going stale.
-- **Positions move on pin/unpin and on that threshold, nothing else.** A pinned session never moves, however quiet -
-  pins are the user's. A session only ever sinks on its own; coming back up takes a real event (a prompt, a permission,
-  a new agent).
+- **Three keys, three bands: `p` pinned, `a` active, `d` dormant.** `p` goes through `tmux.Pins`/`SetPins`; `a` and `d`
+  through `tmux.Bands`/`SetBands` (`@agentbar-bands`, `name=active|dormant`), same option-plus-XDG-mirror-plus-prune
+  path, and `agentbar band <session> <band>` is that key as a command so the picker drives one store. Pressing the key
+  for the band a session is already forced into clears the override and hands it back to the clock - that is the way
+  out, so there is no fourth key.
+- **A forced band wins over the clock, except for attention.** `Session.NeedsAttention` pulls a session out of a forced
+  dormant: nothing may hide a permission prompt indefinitely. Pinned still beats both.
+- **`forcedMark` is why the override is visible** - `⇡` held up by `a`, `⇣` pushed down by `d`. Without it a session you
+  sank looks exactly like one that went cold on its own, and nothing hints that the key would undo it.
+- **Positions move on `p`/`a`/`d` and on that threshold, nothing else.** A pinned session never moves, however quiet -
+  pins are the user's. Absent an override a session only ever sinks on its own; coming back up takes a real event (a
+  prompt, a permission, a new agent).
+- **`setSnapshot` anchors an agent to its session as well as its pane.** Sinking a session drops its agent blocks, so
+  without that fallback the cursor jumped to an unrelated row - and `d` then `a` acted on whatever it landed on.
 - **A dormant session is its name alone**, no branch and no agent rows: reclaiming those rows is the point of sinking
   one. `buildBlocks` skips its agent blocks entirely rather than hiding them at render, so nav and clicks cannot land on
   a row that is not on screen.

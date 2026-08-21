@@ -32,6 +32,8 @@ commands:
   next | prev [<session> [<tty>]]
                                 switch the client one session down / up that order
   pin <session>                 toggle a session's pin (the sidebar's p key)
+  band <session> active|dormant put a session in a band by hand, or clear it by
+                                naming the band it is already in (the a/d keys)
   hook                          Claude Code hook entry: stdin JSON -> pane options
   doctor                        audit Claude panes vs the hook trace for state desync
 
@@ -61,6 +63,8 @@ func main() {
 		runStep(-1, os.Args[2:])
 	case "pin":
 		runPin(os.Args[2:])
+	case "band":
+		runBand(os.Args[2:])
 	case "hook":
 		runHook()
 	case "doctor":
@@ -77,7 +81,12 @@ func main() {
 // and these run on a keypress.
 func ordered(r tmux.Runner, current string) []model.Session {
 	snap := tmux.Snapshot(r, nil, current)
-	return model.Arrange(snap.Sessions, tmux.Pins(r), time.Now(), tmux.ActiveFor(r))
+	return model.Arrange(snap.Sessions, model.Grouping{
+		Pinned:    tmux.Pins(r),
+		Forced:    tmux.Bands(r),
+		Now:       time.Now(),
+		ActiveFor: tmux.ActiveFor(r),
+	})
 }
 
 // runOrder publishes the order as "band<TAB>name" lines, the picker popup's
@@ -147,6 +156,38 @@ func stepLabel(delta int) string {
 		return "prev"
 	}
 	return "next"
+}
+
+// runBand puts one session in a band by hand - the sidebar's `a` and `d` keys as
+// a command, so the picker drives the same store. Naming the band a session is
+// already forced into clears the override and hands it back to the clock.
+func runBand(args []string) {
+	if len(args) != 2 || args[0] == "" {
+		fmt.Fprint(os.Stderr, "usage: agentbar band <session> active|dormant\n")
+		os.Exit(2)
+	}
+	name, want := args[0], args[1]
+	if want != model.BandActive && want != model.BandDormant {
+		fmt.Fprintf(os.Stderr, "agentbar: unknown band %q\n", want)
+		os.Exit(2)
+	}
+	r := tmux.Exec{}
+	bands := tmux.Bands(r)
+	if bands[name] == want {
+		delete(bands, name)
+	} else {
+		bands[name] = want
+	}
+	err := tmux.SetBands(r, bands)
+	after := bands[name]
+	if after == "" {
+		after = "auto"
+	}
+	trace.Log("agentbar", "band", "session", name, "after", after, "err", trace.Err(err))
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "agentbar:", err)
+		os.Exit(1)
+	}
 }
 
 // runPin toggles one session's pin - the sidebar's `p` key as a command, so

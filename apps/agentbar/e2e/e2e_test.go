@@ -1763,3 +1763,51 @@ func TestQuietSessionSinksToDormant(t *testing.T) {
 		return strings.Contains(s.captureText(side), "done")
 	})
 }
+
+// `a` and `d` place a session in a band by hand, overriding the clock; the same
+// key again hands it back. The sidebar key, the `band` command and the picker
+// all drive one store, and `order` must agree - it is what Alt-h/Alt-l and the
+// picker walk.
+func TestBandsPlacedByHand(t *testing.T) {
+	s := start(t)
+	s.newSession("other")
+	s.newSession("work")
+	quiet := s.agentPane("work")
+	s.agentPane("other")
+	s.hook(quiet, `{"hook_event_name":"Stop"}`)
+
+	s.script("open.sh", "work")
+	side := s.sidebarPane("work")
+	waitFor(t, "both sessions start active", 5*time.Second, func() bool {
+		return strings.Contains(s.agentbar("order"), "active\twork")
+	})
+
+	// d sinks it now, without waiting out the window.
+	s.agentbar("band", "work", "dormant")
+	waitFor(t, "the forced band reaches the bar", 5*time.Second, func() bool {
+		return strings.Contains(s.captureText(side), "⇣")
+	})
+	if out := s.agentbar("order"); !strings.Contains(out, "dormant\twork") {
+		t.Errorf("order disagrees with the sidebar:\n%s", out)
+	}
+
+	// a holds it up instead, even though its agent is cold.
+	s.agentbar("band", "work", "active")
+	waitFor(t, "and a holds it up", 5*time.Second, func() bool {
+		return strings.Contains(s.captureText(side), "⇡")
+	})
+
+	// The same band again clears the override: back to the clock, no marker.
+	s.agentbar("band", "work", "active")
+	waitFor(t, "naming the same band hands it back", 5*time.Second, func() bool {
+		c := s.captureText(side)
+		return !strings.Contains(c, "⇡") && !strings.Contains(c, "⇣")
+	})
+
+	// The sidebar key drives the same store. The cursor starts on the first
+	// agent, and "other" sorts before "work".
+	s.tmux("send-keys", "-t", side, "d")
+	waitFor(t, "the d key sinks the selected session", 5*time.Second, func() bool {
+		return strings.Contains(s.agentbar("order"), "dormant\tother")
+	})
+}

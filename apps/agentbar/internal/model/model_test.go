@@ -27,7 +27,7 @@ func TestArrangeGroupsSortsAndStamps(t *testing.T) {
 		{Name: "beta"},                        // dormant
 		{Name: "yak", Agents: []Agent{live}},  // active
 	}
-	out := Arrange(in, map[string]bool{"mid": true}, time.Now(), time.Hour)
+	out := Arrange(in, Grouping{Pinned: map[string]bool{"mid": true}, Now: time.Now(), ActiveFor: time.Hour})
 
 	want := []string{"mid", "yak", "zeta", "alpha", "beta"}
 	if got := names(out); !slices.Equal(got, want) {
@@ -121,7 +121,8 @@ func TestNamesFollowsTheBands(t *testing.T) {
 		{Name: "blog", Agents: []Agent{{}}},     // pinned below
 		{Name: "dotfiles", Agents: []Agent{{}}}, // pinned below
 	}
-	got := Names(Arrange(sessions, map[string]bool{"blog": true, "dotfiles": true}, time.Now(), time.Hour))
+	pinned := map[string]bool{"blog": true, "dotfiles": true}
+	got := Names(Arrange(sessions, Grouping{Pinned: pinned, Now: time.Now(), ActiveFor: time.Hour}))
 	want := []string{"blog", "dotfiles", "api", "payments"}
 	if len(got) != len(want) {
 		t.Fatalf("Names = %v, want %v", got, want)
@@ -195,7 +196,7 @@ func TestArrangeSinksQuietSessionsButNeverPinned(t *testing.T) {
 		{Name: "warm", Agents: []Agent{warm}},
 		{Name: "pinned-cold", Agents: []Agent{cold}},
 	}
-	out := Arrange(in, map[string]bool{"pinned-cold": true}, now, time.Hour)
+	out := Arrange(in, Grouping{Pinned: map[string]bool{"pinned-cold": true}, Now: now, ActiveFor: time.Hour})
 
 	byName := map[string]Session{}
 	for _, s := range out {
@@ -214,16 +215,56 @@ func TestArrangeSinksQuietSessionsButNeverPinned(t *testing.T) {
 		t.Errorf("a pinned session must not move, however quiet: got band %d", got)
 	}
 	// The window is what decides it: widen it and the cold one comes back.
-	wide := Arrange(in, nil, now, 4*time.Hour)
+	wide := Arrange(in, Grouping{Now: now, ActiveFor: 4 * time.Hour})
 	for _, s := range wide {
 		if s.Name == "cold" && s.Band() != 1 {
 			t.Errorf("with a 4h window the cold session is active, got band %d", s.Band())
 		}
 	}
 	// An unset (zero) window must not flatten the bar to dormant.
-	for _, s := range Arrange(in, nil, now, 0) {
+	for _, s := range Arrange(in, Grouping{Now: now}) {
 		if s.Name == "warm" && s.Band() != 1 {
 			t.Error("a zero window should fall back to the default, not sink everything")
+		}
+	}
+}
+
+// `a` and `d` place a session by hand, overriding the clock - except that an
+// agent needing you pulls its session back out of a forced dormant, since
+// nothing should hide a permission prompt.
+func TestForcedBandsOverrideTheClock(t *testing.T) {
+	now := time.Now()
+	cold := Agent{State: StateDone, Since: now.Add(-3 * time.Hour)}
+	warm := Agent{State: StateDone, Since: now.Add(-time.Minute)}
+	blocked := Agent{State: StatePermission, Since: now.Add(-3 * time.Hour)}
+	in := []Session{
+		{Name: "held", Agents: []Agent{cold}},      // cold, forced active
+		{Name: "sunk", Agents: []Agent{warm}},      // warm, forced dormant
+		{Name: "asking", Agents: []Agent{blocked}}, // forced dormant, but needs you
+		{Name: "auto", Agents: []Agent{warm}},      // no override
+	}
+	out := Arrange(in, Grouping{
+		Forced: map[string]string{"held": BandActive, "sunk": BandDormant, "asking": BandDormant},
+		Now:    now, ActiveFor: time.Hour,
+	})
+	got := map[string]int{}
+	for _, s := range out {
+		got[s.Name] = s.Band()
+	}
+	for name, want := range map[string]int{"held": 1, "sunk": 2, "asking": 1, "auto": 1} {
+		if got[name] != want {
+			t.Errorf("%s: band = %d, want %d", name, got[name], want)
+		}
+	}
+	// Pinned still beats both the clock and a forced band: pins are the user's.
+	pinned := Arrange(in, Grouping{
+		Pinned: map[string]bool{"sunk": true},
+		Forced: map[string]string{"sunk": BandDormant},
+		Now:    now, ActiveFor: time.Hour,
+	})
+	for _, s := range pinned {
+		if s.Name == "sunk" && s.Band() != 0 {
+			t.Errorf("a pinned session must stay pinned, got band %d", s.Band())
 		}
 	}
 }

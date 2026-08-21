@@ -32,10 +32,11 @@ type tickMsg time.Time
 
 type snapMsg struct {
 	snap      model.Snapshot
-	sel       string          // global @sidebar_selected at snapshot time
-	activeFor time.Duration   // global @agentbar-active-for at snapshot time
-	pins      map[string]bool // global @agentbar-pins at snapshot time
-	signal    bool            // woken by the wait-for channel, not the 1s tick
+	sel       string            // global @sidebar_selected at snapshot time
+	activeFor time.Duration     // global @agentbar-active-for at snapshot time
+	pins      map[string]bool   // global @agentbar-pins at snapshot time
+	bands     map[string]string // global @agentbar-bands at snapshot time
+	signal    bool              // woken by the wait-for channel, not the 1s tick
 }
 
 // App is the Bubble Tea model for the sidebar. In mockup mode the
@@ -52,7 +53,8 @@ type App struct {
 	height     int
 	flash      string
 	mockup     bool
-	pins       map[string]bool // pinned session names (@agentbar-pins), used to regroup on `p`
+	pins       map[string]bool   // pinned session names (@agentbar-pins), regrouped on `p`
+	bands      map[string]string // hand-placed bands (@agentbar-bands), regrouped on `a`/`d`
 
 	// How long a session stays active after its last agent activity
 	// (@agentbar-active-for). Re-read every poll, like the other options.
@@ -84,10 +86,11 @@ func NewLive(theme Theme) App {
 		branches: tmux.NewBranchCache(),
 		current:  tmux.CurrentSession(runner),
 		pins:     tmux.Pins(runner),
+		bands:    tmux.Bands(runner),
 	}
 	app.activeFor = tmux.ActiveFor(runner)
 	snap := tmux.Snapshot(runner, app.branches, app.current)
-	snap.Sessions = model.Arrange(snap.Sessions, app.pins, time.Now(), app.activeFor)
+	snap.Sessions = model.Arrange(snap.Sessions, app.grouping())
 	app.setSnapshot(snap)
 	app.attached = attachedKey(app.snap)
 	// Selection is shared across sidebars via the global @sidebar_selected.
@@ -149,11 +152,13 @@ func (a *App) setSnapshot(snap model.Snapshot) {
 	var anchorPane, anchorSess string
 	if a.blockSelectable(a.cursor) {
 		b := a.blocks[a.cursor]
-		switch b.kind {
-		case blockAgent:
+		// An agent anchors on its pane, but remember its session too: sinking a
+		// session drops its agent blocks, and without the fallback the cursor
+		// would jump to an unrelated row - so `d` then `a` acted on whatever it
+		// landed on rather than on the session you just sank.
+		anchorSess = a.snap.Sessions[b.session].Name
+		if b.kind == blockAgent {
 			anchorPane = a.snap.Sessions[b.session].Agents[b.agent].PaneID
-		case blockSession:
-			anchorSess = a.snap.Sessions[b.session].Name
 		}
 	}
 	a.snap = snap
@@ -161,15 +166,15 @@ func (a *App) setSnapshot(snap model.Snapshot) {
 	if a.hover >= len(a.blocks) {
 		a.hover = -1 // pointer target no longer exists
 	}
-	switch {
-	case anchorPane != "":
+	if anchorPane != "" {
 		for i, b := range a.blocks {
 			if b.kind == blockAgent && snap.Sessions[b.session].Agents[b.agent].PaneID == anchorPane {
 				a.cursor = i
 				return
 			}
 		}
-	case anchorSess != "":
+	}
+	if anchorSess != "" {
 		for i, b := range a.blocks {
 			if b.kind == blockSession && snap.Sessions[b.session].Name == anchorSess {
 				a.cursor = i
@@ -204,14 +209,18 @@ func (a App) gather(signal bool) snapMsg {
 	verbose, _ := a.runner.Run("show-option", "-gqv", "@agentbar-trace-verbose")
 	trace.SetVerbose(truthy(verbose))
 	pins := tmux.Pins(a.runner)
+	bands := tmux.Bands(a.runner)
 	activeFor := tmux.ActiveFor(a.runner)
 	snap := tmux.Snapshot(a.runner, a.branches, a.current)
-	snap.Sessions = model.Arrange(snap.Sessions, pins, time.Now(), activeFor)
+	snap.Sessions = model.Arrange(snap.Sessions, model.Grouping{
+		Pinned: pins, Forced: bands, Now: time.Now(), ActiveFor: activeFor,
+	})
 	return snapMsg{
 		snap:      snap,
 		sel:       strings.TrimSpace(sel),
 		activeFor: activeFor,
 		pins:      pins,
+		bands:     bands,
 		signal:    signal,
 	}
 }
@@ -339,7 +348,10 @@ func NewMockup(theme Theme) App {
 	for i := range snap.Sessions {
 		snap.Sessions[i].Branch = model.BranchOf(snap.Sessions[i].Agents)
 	}
-	snap.Sessions = model.Arrange(snap.Sessions, pins, now, model.DefaultActiveFor)
+	// One session held up by `a` and one pushed down by `d`, so the mockup shows
+	// what a hand-placed band looks like next to the clock's own.
+	forced := map[string]string{"cli": model.BandDormant, "www": model.BandActive}
+	snap.Sessions = model.Arrange(snap.Sessions, model.Grouping{Pinned: pins, Forced: forced, Now: now})
 	app := App{
 		theme:  theme,
 		hover:  -1,
@@ -436,6 +448,9 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if msg.pins != nil {
 			a.pins = msg.pins
+		}
+		if msg.bands != nil {
+			a.bands = msg.bands
 		}
 		key := attachedKey(a.snap)
 		switch {
@@ -648,7 +663,54 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case "p":
 		return a.togglePin()
+	case "a":
+		return a.setBand(model.BandActive)
+	case "d":
+		return a.setBand(model.BandDormant)
 	}
+	return a, nil
+}
+
+// grouping is the banding input: the two persisted user choices plus the clock,
+// taken from this App's own state so a regroup agrees with the last poll.
+func (a App) grouping() model.Grouping {
+	return model.Grouping{Pinned: a.pins, Forced: a.bands, Now: time.Now(), ActiveFor: a.activeFor}
+}
+
+// setBand puts the selected session in a band by hand - `a` active, `d` dormant
+// - overriding the clock. Pressing the key for the band it is already forced
+// into clears the override and hands the session back to the clock, so there is
+// a way out without a third key. Persisted like pins, so every sidebar and the
+// picker agree.
+func (a App) setBand(band string) (tea.Model, tea.Cmd) {
+	if !a.blockSelectable(a.cursor) {
+		return a, nil
+	}
+	name := a.snap.Sessions[a.blocks[a.cursor].session].Name
+	bands := map[string]string{}
+	for k, v := range a.bands {
+		bands[k] = v
+	}
+	before := bands[name]
+	if before == band {
+		delete(bands, name)
+	} else {
+		bands[name] = band
+	}
+	a.bands = bands
+	snap := a.snap
+	snap.Sessions = model.Arrange(a.snap.Sessions, a.grouping())
+	a.setSnapshot(snap) // captures the selection, re-anchors it after regroup
+	if !a.mockup {
+		_ = tmux.SetBands(a.runner, bands)
+	}
+	auto := func(v string) string {
+		if v == "" {
+			return "auto"
+		}
+		return v
+	}
+	trace.Log("agentbar", "band", "session", name, "before", auto(before), "after", auto(bands[name]))
 	return a, nil
 }
 
@@ -672,7 +734,7 @@ func (a App) togglePin() (tea.Model, tea.Cmd) {
 	}
 	a.pins = pins
 	snap := a.snap
-	snap.Sessions = model.Arrange(a.snap.Sessions, pins, time.Now(), a.activeFor)
+	snap.Sessions = model.Arrange(a.snap.Sessions, a.grouping())
 	a.setSnapshot(snap) // captures the current selection, re-anchors it after regroup
 	if !a.mockup {
 		_ = tmux.SetPins(a.runner, pins)

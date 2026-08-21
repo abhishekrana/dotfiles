@@ -66,6 +66,7 @@ type Session struct {
 	Current  bool   // the session the sidebar pane lives in
 	Attached bool   // a client is attached to this session
 	Pinned   bool   // user-pinned: floats to the top band (see Arrange)
+	Forced   string // band the user put it in by hand: "active", "dormant", or ""
 	Quiet    bool   // has agents, but none live or recent: sinks to dormant (see Fresh)
 	Agents   []Agent
 }
@@ -112,17 +113,46 @@ func BranchOf(agents []Agent) string {
 }
 
 // Band orders sessions into the three sidebar groups: pinned (0), active (1),
-// dormant (2). Dormant is both "no agents at all" and "gone quiet" - Arrange
-// stamps Quiet, so every reader here needs no clock of its own.
+// dormant (2). Arrange stamps Pinned, Forced and Quiet, so every reader here
+// needs no clock and no options of its own.
+//
+// A hand-placed band wins over the clock - that is the whole point of `a` and
+// `d` - with one exception: an agent that needs you pulls its session back up
+// out of a forced dormant, because nothing should be able to hide a permission
+// prompt indefinitely.
 func (s Session) Band() int {
 	switch {
 	case s.Pinned:
 		return 0
+	case s.Forced == BandActive:
+		return 1
+	case s.Forced == BandDormant:
+		if s.NeedsAttention() {
+			return 1
+		}
+		return 2
 	case len(s.Agents) == 0 || s.Quiet:
 		return 2
 	default:
 		return 1
 	}
+}
+
+// The bands a session can be put in by hand (the `a` and `d` keys). Pinned is
+// not one of them: it has its own store and its own key.
+const (
+	BandActive  = "active"
+	BandDormant = "dormant"
+)
+
+// NeedsAttention reports whether any agent here is blocked on the user.
+func (s Session) NeedsAttention() bool {
+	for _, a := range s.Agents {
+		if a.State.NeedsAttention() {
+			return true
+		}
+	}
+	return false
 }
 
 // BandLabel names the band. The sidebar draws its own header text from this
@@ -139,24 +169,35 @@ func (s Session) BandLabel() string {
 	}
 }
 
+// Grouping is everything Arrange needs to band a fleet: the two persisted
+// user choices and the clock.
+type Grouping struct {
+	Pinned    map[string]bool   // @agentbar-pins, the `p` key
+	Forced    map[string]string // @agentbar-bands, the `a` and `d` keys
+	Now       time.Time
+	ActiveFor time.Duration // zero means DefaultActiveFor
+}
+
 // Arrange returns a copy of sessions grouped into bands (pinned, active,
-// dormant) and alphabetical within each, stamping Pinned from the given set and
-// Quiet from the clock.
+// dormant) and alphabetical within each, stamping Pinned, Forced and Quiet.
 //
-// Positions move on pin/unpin and when a session's last agent activity passes
-// activeFor - nothing else. That second case is deliberate: a worktree you
-// stopped touching an hour ago sinks on its own, so the active band is what you
-// are working on now. It is a pure function of timestamps evaluated at render,
-// so no process owns the transition and there is no state to get stale.
-func Arrange(sessions []Session, pinned map[string]bool, now time.Time, activeFor time.Duration) []Session {
+// Positions move when you press `p`, `a` or `d`, and when a session's last
+// agent activity passes ActiveFor - nothing else. That last case is deliberate:
+// a worktree you stopped touching an hour ago sinks on its own, so the active
+// band is what you are working on now. It is a pure function of timestamps
+// evaluated at render, so no process owns the transition and there is no state
+// to get stale.
+func Arrange(sessions []Session, g Grouping) []Session {
+	activeFor := g.ActiveFor
 	if activeFor <= 0 {
 		activeFor = DefaultActiveFor
 	}
 	out := make([]Session, len(sessions))
 	copy(out, sessions)
 	for i := range out {
-		out[i].Pinned = pinned[out[i].Name]
-		out[i].Quiet = len(out[i].Agents) > 0 && !Fresh(out[i].Agents, now, activeFor)
+		out[i].Pinned = g.Pinned[out[i].Name]
+		out[i].Forced = g.Forced[out[i].Name]
+		out[i].Quiet = len(out[i].Agents) > 0 && !Fresh(out[i].Agents, g.Now, activeFor)
 	}
 	sort.SliceStable(out, func(i, j int) bool {
 		if bi, bj := out[i].Band(), out[j].Band(); bi != bj {

@@ -28,7 +28,7 @@ func TestBuildBlocksDividers(t *testing.T) {
 		{Name: "act", Agents: []model.Agent{{PaneID: "%2", Since: fresh}}},
 		{Name: "dead"}, // dormant: no agents at all
 		{Name: "pin", Agents: []model.Agent{{PaneID: "%1", Since: fresh}}},
-	}, map[string]bool{"pin": true}, time.Now(), time.Hour)}
+	}, model.Grouping{Pinned: map[string]bool{"pin": true}, Now: time.Now(), ActiveFor: time.Hour})}
 	var labels []string
 	for _, bl := range buildBlocks(three) {
 		if bl.kind == blockSection {
@@ -46,7 +46,7 @@ func TestBuildBlocksDividers(t *testing.T) {
 	noPins := model.Snapshot{Sessions: model.Arrange([]model.Session{
 		{Name: "act", Agents: []model.Agent{{PaneID: "%1", Since: fresh}}},
 		{Name: "dead"},
-	}, nil, time.Now(), time.Hour)}
+	}, model.Grouping{Pinned: nil, Now: time.Now(), ActiveFor: time.Hour})}
 	labels = nil
 	for _, bl := range buildBlocks(noPins) {
 		if bl.kind == blockSection {
@@ -67,7 +67,7 @@ func TestBandDividerSpacing(t *testing.T) {
 		{Name: "act", Agents: []model.Agent{{PaneID: "%2", Since: fresh}}},
 		{Name: "dead"}, // dormant
 		{Name: "pin", Agents: []model.Agent{{PaneID: "%1", Since: fresh}}},
-	}, map[string]bool{"pin": true}, time.Now(), time.Hour)}
+	}, model.Grouping{Pinned: map[string]bool{"pin": true}, Now: time.Now(), ActiveFor: time.Hour})}
 	var pinned, active, dormant block
 	var havePinned, haveActive, haveDormant bool
 	for _, b := range buildBlocks(snap) {

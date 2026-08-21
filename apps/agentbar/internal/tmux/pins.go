@@ -11,19 +11,22 @@ import (
 // ticks; signalling it makes them all redraw now.
 const RefreshChannel = "agentbar-refresh"
 
-// pinsOption holds the live pinned set, tab-separated. Tab is the one
-// separator a session name can never hold: tmux takes spaces (the picker's
-// `c`/`r` prompts are free text) but rejects tabs.
-const pinsOption = "@agentbar-pins"
+// The two persisted band sets, tab-separated. Tab is the one separator a
+// session name can never hold: tmux takes spaces (the picker's `c`/`r` prompts
+// are free text) but rejects tabs.
+const (
+	pinsOption = "@agentbar-pins"
+	bandOption = "@agentbar-bands"
+)
 
-// pinsFile mirrors the shell idiom: $XDG_STATE_HOME, else ~/.local/state.
+// stateFile mirrors the shell idiom: $XDG_STATE_HOME, else ~/.local/state.
 // Resolved per call so a test can redirect it.
-func pinsFile() string {
+func stateFile(name string) string {
 	base := os.Getenv("XDG_STATE_HOME")
 	if base == "" {
 		base = filepath.Join(os.Getenv("HOME"), ".local", "state")
 	}
-	return filepath.Join(base, "dotfiles", "agentbar-pins")
+	return filepath.Join(base, "dotfiles", name)
 }
 
 // Pins reads the pinned-session set. An empty option means a tmux server that
@@ -31,14 +34,7 @@ func pinsFile() string {
 // stamp it back, keeping the bands you left behind across a restart. Pins are
 // the only thing that reorders the sidebar, so losing them flattens it.
 func Pins(r Runner) map[string]bool {
-	out, _ := r.Run("show-option", "-gqv", pinsOption)
-	if out == "" {
-		if saved := readPinsFile(); saved != "" {
-			_, _ = r.Run("set-option", "-g", pinsOption, saved)
-			out = saved
-		}
-	}
-	return ParsePins(out)
+	return ParsePins(restore(r, pinsOption, "agentbar-pins"))
 }
 
 // ParsePins splits a stored value into a set, dropping empty fields.
@@ -66,9 +62,83 @@ func PinList(pins map[string]bool) string {
 // so every sidebar regroups at once. Both writes always run, so the mirror
 // cannot drift from the option.
 func SetPins(r Runner, pins map[string]bool) error {
-	value := PinList(prunePins(r, pins))
-	_, err := r.Run("set-option", "-g", pinsOption, value, ";", "wait-for", "-S", RefreshChannel)
-	if fileErr := writePinsFile(value); err == nil {
+	return store(r, pinsOption, "agentbar-pins", PinList(prunePins(r, pins)))
+}
+
+// Bands reads the band a session was put in by hand: "active" or "dormant",
+// from the `a` and `d` keys. Absent means the clock decides, which is the
+// normal case - these are the exceptions you asked for by name.
+func Bands(r Runner) map[string]string {
+	return ParseBands(restore(r, bandOption, "agentbar-bands"))
+}
+
+// ParseBands splits the stored "name=band" records, dropping anything
+// malformed or unknown rather than failing: one bad record must not cost the
+// rest of the set.
+func ParseBands(value string) map[string]string {
+	out := map[string]string{}
+	for rec := range strings.SplitSeq(value, "\t") {
+		name, band, ok := strings.Cut(rec, "=")
+		if !ok || name == "" {
+			continue
+		}
+		switch band {
+		case "active", "dormant":
+			out[name] = band
+		}
+	}
+	return out
+}
+
+// BandList serializes back to the sorted, tab-separated stored form.
+func BandList(bands map[string]string) string {
+	recs := make([]string, 0, len(bands))
+	for name, band := range bands {
+		recs = append(recs, name+"="+band)
+	}
+	sort.Strings(recs)
+	return strings.Join(recs, "\t")
+}
+
+// SetBands persists a changed set, the same way pins are.
+func SetBands(r Runner, bands map[string]string) error {
+	live := prunePins(r, boolSet(bands))
+	kept := map[string]string{}
+	for name, band := range bands {
+		if live[name] {
+			kept[name] = band
+		}
+	}
+	return store(r, bandOption, "agentbar-bands", BandList(kept))
+}
+
+func boolSet(bands map[string]string) map[string]bool {
+	out := map[string]bool{}
+	for name := range bands {
+		out[name] = true
+	}
+	return out
+}
+
+// restore reads an option, falling back to its disk mirror and stamping it
+// back: an empty option means a tmux server that just started, since user
+// options die with it, and the bands you left behind should survive that.
+func restore(r Runner, option, file string) string {
+	out, _ := r.Run("show-option", "-gqv", option)
+	if out == "" {
+		if saved := readMirror(file); saved != "" {
+			_, _ = r.Run("set-option", "-g", option, saved)
+			out = saved
+		}
+	}
+	return out
+}
+
+// store writes the option and the mirror, then signals every sidebar to
+// regroup now. Both writes always run, so the two cannot drift.
+func store(r Runner, option, file, value string) error {
+	_, err := r.Run("set-option", "-g", option, value, ";", "wait-for", "-S", RefreshChannel)
+	if fileErr := writeMirror(file, value); err == nil {
 		err = fileErr
 	}
 	return err
@@ -96,21 +166,21 @@ func prunePins(r Runner, pins map[string]bool) map[string]bool {
 	return kept
 }
 
-func readPinsFile() string {
-	b, err := os.ReadFile(pinsFile())
+func readMirror(file string) string {
+	b, err := os.ReadFile(stateFile(file))
 	if err != nil {
 		return ""
 	}
 	return strings.TrimRight(string(b), "\n")
 }
 
-// writePinsFile replaces the mirror atomically: a torn write would lose pins.
-func writePinsFile(value string) error {
-	path := pinsFile()
+// writeMirror replaces a mirror atomically: a torn write would lose the set.
+func writeMirror(file, value string) error {
+	path := stateFile(file)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".agentbar-pins-*")
+	tmp, err := os.CreateTemp(filepath.Dir(path), "."+file+"-*")
 	if err != nil {
 		return err
 	}

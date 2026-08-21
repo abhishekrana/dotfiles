@@ -76,6 +76,11 @@ Rules:
   `tmux-worktree-picker.sh` (the menu's `W`) and per-window auto-follow (`F`, off by default) re-point a live pane.
 - An amber `◧ diff` chip means the worktree is in no agent's `@agent_workdirs`, and reports nothing else. A click only
   opens the menu.
+- **Three keys, three bands.** `p` pins (yours, never moved by anything else), `a` keeps a session in the active band,
+  `d` sends it to dormant now rather than waiting out the window. Pressing the same key again hands it back to the
+  clock; `⇡`/`⇣` beside the name says an override is in force. All three work in the sidebar and the `Alt-;` picker,
+  which share one store, so `agentbar order` - what `Alt-h`/`Alt-l` walk - always agrees with what you see. A forced
+  dormant still yields to an agent that needs you: nothing may hide a permission prompt.
 - **The active band is what you are working on now.** A session with no agents is dormant, and so is one whose agents
   have all gone quiet for longer than `@agentbar-active-for` (default 1h, a `⛭` row). An agent that is working or
   blocked on you keeps its session active however long it has been at it. Nothing runs in the background to make this
