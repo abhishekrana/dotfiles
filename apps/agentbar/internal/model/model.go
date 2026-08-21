@@ -138,12 +138,52 @@ func (s Session) Band() int {
 	}
 }
 
-// The bands a session can be put in by hand (the `a` and `d` keys). Pinned is
-// not one of them: it has its own store and its own key.
+// The bands a session can be put in by hand, one key each: `p`, `a`, `d`.
 const (
+	BandPinned  = "pinned"
 	BandActive  = "active"
 	BandDormant = "dormant"
 )
+
+// Placement is where a session sits by hand, or "" when the clock decides.
+func Placement(pinned map[string]bool, forced map[string]string, name string) string {
+	if pinned[name] {
+		return BandPinned
+	}
+	return forced[name]
+}
+
+// Place puts one session in a band by hand, returning fresh copies of both
+// sets. One key, one destination: pressing it again lands the session where it
+// already is, so nothing happens.
+//
+// A pin and a forced band are one decision, never two: whichever key you press
+// clears the other store. That is what makes `a` on a pinned session move it
+// rather than be swallowed by the pin - Band() reads Pinned first.
+//
+// A session nobody has placed is left to the clock, which is still the normal
+// case; these are the exceptions you named.
+func Place(pinned map[string]bool, forced map[string]string, name, band string) (map[string]bool, map[string]string) {
+	pins := map[string]bool{}
+	for k, v := range pinned {
+		if k != name {
+			pins[k] = v
+		}
+	}
+	bands := map[string]string{}
+	for k, v := range forced {
+		if k != name {
+			bands[k] = v
+		}
+	}
+	switch band {
+	case BandPinned:
+		pins[name] = true
+	case BandActive, BandDormant:
+		bands[name] = band
+	}
+	return pins, bands
+}
 
 // NeedsAttention reports whether any agent here is blocked on the user.
 func (s Session) NeedsAttention() bool {

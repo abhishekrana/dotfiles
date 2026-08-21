@@ -100,11 +100,15 @@ title mode's branch fallback shows), and all three bands (pinned/active/dormant)
 - **Nothing owns that transition.** It is `now - timestamp` evaluated at render, on the 1s poll the sidebar already
   runs: no background process, no timer, no persisted state, and `agentbar order` computes the same bands from the same
   pane options. Do not add a watcher - that is the property that keeps this from going stale.
-- **Three keys, three bands: `p` pinned, `a` active, `d` dormant.** `p` goes through `tmux.Pins`/`SetPins`; `a` and `d`
-  through `tmux.Bands`/`SetBands` (`@agentbar-bands`, `name=active|dormant`), same option-plus-XDG-mirror-plus-prune
-  path, and `agentbar band <session> <band>` is that key as a command so the picker drives one store. Pressing the key
-  for the band a session is already forced into clears the override and hands it back to the clock - that is the way
-  out, so there is no fourth key.
+- **Three keys, three bands: `p` pinned, `a` active, `d` dormant.** One key, one destination - pressing it again lands
+  the session where it already is, so nothing happens. `model.Place` is the whole transition, pure and tested: a pin and
+  a forced band are one decision, so whichever key you press clears the other store. That is what makes `a` on a pinned
+  session move it instead of being swallowed by `Band()`, which reads `Pinned` first. Pins live in
+  `tmux.Pins`/`SetPins`, forced bands in `tmux.Bands`/`SetBands` (`@agentbar-bands`, `name=active|dormant`) on the same
+  option-plus-XDG-mirror-plus-prune path, and `agentbar band <session> pinned|active|dormant` is the key as a command so
+  the picker drives both stores through one place.
+- **A session nobody has placed is left to the clock**, which is the normal case; a placed one stays where you put it
+  until you press another key.
 - **A forced band wins over the clock, except for attention.** `Session.NeedsAttention` pulls a session out of a forced
   dormant: nothing may hide a permission prompt indefinitely. Pinned still beats both.
 - **`forcedMark` is why the override is visible** - `⇡` held up by `a`, `⇣` pushed down by `d`. Without it a session you

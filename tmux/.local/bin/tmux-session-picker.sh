@@ -21,7 +21,7 @@
 #
 # Internal subcommands (invoked by fzf reload/execute callbacks):
 #   --list                emit fzf line data (NAME<TAB>display)
-#   --pin       NAME      toggle NAME's pin, print fzf actions to follow it
+#   --band      NAME BAND put NAME in BAND, print fzf actions to follow it
 #   --rename    NAME      interactive rename of NAME
 #   --kill      NAME      interactive kill of NAME
 #   --new                 interactive new-session prompt
@@ -75,9 +75,9 @@ tmux session picker
 
   j / k       cursor down / up
   g / G       jump to first / last
-  p           pin / unpin session
-  a           keep session in the active band (again to let the clock decide)
-  d           send session to the dormant band (again to let the clock decide)
+  p           pin session (floats to the top band)
+  a           put session in the active band
+  d           put session in the dormant band
   r           rename session
   D           kill session (with confirm)
   c           new session (name + start dir)
@@ -152,9 +152,15 @@ do_rename() {
 # the row to its new band - a pin moves it, and leaving the cursor at the old
 # index would aim the next keypress at a different session. Bound as a
 # `transform` action, whose stdout fzf reads as an action list.
-# do_band <session> <active|dormant> - the sidebar's a/d keys, through the same
-# binary so both views drive one store. Repositions like do_pin, for the same
-# gawk/SIGPIPE reason documented there.
+# do_band <session> <pinned|active|dormant> - the sidebar's p, a and d keys,
+# through the same binary so both views drive one store. One key, one
+# destination; pressing it again changes nothing.
+#
+# Repositions after the reload: fzf's reload resets the cursor, and the first
+# match is taken without `exit` because exiting closes the pipe while
+# build_lines is still writing - gawk (the CI runner's awk) then SIGPIPEs it,
+# and 141 through pipefail would kill this script before the printf below, so
+# the band would land but nothing would redraw.
 do_band() {
     local name=$1 band=$2 pos
     { [ -z "$name" ] || [ "$name" = "$BAND_MARK" ]; } && return 0
@@ -163,20 +169,6 @@ do_band() {
     pos=$(build_lines | awk -F'\t' -v n="$name" '$1 == n && !p { print NR; p = 1 }')
     printf 'reload-sync(%s --list)+pos(%s)' "$self" "${pos:-1}"
     "$HOME/.local/bin/dotfiles-trace" log picker band name="$name" band="$band" 2>/dev/null || true
-}
-
-do_pin() {
-    local name=$1 pos
-    { [ -z "$name" ] || [ "$name" = "$BAND_MARK" ]; } && return 0
-    [ -x "$agentbar_bin" ] || return 0
-    "$agentbar_bin" pin "$name" >/dev/null 2>&1 || return 0
-    # First match without `exit`: exiting closes the pipe while build_lines is
-    # still writing rows, and gawk (the CI runner's awk) then SIGPIPEs it - 141
-    # through pipefail kills this script before the printf below, so the pin
-    # lands but nothing redraws. mawk drains the pipe first and hides it.
-    pos=$(build_lines | awk -F'\t' -v n="$name" '$1 == n && !p { print NR; p = 1 }')
-    printf 'reload-sync(%s --list)+pos(%s)' "$self" "${pos:-1}"
-    "$HOME/.local/bin/dotfiles-trace" log picker pin name="$name" 2>/dev/null || true
 }
 
 # ---- Display lines ---------------------------------------------------------
@@ -344,10 +336,7 @@ case "${1:-}" in
         do_new
         exit 0
         ;;
-    --pin)
-        do_pin "${2:-}"
-        exit 0
-        ;;
+
     --band)
         do_band "${2:-}" "${3:-}"
         exit 0
@@ -364,7 +353,7 @@ lines=$(build_lines)
 [ -z "$lines" ] && exit 0
 
 current=$(tmux display-message -p '#S')
-# No `exit` here either, for the reason do_pin gives: a closed pipe under
+# No `exit` here either, for the reason do_band gives: a closed pipe under
 # pipefail would take the popup down before fzf ever runs.
 current_pos=$(printf '%s\n' "$lines" | awk -F'\t' -v c="$current" '$1 == c && !p { print NR; p = 1 }')
 : "${current_pos:=1}"
@@ -405,7 +394,7 @@ target=$(
             --bind 'alt-;:abort' \
             --bind "enter:transform([ {1} = $BAND_MARK ] && echo ignore || echo accept)" \
             --bind "?:execute($self --help)" \
-            --bind "p:transform($self --pin {1})" \
+            --bind "p:transform($self --band {1} pinned)" \
             --bind "a:transform($self --band {1} active)" \
             --bind "d:transform($self --band {1} dormant)" \
             --bind "r:execute($self --rename {1})+reload($self --list)" \

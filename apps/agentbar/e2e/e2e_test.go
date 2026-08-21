@@ -1583,8 +1583,8 @@ func TestOrderFollowsSidebarBands(t *testing.T) {
 	}
 	s.newSession("payments") // no agent: dormant
 	s.ptyClient("dotfiles")
-	s.agentbar("pin", "blog")
-	s.agentbar("pin", "dotfiles")
+	s.agentbar("band", "blog", "pinned")
+	s.agentbar("band", "dotfiles", "pinned")
 
 	// Alphabetically this would be api, blog, dotfiles, payments.
 	want := "pinned\tblog\npinned\tdotfiles\nactive\tapi\ndormant\tpayments\n"
@@ -1603,8 +1603,8 @@ func TestNextPrevWalkSidebarOrder(t *testing.T) {
 	}
 	s.newSession("payments")
 	s.ptyClient("dotfiles")
-	s.agentbar("pin", "blog")
-	s.agentbar("pin", "dotfiles")
+	s.agentbar("band", "blog", "pinned")
+	s.agentbar("band", "dotfiles", "pinned")
 	// Order is now: blog, dotfiles, api, payments.
 
 	// The bindings pass tmux's own #{client_session}: tmux never re-stamps
@@ -1641,7 +1641,7 @@ func TestPinsSurviveServerRestart(t *testing.T) {
 	s.newSession("blog")
 	s.agentPane("blog")
 	s.ptyClient("api")
-	s.agentbar("pin", "blog")
+	s.agentbar("band", "blog", "pinned")
 
 	s.killServer()
 	s.newSession("api") // fresh server: @agentbar-pins is gone
@@ -1658,20 +1658,30 @@ func TestPinsSurviveServerRestart(t *testing.T) {
 	}
 }
 
-// `agentbar pin` is the picker popup's pin key: it must toggle the same set
-// the sidebar's own p key writes, both ways.
-func TestPinCommandToggles(t *testing.T) {
+// `agentbar band` is the picker popup's p/a/d keys: it must drive the same two
+// stores the sidebar's own keys write, for a session name tmux allows.
+func TestBandCommandPlacesSessions(t *testing.T) {
 	s := start(t)
 	s.newSession("my repo") // a space: tmux allows it, so the storage must
 	s.agentPane("my repo")
 
-	s.agentbar("pin", "my repo")
+	s.agentbar("band", "my repo", "pinned")
 	if got := s.agentbar("order"); got != "pinned\tmy repo\n" {
-		t.Errorf("order after pin = %q, want the session pinned", got)
+		t.Errorf("order after pinning = %q, want it pinned", got)
 	}
-	s.agentbar("pin", "my repo")
+	// Again is a no-op, not a toggle.
+	s.agentbar("band", "my repo", "pinned")
+	if got := s.agentbar("order"); got != "pinned\tmy repo\n" {
+		t.Errorf("pinning twice moved it: %q", got)
+	}
+	// Another band moves it, clearing the pin rather than stacking on it.
+	s.agentbar("band", "my repo", "dormant")
+	if got := s.agentbar("order"); got != "dormant\tmy repo\n" {
+		t.Errorf("order after dormant = %q, want it dormant", got)
+	}
+	s.agentbar("band", "my repo", "active")
 	if got := s.agentbar("order"); got != "active\tmy repo\n" {
-		t.Errorf("order after unpin = %q, want the session unpinned", got)
+		t.Errorf("order after active = %q, want it active", got)
 	}
 }
 
@@ -1764,10 +1774,10 @@ func TestQuietSessionSinksToDormant(t *testing.T) {
 	})
 }
 
-// `a` and `d` place a session in a band by hand, overriding the clock; the same
-// key again hands it back. The sidebar key, the `band` command and the picker
-// all drive one store, and `order` must agree - it is what Alt-h/Alt-l and the
-// picker walk.
+// One key, one destination: p, a and d place a session, pressing the same key
+// again changes nothing, and `a` on a pinned session moves it. The sidebar key,
+// the `band` command and the picker drive one store, and `order` - what
+// Alt-h/Alt-l walk - must agree with what the bar draws.
 func TestBandsPlacedByHand(t *testing.T) {
 	s := start(t)
 	s.newSession("other")
@@ -1782,32 +1792,39 @@ func TestBandsPlacedByHand(t *testing.T) {
 		return strings.Contains(s.agentbar("order"), "active\twork")
 	})
 
-	// d sinks it now, without waiting out the window.
-	s.agentbar("band", "work", "dormant")
-	waitFor(t, "the forced band reaches the bar", 5*time.Second, func() bool {
-		return strings.Contains(s.captureText(side), "⇣")
+	s.agentbar("band", "work", "pinned")
+	waitFor(t, "p pins it", 5*time.Second, func() bool {
+		return strings.Contains(s.agentbar("order"), "pinned\twork")
 	})
-	if out := s.agentbar("order"); !strings.Contains(out, "dormant\twork") {
-		t.Errorf("order disagrees with the sidebar:\n%s", out)
-	}
 
-	// a holds it up instead, even though its agent is cold.
+	// `a` on a pinned session moves it: the pin is cleared, not stacked under.
 	s.agentbar("band", "work", "active")
-	waitFor(t, "and a holds it up", 5*time.Second, func() bool {
+	waitFor(t, "a moves a pinned session to active", 5*time.Second, func() bool {
+		out := s.agentbar("order")
+		return strings.Contains(out, "active\twork") && !strings.Contains(out, "pinned\twork")
+	})
+	waitFor(t, "and the bar marks the override", 5*time.Second, func() bool {
 		return strings.Contains(s.captureText(side), "⇡")
 	})
 
-	// The same band again clears the override: back to the clock, no marker.
-	s.agentbar("band", "work", "active")
-	waitFor(t, "naming the same band hands it back", 5*time.Second, func() bool {
-		c := s.captureText(side)
-		return !strings.Contains(c, "⇡") && !strings.Contains(c, "⇣")
+	// d sinks it now, without waiting out the window.
+	s.agentbar("band", "work", "dormant")
+	waitFor(t, "d sends it to dormant", 5*time.Second, func() bool {
+		return strings.Contains(s.agentbar("order"), "dormant\twork") &&
+			strings.Contains(s.captureText(side), "⇣")
 	})
+
+	// The same band again changes nothing.
+	s.agentbar("band", "work", "dormant")
+	time.Sleep(1500 * time.Millisecond)
+	if out := s.agentbar("order"); !strings.Contains(out, "dormant\twork") {
+		t.Errorf("pressing d twice moved it:\n%s", out)
+	}
 
 	// The sidebar key drives the same store. The cursor starts on the first
 	// agent, and "other" sorts before "work".
 	s.tmux("send-keys", "-t", side, "d")
-	waitFor(t, "the d key sinks the selected session", 5*time.Second, func() bool {
+	waitFor(t, "the d key places the selected session", 5*time.Second, func() bool {
 		return strings.Contains(s.agentbar("order"), "dormant\tother")
 	})
 }

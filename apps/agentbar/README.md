@@ -67,18 +67,18 @@ picked up on their next restart.
 
 ## Use
 
-| key             | action                                                                                               |
-| --------------- | ---------------------------------------------------------------------------------------------------- |
-| `prefix + e`    | toggle the sidebar in **all** sessions                                                               |
-| `Alt-h`/`Alt-l` | switch to the session one row up / down this list, wrapping (dotfiles binding, works outside it)     |
-| `prefix + R`    | refresh this session's sidebar and reset the window layout (dotfiles' UI reset)                      |
-| `j`/`k`, wheel  | move between sessions and agents                                                                     |
-| `Enter`, click  | on an agent: jump to its pane; on a session name: switch to that session                             |
-| `g` / `G`       | first / last row                                                                                     |
-| `Tab`           | jump to the next agent waiting on you (permission/asking), cycling across sessions - the work queue  |
-| `p`             | pin / unpin the selected session - pinned sessions float to a band at the top                        |
-| `a` / `d`       | keep the session in the active band / send it to dormant now; same key again returns it to the clock |
-| `q`             | hide the sidebar everywhere (same as toggle)                                                         |
+| key             | action                                                                                              |
+| --------------- | --------------------------------------------------------------------------------------------------- |
+| `prefix + e`    | toggle the sidebar in **all** sessions                                                              |
+| `Alt-h`/`Alt-l` | switch to the session one row up / down this list, wrapping (dotfiles binding, works outside it)    |
+| `prefix + R`    | refresh this session's sidebar and reset the window layout (dotfiles' UI reset)                     |
+| `j`/`k`, wheel  | move between sessions and agents                                                                    |
+| `Enter`, click  | on an agent: jump to its pane; on a session name: switch to that session                            |
+| `g` / `G`       | first / last row                                                                                    |
+| `Tab`           | jump to the next agent waiting on you (permission/asking), cycling across sessions - the work queue |
+| `p`             | pin the selected session - pinned sessions float to a band at the top                               |
+| `a` / `d`       | put the session in the active / dormant band by hand (`⇡`/`⇣`); another key moves it                |
+| `q`             | hide the sidebar everywhere (same as toggle)                                                        |
 
 Clicking a session name switches to it - the one way to reach a session with no agents running (it just
 `switch-client`s, leaving the target's window and pane where you left them).

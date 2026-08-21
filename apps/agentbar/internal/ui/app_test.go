@@ -494,9 +494,10 @@ func TestTabNoAttentionIsNoop(t *testing.T) {
 	}
 }
 
-// `a` and `d` write the band store, and pressing the same key again hands the
-// session back to the clock - so there is a way out without a third key.
-func TestBandKeysWriteAndClear(t *testing.T) {
+// One key, one destination: `p`, `a` and `d` place the selected session, and
+// pressing the same key again changes nothing. `a` on a pinned session moves it,
+// which is the case the pin used to swallow.
+func TestBandKeysPlaceTheSession(t *testing.T) {
 	r := &fakeRunner{}
 	a := testApp(r)
 	press := func(k rune) App {
@@ -505,17 +506,28 @@ func TestBandKeysWriteAndClear(t *testing.T) {
 	}
 	name := a.snap.Sessions[a.blocks[a.cursor].session].Name
 
+	a = press('p')
+	if !a.pins[name] {
+		t.Fatalf("p did not pin %s", name)
+	}
+	a = press('p')
+	if !a.pins[name] {
+		t.Error("p again should leave it pinned")
+	}
+	a = press('a')
+	if a.pins[name] {
+		t.Error("a should clear the pin, not be swallowed by it")
+	}
+	if got := a.bands[name]; got != model.BandActive {
+		t.Errorf("a put %s in %q, want active", name, got)
+	}
 	a = press('d')
 	if got := a.bands[name]; got != model.BandDormant {
 		t.Errorf("d put %s in %q, want dormant", name, got)
 	}
-	a = press('a')
-	if got := a.bands[name]; got != model.BandActive {
-		t.Errorf("a put %s in %q, want active", name, got)
-	}
-	a = press('a')
-	if _, still := a.bands[name]; still {
-		t.Errorf("a twice should hand %s back to the clock, got %q", name, a.bands[name])
+	a = press('d')
+	if got := a.bands[name]; got != model.BandDormant {
+		t.Errorf("d again should leave it dormant, got %q", got)
 	}
 	wrote := false
 	for _, c := range r.calls {

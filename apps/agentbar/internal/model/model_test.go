@@ -268,3 +268,36 @@ func TestForcedBandsOverrideTheClock(t *testing.T) {
 		}
 	}
 }
+
+// Place is one key, one destination: a pin and a forced band are one decision,
+// so pressing a key clears the other store rather than stacking on it.
+func TestPlace(t *testing.T) {
+	pins, bands := Place(nil, nil, "web", BandPinned)
+	if !pins["web"] || bands["web"] != "" {
+		t.Fatalf("pinned: pins=%v bands=%v", pins, bands)
+	}
+	// `a` on a pinned session moves it - the case Band() would otherwise swallow.
+	pins, bands = Place(pins, bands, "web", BandActive)
+	if pins["web"] {
+		t.Error("active should clear the pin")
+	}
+	if bands["web"] != BandActive {
+		t.Errorf("bands = %q, want active", bands["web"])
+	}
+	// Pressing the same key again lands it where it already is.
+	again, againBands := Place(pins, bands, "web", BandActive)
+	if again["web"] || againBands["web"] != BandActive {
+		t.Errorf("a twice changed something: pins=%v bands=%v", again, againBands)
+	}
+	// Other sessions are untouched, and the input maps are not mutated.
+	pins, bands = Place(map[string]bool{"other": true}, map[string]string{"third": BandDormant}, "web", BandDormant)
+	if !pins["other"] || bands["third"] != BandDormant || bands["web"] != BandDormant {
+		t.Errorf("neighbours disturbed: pins=%v bands=%v", pins, bands)
+	}
+	if got := Placement(pins, bands, "other"); got != BandPinned {
+		t.Errorf("Placement(other) = %q, want pinned", got)
+	}
+	if got := Placement(pins, bands, "nobody"); got != "" {
+		t.Errorf("an unplaced session reads %q, want empty", got)
+	}
+}

@@ -85,8 +85,8 @@ session api agent
 session blog agent
 session dotfiles agent
 session payments # no agent: dormant
-"$BIN" pin blog >/dev/null
-"$BIN" pin dotfiles >/dev/null
+"$BIN" band blog pinned >/dev/null
+"$BIN" band dotfiles pinned >/dev/null
 
 # Alphabetically this list would be api, blog, dotfiles, payments. Each band but
 # the first also opens with a blank spacer, so the groups read apart - the same
@@ -111,21 +111,26 @@ tmux kill-server 2>/dev/null
 session solo agent
 eq "a single band shows no header or gap rows" "solo" "$(rows | tr '\n' ' ' | sed 's/ $//')"
 
-printf '\npicker: p pins through the binary and follows the row\n'
+printf '\npicker: p/a/d place through the binary and follow the row\n'
 
 tmux kill-server 2>/dev/null
 session api agent
 session payments
 # payments is dormant and last; pinning floats it to row 2, under the header.
-eq "pin prints the fzf actions that redraw and follow" \
+eq "p prints the fzf actions that redraw and follow" \
     "reload-sync+pos(2)" \
-    "$("$PICKER" --pin payments | sed -E 's/reload-sync\([^)]*\)/reload-sync/')"
-eq "the pin reached the shared set" "payments" "$("$BIN" order | head -1 | cut -f2)"
-eq "pin is a toggle" "" "$(
-    "$PICKER" --pin payments >/dev/null
-    "$BIN" order | grep -c '^pinned' | sed 's/^0$//'
+    "$("$PICKER" --band payments pinned | sed -E 's/reload-sync\([^)]*\)/reload-sync/')"
+eq "the band reached the shared set" "payments" "$("$BIN" order | head -1 | cut -f2)"
+eq "pressing it again is a no-op, not a toggle" "1" "$(
+    "$PICKER" --band payments pinned >/dev/null
+    "$BIN" order | grep -c '^pinned'
 )"
-eq "a band header row is never pinned" "" "$("$PICKER" --pin "$BAND_MARK")"
+# a moves a pinned session out: a pin and a forced band are one decision.
+eq "a moves it to active, clearing the pin" "active" "$(
+    "$PICKER" --band payments active >/dev/null
+    "$BIN" order | awk -F'\t' '$2 == "payments" { print $1 }'
+)"
+eq "a band header row is never placed" "" "$("$PICKER" --band "$BAND_MARK" pinned)"
 
 printf '\npicker: list and preview share one state language\n'
 

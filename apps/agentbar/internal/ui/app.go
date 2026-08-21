@@ -662,11 +662,11 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return a.activate()
 		}
 	case "p":
-		return a.togglePin()
+		return a.place(model.BandPinned)
 	case "a":
-		return a.setBand(model.BandActive)
+		return a.place(model.BandActive)
 	case "d":
-		return a.setBand(model.BandDormant)
+		return a.place(model.BandDormant)
 	}
 	return a, nil
 }
@@ -677,32 +677,23 @@ func (a App) grouping() model.Grouping {
 	return model.Grouping{Pinned: a.pins, Forced: a.bands, Now: time.Now(), ActiveFor: a.activeFor}
 }
 
-// setBand puts the selected session in a band by hand - `a` active, `d` dormant
-// - overriding the clock. Pressing the key for the band it is already forced
-// into clears the override and hands the session back to the clock, so there is
-// a way out without a third key. Persisted like pins, so every sidebar and the
-// picker agree.
-func (a App) setBand(band string) (tea.Model, tea.Cmd) {
+// place puts the selected session in a band by hand: `p` pinned, `a` active,
+// `d` dormant. One key, one destination - pressing it again changes nothing.
+// Persisted like pins were, so every sidebar and the picker agree, and the
+// regroup happens here so the row moves under your cursor immediately.
+func (a App) place(band string) (tea.Model, tea.Cmd) {
 	if !a.blockSelectable(a.cursor) {
 		return a, nil
 	}
 	name := a.snap.Sessions[a.blocks[a.cursor].session].Name
-	bands := map[string]string{}
-	for k, v := range a.bands {
-		bands[k] = v
-	}
-	before := bands[name]
-	if before == band {
-		delete(bands, name)
-	} else {
-		bands[name] = band
-	}
-	a.bands = bands
+	before := model.Placement(a.pins, a.bands, name)
+	a.pins, a.bands = model.Place(a.pins, a.bands, name, band)
 	snap := a.snap
 	snap.Sessions = model.Arrange(a.snap.Sessions, a.grouping())
 	a.setSnapshot(snap) // captures the selection, re-anchors it after regroup
 	if !a.mockup {
-		_ = tmux.SetBands(a.runner, bands)
+		_ = tmux.SetPins(a.runner, a.pins)
+		_ = tmux.SetBands(a.runner, a.bands)
 	}
 	auto := func(v string) string {
 		if v == "" {
@@ -710,35 +701,7 @@ func (a App) setBand(band string) (tea.Model, tea.Cmd) {
 		}
 		return v
 	}
-	trace.Log("agentbar", "band", "session", name, "before", auto(before), "after", auto(bands[name]))
-	return a, nil
-}
-
-// togglePin pins or unpins the selected session, regrouping the list right
-// away (the cursor rides along with the session as it moves bands) and
-// persisting the set (tmux.SetPins) so every sidebar and the picker popup pick
-// it up, and it survives a server restart.
-func (a App) togglePin() (tea.Model, tea.Cmd) {
-	if !a.blockSelectable(a.cursor) {
-		return a, nil
-	}
-	name := a.snap.Sessions[a.blocks[a.cursor].session].Name
-	pins := map[string]bool{}
-	for k := range a.pins {
-		pins[k] = true
-	}
-	if pins[name] {
-		delete(pins, name)
-	} else {
-		pins[name] = true
-	}
-	a.pins = pins
-	snap := a.snap
-	snap.Sessions = model.Arrange(a.snap.Sessions, a.grouping())
-	a.setSnapshot(snap) // captures the current selection, re-anchors it after regroup
-	if !a.mockup {
-		_ = tmux.SetPins(a.runner, pins)
-	}
+	trace.Log("agentbar", "band", "session", name, "before", auto(before), "after", band)
 	return a, nil
 }
 
