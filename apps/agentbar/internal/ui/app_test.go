@@ -38,12 +38,15 @@ func (f *fakeRunner) Run(args ...string) (string, error) {
 }
 
 func twoSessionSnap() model.Snapshot {
+	// Titled agents, as live ones are: each block is then two lines (title +
+	// state) and each session header two (spacer + name), which is the geometry
+	// the click and hover tests below count rows against.
 	return model.Snapshot{Sessions: []model.Session{
-		{Name: "api", Current: true, Agents: []model.Agent{
-			{PaneID: "%0", WindowIndex: 1, Branch: "main", State: model.StateIdle},
+		{Name: "api", Current: true, Branch: "main", Agents: []model.Agent{
+			{PaneID: "%0", WindowIndex: 1, Branch: "main", Title: "Rate limits", State: model.StateIdle},
 		}},
-		{Name: "blog", Agents: []model.Agent{
-			{PaneID: "%6", WindowIndex: 1, Branch: "blog", State: model.StateIdle},
+		{Name: "blog", Branch: "blog", Agents: []model.Agent{
+			{PaneID: "%6", WindowIndex: 1, Branch: "blog", Title: "Draft the post", State: model.StateIdle},
 		}},
 	}}
 }
@@ -484,45 +487,6 @@ func TestTabNoAttentionIsNoop(t *testing.T) {
 	for _, c := range r.calls {
 		if len(c) > 0 && c[0] == "switch-client" {
 			t.Errorf("tab jumped with nothing waiting: %v", c)
-		}
-	}
-}
-
-// `h` flips the headline globally: the option is what every other sidebar reads
-// on its next poll, so one press re-heads the whole bar. The title is the
-// default, so the first press is the one that opts into branches.
-func TestHeadlineKeyTogglesOption(t *testing.T) {
-	r := &fakeRunner{}
-	a := testApp(r)
-	press := func() App {
-		m, _ := a.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
-		return m.(App)
-	}
-	a.byTitle = true // as NewLive resolves an unset option
-	a = press()
-	if a.byTitle {
-		t.Error("first h did not switch to branches")
-	}
-	wrote := false
-	for _, c := range r.calls {
-		if strings.Join(c, " ") == "set-option -g @agentbar-headline branch" {
-			wrote = true
-		}
-	}
-	if !wrote {
-		t.Errorf("no `set-option -g @agentbar-headline branch`; calls=%v", r.calls)
-	}
-	if a = press(); !a.byTitle {
-		t.Error("second h did not switch back to titles")
-	}
-}
-
-// The title is the default: only an explicit "branch" opts out, so an unset or
-// unknown option still heads blocks with what Claude called the session.
-func TestHeadlineDefaultsToTitle(t *testing.T) {
-	for v, want := range map[string]bool{"": true, "title": true, "junk": true, "branch": false} {
-		if got := byTitleOpt(v); got != want {
-			t.Errorf("byTitleOpt(%q) = %v, want %v", v, got, want)
 		}
 	}
 }

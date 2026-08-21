@@ -151,6 +151,7 @@ func Snapshot(r Runner, bc *BranchCache, currentSession string) model.Snapshot {
 			}
 			return a.PaneID < b.PaneID
 		})
+		sess.Branch = model.BranchOf(sess.Agents)
 		snap.Sessions = append(snap.Sessions, *sess)
 	}
 	return snap

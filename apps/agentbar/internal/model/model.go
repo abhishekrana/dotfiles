@@ -2,6 +2,7 @@
 package model
 
 import (
+	"fmt"
 	"sort"
 	"time"
 )
@@ -61,10 +62,31 @@ type Agent struct {
 // Session groups the agents of one tmux session.
 type Session struct {
 	Name     string
-	Current  bool // the session the sidebar pane lives in
-	Attached bool // a client is attached to this session
-	Pinned   bool // user-pinned: floats to the top band (see Arrange)
+	Branch   string // git branch its agents work in; "<branch> +N" when they differ
+	Current  bool   // the session the sidebar pane lives in
+	Attached bool   // a client is attached to this session
+	Pinned   bool   // user-pinned: floats to the top band (see Arrange)
 	Agents   []Agent
+}
+
+// BranchOf is the branch a session's agents work in. They almost always share
+// one worktree; when they do not, the first wins and "+N" counts the rest,
+// since one line cannot name several branches.
+func BranchOf(agents []Agent) string {
+	first, others := "", map[string]bool{}
+	for _, a := range agents {
+		switch {
+		case a.Branch == "":
+		case first == "":
+			first = a.Branch
+		case a.Branch != first:
+			others[a.Branch] = true
+		}
+	}
+	if len(others) > 0 {
+		return fmt.Sprintf("%s +%d", first, len(others))
+	}
+	return first
 }
 
 // Band orders sessions into the three sidebar groups: pinned (0),

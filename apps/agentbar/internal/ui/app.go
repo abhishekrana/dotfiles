@@ -26,22 +26,15 @@ const (
 	// wait-for channel signalled by jumps; sidebars adopt the shared
 	// selection immediately instead of on the next tick.
 	refreshChannel = tmux.RefreshChannel
-
-	// @agentbar-headline values: which text heads an agent block. The title is
-	// the default - the branch is the wrong name for a worktree that has none
-	// of its own - so only an explicit "branch" opts out.
-	headlineBranch = "branch"
-	headlineTitle  = "title"
 )
 
 type tickMsg time.Time
 
 type snapMsg struct {
-	snap    model.Snapshot
-	sel     string          // global @sidebar_selected at snapshot time
-	byTitle bool            // global @agentbar-headline at snapshot time
-	pins    map[string]bool // global @agentbar-pins at snapshot time
-	signal  bool            // woken by the wait-for channel, not the 1s tick
+	snap   model.Snapshot
+	sel    string          // global @sidebar_selected at snapshot time
+	pins   map[string]bool // global @agentbar-pins at snapshot time
+	signal bool            // woken by the wait-for channel, not the 1s tick
 }
 
 // App is the Bubble Tea model for the sidebar. In mockup mode the
@@ -58,7 +51,6 @@ type App struct {
 	height     int
 	flash      string
 	mockup     bool
-	byTitle    bool            // @agentbar-headline: head each block with Claude's title, not the branch
 	pins       map[string]bool // pinned session names (@agentbar-pins), used to regroup on `p`
 
 	// live-mode plumbing (nil in mockup mode)
@@ -68,10 +60,6 @@ type App struct {
 	lastSel  string // last @sidebar_selected value we adopted
 	attached string // attachedKey of the last snapshot
 }
-
-// byTitleOpt resolves @agentbar-headline. The default is the title, so an
-// unset (or unknown) value heads blocks with it; one place decides that.
-func byTitleOpt(v string) bool { return strings.TrimSpace(v) != headlineBranch }
 
 // truthy reports whether a tmux option value means "on".
 func truthy(s string) bool {
@@ -101,8 +89,6 @@ func NewLive(theme Theme) App {
 		app.lastSel = strings.TrimSpace(sel)
 		app.adoptSelection(app.lastSel)
 	}
-	v, _ := runner.Run("show-option", "-gqv", "@agentbar-headline")
-	app.byTitle = byTitleOpt(v)
 	app.register()
 	trace.Log("agentbar", "start", "pane", os.Getenv("TMUX_PANE"), "session", app.current)
 	return app
@@ -204,10 +190,9 @@ func (a App) waitRefresh() tea.Cmd {
 	}
 }
 
-// gather takes a fresh snapshot plus the shared selection and headline mode.
+// gather takes a fresh snapshot plus the shared selection and pin set.
 func (a App) gather(signal bool) snapMsg {
 	sel, _ := a.runner.Run("show-option", "-gqv", "@sidebar_selected")
-	headline, _ := a.runner.Run("show-option", "-gqv", "@agentbar-headline")
 	// Re-read the verbose gate each poll so `tmux set -g @agentbar-trace-verbose
 	// on` takes effect within ~1s, no sidebar restart.
 	verbose, _ := a.runner.Run("show-option", "-gqv", "@agentbar-trace-verbose")
@@ -216,11 +201,10 @@ func (a App) gather(signal bool) snapMsg {
 	snap := tmux.Snapshot(a.runner, a.branches, a.current)
 	snap.Sessions = model.Arrange(snap.Sessions, pins)
 	return snapMsg{
-		snap:    snap,
-		sel:     strings.TrimSpace(sel),
-		byTitle: byTitleOpt(headline),
-		pins:    pins,
-		signal:  signal,
+		snap:   snap,
+		sel:    strings.TrimSpace(sel),
+		pins:   pins,
+		signal: signal,
 	}
 }
 
@@ -338,14 +322,16 @@ func NewMockup(theme Theme) App {
 				State: model.StateDone, Seen: true, Since: now.Add(-33 * time.Minute)},
 		}},
 	}}
+	for i := range snap.Sessions {
+		snap.Sessions[i].Branch = model.BranchOf(snap.Sessions[i].Agents)
+	}
 	snap.Sessions = model.Arrange(snap.Sessions, pins)
 	app := App{
-		theme:   theme,
-		hover:   -1,
-		snap:    snap,
-		mockup:  true,
-		byTitle: true, // the default; `h` previews the branch
-		pins:    pins,
+		theme:  theme,
+		hover:  -1,
+		snap:   snap,
+		mockup: true,
+		pins:   pins,
 	}
 	app.rebuild()
 	return app
@@ -431,7 +417,6 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, tick()
 	case snapMsg:
 		a.setSnapshot(msg.snap)
-		a.byTitle = msg.byTitle
 		if msg.pins != nil {
 			a.pins = msg.pins
 		}
@@ -478,13 +463,13 @@ func (a App) layout() layout {
 	firsts := make([]int, len(a.blocks))
 	for i, b := range a.blocks {
 		firsts[i] = len(l.owners)
-		for n := blockLineCount(b, a.snap, a.byTitle); n > 0; n-- {
+		for n := blockLineCount(b, a.snap); n > 0; n-- {
 			l.owners = append(l.owners, i)
 		}
 	}
 	if a.blockSelectable(a.cursor) {
 		first := firsts[a.cursor]
-		last := first + blockLineCount(a.blocks[a.cursor], a.snap, a.byTitle) - 1
+		last := first + blockLineCount(a.blocks[a.cursor], a.snap) - 1
 		if last >= l.start+l.avail {
 			l.start = last - l.avail + 1
 		}
@@ -646,8 +631,6 @@ func (a App) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case "p":
 		return a.togglePin()
-	case "h":
-		return a.toggleHeadline()
 	}
 	return a, nil
 }
@@ -680,25 +663,6 @@ func (a App) togglePin() (tea.Model, tea.Cmd) {
 	return a, nil
 }
 
-// toggleHeadline flips what heads each block (@agentbar-headline). Global and
-// read every poll, so one press re-heads every sidebar on its next tick. The
-// `h` key and the settings dialogue's Headline row both land here.
-func (a App) toggleHeadline() (tea.Model, tea.Cmd) {
-	mode := func(byTitle bool) string {
-		if byTitle {
-			return headlineTitle
-		}
-		return headlineBranch
-	}
-	before := mode(a.byTitle)
-	a.byTitle = !a.byTitle
-	if !a.mockup {
-		_, _ = a.runner.Run("set-option", "-g", "@agentbar-headline", mode(a.byTitle))
-	}
-	trace.Log("agentbar", "headline", "before", before, "after", mode(a.byTitle))
-	return a, nil
-}
-
 func (a App) View() string {
 	// Below a few columns there is no room for even the selection edge: draw
 	// nothing rather than debris, and never panic (this process is long-lived).
@@ -706,9 +670,7 @@ func (a App) View() string {
 		return ""
 	}
 	now := time.Now()
-	// Agent commands are only ever "claude"/"node", so the name column is fixed.
-	nameW := 6
-	r := renderer{theme: a.theme, width: a.width, nameW: nameW, byTitle: a.byTitle}
+	r := renderer{theme: a.theme, width: a.width}
 
 	var b strings.Builder
 	b.WriteString(r.header(a.snap, a.frame) + "\n")

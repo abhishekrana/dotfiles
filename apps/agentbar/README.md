@@ -8,26 +8,26 @@ you always know which agents are working, which need your attention, and which a
 ──────────────────────────────
  pinned ·2 ───────────────────
 
- dotfiles
- Sidebar label toggle
-   ? claude  asking       4m
+ dotfiles  ⎇ main
+   Sidebar label toggle
+     ? asking              4m
 
- payments
- Refund idempotency keys
-   ◔ claude  permission  40s
- Retry the dropped webhooks
-   ✓ claude  done        11m
+ payments  ⎇ 2091-refund-idempo…
+   Refund idempotency keys
+     ◔ permission         40s
+   Retry the dropped webhooks
+     ✓ done               11m
 
  active ·2 ───────────────────
 
- api-server
- Rate limit middleware rollout
-   ⠼ claude  working      2m
+ api-server  ⎇ feat/rate-limit-…
+   Rate limit middleware rollout
+     ⠼ working             2m
      ⤷ 2 subagents
 
- blog
- Draft the parallel agents post
-   ✓ claude  done        12m
+ blog  ⎇ draft/tmux-agents-post
+   Draft the parallel agents po…
+     ✓ done               12m
 
  dormant ·2 ──────────────────
 
@@ -77,7 +77,6 @@ picked up on their next restart.
 | `g` / `G`       | first / last row                                                                                    |
 | `Tab`           | jump to the next agent waiting on you (permission/asking), cycling across sessions - the work queue |
 | `p`             | pin / unpin the selected session - pinned sessions float to a band at the top                       |
-| `h`             | head each row with the git branch instead of Claude's title for the session, everywhere             |
 | `q`             | hide the sidebar everywhere (same as toggle)                                                        |
 
 Clicking a session name switches to it - the one way to reach a session with no agents running (it just
@@ -116,26 +115,27 @@ next-tick). Session switches made outside the sidebar move the highlight too - e
 switching.
 
 Agent states: `working` (teal spinner) · `permission` (red) · `asking` (amber) · `done` (green until you visit the pane,
-then gray) · `idle` (gray). Each agent shows its git branch and live subagent count.
+then gray) · `idle` (gray). Each session shows its branch; each agent its title and live subagent count.
 
-## Headline
+## What a row says
 
-Each agent block is headed by **the title Claude gives its own session**. The git branch was the obvious choice and the
-wrong one: it is not a name at all whenever a checkout has no branch of its own, and half of a dozen worktrees usually
-don't. `h` (or the Headline row in the dotfiles `⛭` dialogue) switches back to branches:
+The list nests: a **session** carries its name and, dim beside it, the branch of the worktree it works in. Each
+**agent** under it carries the title Claude gave that session, with its state a step deeper.
 
 ```text
-default (title)                  after `h` (branch)
-
- api-server                       api-server
- Rate limit middleware rollout     feat/rate-limit-rollout
-   ⠼ claude  working  2m             ⠼ claude  working  2m
+ api-server  ⎇ feat/rate-limit-…
+   Rate limit middleware rollout
+     ⠼ working                2m
+   Backfill the refund ledger
+     ◔ permission            40s
 ```
 
-Claude Code generates that title itself and publishes it in its pane title; nothing to configure, and a session it has
-not titled yet keeps its branch, so no row loses its headline. The mode is the global `@agentbar-headline` option
-(`title` | `branch`), re-read on every poll - one press re-heads every sidebar on its next tick, with no restart, and
-the block keeps its height either way.
+That split is the whole design: one checkout is one branch, so the branch belongs to the session; each Claude titles its
+own session, so the title belongs to the agent. Both facts fit at once, which is why nothing has to choose between them.
+
+Claude Code generates the title itself and publishes it in its pane title - nothing to configure. A session it has not
+titled yet (or whose pane title is still the hostname tmux seeded) shows its state line alone. The state line does not
+spell out `claude`: it is the same word on every row, and dropping it is what buys the indent.
 
 ## Notifications
 
@@ -200,7 +200,6 @@ set -g @agentbar-width '30'             # sidebar width in columns
 set -g @agentbar-theme 'solarized-light' # or 'dark'
 set -g @agentbar-focus 'off'            # 'on' focuses sidebar on open
 set -g @agentbar-autostart 'on'         # 'off' starts with the sidebar closed
-set -g @agentbar-headline 'title'       # or 'branch' - what heads each row (the `h` key)
 ```
 
 ## Development

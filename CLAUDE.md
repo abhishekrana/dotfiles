@@ -42,9 +42,9 @@ Scripts in `tmux/.local/bin/`:
 
 - `tmux-gitlab.sh` - GitLab status, `#issue !mr CI ✓`. No words: the sigils are GitLab's own notation, and the CI glyph
   is fixed-width so a flipping pipeline never shifts the clock.
-- `tmux-agent-state.sh` - sourced agent-state language: glyphs, colors, state ranking and the headline mode
-  (`agent_title`, `agent_headline`), shared by the session picker and its preview, mirroring the sidebar's. Colors come
-  from the theme switcher, never hardcoded.
+- `tmux-agent-state.sh` - sourced agent-state language: glyphs, colors, state ranking and `agent_title` (Claude's own
+  title for a session, from its pane title), shared by the session picker and its preview, mirroring the sidebar's.
+  Colors come from the theme switcher, never hardcoded.
 - `tmux-settings.sh` - the `⛭` chip's dialogue: the owning area down the left, its settings beside them, their values
   down the right, one value per row. No submenu - fzf has one cursor and its preview cannot be focused, so showing every
   value is what removes the need for two. Add a setting with a `group()` call in `list_rows` and an arm in `do_apply`;
@@ -69,11 +69,10 @@ Rules:
   `tmux-worktree-picker.sh` (the menu's `W`) and per-window auto-follow (`F`, off by default) re-point a live pane.
 - An amber `◧ diff` chip means the worktree is in no agent's `@agent_workdirs`, and reports nothing else. A click only
   opens the menu.
-- **One headline everywhere.** `@agentbar-headline` decides what heads a row - the title Claude gives its own session
-  (the default, published in its pane title) or the git branch. The sidebar's `h` key and the `⛭` dialogue's Headline
-  row write the same global option, and the sidebar and the `Alt-;` picker both read it, so the two views never
-  disagree. A session Claude has not titled yet keeps its branch, and so does one whose pane title is still the hostname
-  tmux seeded it with.
+- **The sidebar nests: session, then its agents.** A session line carries its name and its branch (dim, `⎇` as on the
+  pane rail); each agent under it carries the title Claude gave that session, with its state a step deeper. Both facts
+  are on screen at once, which is why there is no setting choosing between them. A session Claude has not titled yet
+  shows its state line alone, and so does one whose pane title is still the hostname tmux seeded it with.
 - **Picking a theme is applying it.** The `⛭` chip opens a centred dialogue with every value on screen; a click or Enter
   applies one and the dialogue stays open, so there is no save step and nothing to drill into. `theme <flavor>` re-skins
   tmux and ghostty and re-runs the current session's sidebar and diff pane - hunk takes the flavor as a startup flag, so

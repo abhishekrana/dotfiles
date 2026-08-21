@@ -70,13 +70,3 @@ agent_title() {
     case $t in "Claude Code" | "$2") t= ;; esac
     printf '%s' "$t"
 }
-
-# agent_headline - what heads a row, for every surface: "title" (the default -
-# Claude's own title for the session) or "branch". Resolves the default here so
-# no caller repeats it; mirrors byTitleOpt in apps/agentbar/internal/ui/app.go.
-agent_headline() {
-    case "$(tmux show-option -gqv @agentbar-headline 2>/dev/null)" in
-        branch) echo branch ;;
-        *) echo title ;;
-    esac
-}

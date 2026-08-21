@@ -97,13 +97,13 @@ func TestBandDividerSpacing(t *testing.T) {
 	if !dormant.gapAfter {
 		t.Error("dormant divider must add a blank below itself")
 	}
-	if got := blockLineCount(pinned, snap, false); got != 1 {
+	if got := blockLineCount(pinned, snap); got != 1 {
 		t.Errorf("pinned divider = %d lines, want 1 (tight rule)", got)
 	}
-	if got := blockLineCount(active, snap, false); got != 2 {
+	if got := blockLineCount(active, snap); got != 2 {
 		t.Errorf("active divider = %d lines, want 2 (blank + rule)", got)
 	}
-	if got := blockLineCount(dormant, snap, false); got != 3 {
+	if got := blockLineCount(dormant, snap); got != 3 {
 		t.Errorf("dormant divider = %d lines, want 3 (blank + rule + blank)", got)
 	}
 }
@@ -126,117 +126,102 @@ func TestDormantSessionIsOneDimLine(t *testing.T) {
 }
 
 func testRenderer() renderer {
-	return renderer{theme: SolarizedLight(), width: 36, nameW: 6}
+	return renderer{theme: SolarizedLight(), width: 36}
 }
 
-// The branch is the block's headline (first line); the status line follows.
-func TestAgentBlockBranchIsHeadline(t *testing.T) {
+// An agent block is its title then its state line, each a step deeper than the
+// session above it: the title carries the identity, the state line the state.
+func TestAgentBlockIsTitleThenState(t *testing.T) {
 	r := testRenderer()
-	sess := model.Session{Name: "api", Agents: []model.Agent{
-		{Command: "claude", Branch: "feat/x", State: model.StateWorking},
+	sess := model.Session{Name: "api", Branch: "feat/x", Agents: []model.Agent{
+		{Command: "claude", Branch: "feat/x", Title: "Rate limit rollout", State: model.StateWorking},
 	}}
 	lines := r.agentBlock(sess, 0, false, false, 0, time.Now())
-	if len(lines) < 2 {
-		t.Fatalf("want branch + status lines, got %d", len(lines))
+	if len(lines) != 2 {
+		t.Fatalf("want title + state lines, got %d: %q", len(lines), lines)
 	}
-	if !strings.Contains(lines[0], "feat/x") {
-		t.Errorf("branch should be the headline (line 0), got %q", lines[0])
+	if !strings.Contains(lines[0], "Rate limit rollout") || !strings.HasPrefix(lines[0], agentIndent) {
+		t.Errorf("the title should lead the block, indented, got %q", lines[0])
 	}
-	if !strings.Contains(lines[1], "claude") {
-		t.Errorf("status line should follow the branch, got %q", lines[1])
+	if !strings.Contains(lines[1], "working") || !strings.HasPrefix(lines[1], stateIndent) {
+		t.Errorf("the state line should sit a step deeper, got %q", lines[1])
 	}
-}
-
-// Consecutive Claudes on one branch draw that branch once; a differing branch
-// in the same session keeps its own headline (a session can span worktrees).
-func TestBranchHeadlineCollapsesOnlySameBranch(t *testing.T) {
-	same := model.Session{Agents: []model.Agent{
-		{Command: "claude", Branch: "b", State: model.StateWorking},
-		{Command: "claude", Branch: "b", State: model.StatePermission},
-	}}
-	if !showsHeadline(same, 0, false) {
-		t.Error("first agent should show the branch")
+	// The command is the same word on every row, so it is no longer drawn.
+	if strings.Contains(lines[1], "claude") {
+		t.Errorf("the state line should not spell out the command, got %q", lines[1])
 	}
-	if showsHeadline(same, 1, false) {
-		t.Error("second agent on the same branch should not repeat it")
-	}
-	diff := model.Session{Agents: []model.Agent{
-		{Command: "claude", Branch: "b1", State: model.StateWorking},
-		{Command: "claude", Branch: "b2", State: model.StateWorking},
-	}}
-	if !showsHeadline(diff, 1, false) {
-		t.Error("a different branch in the same session must show its own headline")
+	// The branch belongs to the session, never to the agent block.
+	for i, l := range lines {
+		if strings.Contains(l, "feat/x") {
+			t.Errorf("line %d repeats the session's branch: %q", i, l)
+		}
 	}
 }
 
-// A branch shared by several Claudes takes the color of its most-urgent one.
-func TestGroupColorIsMostUrgent(t *testing.T) {
+// An untitled agent - Claude has not named it yet - is its state line alone, so
+// the block shrinks instead of drawing an empty first line.
+func TestUntitledAgentIsOneLine(t *testing.T) {
 	r := testRenderer()
-	sess := model.Session{Agents: []model.Agent{
-		{Branch: "b", State: model.StateWorking},
-		{Branch: "b", State: model.StatePermission},
-		{Branch: "b", State: model.StateDone},
-	}}
-	if got := r.groupColor(sess, 0); got != r.theme.Blocked {
-		t.Errorf("shared branch should take the most-urgent color %v, got %v", r.theme.Blocked, got)
+	sess := model.Session{Agents: []model.Agent{{Command: "claude", State: model.StateIdle}}}
+	if got := r.agentBlock(sess, 0, false, false, 0, time.Now()); len(got) != 1 {
+		t.Fatalf("want the state line alone, got %d: %q", len(got), got)
+	}
+	snap := model.Snapshot{Sessions: []model.Session{sess}}
+	if got := blockLineCount(block{kind: blockAgent}, snap); got != 1 {
+		t.Errorf("blockLineCount = %d, want 1", got)
+	}
+	sess.Agents[0].Title = "Something"
+	snap = model.Snapshot{Sessions: []model.Session{sess}}
+	if got := blockLineCount(block{kind: blockAgent}, snap); got != 2 {
+		t.Errorf("a titled agent counts 2 lines, got %d", got)
 	}
 }
 
-// Title mode heads the block with Claude's own title instead of the branch;
-// the block keeps its shape, so nothing moves when you flip.
-func TestTitleModeHeadsWithTheTitle(t *testing.T) {
-	sess := model.Session{Name: "api", Agents: []model.Agent{
-		{Command: "claude", Branch: "4629-startup-fail-fast", Title: "Merge request review",
-			State: model.StateWorking},
-	}}
-	byBranch := testRenderer().agentBlock(sess, 0, false, false, 0, time.Now())
+// Every agent draws its own title: unlike a branch, no two are the same, so
+// there is nothing to collapse.
+func TestEveryAgentDrawsItsOwnTitle(t *testing.T) {
 	r := testRenderer()
-	r.byTitle = true
-	byTitle := r.agentBlock(sess, 0, false, false, 0, time.Now())
-	if len(byTitle) != len(byBranch) {
-		t.Fatalf("headline mode must not change the block height: %d vs %d", len(byTitle), len(byBranch))
-	}
-	if !strings.Contains(byBranch[0], "4629-startup-fail-fast") {
-		t.Errorf("branch mode should head with the branch, got %q", byBranch[0])
-	}
-	if !strings.Contains(byTitle[0], "Merge request review") {
-		t.Errorf("title mode should head with the title, got %q", byTitle[0])
-	}
-	if strings.Contains(byTitle[0], "4629") {
-		t.Errorf("title mode should drop the branch, got %q", byTitle[0])
-	}
-}
-
-// An agent Claude has not titled keeps its branch headline in title mode - a
-// row must never lose its headline.
-func TestTitleModeFallsBackToBranch(t *testing.T) {
-	sess := model.Session{Agents: []model.Agent{
-		{Command: "claude", Branch: "chore/flags", State: model.StateIdle},
-	}}
-	if !showsHeadline(sess, 0, true) {
-		t.Fatal("an untitled agent must still show its branch in title mode")
-	}
-	r := testRenderer()
-	r.byTitle = true
-	if got := r.agentBlock(sess, 0, false, false, 0, time.Now()); !strings.Contains(got[0], "chore/flags") {
-		t.Errorf("want the branch as fallback headline, got %q", got[0])
-	}
-	if got := blockLineCount(block{kind: blockAgent}, model.Snapshot{Sessions: []model.Session{sess}}, true); got != 2 {
-		t.Errorf("fallback headline must be counted: got %d lines, want 2", got)
-	}
-}
-
-// Claudes sharing a branch collapse to one headline; distinct titles do not,
-// so title mode heads each agent in a shared worktree.
-func TestTitleModeDoesNotCollapseDistinctTitles(t *testing.T) {
-	sess := model.Session{Agents: []model.Agent{
+	sess := model.Session{Branch: "b", Agents: []model.Agent{
 		{Command: "claude", Branch: "b", Title: "First job", State: model.StateWorking},
 		{Command: "claude", Branch: "b", Title: "Second job", State: model.StatePermission},
 	}}
-	if showsHeadline(sess, 1, false) {
-		t.Error("branch mode should collapse the shared branch")
+	for i, want := range []string{"First job", "Second job"} {
+		got := r.agentBlock(sess, i, false, false, 0, time.Now())
+		if len(got) != 2 || !strings.Contains(got[0], want) {
+			t.Errorf("agent %d should head with %q, got %q", i, want, got)
+		}
 	}
-	if !showsHeadline(sess, 1, true) {
-		t.Error("title mode should head each differently-titled agent")
+}
+
+// The session line carries its branch, dim, beside the name.
+func TestSessionRowCarriesTheBranch(t *testing.T) {
+	r := testRenderer()
+	sess := model.Session{Name: "api-2", Branch: "4629-startup-fail-fast",
+		Agents: []model.Agent{{Command: "claude", State: model.StateIdle}}}
+	row := r.sessionRow(sess, false, false, false)
+	if !strings.Contains(row, "api-2") || !strings.Contains(row, "4629-startup-fail-fast") {
+		t.Errorf("session row should carry name and branch, got %q", row)
+	}
+	if !strings.Contains(row, "\u2387") {
+		t.Errorf("the branch should carry the rail's glyph, got %q", row)
+	}
+	// A dormant session has no agent, so no worktree to read a branch from.
+	dormant := model.Session{Name: "cold", Branch: "main"}
+	if got := r.sessionRow(dormant, true, false, false); strings.Contains(got, "main") {
+		t.Errorf("a dormant row should drop the branch, got %q", got)
+	}
+}
+
+// A branch too long for what is left of the line is truncated; one with no room
+// at all is dropped rather than mangled.
+func TestBranchTagFits(t *testing.T) {
+	if got := branchTag("4629-startup-fail-fast", 12); len([]rune(got)) > 12 {
+		t.Errorf("branchTag overflowed its room: %q", got)
+	}
+	if got := branchTag("main", 4); got != "" {
+		t.Errorf("no room should mean no tag, got %q", got)
+	}
+	if got := branchTag("", 20); got != "" {
+		t.Errorf("no branch should mean no tag, got %q", got)
 	}
 }

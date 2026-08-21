@@ -130,3 +130,15 @@ func TestAgentTitle(t *testing.T) {
 		}
 	}
 }
+
+// The branch is rolled up to the session, since one worktree is one checkout.
+func TestSnapshotRollsBranchUpToSession(t *testing.T) {
+	snap := Snapshot(&fakeRunner{panes: fixture}, NewBranchCache(), "app")
+	if got := snap.Sessions[0].Branch; got != snap.Sessions[0].Agents[0].Branch {
+		t.Errorf("session branch = %q, want its agents' %q", got, snap.Sessions[0].Agents[0].Branch)
+	}
+	// The agent-less session has no worktree to read one from.
+	if got := snap.Sessions[1].Branch; got != "" {
+		t.Errorf("agent-less session branch = %q, want empty", got)
+	}
+}

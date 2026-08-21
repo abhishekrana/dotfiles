@@ -199,8 +199,8 @@ eq "one stray pane cannot outvote the rest" "work-branch" "$(branch_of crowd)"
 tmux new-session -d -s plain -x 200 -y 40 -c "$TMP/work"
 eq "a session with no agent still gets its branch" "work-branch" "$(branch_of plain)"
 
-# Title mode (@agentbar-headline) shows the same headline the sidebar draws, so
-# the two views never disagree. Claude publishes that title in its pane title.
+# The row shows the same thing the sidebar's agent line does: Claude's title for
+# the session, falling back to the branch for one it has not titled yet.
 # Substring, not a column: a title carries spaces, and an offset would count the
 # current-row marker's bytes rather than its one cell.
 in_row() { # in_row <session> <text>
@@ -214,13 +214,9 @@ has() { in_row "$2" "$3" && ok "$1" || no "$1" "row [$2] has no [$3]"; }
 hasnt() { in_row "$2" "$3" && no "$1" "row [$2] still shows [$3]" || ok "$1"; }
 
 tmux select-pane -t "$pane" -T '✳ Ship the parser'
-tmux set -g @agentbar-headline title
-has "title mode shows Claude's title for the session" solo "Ship the parser"
-hasnt "and drops the branch, as the sidebar does" solo edited-branch
-has "an untitled session keeps its branch" plain work-branch
-tmux set -g @agentbar-headline branch
-has "branch mode is left as it was" solo edited-branch
-hasnt "with no title in sight" solo "Ship the parser"
+has "the row shows Claude's title for the session" solo "Ship the parser"
+hasnt "and drops the branch, which the session line carries" solo edited-branch
+has "an untitled session falls back to its branch" plain work-branch
 
 printf '\npicker: no binary means no crash\n'
 

@@ -61,17 +61,19 @@ title mode's branch fallback shows), and all three bands (pinned/active/dormant)
 ## Rules
 
 - Never touch the live tmux server. Tests and manual checks run on private sockets: `tmux -L <name> -f /dev/null`.
-- Git branch is per worktree: one checkout = one branch, and multiple Claudes in the same worktree share it. The sidebar
-  reads each pane's branch from its cwd and draws the branch headline once per run of consecutive same-branch agents
-  (colored by the most-urgent when several share it). A session's panes usually sit in one worktree (so one branch), but
-  tmux doesn't enforce that - don't assume one branch per session; just collapse the agents that actually match.
-- **`@agentbar-headline` picks what heads an agent block**: `title` (the default - Claude's own title for the session)
-  or `branch`. Only an explicit `branch` opts out, resolved in one place per language (`byTitleOpt`, `agent_headline`).
-  Global and re-read every poll, so the `h` key or the `⛭` dialogue's Headline row re-heads every sidebar on its next
-  tick - no restart, and the block keeps its height either way. An untitled agent falls back to its branch, so a row
-  never loses its headline; the collapse rule is per headline, so Claudes sharing a worktree each get their own title.
-  `blockLineCount` takes the mode for the same reason the renderer does. Note the namespace split this follows:
-  `@agent_*` is hook-stamped state, `@agentbar-*` is config.
+- **The nesting is the layout, and it is what removed a setting.** A session line carries its name and, dim beside it,
+  its branch; each agent under it carries Claude's title for that session (`agentIndent`) and a state line one step
+  deeper (`stateIndent`). The branch belongs to the session because one checkout is one branch; the title belongs to the
+  agent because each Claude has its own. They only ever competed for a line while the layout gave them the same slot -
+  so there is no headline mode, no `@agentbar-headline`, and nothing to arbitrate.
+- **The state line does not spell out the command.** It is `claude` on every row, and the title above already says whose
+  row it is. Two indent steps plus the state label plus the elapsed time is exactly what 30 columns hold - dropping that
+  word is what pays for the second step.
+- **An untitled agent is one line**, its state line alone; `blockLineCount` must agree. A dormant session is its dim
+  name alone - no agent means no worktree to read a branch from, so it draws none.
+- `model.BranchOf` is the one implementation of a session's branch, used by the live snapshot and the mockup alike.
+  Agents in one session almost always share a worktree; when they do not, the first wins and `+N` counts the rest, since
+  one line cannot name several branches. Do not assume one branch per session - that suffix is the honest signal.
 - **Two pane titles mean "not titled yet"**: Claude's `Claude Code` placeholder, and the **hostname** - what tmux seeds
   `pane_title` with until something sets one. Without that second guard, a title-mode row for a Claude that has not
   titled itself yet reads as the machine's name; `agentTitle` takes `#{host}` from the same `list-panes` call to test

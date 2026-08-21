@@ -23,7 +23,6 @@ STATE="${XDG_CONFIG_HOME:-$HOME/.config}/theme"
 # so the interaction test can stand a recorder in for the real switcher.
 THEME_BIN="${THEME_BIN:-$HOME/.local/bin/theme}"
 FLAVORS="solarized-light solarized-dark catppuccin-latte catppuccin-mocha"
-HEADLINES="title branch"
 # The cursor must land back on the row just applied, so the dialogue never jumps
 # between groups. fzf's transform bind runs after the reload, when {1} is already
 # the first row again - so --apply leaves its group name here for --pos to read.
@@ -63,7 +62,6 @@ group() {
 # shellcheck disable=SC2086  # FLAVORS is a word list, one value per row
 list_rows() {
     _area=''
-    group agentbar Headline "$(agent_headline)" "headline:" $HEADLINES
     group agentbar Notify "$(current_notify)" "notify:" off on
     group theme Theme "$(current_flavor)" "theme:" $FLAVORS
 }
@@ -73,7 +71,7 @@ list_rows() {
 # Found by walking the rows: per-group index arithmetic broke at the third group.
 do_pos() {
     local group line i=0
-    group=$(cat "$LAST" 2>/dev/null || echo headline)
+    group=$(cat "$LAST" 2>/dev/null || echo notify)
     while IFS= read -r line; do
         i=$((i + 1))
         case ${line%%$'\t'*} in "$group":*) ;; *) continue ;; esac
@@ -86,9 +84,8 @@ do_apply() {
     printf '%s' "${1%%:*}" >"$LAST" 2>/dev/null || true
     case "${1:-}" in
         theme:*) "$THEME_BIN" "${1#theme:}" >/dev/null 2>&1 ;;
-        # Both are global and re-read every poll, so every sidebar picks them up
-        # on its next tick - nothing restarts and no row moves.
-        headline:*) tmux set-option -g @agentbar-headline "${1#headline:}" 2>/dev/null || true ;;
+        # Global and re-read every poll, so every sidebar picks it up on its
+        # next tick - nothing restarts and no row moves.
         notify:*) tmux set-option -g @agent_notify "${1#notify:}" 2>/dev/null || true ;;
     esac
 }

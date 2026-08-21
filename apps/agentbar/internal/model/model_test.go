@@ -128,3 +128,27 @@ func TestNamesFollowsTheBands(t *testing.T) {
 		}
 	}
 }
+
+// BranchOf names the worktree a session's agents share; when they do not share
+// one, the first wins and "+N" says how many others are in there.
+func TestBranchOf(t *testing.T) {
+	one := []Agent{{Branch: "main"}, {Branch: "main"}}
+	if got := BranchOf(one); got != "main" {
+		t.Errorf("agreed branch = %q, want main", got)
+	}
+	if got := BranchOf(nil); got != "" {
+		t.Errorf("no agents = %q, want empty", got)
+	}
+	// An agent with no branch (a pane outside any repo) must not win the slot.
+	if got := BranchOf([]Agent{{Branch: ""}, {Branch: "main"}}); got != "main" {
+		t.Errorf("blank branch should not win, got %q", got)
+	}
+	two := []Agent{{Branch: "main"}, {Branch: "feat/x"}, {Branch: "feat/x"}}
+	if got := BranchOf(two); got != "main +1" {
+		t.Errorf("divergent branches = %q, want \"main +1\"", got)
+	}
+	three := []Agent{{Branch: "main"}, {Branch: "a"}, {Branch: "b"}}
+	if got := BranchOf(three); got != "main +2" {
+		t.Errorf("two others = %q, want \"main +2\"", got)
+	}
+}

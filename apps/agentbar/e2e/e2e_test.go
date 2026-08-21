@@ -332,11 +332,22 @@ func waitFor(t *testing.T, desc string, timeout time.Duration, cond func() bool)
 // selBG is the Solarized Light selection background every theme test uses.
 const selBG = "48;2;238;232;213"
 
+// isAgentLine reports whether a rendered line is an agent's state line. The row
+// no longer spells out the command, so its state word is what marks it.
+func isAgentLine(l string) bool {
+	for _, w := range []string{"idle", "working", "done", "permission", "asking"} {
+		if strings.Contains(l, w) {
+			return true
+		}
+	}
+	return false
+}
+
 // highlightedAgentLine returns the text of the line carrying the selection
-// background and the word claude, "" if none.
+// background and an agent's state, "" if none.
 func highlightedAgentLine(capture string) (line string, lineNo int) {
 	for i, l := range strings.Split(capture, "\n") {
-		if strings.Contains(l, selBG) && strings.Contains(l, "claude") {
+		if strings.Contains(l, selBG) && isAgentLine(l) {
 			return l, i
 		}
 	}
@@ -670,7 +681,7 @@ func TestSidebarRendersAgentState(t *testing.T) {
 	}
 	waitFor(t, "sidebar shows working agent", 5*time.Second, func() bool {
 		c := s.capture(side)
-		return strings.Contains(c, "claude") && strings.Contains(c, "working")
+		return strings.Contains(c, "working")
 	})
 
 	s.hook(agent, `{"hook_event_name":"Stop"}`)
@@ -681,7 +692,7 @@ func TestSidebarRendersAgentState(t *testing.T) {
 	// Killing the agent pane removes its entry within a tick.
 	s.tmux("kill-pane", "-t", agent)
 	waitFor(t, "dead agent dropped", 5*time.Second, func() bool {
-		return !strings.Contains(s.capture(side), "claude ")
+		return !isAgentLine(s.captureText(side))
 	})
 }
 
@@ -818,14 +829,14 @@ func TestClickJump(t *testing.T) {
 
 	s.ptyClient("aaa")
 
-	// Find bbb's agent row in aaa's sidebar: the first claude line after
+	// Find bbb's agent row in aaa's sidebar: the first agent line after
 	// the bbb session header (rows are 0-based, SGR is 1-based).
 	lines := strings.Split(s.captureText(sideA), "\n")
 	row := -1
 	for i, l := range lines {
 		if strings.Contains(l, "bbb") {
 			for j := i + 1; j < len(lines); j++ {
-				if strings.Contains(lines[j], "claude") {
+				if isAgentLine(lines[j]) {
 					row = j + 1
 					break
 				}
@@ -859,7 +870,7 @@ func TestClickJump(t *testing.T) {
 	lines = strings.Split(s.captureText(sideB), "\n")
 	backRow := -1
 	for i, l := range lines {
-		if strings.Contains(l, "claude") {
+		if isAgentLine(l) {
 			backRow = i + 1 // first agent listed is aaa's
 			break
 		}
@@ -965,7 +976,7 @@ func TestHoverMotionReachesUnfocusedSidebar(t *testing.T) {
 	s.script("open.sh", "work")
 	side := s.sidebarPane("work")
 	waitFor(t, "sidebar shows the agent", 5*time.Second, func() bool {
-		return strings.Contains(s.capture(side), "claude")
+		return isAgentLine(s.captureText(side))
 	})
 	if active, _ := s.tmuxErr("display-message", "-t", "work", "-p", "#{pane_id}"); active == side {
 		t.Fatal("sidebar is focused; test needs it unfocused")
@@ -1483,7 +1494,7 @@ func TestNotifyIsNotASidebarControl(t *testing.T) {
 		t.Fatal("no sidebar pane")
 	}
 	waitFor(t, "sidebar rendered", 5*time.Second, func() bool {
-		return strings.Contains(s.capture(side), "claude")
+		return strings.Contains(s.capture(side), "idle")
 	})
 	if c := s.capture(side); strings.Contains(c, "notify") {
 		t.Errorf("footer still carries a notify chip: %q", c)
@@ -1663,10 +1674,10 @@ func TestPinCommandToggles(t *testing.T) {
 	}
 }
 
-// The headline toggle swaps the block's headline between the branch and Claude's
-// own title. @agentbar-headline is global and re-read every poll, so a flip
-// reaches every sidebar with no restart - and the row keeps its shape.
-func TestHeadlineModeSwapsHeadline(t *testing.T) {
+// The nesting: a session line carries its branch, and each agent under it
+// carries the title Claude gave itself. Both facts on screen at once, which is
+// what removed the option that used to pick between them.
+func TestSessionCarriesBranchAgentCarriesTitle(t *testing.T) {
 	s := start(t)
 	s.newSession("work")
 	agent := s.agentPane("work")
@@ -1676,17 +1687,34 @@ func TestHeadlineModeSwapsHeadline(t *testing.T) {
 
 	s.script("open.sh", "work")
 	side := s.sidebarPane("work")
-	waitFor(t, "the title heads the block by default", 5*time.Second, func() bool {
+	waitFor(t, "the agent's title is on screen", 5*time.Second, func() bool {
 		return strings.Contains(s.captureText(side), "Ship the parser")
 	})
 
-	s.tmux("set-option", "-g", "@agentbar-headline", "branch")
-	waitFor(t, "branch mode drops the title", 5*time.Second, func() bool {
-		return !strings.Contains(s.captureText(side), "Ship the parser")
-	})
+	// The title is indented under its session, the state line deeper still. A
+	// selected row spends column 0 on its accent edge, so allow that in place of
+	// the leading space.
+	indent := func(l string, n int) bool {
+		l = strings.TrimPrefix(l, "▎")
+		return strings.HasPrefix(l, strings.Repeat(" ", n)) && !strings.HasPrefix(l, strings.Repeat(" ", n+1))
+	}
+	for _, l := range strings.Split(s.captureText(side), "\n") {
+		if strings.Contains(l, "Ship the parser") && !indent(l, 3) && !indent(l, 2) {
+			t.Errorf("the title should be indented under its session: %q", l)
+		}
+		if strings.Contains(l, "working") {
+			if !indent(l, 5) && !indent(l, 4) {
+				t.Errorf("the state line should sit a step deeper: %q", l)
+			}
+			if strings.Contains(l, "claude") {
+				t.Errorf("the state line should not spell out the command: %q", l)
+			}
+		}
+	}
 
-	s.tmux("set-option", "-g", "@agentbar-headline", "title")
-	waitFor(t, "and it comes back", 5*time.Second, func() bool {
-		return strings.Contains(s.captureText(side), "Ship the parser")
+	// A retitle reaches the bar on the next poll, with no option to set.
+	s.tmux("select-pane", "-t", agent, "-T", "✳ Pin the worker images")
+	waitFor(t, "a retitle follows", 5*time.Second, func() bool {
+		return strings.Contains(s.captureText(side), "Pin the worker images")
 	})
 }
