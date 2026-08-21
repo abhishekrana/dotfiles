@@ -42,6 +42,9 @@ Scripts in `tmux/.local/bin/`:
 
 - `tmux-gitlab.sh` - GitLab status, `#issue !mr CI ✓`. No words: the sigils are GitLab's own notation, and the CI glyph
   is fixed-width so a flipping pipeline never shifts the clock.
+- `tmux-session-preview.sh` - the picker's fzf preview: the session's dir, repo, branch, aggregate state, its agents
+  (one line each: glyph, title, state, age) and its windows. It resolves the directory the same way the rows do - most
+  of the session's non-sidebar panes, an agent's worktree winning - never the session's active pane.
 - `tmux-agent-state.sh` - sourced agent-state language: glyphs, colors, state ranking and `agent_title` (Claude's own
   title for a session, from its pane title), shared by the session picker and its preview, mirroring the sidebar's.
   Colors come from the theme switcher, never hardcoded.
@@ -73,6 +76,10 @@ Rules:
   pane rail); each agent under it carries the title Claude gave that session, with its state a step deeper. Both facts
   are on screen at once, which is why there is no setting choosing between them. A session Claude has not titled yet
   shows its state line alone, and so does one whose pane title is still the hostname tmux seeded it with.
+- **The `Alt-;` popup says the same things in three fixed columns**: session, branch, title. A row is one line and one
+  session - that is what `agentbar order`, pin, kill and rename all act on - so when a session holds several agents the
+  title shown is the most urgent one's, the same agent the row's glyph describes, and `+N` owns up to the rest. The
+  preview lists them all. Fixed columns are the point: cycling lands your eye in the same place on every row.
 - **Picking a theme is applying it.** The `⛭` chip opens a centred dialogue with every value on screen; a click or Enter
   applies one and the dialogue stays open, so there is no save step and nothing to drill into. `theme <flavor>` re-skins
   tmux and ghostty and re-runs the current session's sidebar and diff pane - hunk takes the flavor as a startup flag, so

@@ -182,8 +182,10 @@ band_row() {
 # group, and only when they actually separate two non-empty bands (a one-band
 # list shows none), exactly as the sidebar does it.
 build_lines() {
-    local -A STATE_BY_SESSION WORKDIR_BY_SESSION DIR_BY_SESSION DIR_VOTES PANES_IN TITLE_BY_SESSION
+    local -A STATE_BY_SESSION WORKDIR_BY_SESSION DIR_BY_SESSION DIR_VOTES PANES_IN
+    local -A TITLE_BY_SESSION AGENTS_IN
     local sess cmd present state wd path title host seen prev current ordered band name branch icon mark header
+    local rank prev_rank col more
     local headed=
     local -A count
 
@@ -221,14 +223,17 @@ build_lines() {
         if [ -n "$wd" ] && [ -z "${WORKDIR_BY_SESSION[$sess]:-}" ]; then
             WORKDIR_BY_SESSION[$sess]=$wd
         fi
-        # Claude's own title - the sidebar's headline in title mode.
-        if [ -z "${TITLE_BY_SESSION[$sess]:-}" ]; then
+        # One agent speaks for the row: the most urgent one, which is already
+        # the one the glyph describes - so glyph and title never disagree. The
+        # first agent seen sets both, since idle outranks nothing.
+        prev=${STATE_BY_SESSION[$sess]:-}
+        rank=$(agent_state_rank "$state")
+        prev_rank=$(agent_state_rank "$prev")
+        if [ -z "${AGENTS_IN[$sess]:-}" ] || [ "$rank" -gt "$prev_rank" ]; then
+            STATE_BY_SESSION[$sess]=$state
             TITLE_BY_SESSION[$sess]=$(agent_title "$title" "$host")
         fi
-        prev=${STATE_BY_SESSION[$sess]:-}
-        if [ "$(agent_state_rank "$state")" -gt "$(agent_state_rank "$prev")" ]; then
-            STATE_BY_SESSION[$sess]=$state
-        fi
+        AGENTS_IN[$sess]=$((${AGENTS_IN[$sess]:-0} + 1))
     done < <(tmux list-panes -a -F "$(
         printf '#{session_name}\t#{pane_current_command}\t#{?@agent_present,1,0}\t'
         printf '#{?@agent_state,#{@agent_state},-}\t#{?@agent_workdir,#{@agent_workdir},-}\t'
@@ -269,17 +274,27 @@ build_lines() {
         fi
         path=${WORKDIR_BY_SESSION[$name]:-${DIR_BY_SESSION[$name]:-}}
         branch=
-        # The sidebar's own line: Claude's title for the session, falling back
-        # to the branch for one it has not titled yet.
-        branch=${TITLE_BY_SESSION[$name]:-}
-        if [ -z "$branch" ] && [ -n "$path" ] && [ -d "$path" ]; then
+        if [ -n "$path" ] && [ -d "$path" ]; then
             branch=$(git -C "$path" symbolic-ref --short HEAD 2>/dev/null ||
                 git -C "$path" rev-parse --short HEAD 2>/dev/null ||
                 true)
         fi
+        # Fixed columns, so cycling lands the eye in the same place on every
+        # row. A capped branch is already 24 cells wide, so only a short one
+        # needs padding - and padding pure ASCII survives any locale.
+        if [ ${#branch} -gt 24 ]; then
+            col="${branch:0:23}…"
+        else
+            col=$(printf '%-24s' "$branch")
+        fi
+        [ -n "$branch" ] && col="⎇ $col" || col="  $col"
+        # "+N" owns up to the agents the one title does not speak for.
+        more=$((${AGENTS_IN[$name]:-0} - 1))
+        [ "$more" -gt 0 ] && more=" $(agent_muted "+$more")" || more=
         icon=$(agent_icon "${STATE_BY_SESSION[$name]:-}")
         [ "$name" = "$current" ] && mark='▸' || mark=' '
-        printf '%s\t%s %s %-18s  %s\n' "$name" "$mark" "$icon" "$name" "$branch"
+        printf '%s\t%s %s %-18s  %s  %s%s\n' "$name" "$mark" "$icon" "$name" \
+            "$(agent_muted "$col")" "${TITLE_BY_SESSION[$name]:-$(agent_muted —)}" "$more"
     done <<<"$ordered"
     return 0
 }

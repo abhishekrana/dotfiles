@@ -172,10 +172,12 @@ repo "$TMP/decoy" decoy-branch
 repo "$TMP/edited" edited-branch
 cp /usr/bin/sleep "$TMP/shim/agentbar" # a pane that reports as the sidebar
 
-# The last word of the row: session names and branches carry no spaces.
+# The branch column, which is the token after the ⎇ glyph. Not the last word of
+# the row any more: that is the title column now.
 branch_of() {
     "$PICKER" --list | sed 's/\x1b\[[0-9;]*m//g' |
-        awk -F'\t' -v n="$1" '$1 == n { print $NF }' | awk '{ print $NF }'
+        awk -F'\t' -v n="$1" '$1 == n { print $2 }' |
+        sed 's/.*⎇ *//; s/ .*//'
 }
 
 tmux new-session -d -s solo -x 200 -y 40 -c "$TMP/work"
@@ -217,8 +219,43 @@ hasnt() { in_row "$2" "$3" && no "$1" "row [$2] still shows [$3]" || ok "$1"; }
 # strip whichever one Claude used.
 tmux select-pane -t "$pane" -T '◐ Ship the parser'
 has "the row shows Claude's title for the session" solo "Ship the parser"
-hasnt "and drops the branch, which the session line carries" solo edited-branch
-has "an untitled session falls back to its branch" plain work-branch
+has "beside its branch, in its own column" solo edited-branch
+has "an untitled session still shows its branch" plain work-branch
+hasnt "and an em dash where its title would be" plain "Ship the parser"
+
+# ---- several agents in one session ----------------------------------------
+# One agent speaks for the row: the most urgent, which is the one the glyph
+# already describes. "+N" owns up to the rest, and the preview lists them.
+printf '\npicker: several agents in one session\n'
+pane2=$(tmux split-window -d -t solo -c "$TMP/work" -P -F '#{pane_id}' "claude 60")
+printf '{"hook_event_name":"SessionStart","session_id":"t2"}' | TMUX_PANE="$pane2" "$BIN" hook
+printf '{"hook_event_name":"PermissionRequest","tool_name":"Bash"}' | TMUX_PANE="$pane2" "$BIN" hook
+tmux select-pane -t "$pane2" -T '◐ Approve the migration'
+
+has "the row speaks for the agent that wants you" solo "Approve the migration"
+hasnt "not the quieter one" solo "Ship the parser"
+has "and owns up to the rest" solo "+1"
+
+# ---- the preview names the session, not its active pane -------------------
+# The regression: dir/repo/branch came from `display-message -t <session>`, the
+# session's ACTIVE pane - usually the sidebar, whose cwd is only wherever that
+# process started, so every session reported the same repo. The rows already
+# resolved it by majority; the preview must agree.
+printf '\npicker: the preview names the session, not its active pane\n'
+prev() { "$PREVIEW" "$1" 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g'; }
+field() { prev "$1" | awk -v k="$2:" '$1 == k { print $2 }'; }
+
+eq "an agent's worktree wins, as on the row" "edited-branch" "$(field solo branch)"
+eq "a session with no agent takes its panes' branch" "work-branch" "$(field plain branch)"
+eq "one stray pane cannot outvote the rest" "work-branch" "$(field crowd branch)"
+
+prev_out=$(prev solo)
+for want in "Approve the migration" "Ship the parser"; do
+    case $prev_out in
+        *"$want"*) ok "the preview lists [$want]" ;;
+        *) no "the preview lists [$want]" ;;
+    esac
+done
 
 printf '\npicker: no binary means no crash\n'
 
