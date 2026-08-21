@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -1716,5 +1717,49 @@ func TestSessionCarriesBranchAgentCarriesTitle(t *testing.T) {
 	s.tmux("select-pane", "-t", agent, "-T", "✳ Pin the worker images")
 	waitFor(t, "a retitle follows", 5*time.Second, func() bool {
 		return strings.Contains(s.captureText(side), "Pin the worker images")
+	})
+}
+
+// A session whose agents have gone quiet sinks to dormant on the clock alone -
+// no keypress, no process watching it. Backdating @agent_since is exactly what
+// an hour of not touching a worktree looks like.
+func TestQuietSessionSinksToDormant(t *testing.T) {
+	s := start(t)
+	s.newSession("work")
+	s.newSession("other")
+	quiet := s.agentPane("work")
+	busy := s.agentPane("other")
+	s.hook(quiet, `{"hook_event_name":"Stop"}`)            // done, just now
+	s.hook(busy, `{"hook_event_name":"UserPromptSubmit"}`) // working
+
+	s.script("open.sh", "work")
+	side := s.sidebarPane("work")
+	waitFor(t, "the finished agent starts out active", 5*time.Second, func() bool {
+		return strings.Contains(s.captureText(side), "done")
+	})
+
+	old := strconv.FormatInt(time.Now().Add(-2*time.Hour).Unix(), 10)
+	s.tmux("set-option", "-pq", "-t", quiet, "@agent_since", old)
+	waitFor(t, "and sinks once its last activity ages out", 5*time.Second, func() bool {
+		c := s.captureText(side)
+		return strings.Contains(c, "dormant") && !strings.Contains(c, "done")
+	})
+	// Sunk, not gone: the session keeps its name in the dormant band.
+	if c := s.captureText(side); !strings.Contains(c, "work") {
+		t.Errorf("the sunk session lost its name: %q", c)
+	}
+
+	// The trap: @agent_since is the time of the last state *change*, so an agent
+	// mid-turn carries an old stamp. It must stay active regardless.
+	s.tmux("set-option", "-pq", "-t", busy, "@agent_since", old)
+	time.Sleep(1500 * time.Millisecond)
+	if c := s.captureText(side); !strings.Contains(c, "working") {
+		t.Errorf("a working agent aged out of the active band: %q", c)
+	}
+
+	// Widening the window brings the quiet one back, with no restart.
+	s.tmux("set-option", "-g", "@agentbar-active-for", "4h")
+	waitFor(t, "a wider window revives it", 5*time.Second, func() bool {
+		return strings.Contains(s.captureText(side), "done")
 	})
 }

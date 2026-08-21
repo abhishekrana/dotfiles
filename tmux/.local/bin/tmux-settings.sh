@@ -23,6 +23,8 @@ STATE="${XDG_CONFIG_HOME:-$HOME/.config}/theme"
 # so the interaction test can stand a recorder in for the real switcher.
 THEME_BIN="${THEME_BIN:-$HOME/.local/bin/theme}"
 FLAVORS="solarized-light solarized-dark catppuccin-latte catppuccin-mocha"
+# Ascending, not default-first: it is a scale, so it reads in order.
+ACTIVE_FORS="30m 1h 4h"
 # The cursor must land back on the row just applied, so the dialogue never jumps
 # between groups. fzf's transform bind runs after the reload, when {1} is already
 # the first row again - so --apply leaves its group name here for --pos to read.
@@ -34,6 +36,18 @@ LAST="${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}/dotfiles-settings-last-$UID"
 . "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/tmux-agent-state.sh"
 
 current_flavor() { cat "$STATE/current" 2>/dev/null || echo solarized-light; }
+# How long a session stays in the sidebar's active band after its last agent
+# activity. Only the offered values, so a typo cannot leave the row unmarked.
+current_active_for() {
+    local v
+    v=$(tmux show-option -gqv @agentbar-active-for 2>/dev/null)
+    for a in $ACTIVE_FORS; do [ "$v" = "$a" ] && {
+        echo "$v"
+        return
+    }; done
+    echo 1h
+}
+
 # Desktop notifications when an agent needs you. Mirrors agentbar's truthy().
 current_notify() {
     case "$(tmux show-option -gqv @agent_notify 2>/dev/null)" in
@@ -52,7 +66,7 @@ group() {
     [ "$area" = "$_area" ] && area='' || _area=$area
     for v in "$@"; do
         [ "$v" = "$cur" ] && mark='\033[32m●\033[0m' || mark=' '
-        printf '%s%s\t  \033[2m%-8s\033[0m \033[1m%-8s\033[0m \033[2m│\033[0m %b %s\n' \
+        printf '%s%s\t  \033[2m%-8s\033[0m \033[1m%-10s\033[0m \033[2m│\033[0m %b %s\n' \
             "$prefix" "$v" "$area" "$label" "$mark" "$(title "$v")"
         area='' label=''
     done
@@ -62,6 +76,7 @@ group() {
 # shellcheck disable=SC2086  # FLAVORS is a word list, one value per row
 list_rows() {
     _area=''
+    group agentbar "Active for" "$(current_active_for)" "activefor:" $ACTIVE_FORS
     group agentbar Notify "$(current_notify)" "notify:" off on
     group theme Theme "$(current_flavor)" "theme:" $FLAVORS
 }
@@ -71,7 +86,7 @@ list_rows() {
 # Found by walking the rows: per-group index arithmetic broke at the third group.
 do_pos() {
     local group line i=0
-    group=$(cat "$LAST" 2>/dev/null || echo notify)
+    group=$(cat "$LAST" 2>/dev/null || echo activefor)
     while IFS= read -r line; do
         i=$((i + 1))
         case ${line%%$'\t'*} in "$group":*) ;; *) continue ;; esac
@@ -87,6 +102,7 @@ do_apply() {
         # Global and re-read every poll, so every sidebar picks it up on its
         # next tick - nothing restarts and no row moves.
         notify:*) tmux set-option -g @agent_notify "${1#notify:}" 2>/dev/null || true ;;
+        activefor:*) tmux set-option -g @agentbar-active-for "${1#activefor:}" 2>/dev/null || true ;;
     esac
 }
 

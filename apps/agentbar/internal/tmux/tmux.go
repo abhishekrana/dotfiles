@@ -5,6 +5,9 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
+
+	"github.com/abhishekrana/agentbar/internal/model"
 )
 
 // Runner abstracts tmux invocation so hook logic is testable.
@@ -35,4 +38,19 @@ func PaneOption(r Runner, pane, name string) string {
 		return ""
 	}
 	return out
+}
+
+// ActiveFor is how long a session stays in the active band after its last agent
+// activity (@agentbar-active-for, e.g. "30m", "1h", "4h"). Unset or unparseable
+// means model.DefaultActiveFor, so a fat-fingered option cannot flatten the bar.
+func ActiveFor(r Runner) time.Duration {
+	v, err := r.Run("show-option", "-gqv", "@agentbar-active-for")
+	if err != nil {
+		return model.DefaultActiveFor
+	}
+	d, err := time.ParseDuration(strings.TrimSpace(v))
+	if err != nil || d <= 0 {
+		return model.DefaultActiveFor
+	}
+	return d
 }

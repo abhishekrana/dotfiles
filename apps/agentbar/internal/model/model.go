@@ -66,7 +66,29 @@ type Session struct {
 	Current  bool   // the session the sidebar pane lives in
 	Attached bool   // a client is attached to this session
 	Pinned   bool   // user-pinned: floats to the top band (see Arrange)
+	Quiet    bool   // has agents, but none live or recent: sinks to dormant (see Fresh)
 	Agents   []Agent
+}
+
+// DefaultActiveFor is how long a session stays active after its last agent
+// activity. An hour is long enough to cover reading a diff or a phone call,
+// short enough that yesterday's worktrees are gone by morning.
+const DefaultActiveFor = time.Hour
+
+// Fresh reports whether a session's agents make it active: one working or
+// blocked on you counts however long it has been at it - @agent_since is the
+// time of the last state *change*, so a long turn would otherwise age out
+// mid-work - and otherwise the newest state change must be inside activeFor.
+func Fresh(agents []Agent, now time.Time, activeFor time.Duration) bool {
+	for _, a := range agents {
+		if a.State == StateWorking || a.State.NeedsAttention() {
+			return true
+		}
+		if !a.Since.IsZero() && now.Sub(a.Since) < activeFor {
+			return true
+		}
+	}
+	return false
 }
 
 // BranchOf is the branch a session's agents work in. They almost always share
@@ -89,13 +111,14 @@ func BranchOf(agents []Agent) string {
 	return first
 }
 
-// Band orders sessions into the three sidebar groups: pinned (0),
-// active with agents (1), dormant/no-agents (2).
+// Band orders sessions into the three sidebar groups: pinned (0), active (1),
+// dormant (2). Dormant is both "no agents at all" and "gone quiet" - Arrange
+// stamps Quiet, so every reader here needs no clock of its own.
 func (s Session) Band() int {
 	switch {
 	case s.Pinned:
 		return 0
-	case len(s.Agents) == 0:
+	case len(s.Agents) == 0 || s.Quiet:
 		return 2
 	default:
 		return 1
@@ -117,14 +140,23 @@ func (s Session) BandLabel() string {
 }
 
 // Arrange returns a copy of sessions grouped into bands (pinned, active,
-// dormant) and alphabetical within each, stamping Pinned from the given set.
-// Positions only move when the pin set changes - never on agent state - so
-// the list stays predictable.
-func Arrange(sessions []Session, pinned map[string]bool) []Session {
+// dormant) and alphabetical within each, stamping Pinned from the given set and
+// Quiet from the clock.
+//
+// Positions move on pin/unpin and when a session's last agent activity passes
+// activeFor - nothing else. That second case is deliberate: a worktree you
+// stopped touching an hour ago sinks on its own, so the active band is what you
+// are working on now. It is a pure function of timestamps evaluated at render,
+// so no process owns the transition and there is no state to get stale.
+func Arrange(sessions []Session, pinned map[string]bool, now time.Time, activeFor time.Duration) []Session {
+	if activeFor <= 0 {
+		activeFor = DefaultActiveFor
+	}
 	out := make([]Session, len(sessions))
 	copy(out, sessions)
 	for i := range out {
 		out[i].Pinned = pinned[out[i].Name]
+		out[i].Quiet = len(out[i].Agents) > 0 && !Fresh(out[i].Agents, now, activeFor)
 	}
 	sort.SliceStable(out, func(i, j int) bool {
 		if bi, bj := out[i].Band(), out[j].Band(); bi != bj {

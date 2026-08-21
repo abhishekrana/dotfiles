@@ -87,10 +87,25 @@ title mode's branch fallback shows), and all three bands (pinned/active/dormant)
   resumed / `claude daemon run` sessions fire hooks with no `TMUX_PANE`, and dropping them silently freezes the pane's
   state. A paneless hook that still can't be placed is dropped (traced with `cwd`/`sid`); `agentbar doctor` surfaces
   this.
-- Sessions render in three bands - pinned (`@agentbar-pins`, the `p` key), active, dormant (no agents) - alphabetical
-  within each, so positions move only on pin/unpin. `model.Arrange` is the pure grouping; section dividers are
-  non-selectable blocks nav/clicks skip. All three carry a `<name> ·<count>` label (`model.BandLabel`, the tokens
-  `order` prints) and show it whenever the band has a non-empty neighbour - never leave one unlabelled as "the rest".
+- Sessions render in three bands - pinned (`@agentbar-pins`, the `p` key), active, dormant - alphabetical within each.
+  `model.Arrange` is the pure grouping; section dividers are non-selectable blocks nav/clicks skip. All three carry a
+  `<name> ·<count>` label (`model.BandLabel`, the tokens `order` prints) and show it whenever the band has a non-empty
+  neighbour - never leave one unlabelled as "the rest".
+- **Dormant is "no agents" OR "gone quiet"**, and the clock decides the second: `model.Fresh` calls a session active
+  while any agent is working or blocked on you - however old its `@agent_since`, since that stamps the last state
+  _change_ and a long turn would otherwise age out mid-work - else while the newest state change is inside
+  `@agentbar-active-for` (`model.DefaultActiveFor`, 1h, read via `tmux.ActiveFor` so the sidebar and the short-lived
+  `order`/`next`/`prev` processes agree). `Arrange` stamps `Session.Quiet`, so `Band()` and every caller stay
+  clock-free.
+- **Nothing owns that transition.** It is `now - timestamp` evaluated at render, on the 1s poll the sidebar already
+  runs: no background process, no timer, no persisted state, and `agentbar order` computes the same bands from the same
+  pane options. Do not add a watcher - that is the property that keeps this from going stale.
+- **Positions move on pin/unpin and on that threshold, nothing else.** A pinned session never moves, however quiet -
+  pins are the user's. A session only ever sinks on its own; coming back up takes a real event (a prompt, a permission,
+  a new agent).
+- **A dormant session is its name alone**, no branch and no agent rows: reclaiming those rows is the point of sinking
+  one. `buildBlocks` skips its agent blocks entirely rather than hiding them at render, so nav and clicks cannot land on
+  a row that is not on screen.
 - **`model.Arrange` is the only session order in the stack.** `agentbar order` publishes it as `band<TAB>name`, and
   `next`/`prev` (the dotfiles `Alt-h`/`Alt-l`) plus the dotfiles session picker popup consume it - never reimplement the
   banding in a caller, and never give a caller an order of its own. Those paths pass a nil `BranchCache` (no git calls,

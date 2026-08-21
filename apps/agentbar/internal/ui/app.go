@@ -31,10 +31,11 @@ const (
 type tickMsg time.Time
 
 type snapMsg struct {
-	snap   model.Snapshot
-	sel    string          // global @sidebar_selected at snapshot time
-	pins   map[string]bool // global @agentbar-pins at snapshot time
-	signal bool            // woken by the wait-for channel, not the 1s tick
+	snap      model.Snapshot
+	sel       string          // global @sidebar_selected at snapshot time
+	activeFor time.Duration   // global @agentbar-active-for at snapshot time
+	pins      map[string]bool // global @agentbar-pins at snapshot time
+	signal    bool            // woken by the wait-for channel, not the 1s tick
 }
 
 // App is the Bubble Tea model for the sidebar. In mockup mode the
@@ -52,6 +53,10 @@ type App struct {
 	flash      string
 	mockup     bool
 	pins       map[string]bool // pinned session names (@agentbar-pins), used to regroup on `p`
+
+	// How long a session stays active after its last agent activity
+	// (@agentbar-active-for). Re-read every poll, like the other options.
+	activeFor time.Duration
 
 	// live-mode plumbing (nil in mockup mode)
 	runner   tmux.Runner
@@ -80,8 +85,9 @@ func NewLive(theme Theme) App {
 		current:  tmux.CurrentSession(runner),
 		pins:     tmux.Pins(runner),
 	}
+	app.activeFor = tmux.ActiveFor(runner)
 	snap := tmux.Snapshot(runner, app.branches, app.current)
-	snap.Sessions = model.Arrange(snap.Sessions, app.pins)
+	snap.Sessions = model.Arrange(snap.Sessions, app.pins, time.Now(), app.activeFor)
 	app.setSnapshot(snap)
 	app.attached = attachedKey(app.snap)
 	// Selection is shared across sidebars via the global @sidebar_selected.
@@ -198,13 +204,15 @@ func (a App) gather(signal bool) snapMsg {
 	verbose, _ := a.runner.Run("show-option", "-gqv", "@agentbar-trace-verbose")
 	trace.SetVerbose(truthy(verbose))
 	pins := tmux.Pins(a.runner)
+	activeFor := tmux.ActiveFor(a.runner)
 	snap := tmux.Snapshot(a.runner, a.branches, a.current)
-	snap.Sessions = model.Arrange(snap.Sessions, pins)
+	snap.Sessions = model.Arrange(snap.Sessions, pins, time.Now(), activeFor)
 	return snapMsg{
-		snap:   snap,
-		sel:    strings.TrimSpace(sel),
-		pins:   pins,
-		signal: signal,
+		snap:      snap,
+		sel:       strings.TrimSpace(sel),
+		activeFor: activeFor,
+		pins:      pins,
+		signal:    signal,
 	}
 }
 
@@ -285,6 +293,12 @@ func NewMockup(theme Theme) App {
 				Title: "Rate limit middleware rollout",
 				State: model.StateWorking, Since: now.Add(-2 * time.Minute), Subagents: 2},
 		}},
+		// Agents, but none live or recent: sinks to dormant on the clock alone.
+		{Name: "archive", Agents: []model.Agent{
+			{PaneID: "%12", WindowIndex: 1, Command: "claude", Branch: "chore/retire-v1",
+				Title: "Retire the v1 endpoints",
+				State: model.StateDone, Seen: true, Since: now.Add(-3 * time.Hour)},
+		}},
 		{Name: "blog", Agents: []model.Agent{
 			{PaneID: "%7", WindowIndex: 1, Command: "claude", Branch: "draft/tmux-agents-post",
 				Title: "Draft the parallel agents post",
@@ -325,7 +339,7 @@ func NewMockup(theme Theme) App {
 	for i := range snap.Sessions {
 		snap.Sessions[i].Branch = model.BranchOf(snap.Sessions[i].Agents)
 	}
-	snap.Sessions = model.Arrange(snap.Sessions, pins)
+	snap.Sessions = model.Arrange(snap.Sessions, pins, now, model.DefaultActiveFor)
 	app := App{
 		theme:  theme,
 		hover:  -1,
@@ -417,6 +431,9 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, tick()
 	case snapMsg:
 		a.setSnapshot(msg.snap)
+		if msg.activeFor > 0 {
+			a.activeFor = msg.activeFor
+		}
 		if msg.pins != nil {
 			a.pins = msg.pins
 		}
@@ -655,7 +672,7 @@ func (a App) togglePin() (tea.Model, tea.Cmd) {
 	}
 	a.pins = pins
 	snap := a.snap
-	snap.Sessions = model.Arrange(a.snap.Sessions, pins)
+	snap.Sessions = model.Arrange(a.snap.Sessions, pins, time.Now(), a.activeFor)
 	a.setSnapshot(snap) // captures the current selection, re-anchors it after regroup
 	if !a.mockup {
 		_ = tmux.SetPins(a.runner, pins)

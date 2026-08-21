@@ -77,7 +77,7 @@ func main() {
 // and these run on a keypress.
 func ordered(r tmux.Runner, current string) []model.Session {
 	snap := tmux.Snapshot(r, nil, current)
-	return model.Arrange(snap.Sessions, tmux.Pins(r))
+	return model.Arrange(snap.Sessions, tmux.Pins(r), time.Now(), tmux.ActiveFor(r))
 }
 
 // runOrder publishes the order as "band<TAB>name" lines, the picker popup's

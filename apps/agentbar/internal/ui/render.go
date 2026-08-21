@@ -69,6 +69,12 @@ func buildBlocks(snap model.Snapshot) []block {
 			prev = band
 		}
 		blocks = append(blocks, block{kind: blockSession, session: si})
+		// A dormant session is its name alone: reclaiming the rows is the point
+		// of sinking one, and skipping the blocks here (not just their render)
+		// keeps nav and clicks off rows that are not on screen.
+		if band == 2 {
+			continue
+		}
 		for ai := range sess.Agents {
 			blocks = append(blocks, block{kind: blockAgent, session: si, agent: ai})
 		}

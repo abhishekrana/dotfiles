@@ -3,6 +3,7 @@ package model
 import (
 	"slices"
 	"testing"
+	"time"
 )
 
 func names(sessions []Session) []string {
@@ -16,14 +17,17 @@ func names(sessions []Session) []string {
 // Arrange groups sessions into pinned / active / dormant bands, alphabetical
 // within each, and stamps Pinned - without mutating the input.
 func TestArrangeGroupsSortsAndStamps(t *testing.T) {
+	// A bare Agent{} has no Since, so it is not fresh: give the active ones a
+	// recent state change, which is what puts them in the active band.
+	live := Agent{Since: time.Now().Add(-time.Minute)}
 	in := []Session{
-		{Name: "zeta", Agents: []Agent{{}}}, // active
-		{Name: "alpha"},                     // dormant (no agents)
-		{Name: "mid", Agents: []Agent{{}}},  // active, will be pinned
-		{Name: "beta"},                      // dormant
-		{Name: "yak", Agents: []Agent{{}}},  // active
+		{Name: "zeta", Agents: []Agent{live}}, // active
+		{Name: "alpha"},                       // dormant (no agents)
+		{Name: "mid", Agents: []Agent{live}},  // active, will be pinned
+		{Name: "beta"},                        // dormant
+		{Name: "yak", Agents: []Agent{live}},  // active
 	}
-	out := Arrange(in, map[string]bool{"mid": true})
+	out := Arrange(in, map[string]bool{"mid": true}, time.Now(), time.Hour)
 
 	want := []string{"mid", "yak", "zeta", "alpha", "beta"}
 	if got := names(out); !slices.Equal(got, want) {
@@ -117,7 +121,7 @@ func TestNamesFollowsTheBands(t *testing.T) {
 		{Name: "blog", Agents: []Agent{{}}},     // pinned below
 		{Name: "dotfiles", Agents: []Agent{{}}}, // pinned below
 	}
-	got := Names(Arrange(sessions, map[string]bool{"blog": true, "dotfiles": true}))
+	got := Names(Arrange(sessions, map[string]bool{"blog": true, "dotfiles": true}, time.Now(), time.Hour))
 	want := []string{"blog", "dotfiles", "api", "payments"}
 	if len(got) != len(want) {
 		t.Fatalf("Names = %v, want %v", got, want)
@@ -150,5 +154,76 @@ func TestBranchOf(t *testing.T) {
 	three := []Agent{{Branch: "main"}, {Branch: "a"}, {Branch: "b"}}
 	if got := BranchOf(three); got != "main +2" {
 		t.Errorf("two others = %q, want \"main +2\"", got)
+	}
+}
+
+// Fresh is what decides the active band: a live agent counts however long it has
+// been at it, because @agent_since is the time of the last state *change* - a
+// ninety-minute turn would otherwise age out mid-work.
+func TestFresh(t *testing.T) {
+	now := time.Now()
+	old := now.Add(-3 * time.Hour)
+	cases := map[string]struct {
+		agents []Agent
+		want   bool
+	}{
+		"working, long past its last change": {[]Agent{{State: StateWorking, Since: old}}, true},
+		"blocked on you, however old":        {[]Agent{{State: StatePermission, Since: old}}, true},
+		"asking, however old":                {[]Agent{{State: StateQuestion, Since: old}}, true},
+		"done a moment ago":                  {[]Agent{{State: StateDone, Since: now.Add(-time.Minute)}}, true},
+		"done three hours ago":               {[]Agent{{State: StateDone, Since: old}}, false},
+		"idle three hours ago":               {[]Agent{{State: StateIdle, Since: old}}, false},
+		"no timestamp at all":                {[]Agent{{State: StateDone}}, false},
+		"one cold, one warm":                 {[]Agent{{State: StateDone, Since: old}, {State: StateDone, Since: now}}, true},
+		"no agents":                          {nil, false},
+	}
+	for name, c := range cases {
+		if got := Fresh(c.agents, now, time.Hour); got != c.want {
+			t.Errorf("%s: Fresh = %v, want %v", name, got, c.want)
+		}
+	}
+}
+
+// A session whose agents have all gone quiet sinks to dormant on the clock
+// alone - but a pinned one never moves, because pins are the user's.
+func TestArrangeSinksQuietSessionsButNeverPinned(t *testing.T) {
+	now := time.Now()
+	cold := Agent{State: StateDone, Since: now.Add(-3 * time.Hour)}
+	warm := Agent{State: StateDone, Since: now.Add(-time.Minute)}
+	in := []Session{
+		{Name: "cold", Agents: []Agent{cold}},
+		{Name: "warm", Agents: []Agent{warm}},
+		{Name: "pinned-cold", Agents: []Agent{cold}},
+	}
+	out := Arrange(in, map[string]bool{"pinned-cold": true}, now, time.Hour)
+
+	byName := map[string]Session{}
+	for _, s := range out {
+		byName[s.Name] = s
+	}
+	if got := byName["cold"].Band(); got != 2 {
+		t.Errorf("a quiet session should sink to dormant, got band %d", got)
+	}
+	if !byName["cold"].Quiet {
+		t.Error("a quiet session should be stamped Quiet")
+	}
+	if got := byName["warm"].Band(); got != 1 {
+		t.Errorf("a session with recent activity stays active, got band %d", got)
+	}
+	if got := byName["pinned-cold"].Band(); got != 0 {
+		t.Errorf("a pinned session must not move, however quiet: got band %d", got)
+	}
+	// The window is what decides it: widen it and the cold one comes back.
+	wide := Arrange(in, nil, now, 4*time.Hour)
+	for _, s := range wide {
+		if s.Name == "cold" && s.Band() != 1 {
+			t.Errorf("with a 4h window the cold session is active, got band %d", s.Band())
+		}
+	}
+	// An unset (zero) window must not flatten the bar to dormant.
+	for _, s := range Arrange(in, nil, now, 0) {
+		if s.Name == "warm" && s.Band() != 1 {
+			t.Error("a zero window should fall back to the default, not sink everything")
+		}
 	}
 }

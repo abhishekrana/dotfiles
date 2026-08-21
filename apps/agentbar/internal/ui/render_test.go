@@ -22,11 +22,13 @@ func TestBuildBlocksDividers(t *testing.T) {
 		}
 	}
 
+	// Recent state changes, or the clock would sink these into dormant.
+	fresh := time.Now().Add(-time.Minute)
 	three := model.Snapshot{Sessions: model.Arrange([]model.Session{
-		{Name: "act", Agents: []model.Agent{{PaneID: "%2"}}},
-		{Name: "dead"}, // dormant
-		{Name: "pin", Agents: []model.Agent{{PaneID: "%1"}}},
-	}, map[string]bool{"pin": true})}
+		{Name: "act", Agents: []model.Agent{{PaneID: "%2", Since: fresh}}},
+		{Name: "dead"}, // dormant: no agents at all
+		{Name: "pin", Agents: []model.Agent{{PaneID: "%1", Since: fresh}}},
+	}, map[string]bool{"pin": true}, time.Now(), time.Hour)}
 	var labels []string
 	for _, bl := range buildBlocks(three) {
 		if bl.kind == blockSection {
@@ -42,9 +44,9 @@ func TestBuildBlocksDividers(t *testing.T) {
 	// enough. The active header used to appear only under a pinned band, so a
 	// pin-free list left its first group nameless.
 	noPins := model.Snapshot{Sessions: model.Arrange([]model.Session{
-		{Name: "act", Agents: []model.Agent{{PaneID: "%1"}}},
+		{Name: "act", Agents: []model.Agent{{PaneID: "%1", Since: fresh}}},
 		{Name: "dead"},
-	}, nil)}
+	}, nil, time.Now(), time.Hour)}
 	labels = nil
 	for _, bl := range buildBlocks(noPins) {
 		if bl.kind == blockSection {
@@ -60,11 +62,12 @@ func TestBuildBlocksDividers(t *testing.T) {
 // below it gets a blank line above, and the dormant one also gets a blank
 // below (its sessions pack tight). Line counts: pinned = 1, active = 2, dormant = 3.
 func TestBandDividerSpacing(t *testing.T) {
+	fresh := time.Now().Add(-time.Minute)
 	snap := model.Snapshot{Sessions: model.Arrange([]model.Session{
-		{Name: "act", Agents: []model.Agent{{PaneID: "%2"}}},
+		{Name: "act", Agents: []model.Agent{{PaneID: "%2", Since: fresh}}},
 		{Name: "dead"}, // dormant
-		{Name: "pin", Agents: []model.Agent{{PaneID: "%1"}}},
-	}, map[string]bool{"pin": true})}
+		{Name: "pin", Agents: []model.Agent{{PaneID: "%1", Since: fresh}}},
+	}, map[string]bool{"pin": true}, time.Now(), time.Hour)}
 	var pinned, active, dormant block
 	var havePinned, haveActive, haveDormant bool
 	for _, b := range buildBlocks(snap) {

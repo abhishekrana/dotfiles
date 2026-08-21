@@ -76,6 +76,12 @@ Rules:
   `tmux-worktree-picker.sh` (the menu's `W`) and per-window auto-follow (`F`, off by default) re-point a live pane.
 - An amber `◧ diff` chip means the worktree is in no agent's `@agent_workdirs`, and reports nothing else. A click only
   opens the menu.
+- **The active band is what you are working on now.** A session with no agents is dormant, and so is one whose agents
+  have all gone quiet for longer than `@agentbar-active-for` (default 1h, a `⛭` row). An agent that is working or
+  blocked on you keeps its session active however long it has been at it. Nothing runs in the background to make this
+  happen: the band is `now - @agent_since` evaluated on the sidebar's existing 1s poll, so there is no timer and nothing
+  to go stale. A pinned session never moves - pins are yours - and a session only sinks on its own; coming back up takes
+  a prompt, a permission or a new agent.
 - **The sidebar nests: session, then its agents.** A session line carries its name and its branch (dim, `⎇` as on the
   pane rail); each agent under it carries the title Claude gave that session, with its state a step deeper. Both facts
   are on screen at once, which is why there is no setting choosing between them. A session Claude has not titled yet

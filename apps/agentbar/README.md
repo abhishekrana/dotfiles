@@ -87,8 +87,12 @@ Clicking a session name switches to it - the one way to reach a session with no 
 Sessions are grouped into three bands so your working set stays together and dead sessions get out of the way:
 
 - **`pinned`** - sessions you pinned with `p`, floated to the top; the label reads gold.
-- **`active`** - the rest of the sessions that have a Claude running.
-- **`dormant`** - sessions with no agents, dimmed grey and sunk to the bottom (one compact line each).
+- **`active`** - sessions whose agents are working, blocked on you, or last changed state within `@agentbar-active-for`
+  (default 1h).
+- **`dormant`** - sessions with no agents **and** sessions whose agents have all gone quiet for longer than
+  `@agentbar-active-for`, dimmed grey and sunk to the bottom, name only. A quiet session sinks on its own an hour after
+  you stop; nothing runs in the background to do it, since the band is `now - @agent_since` evaluated on the sidebar's
+  existing poll. A pinned session never moves, however quiet.
 
 A labelled divider heads each band - all three named, on one rule: it appears when the band has a non-empty neighbour to
 divide it from, so a single-band list shows no dividers at all. The names are `model.BandLabel`, the same tokens
@@ -200,6 +204,7 @@ set -g @agentbar-width '30'             # sidebar width in columns
 set -g @agentbar-theme 'solarized-light' # or 'dark'
 set -g @agentbar-focus 'off'            # 'on' focuses sidebar on open
 set -g @agentbar-autostart 'on'         # 'off' starts with the sidebar closed
+set -g @agentbar-active-for '1h'        # how long a quiet session stays in the active band
 ```
 
 ## Development

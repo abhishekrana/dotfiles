@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -43,10 +44,12 @@ func twoSessionSnap() model.Snapshot {
 	// the click and hover tests below count rows against.
 	return model.Snapshot{Sessions: []model.Session{
 		{Name: "api", Current: true, Branch: "main", Agents: []model.Agent{
-			{PaneID: "%0", WindowIndex: 1, Branch: "main", Title: "Rate limits", State: model.StateIdle},
+			{PaneID: "%0", WindowIndex: 1, Branch: "main", Title: "Rate limits",
+				State: model.StateIdle, Since: time.Now().Add(-2 * time.Minute)},
 		}},
 		{Name: "blog", Branch: "blog", Agents: []model.Agent{
-			{PaneID: "%6", WindowIndex: 1, Branch: "blog", Title: "Draft the post", State: model.StateIdle},
+			{PaneID: "%6", WindowIndex: 1, Branch: "blog", Title: "Draft the post",
+				State: model.StateIdle, Since: time.Now().Add(-2 * time.Minute)},
 		}},
 	}}
 }
@@ -396,7 +399,7 @@ func TestClickOnDividerIsNoop(t *testing.T) {
 	// row 0 (the top divider gets no leading blank).
 	a := App{runner: r, current: "api", pins: map[string]bool{"blog": true}}
 	snap := twoSessionSnap()
-	snap.Sessions = model.Arrange(snap.Sessions, a.pins)
+	snap.Sessions = model.Arrange(snap.Sessions, a.pins, time.Now(), time.Hour)
 	a.setSnapshot(snap)
 	a.width, a.height = 30, 20
 

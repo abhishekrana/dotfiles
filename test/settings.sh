@@ -97,49 +97,58 @@ applied() { tr -d '\n' <"$TMP/applied"; }
 # (list item N is pane line N+1). A per-group lookup keeps every assertion local:
 # there are now three ● marks on screen, one per group.
 in_span() { snap | sed -n "$2,${3}p" | grep -n -- "$1" | head -1 | cut -d: -f1; }
-nrow() { in_span "$1" 2 3; } # agentbar · Notify
-trow() { in_span "$1" 4 7; } # theme · Theme
+arow() { in_span "$1" 2 4; }  # agentbar · Active for
+nrow() { in_span "$1" 5 6; }  # agentbar · Notify
+trow() { in_span "$1" 7 10; } # theme · Theme
 
 # ---- the list ---------------------------------------------------------------
 printf '\nlist\n'
 start solarized-light
 out=$(snap)
-for want in agentbar theme Notify Theme; do
+for want in agentbar theme "Active for" Notify Theme; do
     grep -qF "$want" <<<"$out" && ok "names $want" || no "missing $want"
 done
-for want in Off On "Solarized Light" "Catppuccin Mocha"; do
+for want in 30m 1h 4h Off On "Solarized Light" "Catppuccin Mocha"; do
     grep -qF "$want" <<<"$out" && ok "shows $want" || no "missing $want"
 done
+eq "the window defaults to an hour" 2 "$(arow '●')"
 eq "notify defaults to off" 1 "$(nrow '●')"
 eq "the active flavor is marked" 1 "$(trow '●')"
-eq "the cursor starts on the first row" 1 "$(nrow '▸')"
+eq "the cursor starts on the first row" 1 "$(arow '▸')"
 
 # ---- keyboard ---------------------------------------------------------------
 printf '\nkeyboard\n'
 keys j
-eq "j moves down" 2 "$(nrow '▸')"
+keys j
+eq "j walks to the next value" 3 "$(arow '▸')"
+keys Enter
+eq "Enter applies the window" 4h "$(tmux show-option -gqv @agentbar-active-for)"
+eq "the marker follows the choice" 3 "$(arow '●')"
+eq "and the cursor stays in its group" 3 "$(arow '▸')"
+eq "the theme was left alone" "" "$(applied)"
+
+keys j
+keys j
+eq "j walks into the next setting" 2 "$(nrow '▸')"
 keys Enter
 eq "Enter applies notify" on "$(tmux show-option -gqv @agent_notify)"
-eq "the marker follows the choice" 2 "$(nrow '●')"
-eq "and the cursor stays in its group" 2 "$(nrow '▸')"
-eq "the theme was left alone" "" "$(applied)"
+eq "and the window was left alone" 4h "$(tmux show-option -gqv @agentbar-active-for)"
 
 keys k
 keys Enter
 eq "and back off again" off "$(tmux show-option -gqv @agent_notify)"
-eq "the cursor is back on the first row" 1 "$(nrow '▸')"
 
 # ---- mouse ------------------------------------------------------------------
 printf '\nmouse\n'
 start solarized-light
-click 6
+click 9
 eq "a click applies that flavor" "catppuccin-mocha" "$(applied)"
 eq "the marker moved to it" 4 "$(trow '●')"
 eq "the cursor stayed on it" 4 "$(trow '▸')"
 
-click 2
-eq "a click in another area applies there" on "$(tmux show-option -gqv @agent_notify)"
-eq "cursor on the clicked row" 2 "$(nrow '▸')"
+click 1
+eq "a click in another area applies there" 30m "$(tmux show-option -gqv @agentbar-active-for)"
+eq "cursor on the clicked row" 1 "$(arow '▸')"
 eq "without re-applying the theme" "catppuccin-mocha" "$(applied)"
 
 # ---- closing ----------------------------------------------------------------
