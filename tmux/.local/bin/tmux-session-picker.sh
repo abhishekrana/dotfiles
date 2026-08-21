@@ -183,9 +183,9 @@ band_row() {
 # list shows none), exactly as the sidebar does it.
 build_lines() {
     local -A STATE_BY_SESSION WORKDIR_BY_SESSION DIR_BY_SESSION DIR_VOTES PANES_IN
-    local -A TITLE_BY_SESSION AGENTS_IN
+    local -A TITLE_BY_SESSION AGENTS_IN BRANCH_BY_SESSION
     local sess cmd present state wd path title host seen prev current ordered band name branch icon mark header
-    local rank prev_rank col more
+    local rank prev_rank col more bw=0 b
     local headed=
     local -A count
 
@@ -244,6 +244,24 @@ build_lines() {
         [ -n "$name" ] && count[$band]=$((${count[$band]:-0} + 1))
     done <<<"$ordered"
 
+    # The branch column is sized to the longest name on screen, not to a guess:
+    # the popup has ~187 columns, and branches here run past 30. One git call per
+    # session, the same one the render loop used to make.
+    while IFS=$'\t' read -r band name; do
+        [ -z "$name" ] && continue
+        path=${WORKDIR_BY_SESSION[$name]:-${DIR_BY_SESSION[$name]:-}}
+        b=
+        if [ -n "$path" ] && [ -d "$path" ]; then
+            b=$(git -C "$path" symbolic-ref --short HEAD 2>/dev/null ||
+                git -C "$path" rev-parse --short HEAD 2>/dev/null ||
+                true)
+        fi
+        # Past 44 a branch is eating the title's room, so cap it there.
+        [ ${#b} -gt 44 ] && b="${b:0:43}…"
+        BRANCH_BY_SESSION[$name]=$b
+        [ ${#b} -gt "$bw" ] && bw=${#b}
+    done <<<"$ordered"
+
     prev=
     while IFS=$'\t' read -r band name; do
         [ -z "$name" ] && continue
@@ -272,22 +290,15 @@ build_lines() {
             fi
             prev=$band
         fi
-        path=${WORKDIR_BY_SESSION[$name]:-${DIR_BY_SESSION[$name]:-}}
-        branch=
-        if [ -n "$path" ] && [ -d "$path" ]; then
-            branch=$(git -C "$path" symbolic-ref --short HEAD 2>/dev/null ||
-                git -C "$path" rev-parse --short HEAD 2>/dev/null ||
-                true)
-        fi
-        # Fixed columns, so cycling lands the eye in the same place on every
-        # row. A capped branch is already 24 cells wide, so only a short one
-        # needs padding - and padding pure ASCII survives any locale.
-        if [ ${#branch} -gt 24 ]; then
-            col="${branch:0:23}…"
-        else
-            col=$(printf '%-24s' "$branch")
-        fi
-        [ -n "$branch" ] && col="⎇ $col" || col="  $col"
+        branch=${BRANCH_BY_SESSION[$name]:-}
+        # Fixed columns, so cycling lands the eye in the same place on every row.
+        # printf pads by bytes, so only pad the all-ASCII case: a capped branch
+        # ends in an ellipsis and is already the full width.
+        case $branch in
+            '') col=$(printf "%-$((bw + 2))s" '') ;;
+            *…) col="⎇ $branch" ;;
+            *) col="⎇ $(printf "%-${bw}s" "$branch")" ;;
+        esac
         # "+N" owns up to the agents the one title does not speak for.
         more=$((${AGENTS_IN[$name]:-0} - 1))
         [ "$more" -gt 0 ] && more=" $(agent_muted "+$more")" || more=
