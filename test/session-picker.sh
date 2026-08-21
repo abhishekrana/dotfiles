@@ -257,6 +257,24 @@ for want in "Approve the migration" "Ship the parser"; do
     esac
 done
 
+# An agent lives in a pane, which tmux addresses as window.pane - so that is how
+# the block places it, rather than naming the window it happens to sit in.
+# Index-agnostic: this server runs with -f /dev/null, so base-index is 0 here
+# and 1 under the real config.
+case $prev_out in
+    *"pane "[0-9]*.[0-9]*) ok "each agent is placed by window.pane" ;;
+    *) no "each agent is placed by window.pane" "no 'pane N.N' in the block" ;;
+esac
+
+# The regression: this block iterated panes under a "windows:" heading, so solo's
+# one window appeared once per pane. Panes are the splits inside a window.
+eq "one line per window, not per pane" 1 \
+    "$(prev solo | sed -n '/^windows:/,$p' | grep -c '^  ')"
+case $prev_out in
+    *"4 panes"*) ok "and it counts them" ;;
+    *) no "and it counts them" "no '4 panes'" ;;
+esac
+
 printf '\npicker: no binary means no crash\n'
 
 tmux kill-server 2>/dev/null

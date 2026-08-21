@@ -43,8 +43,12 @@ Scripts in `tmux/.local/bin/`:
 - `tmux-gitlab.sh` - GitLab status, `#issue !mr CI ✓`. No words: the sigils are GitLab's own notation, and the CI glyph
   is fixed-width so a flipping pipeline never shifts the clock.
 - `tmux-session-preview.sh` - the picker's fzf preview: the session's dir, repo, branch, aggregate state, its agents
-  (one line each: glyph, title, state, age) and its windows. It resolves the directory the same way the rows do - most
-  of the session's non-sidebar panes, an agent's worktree winning - never the session's active pane.
+  (one line each: glyph, title, state, age, and the `window.pane` it sits in) and its windows (one line each: index,
+  name, pane count, and the flags the status line shows - current, zoomed, bell; never activity, which
+  `monitor-activity on` puts on every window). It resolves the directory the same way the rows do - most of the
+  session's non-sidebar panes, an agent's worktree winning - never the session's active pane. **tmux's own words**: the
+  bottom line is the status line, `1:claude 2:bash` is the window list, and each entry is a window status of index
+  (`#I`), name (`#W`) and flags (`#F`); panes are the splits inside a window and never appear there.
 - `tmux-agent-state.sh` - sourced agent-state language: glyphs, colors, state ranking and `agent_title` (Claude's own
   title for a session, from its pane title), shared by the session picker and its preview, mirroring the sidebar's.
   Colors come from the theme switcher, never hardcoded.
