@@ -53,8 +53,10 @@ ci_glyph() {
 }
 
 # ⇢ for open, not ⇄: a merge request points one way, at main, and has not landed
-# yet - which pairs with ✔ for arrived. Arrows also keep the MR's alphabet
-# distinct from CI's ticks and dots, so two indicators do not blur into one.
+# yet - which pairs with ✓ for arrived. Merged and closed print CI's own ✓ and ✗
+# (U+2713, U+2717) rather than lookalikes - ✔ (U+2714) renders visibly larger
+# beside them - so the footer holds one tick and one cross at one weight.
+# Position separates the two indicators: the MR glyph sits before the word CI.
 #
 # GitLab has four MR states - opened, merged, closed, locked - and `draft` is a
 # separate boolean alongside them, not a fifth state. Conflicts are orthogonal
@@ -63,8 +65,8 @@ ci_glyph() {
 # double in some terminals and shift the clock).
 mr_glyph() { # <state> <draft> -> one single-width glyph
     case "$1" in
-        merged) printf '✔' ;;
-        closed) printf '✕' ;;
+        merged) printf '✓' ;;
+        closed) printf '✗' ;;
         locked) printf '⊘' ;;
         opened) [ "$2" = true ] && printf '✎' || printf '⇢' ;;
         *) printf '·' ;;
