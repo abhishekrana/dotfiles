@@ -497,6 +497,23 @@ func TestTabNoAttentionIsNoop(t *testing.T) {
 // One key, one destination: `p`, `a` and `d` place the selected session, and
 // pressing the same key again changes nothing. `a` on a pinned session moves it,
 // which is the case the pin used to swallow.
+// `d` cannot sink a session being worked in - it stores no placement at all,
+// so the row does not drop and bounce back on the next poll.
+func TestBandDormantYieldsToAWorkingSession(t *testing.T) {
+	a := testApp(&fakeRunner{})
+	snap := twoSessionSnap()
+	snap.Sessions[0].Agents[0].State = model.StateWorking
+	a.setSnapshot(snap)
+	name := a.snap.Sessions[a.blocks[a.cursor].session].Name
+	if name != "api" {
+		t.Fatalf("cursor sits on %q, want api", name)
+	}
+	m, _ := a.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+	if got, placed := m.(App).bands[name]; placed {
+		t.Errorf("d sank a working session: %s = %q", name, got)
+	}
+}
+
 func TestBandKeysPlaceTheSession(t *testing.T) {
 	r := &fakeRunner{}
 	a := testApp(r)

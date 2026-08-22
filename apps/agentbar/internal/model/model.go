@@ -29,6 +29,13 @@ func (s AgentState) NeedsAttention() bool {
 	return s == StatePermission || s == StateQuestion
 }
 
+// Live reports whether the agent is doing something that must be on screen:
+// working, or blocked on you. It is what a hand-placed dormant yields to - a
+// session being worked in is never buried by a placement you made earlier.
+func (s AgentState) Live() bool {
+	return s == StateWorking || s.NeedsAttention()
+}
+
 // Label is the short human-readable state text shown in the sidebar.
 func (s AgentState) Label() string {
 	switch s {
@@ -82,7 +89,7 @@ const DefaultActiveFor = time.Hour
 // mid-work - and otherwise the newest state change must be inside activeFor.
 func Fresh(agents []Agent, now time.Time, activeFor time.Duration) bool {
 	for _, a := range agents {
-		if a.State == StateWorking || a.State.NeedsAttention() {
+		if a.State.Live() {
 			return true
 		}
 		if !a.Since.IsZero() && now.Sub(a.Since) < activeFor {
@@ -117,9 +124,11 @@ func BranchOf(agents []Agent) string {
 // needs no clock and no options of its own.
 //
 // A hand-placed band wins over the clock - that is the whole point of `a` and
-// `d` - with one exception: an agent that needs you pulls its session back up
-// out of a forced dormant, because nothing should be able to hide a permission
-// prompt indefinitely.
+// `d` - with one exception: a session being worked in comes straight back up
+// out of a forced dormant. `d` sinks what you are done with, so an agent
+// working there, or blocked on you, ends the placement; Expire then drops it
+// outright, so the session obeys the clock from there rather than re-sinking
+// the instant it goes quiet.
 func (s Session) Band() int {
 	switch {
 	case s.Pinned:
@@ -127,7 +136,7 @@ func (s Session) Band() int {
 	case s.Forced == BandActive:
 		return 1
 	case s.Forced == BandDormant:
-		if s.NeedsAttention() {
+		if s.Live() {
 			return 1
 		}
 		return 2
@@ -183,6 +192,50 @@ func Place(pinned map[string]bool, forced map[string]string, name, band string) 
 		bands[name] = band
 	}
 	return pins, bands
+}
+
+// Expire drops a hand-placed dormant that work has overtaken, returning the
+// surviving set and whether it changed. `d` sinks a session you are done with,
+// so it is a one-shot: an agent there working or blocked on you ends the
+// placement, and the session is back on the clock rather than bouncing to the
+// bottom every time it goes quiet.
+//
+// A forced active is never expired - holding a quiet session up is exactly
+// what `a` is for. One name per call, so the caller decides who writes: every
+// sidebar renders every session, and all of them clearing every placement
+// would be one write and one refresh storm per bar.
+func Expire(forced map[string]string, sessions []Session, name string) (map[string]string, bool) {
+	if forced[name] != BandDormant {
+		return forced, false
+	}
+	live := false
+	for _, s := range sessions {
+		if s.Name == name {
+			live = s.Live()
+			break
+		}
+	}
+	if !live {
+		return forced, false
+	}
+	out := make(map[string]string, len(forced))
+	for k, v := range forced {
+		if k != name {
+			out[k] = v
+		}
+	}
+	return out, true
+}
+
+// Live reports whether any agent here is working or blocked on you - the
+// session is being worked in right now, whatever the clock or a placement say.
+func (s Session) Live() bool {
+	for _, a := range s.Agents {
+		if a.State.Live() {
+			return true
+		}
+	}
+	return false
 }
 
 // NeedsAttention reports whether any agent here is blocked on the user.

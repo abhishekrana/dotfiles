@@ -1778,6 +1778,48 @@ func TestQuietSessionSinksToDormant(t *testing.T) {
 // again changes nothing, and `a` on a pinned session moves it. The sidebar key,
 // the `band` command and the picker drive one store, and `order` - what
 // Alt-h/Alt-l walk - must agree with what the bar draws.
+// A forced dormant is a one-shot: work in the session ends it, and the sidebar
+// clears the placement outright, so the session obeys the clock from there
+// instead of sinking again the moment it goes quiet.
+func TestForcedDormantEndsWhenWorkResumes(t *testing.T) {
+	s := start(t)
+	s.newSession("work")
+	agent := s.agentPane("work")
+	s.hook(agent, `{"hook_event_name":"Stop"}`) // quiet, so `d` can sink it
+
+	s.script("open.sh", "work")
+	s.sidebarPane("work")
+	s.agentbar("band", "work", "dormant")
+	waitFor(t, "d sinks a quiet session", 5*time.Second, func() bool {
+		return strings.Contains(s.agentbar("order"), "dormant\twork")
+	})
+
+	// A prompt is work: the session comes back up and the placement is gone.
+	s.hook(agent, `{"hook_event_name":"UserPromptSubmit"}`)
+	waitFor(t, "work lifts it back to active", 5*time.Second, func() bool {
+		return strings.Contains(s.agentbar("order"), "active\twork")
+	})
+	waitFor(t, "the sidebar clears the placement", 5*time.Second, func() bool {
+		return !strings.Contains(s.tmux("show-option", "-gqv", "@agentbar-bands"), "work=")
+	})
+
+	// Cleared for good: going quiet again leaves it to the clock, which keeps a
+	// session active for an hour, so it must not drop back to dormant.
+	s.hook(agent, `{"hook_event_name":"Stop"}`)
+	time.Sleep(1500 * time.Millisecond)
+	if out := s.agentbar("order"); !strings.Contains(out, "active\twork") {
+		t.Errorf("the placement came back to re-sink it:\n%s", out)
+	}
+
+	// And `d` cannot sink a session being worked in at all.
+	s.hook(agent, `{"hook_event_name":"UserPromptSubmit"}`)
+	s.agentbar("band", "work", "dormant")
+	time.Sleep(1500 * time.Millisecond)
+	if out := s.agentbar("order"); !strings.Contains(out, "active\twork") {
+		t.Errorf("d sank a working session:\n%s", out)
+	}
+}
+
 func TestBandsPlacedByHand(t *testing.T) {
 	s := start(t)
 	s.newSession("other")

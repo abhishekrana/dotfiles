@@ -109,13 +109,19 @@ title mode's branch fallback shows), and all three bands (pinned/active/dormant)
   the picker drives both stores through one place.
 - **A session nobody has placed is left to the clock**, which is the normal case; a placed one stays where you put it
   until you press another key.
-- **A forced band wins over the clock, except for attention.** `Session.NeedsAttention` pulls a session out of a forced
-  dormant: nothing may hide a permission prompt indefinitely. Pinned still beats both.
+- **A forced dormant is a one-shot; a forced active is not.** `Session.Live` (working, or blocked on you) is what ends
+  it: `Band()` lifts a live session on the spot, and `model.Expire` then drops the placement outright, so from there the
+  session is back on the clock instead of re-sinking the instant it goes quiet - that bounce was the bug. `d` therefore
+  cannot sink a session being worked in at all: an unplaced row does not move, and a pinned one loses its pin and is
+  left to the clock, since `Place` runs first and a pin and a forced band are one decision. Pinned still beats
+  everything. `Expire` takes one session name so the caller elects the writer: every sidebar renders every session, and
+  all of them clearing every placement would be a write and a refresh storm per bar - so a sidebar expires only the
+  session it lives in (`a.current`), and both `d` paths expire before they persist.
 - **A row never says how it got into its band.** A session placed by hand renders exactly like one the clock put there;
   every row is the same shape whatever decided it. A marker was tried and rejected as noise.
-- **Positions move on `p`/`a`/`d` and on that threshold, nothing else.** A pinned session never moves, however quiet -
-  pins are the user's. Absent an override a session only ever sinks on its own; coming back up takes a real event (a
-  prompt, a permission, a new agent).
+- **Positions move on `p`/`a`/`d`, on that threshold, and when work ends a forced dormant - nothing else.** A pinned
+  session never moves, however quiet - pins are the user's. A session only ever sinks on its own; coming back up takes a
+  real event (a prompt, a permission, a new agent).
 - **`setSnapshot` anchors an agent to its session as well as its pane.** Sinking a session drops its agent blocks, so
   without that fallback the cursor jumped to an unrelated row - and `d` then `a` acted on whatever it landed on.
 - **A dormant session is its name alone**, no branch and no agent rows: reclaiming those rows is the point of sinking

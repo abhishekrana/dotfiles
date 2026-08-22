@@ -81,8 +81,12 @@ Rules:
   so `a` on a pinned session unpins and holds it active. A row never says how it got into its band; a hand-placed
   session looks exactly like one the clock put there. All three keys work in the sidebar and the `Alt-;` picker, which
   share both stores, so `agentbar order` - what `Alt-h`/`Alt-l` walk - always agrees with what you see. A session nobody
-  has placed is left to the clock; a forced dormant still yields to an agent that needs you, since nothing may hide a
-  permission prompt.
+  has placed is left to the clock.
+- **`d` is a one-shot, and work is what ends it.** A session being worked in - an agent working, or blocked on you - is
+  never buried by a placement: it comes straight back up and the forced dormant is dropped, so it obeys the clock from
+  there rather than sinking again every time it falls quiet. So `d` on a session you are working in moves nothing, and a
+  stray `d` heals itself the moment you go back to that session. A pin is not a one-shot - `p` is yours until you press
+  another key.
 - **The active band is what you are working on now.** A session with no agents is dormant, and so is one whose agents
   have all gone quiet for longer than `@agentbar-active-for` (default 1h, a `⛭` row). An agent that is working or
   blocked on you keeps its session active however long it has been at it. Nothing runs in the background to make this

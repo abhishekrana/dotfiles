@@ -269,6 +269,67 @@ func TestForcedBandsOverrideTheClock(t *testing.T) {
 	}
 }
 
+// A forced dormant is a one-shot: work in the session ends it. Band() lifts a
+// live session out on the spot, and Expire drops the placement so it obeys the
+// clock from there rather than sinking again the moment it goes quiet.
+func TestForcedDormantYieldsToWork(t *testing.T) {
+	now := time.Now()
+	old := 3 * time.Hour
+	for _, c := range []struct {
+		state   AgentState
+		want    int
+		expired bool
+	}{
+		{StateWorking, 1, true},    // being worked in
+		{StatePermission, 1, true}, // blocked on you
+		{StateQuestion, 1, true},   // blocked on you
+		{StateIdle, 2, false},      // quiet: the placement holds
+		{StateDone, 2, false},      // quiet: the placement holds
+	} {
+		in := []Session{{Name: "sunk", Agents: []Agent{{State: c.state, Since: now.Add(-old)}}}}
+		bands := map[string]string{"sunk": BandDormant}
+		out := Arrange(in, Grouping{Forced: bands, Now: now, ActiveFor: time.Hour})
+		if got := out[0].Band(); got != c.want {
+			t.Errorf("%s: band = %d, want %d", c.state, got, c.want)
+		}
+		next, expired := Expire(bands, in, "sunk")
+		if expired != c.expired {
+			t.Errorf("%s: expired = %v, want %v", c.state, expired, c.expired)
+		}
+		if _, still := next["sunk"]; still == c.expired {
+			t.Errorf("%s: placement survived = %v, want %v", c.state, still, !c.expired)
+		}
+		if bands["sunk"] != BandDormant {
+			t.Errorf("%s: Expire mutated its input", c.state)
+		}
+	}
+}
+
+// Expire touches one name and only a dormant one: `a` holds a quiet session up
+// on purpose, and a neighbour's placement is none of this call's business.
+func TestExpireLeavesEverythingElseAlone(t *testing.T) {
+	working := []Agent{{State: StateWorking}}
+	in := []Session{
+		{Name: "held", Agents: working},
+		{Name: "sunk", Agents: working},
+		{Name: "empty"},
+	}
+	bands := map[string]string{"held": BandActive, "sunk": BandDormant}
+	if _, expired := Expire(bands, in, "held"); expired {
+		t.Error("a forced active must never expire")
+	}
+	if _, expired := Expire(bands, in, "gone"); expired {
+		t.Error("a name with no placement must not expire")
+	}
+	if _, expired := Expire(bands, in, "empty"); expired {
+		t.Error("a session with no agents is not live")
+	}
+	next, expired := Expire(bands, in, "sunk")
+	if !expired || next["held"] != BandActive || len(next) != 1 {
+		t.Errorf("expired = %v, next = %v", expired, next)
+	}
+}
+
 // Place is one key, one destination: a pin and a forced band are one decision,
 // so pressing a key clears the other store rather than stacking on it.
 func TestPlace(t *testing.T) {

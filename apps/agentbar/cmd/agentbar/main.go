@@ -172,6 +172,12 @@ func runBand(args []string) {
 	}
 	r := tmux.Exec{}
 	pins, bands := model.Place(tmux.Pins(r), tmux.Bands(r), name, want)
+	// Same one-shot rule the sidebar's `d` follows: a session being worked in
+	// cannot be sunk, so the placement never lands. Both views share the store,
+	// so both have to agree on what a keypress did.
+	if next, expired := model.Expire(bands, tmux.Snapshot(r, nil, "").Sessions, name); expired {
+		bands, want = next, "auto"
+	}
 	err := tmux.SetPins(r, pins)
 	if bandErr := tmux.SetBands(r, bands); err == nil {
 		err = bandErr

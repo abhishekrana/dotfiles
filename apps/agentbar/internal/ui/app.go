@@ -212,6 +212,16 @@ func (a App) gather(signal bool) snapMsg {
 	bands := tmux.Bands(a.runner)
 	activeFor := tmux.ActiveFor(a.runner)
 	snap := tmux.Snapshot(a.runner, a.branches, a.current)
+	// A forced dormant is a one-shot: work in that session ends it, so the
+	// session goes back on the clock instead of sinking again the moment it
+	// goes quiet. Each sidebar expires only the session it lives in - all of
+	// them writing the same clear would be a refresh storm per keypress.
+	if next, expired := model.Expire(bands, snap.Sessions, a.current); expired {
+		bands = next
+		_ = tmux.SetBands(a.runner, bands)
+		trace.Log("agentbar", "band", "session", a.current,
+			"before", model.BandDormant, "after", "auto", "why", "live")
+	}
 	snap.Sessions = model.Arrange(snap.Sessions, model.Grouping{
 		Pinned: pins, Forced: bands, Now: time.Now(), ActiveFor: activeFor,
 	})
@@ -688,6 +698,12 @@ func (a App) place(band string) (tea.Model, tea.Cmd) {
 	name := a.snap.Sessions[a.blocks[a.cursor].session].Name
 	before := model.Placement(a.pins, a.bands, name)
 	a.pins, a.bands = model.Place(a.pins, a.bands, name, band)
+	after := band
+	// A session being worked in cannot be sunk, so `d` on one moves nothing
+	// rather than dropping the row and bouncing it back on the next poll.
+	if next, expired := model.Expire(a.bands, a.snap.Sessions, name); expired {
+		a.bands, after = next, "auto"
+	}
 	snap := a.snap
 	snap.Sessions = model.Arrange(a.snap.Sessions, a.grouping())
 	a.setSnapshot(snap) // captures the selection, re-anchors it after regroup
@@ -701,7 +717,7 @@ func (a App) place(band string) (tea.Model, tea.Cmd) {
 		}
 		return v
 	}
-	trace.Log("agentbar", "band", "session", name, "before", auto(before), "after", band)
+	trace.Log("agentbar", "band", "session", name, "before", auto(before), "after", after)
 	return a, nil
 }
 
