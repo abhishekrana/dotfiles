@@ -60,6 +60,29 @@ values still resolve.
 - **`--watch PID`**: a silence-watcher subprocess that auto-stops recording after trailing silence / the cap.
 - If the server is unreachable the client falls back to loading the model **in-process**, so dictation always works.
 
+## Remote tmux (`~/.config/dictate/remote`)
+
+Every tmux call funnels through `tmux()`, so a remote is an `ssh` wrap there and nothing else moves: the mic, the model
+and the GPU stay local and only the transcript crosses.
+
+- **The remote tmux path is absolute on purpose.** A non-interactive ssh resolves `/usr/bin/tmux`, which cannot speak to
+  a server built from source - the client dies with `server exited unexpectedly` and names no version. `REMOTE_TMUX`
+  prefers `~/.local/bin/tmux` and falls back for a stock box; `--check` prints each host's client version beside whether
+  that server answered, which is the whole diagnosis.
+- **Its own ControlPath namespace** (`cm-dictate-…`), because sharing the interactive one would hand an `ssh -X` alias a
+  master with no X forwarding.
+- **The host is stamped at record-start, not resolved at send.** The chip that lit has to be the chip that clears, so a
+  tab change mid-clip cannot strand one red. The pane within that host is still resolved at send time, as before.
+- **Routing is the terminal's own focus report, not a guess.** `#{client_flags}` carries `focused` because
+  `focus-events` is on; last-typed-in is the fallback for when no terminal is in front, and it assumes the clocks agree.
+  The same flag picks the session when two terminals are attached to one host.
+- **Hosts are probed in one parallel pass.** Serial probes charge a round trip per remote, and a box that is off the
+  network charges its timeout in series with the rest.
+- **`shlex.quote` on every argument**, so a transcript reaches the remote tmux as one argv element and never the remote
+  shell.
+- A remote's own status-bar chips cannot work - they run that machine's `dictate`, which has no mic. Fixing that needs a
+  trigger socket reverse-forwarded over the ssh connection; the key and this machine's chips are unaffected.
+
 ## tmux coupling (change both sides together)
 
 - The script sets `@dictate` to `"rec"` (red) / `"work"` (amber) / unset (idle grey). `tmux/.tmux.conf` renders that via

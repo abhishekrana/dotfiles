@@ -32,9 +32,29 @@ elevated privilege; on the GPU where there is one, on the CPU otherwise (see bel
 
 ## Targeting
 
-The transcript goes to the pane you're focused on if it's running Claude; otherwise a `claude` pane in your current
-session; otherwise the most-recently-active `claude` pane. Check it with `dictate --target`. Force a specific pane with
-`DICTATE_TMUX_TARGET` (a pane id like `%7`, or `session:win.pane`).
+The tmux server whose terminal holds focus, then the pane inside it: the focused pane if it runs Claude, else a `claude`
+pane in your current session, else the most-recently-active one. Focus is the terminal's own report, so a Ghostty tab
+change moves the transcript with nothing to press; with no terminal in front, the most recently typed-in server wins.
+
+`dictate --target` prints the pane, the host and which rule chose it. Force a pane with `DICTATE_TMUX_TARGET` (`%7` or
+`session:win.pane`), a host with `DICTATE_REMOTE`.
+
+## Remote tmux
+
+The mic, the model and the GPU stay here; only the transcript crosses, as one `tmux send-keys` over your existing ssh
+connection, so it lands in the prompt exactly as typed. Nothing is installed on the remote. One ssh destination per
+line:
+
+```sh
+mkdir -p ~/.config/dictate && echo user@host > ~/.config/dictate/remote
+```
+
+Then dictate as usual - looking at the remote sends there, looking at a local pane sends here. Delete the file for
+local-only; `dictate --check` reports every host, its tmux version and whether that server answered.
+
+Needs key-based ssh auth (a background dictation cannot answer a password prompt) and `focus-events on` at both ends.
+Routing is one parallel round trip whatever the host count (~100 ms on a LAN); an unreachable remote falls back to local
+after 2 s. A remote's own status chips cannot work - they run that machine's `dictate`, which has no mic.
 
 ## Requirements
 
@@ -95,6 +115,7 @@ whether from the key, the `dictate+send` chip, or the `⏎ send` chip.
 | `DICTATE_DUCK`        | `1`            | mute other audio while recording (`0`/`off` disables)       |
 | `DICTATE_TMUX_CMD`    | `claude`       | pane command treated as the target app                      |
 | `DICTATE_TMUX_TARGET` | _(unset)_      | force a pane (pane id or `session:win.pane`)                |
+| `DICTATE_REMOTE`      | _(unset)_      | force a host, skipping the focus probe (ssh destination)    |
 | `DICTATE_TEST_SECS`   | `5`            | seconds recorded by `--test`                                |
 
 Put per-machine overrides in `~/.bashrc.d/local.bash` (untracked), e.g. `export DICTATE_SOURCE=...`.

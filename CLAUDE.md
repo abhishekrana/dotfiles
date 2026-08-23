@@ -19,7 +19,8 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
   prefetched, so the first dictation downloads it. Two backends, named for the hardware and picked by what is installed
   rather than an env var: `gpu` (whisper.cpp via Vulkan, on an AMD or Intel iGPU or NVIDIA) once a GPU is visible, else
   `cpu` (faster-whisper). `bootstrap.sh` installs the GPU build when it can and falls back otherwise. Same `small.en`,
-  measured 2.7× faster on the GPU.
+  measured 2.7× faster on the GPU. Dictating into a tmux on another machine is one line in `~/.config/dictate/remote`:
+  it routes to whichever tmux holds focus, and the transcript crosses over ssh, never the audio.
 - `ghostty/` → `~/.config/ghostty/` (Ghostty terminal config)
 - `git/` → `~/.config/git/config` (delta pager, merge settings)
 - `hunk/` → `~/.config/hunk/` (hunk diff viewer config, Solarized Light theme)
