@@ -60,12 +60,13 @@ apply_ghostty() {
 apply_tmux() {
     command -v tmux >/dev/null || return 0
     local f="$STATE_DIR/tmux.conf"
-    local bg surface fg muted accent block ask grn work
+    local bg surface fg muted accent chg block ask grn work
     bg=$(palette_get "$1" bg)
     surface=$(palette_get "$1" surface)
     fg=$(palette_get "$1" fg)
     muted=$(palette_get "$1" muted)
     accent=$(palette_get "$1" accent)
+    chg=$(palette_get "$1" changes)
     block=$(palette_get "$1" blocked)
     ask=$(palette_get "$1" asking)
     grn=$(palette_get "$1" "done")
@@ -92,7 +93,7 @@ apply_tmux() {
     # Diff chip: violet normally, amber when the agent is writing in another
     # worktree (@diff_drift, set in .tmux.conf). Same width either way.
     local diffseg
-    diffseg="#{?#{E:@diff_drift},#[fg=$ask bg=$surface bold],#[fg=#6c71c4 bg=$surface]}"
+    diffseg="#{?#{E:@diff_drift},#[fg=$ask bg=$surface bold],#[fg=$chg bg=$surface]}"
     diffseg="$diffseg ◧ changes "
     # Session badge: red while the prefix is pending. A chip that appears instead
     # would shift every segment right of it (see .tmux.conf).
@@ -114,6 +115,14 @@ apply_tmux() {
     border="$border #[fg=$accent]$rail "
     border="$border#{?#{E:@rail_agent},#[align=right fg=$accent]→ "
     border="$border#($HOME/.local/bin/tmux-rail.sh '#{@agent_workdir}' '#{pane_width}' 2) , }}"
+    # The footer: branch, the work's sha, GitLab, clock. Rebuilt here because a
+    # value only set in .tmux.conf keeps its Solarized hex in every other flavor.
+    local right
+    right="#[fg=$grn]#($HOME/.local/bin/tmux-rail.sh --branch '#{pane_current_path}') "
+    right="$right#[fg=$ask]#(cd #{pane_current_path} 2>/dev/null && "
+    right="${right}git log -1 --abbrev=7 --format='%%h' 2>/dev/null)"
+    right="$right#($HOME/.local/bin/tmux-gitlab.sh render \\\"#{pane_current_path}\\\") "
+    right="$right#[fg=$fg]%Y-%m-%d %H:%M:%S "
     cat >"$f" <<EOF
 set -g status-style "fg=$fg,bg=$surface"
 set -g window-style "fg=$fg,bg=$bg"
@@ -131,12 +140,25 @@ set -g @diff_seg "$diffseg"
 set -g @settings_seg "#[fg=$muted bg=$surface]⛭ "
 set -g @theme_flavor "$1"
 set -g pane-border-format "$border"
+set -g status-right "$right"
+set -g @diff_menu_title "#[align=centre,fg=$chg]◧ diff pane#{?@diff_target, · #{b:@diff_target},}"
 EOF
     tmux source-file "$f" 2>/dev/null || true
 }
 
 # fzf reads its palette from FZF_DEFAULT_OPTS; write the flavor's --color block to a
 # file that fzf.bash sources, so new shells follow the flavor.
+# Every token as shell variables, for surfaces that are neither a tmux option nor
+# a tool config: tmux-gitlab.sh renders styled text itself and had its own hex.
+apply_colors() {
+    local f="$STATE_DIR/colors.sh"
+    : >"$f"
+    local tok
+    for tok in bg surface selection border fg emphasis muted accent changes working asking blocked 'done' add remove; do
+        printf '_theme_%s="%s"\n' "$tok" "$(palette_get "$1" "$tok")" >>"$f"
+    done
+}
+
 apply_fzf() {
     local f="$STATE_DIR/fzf.sh"
     local mode bg fg accent emph sel muted work grn border
@@ -298,6 +320,7 @@ main() {
     apply_tmux "$flavor"
     apply_fzf "$flavor"
     apply_agent_state "$flavor"
+    apply_colors "$flavor"
     apply_env "$flavor"
     apply_delta "$flavor"
     apply_nvim "$flavor"

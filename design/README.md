@@ -72,9 +72,10 @@ hierarchy, and the meaning of each color never move.
 
 **Interaction**
 
-| Token    | Intent                                                                     |
-| -------- | -------------------------------------------------------------------------- |
-| `accent` | Selection rail, active pane, links, "you are here." Exactly one per theme. |
+| Token     | Intent                                                                     |
+| --------- | -------------------------------------------------------------------------- |
+| `accent`  | Selection rail, active pane, links, "you are here." Exactly one per theme. |
+| `changes` | Review surfaces: the changes chip, the MR glyph, the diff menu.            |
 
 **State** - see [The state language](#the-state-language). The tokens `working`, `asking`, `blocked`, and `done` carry
 meaning through color; `idle` reuses `muted`.

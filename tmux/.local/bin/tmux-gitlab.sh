@@ -22,19 +22,27 @@
 TTL=${TMUX_GITLAB_TTL:-15}
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/tmux-gitlab"
 
-# Solarized Light styles (match .tmux.conf).
-C_ISSUE='#[fg=#268bd2]' # blue
-C_MR='#[fg=#6c71c4]'    # violet
+# Colours come from the theme switcher, never hardcoded - this renders styled
+# text itself, so it reads the palette rather than a tmux option. The fallbacks
+# are the palette's solarized-light values, for a box where `theme` never ran.
+_theme_accent="#268bd2" _theme_changes="#6c71c4" _theme_done="#859900"
+_theme_blocked="#dc322f" _theme_asking="#b58900" _theme_emphasis="#586e75" _theme_fg="#657b83"
+_theme_colors="${XDG_CONFIG_HOME:-$HOME/.config}/theme/colors.sh"
+# shellcheck source=/dev/null
+[ -r "$_theme_colors" ] && . "$_theme_colors"
+
+C_ISSUE="#[fg=$_theme_accent]"
+C_MR="#[fg=$_theme_changes]"
 C_RESET='#[default]'
 
 ci_color() { # pipeline status -> fg style
     case "$1" in
-        success) printf '#[fg=#859900]' ;;                                                       # green
-        running | preparing) printf '#[fg=#268bd2]' ;;                                           # blue
-        failed) printf '#[fg=#dc322f]' ;;                                                        # red
-        pending | created | waiting_for_resource | scheduled | manual) printf '#[fg=#b58900]' ;; # yellow
-        canceled | skipped) printf '#[fg=#586e75]' ;;                                            # base01
-        *) printf '#[fg=#657b83]' ;;                                                             # base00
+        success) printf '#[fg=%s]' "$_theme_done" ;;
+        running | preparing) printf '#[fg=%s]' "$_theme_accent" ;;
+        failed) printf '#[fg=%s]' "$_theme_blocked" ;;
+        pending | created | waiting_for_resource | scheduled | manual) printf '#[fg=%s]' "$_theme_asking" ;;
+        canceled | skipped) printf '#[fg=%s]' "$_theme_emphasis" ;;
+        *) printf '#[fg=%s]' "$_theme_fg" ;;
     esac
 }
 
@@ -75,10 +83,10 @@ mr_glyph() { # <state> <draft> -> one single-width glyph
 
 mr_color() { # <state> <conflicts> -> fg style
     case "$1" in
-        merged) printf '#[fg=#859900]' ;;                                      # green
-        closed) printf '#[fg=#657b83]' ;;                                      # base00
-        locked) printf '#[fg=#586e75]' ;;                                      # base01
-        *) [ "$2" = true ] && printf '#[fg=#dc322f]' || printf '%s' "$C_MR" ;; # red if it will not merge
+        merged) printf '#[fg=%s]' "$_theme_done" ;;
+        closed) printf '#[fg=%s]' "$_theme_fg" ;;
+        locked) printf '#[fg=%s]' "$_theme_emphasis" ;;
+        *) [ "$2" = true ] && printf '#[fg=%s]' "$_theme_blocked" || printf '%s' "$C_MR" ;; # red if it will not merge
     esac
 }
 
