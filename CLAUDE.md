@@ -8,7 +8,7 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
 
 - `bash/` → `~/.bashrc.d/` (shell customizations)
 - `bat/` → `~/.config/bat/`
-- `claude/` → `~/.claude/settings.json`, `~/.claude/statusline-command.sh`, `~/.claude/skills/`. `settings.json` wires
+- `claude/` → `~/.claude/settings.json`, `~/.claude/statusline-command.sh`. `settings.json` wires
   the agentbar hook on every Claude lifecycle event plus the statusLine; agent state comes from that plugin's `@agent_*`
   pane options, not local hook scripts. Claude Code does not load a user-level `~/.claude/settings.local.json`, so
   anything that must take effect goes in `settings.json`.
