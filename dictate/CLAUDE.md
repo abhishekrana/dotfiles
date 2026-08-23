@@ -76,8 +76,14 @@ and the GPU stay local and only the transcript crosses.
 - **Routing is the terminal's own focus report, not a guess.** `#{client_flags}` carries `focused` because
   `focus-events` is on; last-typed-in is the fallback for when no terminal is in front, and it assumes the clocks agree.
   The same flag picks the session when two terminals are attached to one host.
-- **Hosts are probed in one parallel pass.** Serial probes charge a round trip per remote, and a box that is off the
-  network charges its timeout in series with the rest.
+- **Hosts are discovered, not configured** - the same rule as the backend. An ssh process with a controlling terminal is
+  a session you type in; that test is what excludes git's ssh, a mux master and our own probes, and `-N`/`-W` excludes
+  tunnels. The file remains for what discovery cannot see, and its lines are ssh argument lists, not bare destinations.
+- **Local is probed first, synchronously, and wins alone.** Focus is exclusive, so a focused local client is the answer
+  and no ssh is opened at all - dictating into this machine must not touch the network.
+- **The remote probes are daemon threads read through a queue, and the first `focused` wins.** Waiting for every host
+  would charge a down one its full timeout on every dictation (measured: 106 ms to 2.17 s from one dead entry). Only the
+  no-focus fallback waits, bounded by `PROBE_WAIT`.
 - **`shlex.quote` on every argument**, so a transcript reaches the remote tmux as one argv element and never the remote
   shell.
 - A remote's own status-bar chips cannot work - they run that machine's `dictate`, which has no mic. Fixing that needs a

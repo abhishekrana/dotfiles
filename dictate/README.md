@@ -41,20 +41,21 @@ change moves the transcript with nothing to press; with no terminal in front, th
 
 ## Remote tmux
 
-The mic, the model and the GPU stay here; only the transcript crosses, as one `tmux send-keys` over your existing ssh
-connection, so it lands in the prompt exactly as typed. Nothing is installed on the remote. One ssh destination per
-line:
+The mic, the model and the GPU stay here; only the transcript crosses, as one `tmux send-keys` over ssh, so it lands in
+the prompt exactly as typed. Nothing is installed on the remote.
 
-```sh
-mkdir -p ~/.config/dictate && echo user@host > ~/.config/dictate/remote
-```
+**No setup for a machine you are already in:** the ssh sessions open right now are the candidates, so ssh somewhere,
+start tmux, and dictate. `~/.config/dictate/remote` is for what that cannot see - a host you want probed before you
+connect, or one needing options - one ssh argument list per line (`-p 2222 user@host` works).
 
-Then dictate as usual - looking at the remote sends there, looking at a local pane sends here. Delete the file for
-local-only; `dictate --check` reports every host, its tmux version and whether that server answered.
+Then dictate as usual: looking at the remote sends there, looking at a local pane sends here. `dictate --check` reports
+every host, its tmux version and whether that server answered.
 
 Needs key-based ssh auth (a background dictation cannot answer a password prompt) and `focus-events on` at both ends.
-Routing is one parallel round trip whatever the host count (~100 ms on a LAN); an unreachable remote falls back to local
-after 2 s. A remote's own status chips cannot work - they run that machine's `dictate`, which has no mic.
+Dictating into this machine opens no ssh at all; into a remote it is one round trip, ~100 ms on a LAN. A host that is
+down costs nothing while any terminal holds focus, and at most `DICTATE_PROBE_WAIT` when none does.
+
+A remote's own status chips cannot work - they run that machine's `dictate`, which has no mic.
 
 ## Requirements
 

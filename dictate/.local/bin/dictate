@@ -33,8 +33,7 @@ Setup:
 
 Commands: run `dictate --help`. Env-var config (DICTATE_*): see dictate/README.md.
 """
-import os, re, shlex, sys, time, signal, shutil, socket, subprocess
-from concurrent import futures
+import os, queue, re, shlex, sys, threading, time, signal, shutil, socket, subprocess
 
 # The gpu backend: whisper.cpp's own server, held resident by ours and spoken to
 # over loopback. Installed by `./install.sh whisper-vulkan`.
@@ -169,6 +168,8 @@ def require(cmd):
 REMOTE_FILE = os.path.expanduser("~/.config/dictate/remote")
 # Pin a host and skip the focus probe, as DICTATE_TMUX_TARGET pins a pane.
 REMOTE_PIN = os.environ.get("DICTATE_REMOTE", "")
+# Bound on waiting for every host to answer; only reached when none holds focus.
+PROBE_WAIT = float(os.environ.get("DICTATE_PROBE_WAIT", "2.5"))
 # Its own ControlPath namespace on purpose - sharing the interactive one would
 # hand an `ssh -X` alias a master with no X forwarding.
 SSH_OPTS = ["-o", "BatchMode=yes", "-o", "ConnectTimeout=2", "-o", "ControlMaster=auto",
@@ -192,14 +193,61 @@ def require_tmux():
         require("tmux")
 
 
+# ssh options that take a separate value, so the destination is not mistaken
+# for one of them while walking a discovered command line.
+SSH_VALUE_OPTS = set("bcDEeFIiJLlmOopQRSWw")
+
+
+def ssh_dest(argv):
+    """The destination in an ssh command line, or "" if it is not a session."""
+    if "-N" in argv or "-W" in argv:           # a tunnel, not somewhere to type
+        return ""
+    i = 1
+    while i < len(argv):
+        a = argv[i]
+        if not a.startswith("-"):
+            return "" if "/" in a else a       # a path is a subcommand, not a host
+        i += 2 if len(a) == 2 and a[1] in SSH_VALUE_OPTS else 1
+    return ""
+
+
+def ssh_sessions():
+    """Destinations of the ssh sessions open right now, so a machine you are
+    already sitting in needs no config. A controlling terminal is what separates
+    a session you are typing in from git's ssh, a mux master, or our own probe."""
+    out = []
+    for pid in os.listdir("/proc"):
+        if not pid.isdigit():
+            continue
+        try:
+            if open(f"/proc/{pid}/comm").read().strip() != "ssh":
+                continue
+            # stat field 7 (tty_nr), counted past the parenthesised comm; 0 = none
+            if int(open(f"/proc/{pid}/stat").read().rsplit(")", 1)[1].split()[4]) == 0:
+                continue
+            argv = open(f"/proc/{pid}/cmdline").read().split("\0")[:-1]
+        except (OSError, ValueError, IndexError):
+            continue                           # the process went away mid-read
+        dest = ssh_dest(argv)
+        if dest and dest not in out:
+            out.append(dest)
+    return out
+
+
 def hosts():
-    """Local first, then each ssh destination in ~/.config/dictate/remote."""
+    """Local first, then ~/.config/dictate/remote, then the ssh sessions open
+    now. The file is for what discovery cannot see - a host reached through
+    options, or one you want probed before you have connected to it."""
     out = [""]
     try:
         with open(REMOTE_FILE) as f:
             out += [ln.strip() for ln in f if ln.strip() and not ln.lstrip().startswith("#")]
     except OSError:
         pass
+    seen = {shlex.split(h)[-1] for h in out if h}
+    for dest in ssh_sessions():
+        if dest not in seen:
+            out.append(dest); seen.add(dest)
     return out
 
 
@@ -208,37 +256,53 @@ def tmux(*args, host=None):
     if not h:
         return subprocess.run(["tmux", *args], capture_output=True, text=True)
     argv = " ".join(shlex.quote(a) for a in args)
-    return subprocess.run(["ssh", *SSH_OPTS, h, "--", f"{REMOTE_TMUX} {argv}"],
+    return subprocess.run(["ssh", *SSH_OPTS, *shlex.split(h), "--", f"{REMOTE_TMUX} {argv}"],
                           capture_output=True, text=True)
+
+
+def clients(h):
+    return tmux("list-clients", "-F", "#{client_flags}\t#{client_activity}", host=h)
 
 
 def pick_host():
     """(host, why): the tmux server whose client holds focus - the terminal you
-    are actually looking at. tmux learns it from the terminal's focus reports, so
-    changing tab or window moves the transcript with no key to press and no
-    setting to flip. With nothing focused (the terminal is not front) the most
-    recently typed-in server wins, which assumes the clocks agree; then local."""
+    are actually looking at. tmux learns it from the terminal's own focus
+    reports, so changing tab or window moves the transcript with no key to press
+    and no setting to flip. With none focused (the terminal is not front) the
+    most recently typed-in server wins, which assumes the clocks agree; then
+    local."""
     if REMOTE_PIN:
         return REMOTE_PIN, "pinned"
     hs = hosts()
-    # Probed together, so routing costs one round trip however many remotes are
-    # listed - and one that is off the network costs ConnectTimeout, not N of them.
-    with futures.ThreadPoolExecutor(max_workers=len(hs)) as ex:
-        probed = dict(ex.map(
-            lambda h: (h, tmux("list-clients", "-F", "#{client_flags}\t#{client_activity}", host=h)), hs))
-    focused, newest, newest_at = None, "", -1.0
-    for h in hs:                               # file order, local first: a tie goes local
-        r = probed[h]
-        if r.returncode != 0:                  # unreachable or no server - not a candidate
-            continue
+    newest, newest_at = "", -1.0
+
+    def scan(h, r):
+        """True if this host holds focus; tracks the activity fallback either way."""
+        nonlocal newest, newest_at
+        if r.returncode != 0:                  # unreachable, or no server - not a candidate
+            return False
+        hit = False
         for line in r.stdout.splitlines():
             flags, _, act = line.partition("\t")
-            if focused is None and "focused" in flags.split(","):
-                focused = h
+            hit = hit or "focused" in flags.split(",")
             if float(act or 0) > newest_at:
                 newest, newest_at = h, float(act or 0)
-    if focused is not None:
-        return focused, "focus"
+        return hit
+
+    if scan("", clients("")):                  # asked first and alone, so dictating
+        return "", "focus"                     # into this machine opens no ssh at all
+    q = queue.Queue()
+    for h in hs[1:]:                           # daemon: a host that is off the network
+        threading.Thread(target=lambda h=h: q.put((h, clients(h))),  # must not delay this exit
+                         daemon=True).start()
+    deadline = time.time() + PROBE_WAIT
+    for _ in hs[1:]:
+        try:
+            h, r = q.get(timeout=max(0.0, deadline - time.time()))
+        except queue.Empty:
+            break                              # answered by the reachable ones alone
+        if scan(h, r):
+            return h, "focus"                  # only one host can hold it - stop waiting
     return (newest, "activity") if newest_at > 0 else ("", "local")
 
 
