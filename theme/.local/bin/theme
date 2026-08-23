@@ -96,8 +96,11 @@ apply_tmux() {
     diffseg="$diffseg ◧ changes "
     # Session badge: red while the prefix is pending. A chip that appears instead
     # would shift every segment right of it (see .tmux.conf).
+    # The host badge carries text only (.tmux.conf), so its colours are set here
+    # and follow the flavor: `done` for local, `asking` for a host reached by ssh.
     local left
-    left="#{@host_badge}#{?client_prefix,#[fg=$bg bg=$block bold],#[fg=$bg bg=$accent bold]}"
+    left="#{?#{==:#{@is_ssh},1},#[fg=$bg bg=$ask bold],#[fg=$bg bg=$grn bold]}#{@host_name}"
+    left="$left#{?client_prefix,#[fg=$bg bg=$block bold],#[fg=$bg bg=$accent bold]}"
     left="$left #S #[fg=$fg bg=$surface] "
     # Rails: one rule for every pane - folder + branch on the left, and where
     # Claude is writing on the right when that pane runs it. Both zones in the

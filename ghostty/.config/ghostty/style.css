@@ -1,4 +1,4 @@
-/* Compact tab bar with Solarized Light colors */
+/* Compact tab bar: geometry only - colours come from the theme, not from here. */
 headerbar {
   min-height: 24px;
   padding: 0;
