@@ -11,4 +11,4 @@ the folders hold the rest (find things with ripgrep and `[[backlinks]]`).
 
 ---
 
-_Capture lands in `inbox/` and `dailies/`; the `vault-manager` skill files and maintains notes from there._
+_Capture lands in `inbox/` and `dailies/`; the `managing-vault` skill files and maintains notes from there._

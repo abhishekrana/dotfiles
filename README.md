@@ -24,7 +24,7 @@ Development environment for Ubuntu 24.04 - shell, tmux, Neovim, terminal, and CL
 | --------- | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
 | `bash`    | Shell customizations, aliases, direnv/fzf/zoxide hooks, vi mode                                                            | `~/.bashrc.d/`                |
 | `bat`     | Syntax highlighter theme                                                                                                   | `~/.config/bat/`              |
-| `claude`  | Claude Code settings.json (agentbar hook, statusLine, permissions), statusline script, and shared skills (`vault-manager`) | `~/.claude/`                  |
+| `claude`  | Claude Code settings.json (agentbar hook, statusLine, permissions), statusline script, and shared skills (`managing-vault`) | `~/.claude/`                  |
 | `clip`    | Copy stdin to the clipboard - picks wl-copy (Wayland), xclip (X11) or pbcopy (macOS)                                       | `~/.local/bin/clip`           |
 | `dictate` | Toggle-key local speech-to-text into tmux (faster-whisper on CPU, or whisper.cpp on the GPU)                               | `~/.local/bin/`               |
 | `ghostty` | Ghostty terminal config (Solarized Light, block cursor, cursor trail shader)                                               | `~/.config/ghostty/`          |
@@ -202,7 +202,7 @@ stow -R <package>    # Re-link (unlink + link)
   `bootstrap.sh` appends (with a backup).
 - **Private/work aliases** go in `~/.bashrc.d/local.bash` (not tracked).
 - **Notes vaults**: `bootstrap.sh` seeds two plain-markdown PARA vault skeletons (`~/vaults/personal`, `~/vaults/work`)
-  from `vault-template/`, each with an agent layer - the global `vault-manager` skill adds and maintains notes, and a
+  from `vault-template/`, each with an agent layer - the global `managing-vault` skill adds and maintains notes, and a
   deterministic `.claude/vault-check.sh` integrity gate runs in the git pre-commit hook (which also blocks secrets). It
   prints optional git-remote wiring steps for any not yet synced; each vault's contents live in its own private repo,
   never here.

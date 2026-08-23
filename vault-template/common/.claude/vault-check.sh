@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # vault-check - deterministic integrity check for the notes vault. Detects broken and
-# untidy states; it does NOT fix them (that is the vault-manager skill's job). Run it
-# manually, from the git pre-commit hook, or by vault-manager after a change.
+# untidy states; it does NOT fix them (that is the managing-vault skill's job). Run it
+# manually, from the git pre-commit hook, or by managing-vault after a change.
 #
 # Exit 1 on HARD errors (unclosed frontmatter, empty notes, duplicate note names) so a
 # commit is blocked. WARNINGS (unresolved [[links]], filed notes missing `type`) print

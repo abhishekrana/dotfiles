@@ -66,13 +66,13 @@ aliases: []
 
 ## Maintenance
 
-Notes are added and maintained by the global `vault-manager` skill: it searches first, then updates the right existing
+Notes are added and maintained by the global `managing-vault` skill: it searches first, then updates the right existing
 note or creates a new atomic one, files it by the decision tree above, links related notes, and prunes duplicates -
 always leaving changes uncommitted for you to review.
 
 Integrity is deterministic, not LLM-judged: `.claude/vault-check.sh` flags broken frontmatter, empty notes, duplicate
 names, and unresolved links. It runs as the vault's git pre-commit hook (a commit is blocked on hard errors;
-`git commit --no-verify` overrides) and `vault-manager` runs it after its changes. The pre-commit hook also rejects
+`git commit --no-verify` overrides) and `managing-vault` runs it after its changes. The pre-commit hook also rejects
 secrets, and a `.claude/` hook blocks file access outside this vault root.
 
 ## Rules
