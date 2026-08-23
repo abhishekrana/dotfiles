@@ -8,10 +8,10 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
 
 - `bash/` → `~/.bashrc.d/` (shell customizations)
 - `bat/` → `~/.config/bat/`
-- `claude/` → `~/.claude/settings.json`, `~/.claude/statusline-command.sh`. `settings.json` wires
-  the agentbar hook on every Claude lifecycle event plus the statusLine; agent state comes from that plugin's `@agent_*`
-  pane options, not local hook scripts. Claude Code does not load a user-level `~/.claude/settings.local.json`, so
-  anything that must take effect goes in `settings.json`.
+- `claude/` → `~/.claude/settings.json`, `~/.claude/statusline-command.sh`. `settings.json` wires the agentbar hook on
+  every Claude lifecycle event plus the statusLine; agent state comes from that plugin's `@agent_*` pane options, not
+  local hook scripts. Claude Code does not load a user-level `~/.claude/settings.local.json`, so anything that must take
+  effect goes in `settings.json`.
 - `clip/` → `~/.local/bin/clip` (copy stdin to the clipboard; picks wl-copy, xclip or pbcopy). Every copy path - tmux
   `copy-command`, `tmux-yank.sh`, fzf's Ctrl-Y, nvim - goes through it, so the backend is chosen in one place.
 - `dictate/` → `~/.local/bin/dictate` (toggle-key local Whisper dictation into tmux). Has its own nested `CLAUDE.md` -

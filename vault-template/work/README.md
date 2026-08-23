@@ -40,7 +40,8 @@ today's daily note. Use plain `- [ ]` checkboxes (toggle with `<CR>` in obsidian
 
 1. **Capture** everything into `inbox/` or today's daily note - zero decisions, zero friction.
 2. **Link liberally** with `[[wiki-links]]`; linking to a note that does not exist yet is fine.
-3. **File and maintain**: the `managing-vault` skill files captures into PARA, updates existing notes, links, and prunes.
+3. **File and maintain**: the `managing-vault` skill files captures into PARA, updates existing notes, links, and
+   prunes.
 4. **Permanent notes**: durable, reusable ideas become atomic notes in `resources/`, titled as a claim.
 
 ## Agent layer

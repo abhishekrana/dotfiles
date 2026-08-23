@@ -20,22 +20,22 @@ Development environment for Ubuntu 24.04 - shell, tmux, Neovim, terminal, and CL
 
 ### Configs (stow packages)
 
-| Package   | Description                                                                                                                | Target                        |
-| --------- | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| `bash`    | Shell customizations, aliases, direnv/fzf/zoxide hooks, vi mode                                                            | `~/.bashrc.d/`                |
-| `bat`     | Syntax highlighter theme                                                                                                   | `~/.config/bat/`              |
+| Package   | Description                                                                                                                 | Target                        |
+| --------- | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| `bash`    | Shell customizations, aliases, direnv/fzf/zoxide hooks, vi mode                                                             | `~/.bashrc.d/`                |
+| `bat`     | Syntax highlighter theme                                                                                                    | `~/.config/bat/`              |
 | `claude`  | Claude Code settings.json (agentbar hook, statusLine, permissions), statusline script, and shared skills (`managing-vault`) | `~/.claude/`                  |
-| `clip`    | Copy stdin to the clipboard - picks wl-copy (Wayland), xclip (X11) or pbcopy (macOS)                                       | `~/.local/bin/clip`           |
-| `dictate` | Toggle-key local speech-to-text into tmux (faster-whisper on CPU, or whisper.cpp on the GPU)                               | `~/.local/bin/`               |
-| `ghostty` | Ghostty terminal config (Solarized Light, block cursor, cursor trail shader)                                               | `~/.config/ghostty/`          |
-| `git`     | Git tool settings (delta pager, staging/blame, merge)                                                                      | `~/.config/git/config`        |
-| `hunk`    | hunk diff viewer config (stacked/unified, themed by the switcher)                                                          | `~/.config/hunk/`             |
-| `leaf`    | leaf markdown previewer config, carrying a full Solarized Light palette (leaf ships only `solarized-dark`)                 | `~/.config/leaf/`             |
-| `nvim`    | Neovim config (LazyVim, LSP, plugins)                                                                                      | `~/.config/nvim/`             |
-| `theme`   | Theme switcher - re-skins the terminal stack across four flavors (`design/palette.toml`)                                   | `~/.local/bin/theme`          |
-| `tmux`    | Tmux config, CI status script, `prefix + R` UI reset, agent-following diff pane                                            | `~/.tmux.conf`                |
-| `trace`   | Shared always-on trace log for the tmux/agent stack                                                                        | `~/.local/bin/dotfiles-trace` |
-| `yazi`    | Yazi file manager config with zoxide plugin                                                                                | `~/.config/yazi/`             |
+| `clip`    | Copy stdin to the clipboard - picks wl-copy (Wayland), xclip (X11) or pbcopy (macOS)                                        | `~/.local/bin/clip`           |
+| `dictate` | Toggle-key local speech-to-text into tmux (faster-whisper on CPU, or whisper.cpp on the GPU)                                | `~/.local/bin/`               |
+| `ghostty` | Ghostty terminal config (Solarized Light, block cursor, cursor trail shader)                                                | `~/.config/ghostty/`          |
+| `git`     | Git tool settings (delta pager, staging/blame, merge)                                                                       | `~/.config/git/config`        |
+| `hunk`    | hunk diff viewer config (stacked/unified, themed by the switcher)                                                           | `~/.config/hunk/`             |
+| `leaf`    | leaf markdown previewer config, carrying a full Solarized Light palette (leaf ships only `solarized-dark`)                  | `~/.config/leaf/`             |
+| `nvim`    | Neovim config (LazyVim, LSP, plugins)                                                                                       | `~/.config/nvim/`             |
+| `theme`   | Theme switcher - re-skins the terminal stack across four flavors (`design/palette.toml`)                                    | `~/.local/bin/theme`          |
+| `tmux`    | Tmux config, CI status script, `prefix + R` UI reset, agent-following diff pane                                             | `~/.tmux.conf`                |
+| `trace`   | Shared always-on trace log for the tmux/agent stack                                                                         | `~/.local/bin/dotfiles-trace` |
+| `yazi`    | Yazi file manager config with zoxide plugin                                                                                 | `~/.config/yazi/`             |
 
 ### Apps (built from source)
 
