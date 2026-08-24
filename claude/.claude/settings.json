@@ -47,7 +47,6 @@
     ]
   },
   "model": "opus[1m]",
-  "theme": "dark",
   "hooks": {
     "CwdChanged": [
       {

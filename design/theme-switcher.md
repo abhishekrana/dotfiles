@@ -30,18 +30,19 @@ identifier.
 Everything the switcher touches writes into `~/.config/theme/` and is consumed from there, so switching never edits a
 tracked config.
 
-| Tool           | Themed by       | What the switcher writes                                                                 | Reload                            |
-| -------------- | --------------- | ---------------------------------------------------------------------------------------- | --------------------------------- |
-| agent sidebar  | hex → generated | `@agentbar-theme`; colors from `theme_gen.go` (built from the palette)                   | this session's, immediate         |
-| ghostty        | named           | `theme = <Name>` → `ghostty.conf` (a `config-file` include)                              | `pkill -USR2 -x ghostty`          |
-| tmux frame     | hex → generated | `tmux.conf` (status/window/pane + the dictate/submit/push/diff/⛭ chips)                  | `tmux source-file` (immediate)    |
-| fzf            | hex → export    | `fzf.sh` (`_fzf_color` `--color` block, sourced by fzf.bash)                             | new shells                        |
-| bat / `$THEME` | named           | `env.sh` (`export THEME`, `export BAT_THEME`)                                            | new shells                        |
-| leaf           | named           | `env.sh` (`export LEAF_THEME`)                                                           | next `leaf` launch                |
-| git-delta      | hex + named     | `delta.gitconfig` (a `[delta]` block, git-included)                                      | next `git` invocation             |
-| nvim           | named           | `nvim.lua` (`colorscheme` + `background`)                                                | live `:colorscheme` / next launch |
-| session popup  | hex → generated | `agent-state.sh` (state colors + the popup's fzf palette, base mode and ground included) | next open                         |
-| hunk           | named           | `--theme <flavor>` on the diff pane's own command line                                   | the diff pane is re-run           |
+| Tool           | Themed by       | What the switcher writes                                                                   | Reload                                   |
+| -------------- | --------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------- |
+| agent sidebar  | hex → generated | `@agentbar-theme`; colors from `theme_gen.go` (built from the palette)                     | this session's, immediate                |
+| ghostty        | named           | `theme = <Name>` → `ghostty.conf` (a `config-file` include)                                | `pkill -USR2 -x ghostty`                 |
+| tmux frame     | hex → generated | `tmux.conf` (status/window/pane + the dictate/submit/push/diff/⛭ chips)                    | `tmux source-file` (immediate)           |
+| fzf            | hex → export    | `fzf.sh` (`_fzf_color` `--color` block, sourced by fzf.bash)                               | new shells                               |
+| bat / `$THEME` | named           | `env.sh` (`export THEME`, `export BAT_THEME`)                                              | new shells                               |
+| leaf           | named           | `env.sh` (`export LEAF_THEME`)                                                             | next `leaf` launch                       |
+| git-delta      | hex + named     | `delta.gitconfig` (a `[delta]` block, git-included)                                        | next `git` invocation                    |
+| nvim           | named           | `nvim.lua` (`colorscheme` + `background`)                                                  | live `:colorscheme` / next launch        |
+| session popup  | hex → generated | `agent-state.sh` (state colors + the popup's fzf palette, base mode and ground included)   | next open                                |
+| hunk           | named           | `--theme <flavor>` on the diff pane's own command line                                     | the diff pane is re-run                  |
+| Claude Code    | named (mode)    | `~/.claude.json` (`theme`: light/dark), patched in place - never the tracked settings.json | new sessions; `/config` for running ones |
 
 Tools that follow the flavor **without** being driven by the switcher:
 
