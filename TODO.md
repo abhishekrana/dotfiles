@@ -33,15 +33,7 @@ Options not yet weighed properly:
 
 - No test suite. Every other tool under `test/` has one and `task check` lists them explicitly, so `work` is uncovered.
   `test/commit-walk.sh` (in a stash) is the model: stub the binary so no network or daemon is touched.
-- `glab` is not pinned in `install.sh`, and `work` now depends on it plus `jq`. The rule is that `install.sh` holds every
-  version pin.
+- `glab` is not pinned in `install.sh`, and `work` now depends on it plus `jq`. The rule is that `install.sh` holds
+  every version pin.
 - Issue→MR links are missing from the board. GitLab serves `closesIssues` and `relatedMergeRequests` one item at a time,
   so the whole chain costs one call per MR - worth an opt-in `work sync --links`, not the default path.
-
-## queue hygiene
-
-Found by `work board`, and true regardless of tooling:
-
-- 26 finished MRs have no reviewer assigned, the oldest untouched for 139 days. Nobody has been asked to look at them.
-- `!1560` needs 14 separate code-owner approvals because it touches 81 files across 15 CODEOWNERS paths. It will not
-  merge in that shape; it needs splitting.

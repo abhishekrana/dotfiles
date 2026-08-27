@@ -245,7 +245,9 @@ here - this repo is public.
 ## Rules
 
 - **Never commit personal info**: no names, emails, IP addresses, work-specific paths, or employer / product / project
-  names
+  names. This includes anything read out of a work forge - **no ticket or MR numbers, branch names, CODEOWNERS paths, or
+  queue statistics** (counts of open MRs, ages, approval numbers). Those are findings about the employer's codebase, not
+  facts about these dotfiles; they belong in the work vault. Tool docs describe behaviour, never the data it returned.
 - **Audit before committing**: `task secrets` (gitleaks over the tree and the full history) must pass, and eyeball the
   diff for your name, employer, and project names - a scanner won't catch those
 - **Only track customizations**: don't add stock Ubuntu defaults (prompt, bash-completion, color aliases) - those belong
