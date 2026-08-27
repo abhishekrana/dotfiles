@@ -34,6 +34,25 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
   `design/palette.toml`, writing per-tool files into `~/.config/theme/`)
 - `tmux/` → `~/.tmux.conf`, `~/.local/bin/` scripts - see [tmux](#tmux) below
 - `trace/` → `~/.local/bin/dotfiles-trace` (shared always-on trace log for the tmux/agent stack; see "Debugging")
+- `work/` → `~/.local/bin/work` (local view of the GitLab work you own: `sync` mirrors your open MRs and issues into
+  `~/.local/state/dotfiles/work/`, `board` renders the queue bucketed by what blocks it, `mr <iid>` is one MR end to end
+  (gates, pipeline stages, approval rules, reviewers, threads), and `ready` prints the actionable rows for an agent).
+  Read-only - nothing assigns, comments or merges, so a stale mirror can mislead but never damage. A full snapshot every
+  sync, so a merged MR disappears with no cursor state to drift; the mirror is derived, so deleting it costs nothing. It
+  lives outside any repo because MR bodies can carry credentials. Project comes from the git remote and identity from
+  glab's token, so the script holds no host, group or username. Reading the board costs ~1.3k tokens against ~78k for
+  the same answer over the REST API - that is the point of the mirror.
+  - **"Can I merge it" comes from `mergeabilityChecks`, never inferred.** `detailedMergeStatus` names one blocker and is
+    computed lazily (`UNCHECKED` for much of any real queue); `mergeabilityChecks` returns every gate with its own
+    state, so an MR with three problems says so instead of revealing them one at a time.
+  - **`approvalState.rules` is the one that explains a stuck MR.** An approval count can read as satisfied while GitLab
+    refuses the merge, because the approver was not eligible for the rule that gates it. The per-MR file lists every
+    rule, so a CODEOWNERS path nobody available can approve is visible rather than mysterious.
+  - Per-MR files are rendered by **one** `jq` pass into a marker-delimited stream that `awk` splits. Invoking `jq` per
+    MR re-parsed the whole snapshot once per file and turned an 11s sync into minutes.
+  - A remote whose host is not glab's is refused, and a null `project` aborts the sync. GitLab answers
+    `project(fullPath:)` for a path it cannot see with a null, not an error - read as zero rows that silently replaced a
+    good board with an empty one.
 - `yazi/` → `~/.config/yazi/` (yazi file manager config). `package.toml` is machine-managed: `ya pkg install` rewrites
   it, so commit exactly what `ya` writes and never comment it. `zoxide` is bundled in yazi core - listing it as a dep
   fails.
