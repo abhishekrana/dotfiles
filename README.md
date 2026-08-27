@@ -42,9 +42,13 @@ Development environment for Ubuntu 24.04 - shell, tmux, Neovim, terminal, and CL
 Binaries built from source under `apps/` (not stow packages). Each has a `Makefile` with a `make build` target;
 `bootstrap.sh` installs the toolchain and builds them.
 
-| App        | Description                                                          | Language |
-| ---------- | -------------------------------------------------------------------- | -------- |
-| `agentbar` | tmux sidebar showing every Claude Code agent's state across sessions | Go       |
+| App        | Description                                                            | Language |
+| ---------- | ---------------------------------------------------------------------- | -------- |
+| `agentbar` | tmux sidebar showing every Claude Code agent's state across sessions   | Go       |
+| `workdesk` | GitLab work inbox: merge requests, issues, todos and agents in a popup | Go       |
+
+Both binaries build from the one module under `apps/agentbar/`. `workdesk` is linked into `~/.local/bin`; `agentbar` is
+invoked by absolute path from tmux and the Claude hooks.
 
 The sidebar loads from here via a `run-shell` line in `tmux/.tmux.conf`. `prefix + R` picks up changes: it reloads the
 config, rebuilds the binary if the source moved, and restarts that session's sidebar.

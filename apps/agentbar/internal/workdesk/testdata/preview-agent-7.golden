@@ -1,0 +1,13 @@
+# retry shim fix
+
+state     done
+pane      %7
+worktree  /home/you/wt/retry-shim
+branch    fix/retry-shim-v2
+age       18m
+merge req none opened
+
+No merge request for this branch. Nothing in GitLab knows this work
+exists, so it appears in no other view.
+
+Enter switches to this pane.

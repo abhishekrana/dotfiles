@@ -29,11 +29,11 @@ Options not yet weighed properly:
 - Have the switcher write it and accept the dirt, with a `task` target that reverts the key.
 - Have the switcher only warn on a light↔dark switch: "run /theme", no write, no dirt.
 
-## work
+## workdesk
 
-- No test suite. Every other tool under `test/` has one and `task check` lists them explicitly, so `work` is uncovered.
-  `test/commit-walk.sh` (in a stash) is the model: stub the binary so no network or daemon is touched.
-- `glab` is not pinned in `install.sh`, and `work` now depends on it plus `jq`. The rule is that `install.sh` holds
-  every version pin.
-- Issue→MR links are missing from the board. GitLab serves `closesIssues` and `relatedMergeRequests` one item at a time,
-  so the whole chain costs one call per MR - worth an opt-in `work sync --links`, not the default path.
+- Issue→MR links are inferred from branch names and descriptions, not asked of GitLab. `closesIssues` is served one
+  issue at a time, so forge-truth linkage costs a round trip per issue - worth an opt-in flag, never the default.
+- No footer chip yet. A silent `⚑N` count of what is asking something of you, and no live `.tmux.conf` binding for the
+  popup - both still to key.
+- `sync` fetches merge requests, issues and todos concurrently, but the MR pages are cursor-chained and each node is
+  heavy. Splitting into a light list query plus parallel per-MR detail fetches is the next lever; measure first.

@@ -1,0 +1,74 @@
+# manifest cache
+
+state     working
+pane      %2
+worktree  /home/you/wt/manifest-cache
+branch    feat/manifest-cache
+age       4m
+merge req !412
+
+Enter switches to this pane.
+
+---
+
+# !412  Cache the manifest lookup
+
+_2026-08-27 10:31:02 · [open in gitlab](https://gitlab.example.com/acme/platform/-/merge_requests/412)_
+
+branch    `feat/manifest-cache` → `main`
+size      6 commits, +214/-38 in 9 files
+pipeline  passed
+auto      auto-merge not set
+updated   3d ago
+
+## Can I merge it?  **No - 1 blocker(s)**
+
+- ✗ not enough approvals
+
+## Pipeline
+
+| stage | status |
+|---|---|
+| Info | success |
+| Setup | success |
+| Build | success |
+| Lint | success |
+| Test | success |
+
+## Approvals  1 of 2
+
+A rule met by nobody eligible is why an approval count can read as satisfied
+while GitLab still refuses the merge.
+
+| rule | required | met | approved by |
+|---|---|---|---|
+| All Members | 1 | yes | dana |
+| /services/registry/ | 1 | no | - |
+
+## Reviewers
+
+| who | state |
+|---|---|
+| dana | approved |
+| priya | unreviewed |
+| sam | requested_changes |
+
+## Description
+
+Closes #128.
+
+Manifest lookups hit the registry on every request. This adds a 30s
+TTL cache keyed by digest, cutting cold-path latency from ~180ms to ~12ms.
+
+Not cached: signature verification, which must stay live.
+
+## Threads
+
+7 of 7 resolved.
+
+
+**[resolved]**
+- **priya**  Does the TTL need to be configurable?
+
+**[resolved]**
+- **sam**  Please add a metric for cache hit rate before merge.

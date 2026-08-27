@@ -1,0 +1,44 @@
+[
+  {
+    "id": 9001,
+    "action_name": "directly_addressed",
+    "state": "pending",
+    "created_at": "2026-08-26T15:12:00Z",
+    "target_type": "MergeRequest",
+    "target": {
+      "iid": 412,
+      "title": "Cache the manifest lookup"
+    },
+    "project": {
+      "path_with_namespace": "acme/platform"
+    }
+  },
+  {
+    "id": 9002,
+    "action_name": "build_failed",
+    "state": "pending",
+    "created_at": "2026-08-25T08:40:00Z",
+    "target_type": "MergeRequest",
+    "target": {
+      "iid": 406,
+      "title": "Retry shim drops the last error"
+    },
+    "project": {
+      "path_with_namespace": "acme/platform"
+    }
+  },
+  {
+    "id": 9003,
+    "action_name": "mentioned",
+    "state": "pending",
+    "created_at": "2026-08-22T11:05:00Z",
+    "target_type": "Issue",
+    "target": {
+      "iid": 121,
+      "title": "Flaky test in the ingest suite"
+    },
+    "project": {
+      "path_with_namespace": "acme/platform"
+    }
+  }
+]

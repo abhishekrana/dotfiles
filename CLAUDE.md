@@ -37,25 +37,6 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
   `design/palette.toml`, writing per-tool files into `~/.config/theme/`)
 - `tmux/` → `~/.tmux.conf`, `~/.local/bin/` scripts - see [tmux](#tmux) below
 - `trace/` → `~/.local/bin/dotfiles-trace` (shared always-on trace log for the tmux/agent stack; see "Debugging")
-- `work/` → `~/.local/bin/work` (local view of the GitLab work you own: `sync` mirrors your open MRs and issues into
-  `~/.local/state/dotfiles/work/`, `board` renders the queue bucketed by what blocks it, `mr <iid>` is one MR end to end
-  (gates, pipeline stages, approval rules, reviewers, threads), and `ready` prints the actionable rows for an agent).
-  Read-only - nothing assigns, comments or merges, so a stale mirror can mislead but never damage. A full snapshot every
-  sync, so a merged MR disappears with no cursor state to drift; the mirror is derived, so deleting it costs nothing. It
-  lives outside any repo because MR bodies can carry credentials. Project comes from the git remote and identity from
-  glab's token, so the script holds no host, group or username. Reading the board costs ~1.3k tokens against ~78k for
-  the same answer over the REST API - that is the point of the mirror.
-  - **"Can I merge it" comes from `mergeabilityChecks`, never inferred.** `detailedMergeStatus` names one blocker and is
-    computed lazily (`UNCHECKED` for much of any real queue); `mergeabilityChecks` returns every gate with its own
-    state, so an MR with three problems says so instead of revealing them one at a time.
-  - **`approvalState.rules` is the one that explains a stuck MR.** An approval count can read as satisfied while GitLab
-    refuses the merge, because the approver was not eligible for the rule that gates it. The per-MR file lists every
-    rule, so a CODEOWNERS path nobody available can approve is visible rather than mysterious.
-  - Per-MR files are rendered by **one** `jq` pass into a marker-delimited stream that `awk` splits. Invoking `jq` per
-    MR re-parsed the whole snapshot once per file and turned an 11s sync into minutes.
-  - A remote whose host is not glab's is refused, and a null `project` aborts the sync. GitLab answers
-    `project(fullPath:)` for a path it cannot see with a null, not an error - read as zero rows that silently replaced a
-    good board with an empty one.
 - `yazi/` → `~/.config/yazi/` (yazi file manager config). `package.toml` is machine-managed: `ya pkg install` rewrites
   it, so commit exactly what `ya` writes and never comment it. `zoxide` is bundled in yazi core - listing it as a dep
   fails.
@@ -140,10 +121,41 @@ Buildable projects live under `apps/` - these are **not** stow packages and are 
 own `Makefile` with a uniform `build` target, so `bootstrap.sh` builds any language the same way and the toolchain gets
 a pinned `install_*` step. Add one by dropping a project with a `Makefile` under `apps/`.
 
-- `apps/agentbar/` → Go tmux plugin (the Claude agent sidebar). Loaded by a `run-shell` line at the end of
-  `tmux/.tmux.conf`, so it builds and runs straight from the repo. The Claude lifecycle hooks in
-  `claude/.claude/settings.json` invoke its binary at `$HOME/dotfiles/apps/agentbar/bin/agentbar`. It has its own nested
-  `CLAUDE.md` - read that before touching the code.
+- `apps/agentbar/` → **two binaries from one Go module.** `bin/agentbar` is the tmux plugin (the Claude agent sidebar);
+  `bin/workdesk` is the GitLab work inbox. Separate commands, not subcommands: agentbar runs on every Claude lifecycle
+  event and must not carry a forge client, so a GitLab failure can never be a sidebar failure. One module, because Go
+  forbids importing another module's `internal/`, and a second module would mean a **third** trace writer (see
+  "Debugging") plus a second copy of the tmux reader that already resolves agent → worktree → branch.
+  - `workdesk` mirrors the GitLab work you own into `~/.local/state/dotfiles/workdesk/`: `sync` fetches, `open` is the
+    fzf popup (inbox · merge requests · issues · agents, `1`-`4` and tab), `board` is the whole queue, `mr <iid>` is one
+    merge request end to end, `matrix` is one row per MR and one column per gate with a totals row, and `ready` prints
+    the actionable rows for an agent. `bootstrap.sh` links it into `~/.local/bin` - the one app binary that does get a
+    link, because it is a CLI you type.
+  - **Band names are GitLab's own**, from the merge request homepage that has shipped by default since 18.2, so this
+    view and the web UI say the same words. Its active/inactive split is modelled too: the picker draws a line where the
+    bands stop asking anything of you.
+  - **"Can I merge it" comes from `mergeabilityChecks`, never inferred.** `detailedMergeStatus` names one blocker and is
+    computed lazily (`UNCHECKED` for much of any real queue); `mergeabilityChecks` returns every gate with its own
+    state, so an MR with three problems says so instead of revealing them one at a time. The identifier→message map is
+    deliberately open: GitLab adds checks and does not document the set, so an unknown one degrades to a readable label.
+  - **`approvalState.rules` is the one that explains a stuck MR.** An approval count can read as satisfied while GitLab
+    refuses the merge, because the approver was not eligible for the rule that gates it.
+  - **The mirror has two tiers, and that is what makes the popup instant.** `index.json` is a few kilobytes and holds
+    only what rows need; the full snapshot and the pre-rendered documents are read by nothing interactive. fzf re-runs
+    the preview command on every cursor movement, so decoding the snapshot per keystroke would cost ~7ms against ~0.2ms.
+    Ages are stored as epochs and formatted at read time - a baked-in "3d" is wrong by morning.
+  - A full snapshot every sync, so a merged MR disappears with no cursor state to drift, and the mirror is derived, so
+    deleting it costs nothing. It lives outside any repo because MR bodies can carry credentials. Project comes from the
+    git remote and identity from glab's token, so nothing here holds a host, group or username.
+  - **A null `project` is not an empty project.** GitLab answers `project(fullPath:)` for a path it cannot see with a
+    null rather than an error - once read as zero rows that silently replaced a good board with an empty one. A remote
+    whose host is not glab's is refused for the same reason. `workdesk schema-check` validates the query against the
+    live schema by probing a path that cannot exist, so a GitLab upgrade that moves a field is one command.
+  - Three keys write to GitLab - `a` assign, `e` auto-merge, `M` merge - each behind a typed confirm. `WORKDESK_DRY=1`
+    prints the command and stops, which is what the mockup sets. Everything else is read-only.
+- `apps/agentbar/` (the sidebar itself) is loaded by a `run-shell` line at the end of `tmux/.tmux.conf`, so it builds
+  and runs straight from the repo. The Claude lifecycle hooks in `claude/.claude/settings.json` invoke its binary at
+  `$HOME/dotfiles/apps/agentbar/bin/agentbar`. It has its own nested `CLAUDE.md` - read that before touching the code.
 
 ## Installing software
 
@@ -218,8 +230,8 @@ What to read, by symptom:
 Writing to it:
 
 - **Two writers, one format:** the `dotfiles-trace` CLI (`trace/`, used by all shell/tmux callers) and the Go
-  `apps/agentbar/internal/trace` package (used by the sidebar + hook). Keep them in sync on timestamp, escaping, and
-  rotation.
+  `apps/agentbar/internal/trace` package (used by the sidebar, the hook and workdesk). Keep them in sync on timestamp,
+  escaping, and rotation.
 - **Log edges only, never hot loops** (mouse motion, ticks, status redraws, the dictate silence poll, fzf preview/list,
   statusline) - that keeps it free.
 - **Toggles:** `tmux set -g @agentbar-trace-verbose on` adds the noisy sidebar events for a live hunt (effect within
@@ -296,7 +308,7 @@ notes are generated from these, so the type and scope are the machine-readable p
 - **Types**: `feat` · `fix` · `docs` · `refactor` · `perf` · `test` · `build` · `ci` · `chore`
 - **Scope** is the area, matching a stow package, an app, or a repo concern: `agentbar`, `bash`, `bat`, `bootstrap`,
   `claude`, `clip`, `design`, `dictate`, `ghostty`, `git`, `hunk`, `install`, `leaf`, `lint`, `nvim`, `release`, `task`,
-  `theme`, `tmux`, `trace`, `vault`, `yazi`. Omit it only when a change genuinely spans everything.
+  `theme`, `tmux`, `trace`, `vault`, `workdesk`, `yazi`. Omit it only when a change genuinely spans everything.
 - **Breaking = needs manual steps on the machine.** A `!` after the scope (`feat(tmux)!:`) or a `BREAKING CHANGE:`
   footer marks a release that can't just be pulled - a re-login, a re-stow, a GNOME shortcut, a systemd unit. It renders
   as "needs manual steps" in the changelog and, pre-1.0, drives the MINOR bump.

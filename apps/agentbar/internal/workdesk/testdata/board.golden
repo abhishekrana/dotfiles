@@ -1,0 +1,44 @@
+# Work board
+
+_2026-08-27 10:31:02 · acme/platform · as you · 9 open MRs, 6 open issues_
+
+6 merge requests are asking something of you. Band names are GitLab's own,
+from the merge request homepage; `work mr <iid>` is one merge request end to end.
+
+## returned to you (1)
+
+- !412  Cache the manifest lookup  ·  3d  ·  passed  ·  not enough approvals  ·  dana ✓ priya · sam ✗  ·  threads 7/7
+
+## pipeline failed (1)
+
+- !406  Retry shim drops the last error  ·  9d  ·  failed  ·  pipeline must pass, not enough approvals  ·  sam ·
+
+## blocked on you (1)
+
+- !368  Split the ingest worker  ·  16d  ·  passed  ·  conflicts with the target branch, not enough approvals  ·  priya ·
+
+## no reviewer yet (2)
+
+- !391  Drop the legacy export path  ·  8d  ·  passed  ·  not enough approvals
+- !418  Pin the base image digest  ·  1d  ·  passed  ·  not enough approvals
+
+## auto-merge not set (1)
+
+- !423  Correct the changelog anchor  ·  today  ·  passed  ·  dana ✓
+
+## waiting for approvals (1)  _inactive_
+
+- !377  Widen the retry window  ·  4d  ·  passed  ·  not enough approvals  ·  dana ✓ priya ·
+
+## auto-merging (1)  _inactive_
+
+- !430  Bump the ingest client  ·  today  ·  passed  ·  dana ✓
+
+## draft (1)  _inactive_
+
+- !402  Drop the unused feature flag  ·  12d  ·  passed  ·  still marked draft, not enough approvals
+
+## prio::high issues (2)
+
+- #128  Registry lookups are slow on cold start
+- #126  Export job retries forever on a 404

@@ -22,6 +22,7 @@
 # Inside the mock (prefix is C-a, so the outer tmux keeps C-b):
 #   M-d      the agent moves to the next worktree (fires a real hook event)
 #   M-w      the "Pick worktree…" popup
+#   M-n      the workdesk popup on a fixture mirror (1-4 and tab switch views)
 #   click ◧ diff  violet = menu, amber = follow the agent
 #   C-a d    detach
 set -uo pipefail
@@ -37,7 +38,9 @@ export DOTFILES_TRACE=0 # a mock must not write to the live trace log
 M() { command tmux -L "$SOCK" -f /dev/null "$@"; }
 
 usage() {
-    sed -n '2,25p' "$SELF" | sed 's/^# \{0,1\}//'
+    # Everything from line 2 to the first non-comment line, so editing the header
+    # block can never silently truncate what --help prints.
+    awk 'NR > 1 { if (!/^#/) exit; sub(/^# ?/, ""); print }' "$SELF"
 }
 
 # --- internal: fire a real hook event, alternating the worktree --------------
@@ -147,6 +150,8 @@ cat >"$TMP/agent.txt" <<TXT
       MOCKUP.  This pane's cwd is proj-main; the agent writes in proj-b.
         M-d   move the agent to the next worktree (real hook event)
         M-w   Pick worktree… popup
+        M-n   workdesk: inbox, merge requests, issues, agents
+              (fixture data; 1-4 and tab switch views, P promotes to a pane)
         click ◧ diff   violet = menu · amber = follow the agent
         C-a d detach, then: task mockup -- --stop
     ────────────────────────────────────
@@ -247,6 +252,26 @@ M select-pane -t "$agent"
 
 M bind -n M-w run-shell -b "PATH=$TMP/shim:\$PATH $REPO/tmux/.local/bin/tmux-diff-pane.sh pick"
 
+# The workdesk popup, on a fixture mirror of invented merge requests, agents and todos,
+# so the mock never renders a real queue into a screenshot. The shipped binary writes and
+# renders it - `workdesk fixture` is the same code path a real sync uses, only the data
+# is fake.
+#
+# One binding, not four: 1-4 and tab switch views inside the popup, and M-m is a real
+# production binding (select-pane) that a mock key would shadow.
+#
+# WORKDESK_DRY makes the three write keys (a, e, M) print the command they would run and
+# stop there, so every key in the popup is safe to press here.
+WORKDESK="$REPO/apps/agentbar/bin/workdesk"
+if [ -x "$WORKDESK" ] && "$WORKDESK" fixture "$TMP/workdesk" >/dev/null 2>&1; then
+    M bind -n M-n run-shell -b \
+        "tmux display-popup -E -w 90% -h 80% \
+         'WORKDESK_MIRROR=$TMP/workdesk WORKDESK_AGENTS=$TMP/workdesk/agents.tsv \
+          WORKDESK_DRY=1 $WORKDESK open inbox'"
+else
+    printf 'mockup: workdesk fixture failed; M-n will do nothing\n' >&2
+fi
+
 # --- output -----------------------------------------------------------------
 if [ "${1:-}" = "--print" ]; then
     # A client is needed for borders and the status line to render; attach one on
@@ -280,6 +305,8 @@ Attach with:
     tmux -L $SOCK attach -t mock
 
   M-d  agent writes in the other worktree   M-w  pick worktree
+  M-n  workdesk popup: inbox, merge requests, issues, agents
+       (1-4 and tab switch views; a/e/M are dry-run here)
   click ◧ diff (violet = menu, amber = follow)      C-a d  detach
   stop: task mockup -- --stop
 TXT

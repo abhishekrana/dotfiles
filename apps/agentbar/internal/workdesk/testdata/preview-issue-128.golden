@@ -1,0 +1,6 @@
+# #128  Registry lookups are slow on cold start
+
+https://gitlab.example.com/acme/platform/-/issues/128
+
+labels: prio::high, type::bug
+updated: 2026-08-24

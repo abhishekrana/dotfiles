@@ -1,0 +1,1109 @@
+[
+  {
+    "iid": "423",
+    "title": "Correct the changelog anchor",
+    "draft": false,
+    "conflicts": false,
+    "detailedMergeStatus": "MERGEABLE",
+    "autoMergeEnabled": false,
+    "description": "One-character anchor fix so the release notes link resolves.",
+    "approved": true,
+    "approvalsRequired": 1,
+    "approvalsLeft": 0,
+    "resolvableDiscussionsCount": 0,
+    "resolvedDiscussionsCount": 0,
+    "sourceBranch": "fix/changelog-anchor",
+    "targetBranch": "main",
+    "commitCount": 1,
+    "createdAt": "2026-08-01T09:00:00Z",
+    "updatedAt": "2026-08-27T09:30:00Z",
+    "webUrl": "https://gitlab.example.com/acme/platform/-/merge_requests/423",
+    "discussions": {
+      "nodes": []
+    },
+    "diffStatsSummary": {
+      "additions": 2,
+      "deletions": 2,
+      "fileCount": 1
+    },
+    "mergeabilityChecks": [
+      {
+        "identifier": "NOT_OPEN",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "DRAFT_STATUS",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "CONFLICT",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "CI_MUST_PASS",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "NOT_APPROVED",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "DISCUSSIONS_NOT_RESOLVED",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "NEED_REBASE",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "REQUESTED_CHANGES",
+        "status": "SUCCESS"
+      }
+    ],
+    "headPipeline": {
+      "status": "SUCCESS",
+      "detailedStatus": {
+        "label": "passed"
+      },
+      "stages": {
+        "nodes": [
+          {
+            "name": "Info",
+            "status": "success"
+          },
+          {
+            "name": "Setup",
+            "status": "success"
+          },
+          {
+            "name": "Build",
+            "status": "success"
+          },
+          {
+            "name": "Lint",
+            "status": "success"
+          },
+          {
+            "name": "Test",
+            "status": "success"
+          }
+        ]
+      }
+    },
+    "approvalState": {
+      "rules": [
+        {
+          "name": "All Members",
+          "approvalsRequired": 1,
+          "approved": true,
+          "approvedBy": {
+            "nodes": [
+              {
+                "username": "dana"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "labels": {
+      "nodes": []
+    },
+    "reviewers": {
+      "nodes": [
+        {
+          "username": "dana",
+          "mergeRequestInteraction": {
+            "reviewState": "APPROVED"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "iid": "412",
+    "title": "Cache the manifest lookup",
+    "draft": false,
+    "conflicts": false,
+    "detailedMergeStatus": "NOT_APPROVED",
+    "autoMergeEnabled": false,
+    "description": "Closes #128.\n\nManifest lookups hit the registry on every request. This adds a 30s\nTTL cache keyed by digest, cutting cold-path latency from ~180ms to ~12ms.\n\nNot cached: signature verification, which must stay live.",
+    "approved": false,
+    "approvalsRequired": 2,
+    "approvalsLeft": 1,
+    "resolvableDiscussionsCount": 7,
+    "resolvedDiscussionsCount": 7,
+    "sourceBranch": "feat/manifest-cache",
+    "targetBranch": "main",
+    "commitCount": 6,
+    "createdAt": "2026-08-01T09:00:00Z",
+    "updatedAt": "2026-08-24T14:10:00Z",
+    "webUrl": "https://gitlab.example.com/acme/platform/-/merge_requests/412",
+    "discussions": {
+      "nodes": [
+        {
+          "resolved": true,
+          "notes": {
+            "nodes": [
+              {
+                "body": "Does the TTL need to be configurable?",
+                "system": false,
+                "author": {
+                  "username": "priya"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "resolved": true,
+          "notes": {
+            "nodes": [
+              {
+                "body": "Please add a metric for cache hit rate before merge.",
+                "system": false,
+                "author": {
+                  "username": "sam"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "diffStatsSummary": {
+      "additions": 214,
+      "deletions": 38,
+      "fileCount": 9
+    },
+    "mergeabilityChecks": [
+      {
+        "identifier": "NOT_OPEN",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "DRAFT_STATUS",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "CONFLICT",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "CI_MUST_PASS",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "NOT_APPROVED",
+        "status": "FAILED"
+      },
+      {
+        "identifier": "DISCUSSIONS_NOT_RESOLVED",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "NEED_REBASE",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "REQUESTED_CHANGES",
+        "status": "SUCCESS"
+      }
+    ],
+    "headPipeline": {
+      "status": "SUCCESS",
+      "detailedStatus": {
+        "label": "passed"
+      },
+      "stages": {
+        "nodes": [
+          {
+            "name": "Info",
+            "status": "success"
+          },
+          {
+            "name": "Setup",
+            "status": "success"
+          },
+          {
+            "name": "Build",
+            "status": "success"
+          },
+          {
+            "name": "Lint",
+            "status": "success"
+          },
+          {
+            "name": "Test",
+            "status": "success"
+          }
+        ]
+      }
+    },
+    "approvalState": {
+      "rules": [
+        {
+          "name": "All Members",
+          "approvalsRequired": 1,
+          "approved": true,
+          "approvedBy": {
+            "nodes": [
+              {
+                "username": "dana"
+              }
+            ]
+          }
+        },
+        {
+          "name": "/services/registry/",
+          "approvalsRequired": 1,
+          "approved": false,
+          "approvedBy": {
+            "nodes": []
+          }
+        }
+      ]
+    },
+    "labels": {
+      "nodes": [
+        {
+          "title": "prio::mid"
+        }
+      ]
+    },
+    "reviewers": {
+      "nodes": [
+        {
+          "username": "dana",
+          "mergeRequestInteraction": {
+            "reviewState": "APPROVED"
+          }
+        },
+        {
+          "username": "priya",
+          "mergeRequestInteraction": {
+            "reviewState": "UNREVIEWED"
+          }
+        },
+        {
+          "username": "sam",
+          "mergeRequestInteraction": {
+            "reviewState": "REQUESTED_CHANGES"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "iid": "406",
+    "title": "Retry shim drops the last error",
+    "draft": false,
+    "conflicts": false,
+    "detailedMergeStatus": "NOT_APPROVED",
+    "autoMergeEnabled": false,
+    "description": "The shim swallowed the final exception, so a run that exhausted its\nretries reported success.",
+    "approved": false,
+    "approvalsRequired": 1,
+    "approvalsLeft": 1,
+    "resolvableDiscussionsCount": 0,
+    "resolvedDiscussionsCount": 0,
+    "sourceBranch": "fix/retry-shim",
+    "targetBranch": "main",
+    "commitCount": 4,
+    "createdAt": "2026-08-01T09:00:00Z",
+    "updatedAt": "2026-08-18T11:00:00Z",
+    "webUrl": "https://gitlab.example.com/acme/platform/-/merge_requests/406",
+    "discussions": {
+      "nodes": []
+    },
+    "diffStatsSummary": {
+      "additions": 40,
+      "deletions": 8,
+      "fileCount": 4
+    },
+    "mergeabilityChecks": [
+      {
+        "identifier": "NOT_OPEN",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "DRAFT_STATUS",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "CONFLICT",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "CI_MUST_PASS",
+        "status": "FAILED"
+      },
+      {
+        "identifier": "NOT_APPROVED",
+        "status": "FAILED"
+      },
+      {
+        "identifier": "DISCUSSIONS_NOT_RESOLVED",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "NEED_REBASE",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "REQUESTED_CHANGES",
+        "status": "SUCCESS"
+      }
+    ],
+    "headPipeline": {
+      "status": "FAILED",
+      "detailedStatus": {
+        "label": "failed"
+      },
+      "stages": {
+        "nodes": [
+          {
+            "name": "Info",
+            "status": "success"
+          },
+          {
+            "name": "Setup",
+            "status": "success"
+          },
+          {
+            "name": "Build",
+            "status": "success"
+          },
+          {
+            "name": "Lint",
+            "status": "success"
+          },
+          {
+            "name": "Test",
+            "status": "failed"
+          }
+        ]
+      }
+    },
+    "approvalState": {
+      "rules": [
+        {
+          "name": "All Members",
+          "approvalsRequired": 1,
+          "approved": false,
+          "approvedBy": {
+            "nodes": []
+          }
+        }
+      ]
+    },
+    "labels": {
+      "nodes": []
+    },
+    "reviewers": {
+      "nodes": [
+        {
+          "username": "sam",
+          "mergeRequestInteraction": {
+            "reviewState": "UNREVIEWED"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "iid": "418",
+    "title": "Pin the base image digest",
+    "draft": false,
+    "conflicts": false,
+    "detailedMergeStatus": "NOT_APPROVED",
+    "autoMergeEnabled": false,
+    "description": "Floating tags meant two stations built different images from the same\ncommit.",
+    "approved": false,
+    "approvalsRequired": 1,
+    "approvalsLeft": 1,
+    "resolvableDiscussionsCount": 0,
+    "resolvedDiscussionsCount": 0,
+    "sourceBranch": "chore/pin-base-digest",
+    "targetBranch": "main",
+    "commitCount": 2,
+    "createdAt": "2026-08-01T09:00:00Z",
+    "updatedAt": "2026-08-26T08:00:00Z",
+    "webUrl": "https://gitlab.example.com/acme/platform/-/merge_requests/418",
+    "discussions": {
+      "nodes": []
+    },
+    "diffStatsSummary": {
+      "additions": 40,
+      "deletions": 8,
+      "fileCount": 4
+    },
+    "mergeabilityChecks": [
+      {
+        "identifier": "NOT_OPEN",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "DRAFT_STATUS",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "CONFLICT",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "CI_MUST_PASS",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "NOT_APPROVED",
+        "status": "FAILED"
+      },
+      {
+        "identifier": "DISCUSSIONS_NOT_RESOLVED",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "NEED_REBASE",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "REQUESTED_CHANGES",
+        "status": "SUCCESS"
+      }
+    ],
+    "headPipeline": {
+      "status": "SUCCESS",
+      "detailedStatus": {
+        "label": "passed"
+      },
+      "stages": {
+        "nodes": [
+          {
+            "name": "Info",
+            "status": "success"
+          },
+          {
+            "name": "Setup",
+            "status": "success"
+          },
+          {
+            "name": "Build",
+            "status": "success"
+          },
+          {
+            "name": "Lint",
+            "status": "success"
+          },
+          {
+            "name": "Test",
+            "status": "success"
+          }
+        ]
+      }
+    },
+    "approvalState": {
+      "rules": [
+        {
+          "name": "All Members",
+          "approvalsRequired": 1,
+          "approved": false,
+          "approvedBy": {
+            "nodes": []
+          }
+        }
+      ]
+    },
+    "labels": {
+      "nodes": []
+    },
+    "reviewers": {
+      "nodes": []
+    }
+  },
+  {
+    "iid": "402",
+    "title": "Drop the unused feature flag",
+    "draft": true,
+    "conflicts": false,
+    "detailedMergeStatus": "DRAFT_STATUS",
+    "autoMergeEnabled": false,
+    "description": "Flag has been on everywhere for two releases.",
+    "approved": false,
+    "approvalsRequired": 1,
+    "approvalsLeft": 1,
+    "resolvableDiscussionsCount": 0,
+    "resolvedDiscussionsCount": 0,
+    "sourceBranch": "chore/drop-legacy-flag",
+    "targetBranch": "main",
+    "commitCount": 1,
+    "createdAt": "2026-08-01T09:00:00Z",
+    "updatedAt": "2026-08-15T16:20:00Z",
+    "webUrl": "https://gitlab.example.com/acme/platform/-/merge_requests/402",
+    "discussions": {
+      "nodes": []
+    },
+    "diffStatsSummary": {
+      "additions": 40,
+      "deletions": 8,
+      "fileCount": 4
+    },
+    "mergeabilityChecks": [
+      {
+        "identifier": "NOT_OPEN",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "DRAFT_STATUS",
+        "status": "FAILED"
+      },
+      {
+        "identifier": "CONFLICT",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "CI_MUST_PASS",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "NOT_APPROVED",
+        "status": "FAILED"
+      },
+      {
+        "identifier": "DISCUSSIONS_NOT_RESOLVED",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "NEED_REBASE",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "REQUESTED_CHANGES",
+        "status": "SUCCESS"
+      }
+    ],
+    "headPipeline": {
+      "status": "SUCCESS",
+      "detailedStatus": {
+        "label": "passed"
+      },
+      "stages": {
+        "nodes": [
+          {
+            "name": "Info",
+            "status": "success"
+          },
+          {
+            "name": "Setup",
+            "status": "success"
+          },
+          {
+            "name": "Build",
+            "status": "success"
+          },
+          {
+            "name": "Lint",
+            "status": "success"
+          },
+          {
+            "name": "Test",
+            "status": "success"
+          }
+        ]
+      }
+    },
+    "approvalState": {
+      "rules": [
+        {
+          "name": "All Members",
+          "approvalsRequired": 1,
+          "approved": false,
+          "approvedBy": {
+            "nodes": []
+          }
+        }
+      ]
+    },
+    "labels": {
+      "nodes": []
+    },
+    "reviewers": {
+      "nodes": []
+    }
+  },
+  {
+    "iid": "430",
+    "title": "Bump the ingest client",
+    "draft": false,
+    "conflicts": false,
+    "detailedMergeStatus": "MERGEABLE",
+    "autoMergeEnabled": true,
+    "description": "Patch bump, no API change.",
+    "approved": true,
+    "approvalsRequired": 1,
+    "approvalsLeft": 0,
+    "resolvableDiscussionsCount": 0,
+    "resolvedDiscussionsCount": 0,
+    "sourceBranch": "chore/bump-ingest",
+    "targetBranch": "main",
+    "commitCount": 1,
+    "createdAt": "2026-08-01T09:00:00Z",
+    "updatedAt": "2026-08-27T08:00:00Z",
+    "webUrl": "https://gitlab.example.com/acme/platform/-/merge_requests/430",
+    "discussions": {
+      "nodes": []
+    },
+    "diffStatsSummary": {
+      "additions": 4,
+      "deletions": 4,
+      "fileCount": 2
+    },
+    "mergeabilityChecks": [
+      {
+        "identifier": "NOT_OPEN",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "DRAFT_STATUS",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "CONFLICT",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "CI_MUST_PASS",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "NOT_APPROVED",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "DISCUSSIONS_NOT_RESOLVED",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "NEED_REBASE",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "REQUESTED_CHANGES",
+        "status": "SUCCESS"
+      }
+    ],
+    "headPipeline": {
+      "status": "SUCCESS",
+      "detailedStatus": {
+        "label": "passed"
+      },
+      "stages": {
+        "nodes": [
+          {
+            "name": "Info",
+            "status": "success"
+          },
+          {
+            "name": "Setup",
+            "status": "success"
+          },
+          {
+            "name": "Build",
+            "status": "success"
+          },
+          {
+            "name": "Lint",
+            "status": "success"
+          },
+          {
+            "name": "Test",
+            "status": "success"
+          }
+        ]
+      }
+    },
+    "approvalState": {
+      "rules": [
+        {
+          "name": "All Members",
+          "approvalsRequired": 1,
+          "approved": true,
+          "approvedBy": {
+            "nodes": [
+              {
+                "username": "dana"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "labels": {
+      "nodes": []
+    },
+    "reviewers": {
+      "nodes": [
+        {
+          "username": "dana",
+          "mergeRequestInteraction": {
+            "reviewState": "APPROVED"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "iid": "391",
+    "title": "Drop the legacy export path",
+    "draft": false,
+    "conflicts": false,
+    "detailedMergeStatus": "NOT_APPROVED",
+    "autoMergeEnabled": false,
+    "description": "Nothing has called this since the v3 cutover.",
+    "approved": false,
+    "approvalsRequired": 1,
+    "approvalsLeft": 1,
+    "resolvableDiscussionsCount": 0,
+    "resolvedDiscussionsCount": 0,
+    "sourceBranch": "chore/drop-legacy-export",
+    "targetBranch": "main",
+    "commitCount": 5,
+    "createdAt": "2026-08-01T09:00:00Z",
+    "updatedAt": "2026-08-19T09:00:00Z",
+    "webUrl": "https://gitlab.example.com/acme/platform/-/merge_requests/391",
+    "discussions": {
+      "nodes": []
+    },
+    "diffStatsSummary": {
+      "additions": 12,
+      "deletions": 340,
+      "fileCount": 7
+    },
+    "mergeabilityChecks": [
+      {
+        "identifier": "NOT_OPEN",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "DRAFT_STATUS",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "CONFLICT",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "CI_MUST_PASS",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "NOT_APPROVED",
+        "status": "FAILED"
+      },
+      {
+        "identifier": "DISCUSSIONS_NOT_RESOLVED",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "NEED_REBASE",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "REQUESTED_CHANGES",
+        "status": "SUCCESS"
+      }
+    ],
+    "headPipeline": {
+      "status": "SUCCESS",
+      "detailedStatus": {
+        "label": "passed"
+      },
+      "stages": {
+        "nodes": [
+          {
+            "name": "Info",
+            "status": "success"
+          },
+          {
+            "name": "Setup",
+            "status": "success"
+          },
+          {
+            "name": "Build",
+            "status": "success"
+          },
+          {
+            "name": "Lint",
+            "status": "success"
+          },
+          {
+            "name": "Test",
+            "status": "success"
+          }
+        ]
+      }
+    },
+    "approvalState": {
+      "rules": [
+        {
+          "name": "All Members",
+          "approvalsRequired": 1,
+          "approved": false,
+          "approvedBy": {
+            "nodes": []
+          }
+        }
+      ]
+    },
+    "labels": {
+      "nodes": []
+    },
+    "reviewers": {
+      "nodes": []
+    }
+  },
+  {
+    "iid": "377",
+    "title": "Widen the retry window",
+    "draft": false,
+    "conflicts": false,
+    "detailedMergeStatus": "NOT_APPROVED",
+    "autoMergeEnabled": false,
+    "description": "Part of #117.\n\nDoubles the ceiling so a slow registry does not fail the whole batch.",
+    "approved": false,
+    "approvalsRequired": 2,
+    "approvalsLeft": 1,
+    "resolvableDiscussionsCount": 0,
+    "resolvedDiscussionsCount": 0,
+    "sourceBranch": "feat/retry-window",
+    "targetBranch": "main",
+    "commitCount": 2,
+    "createdAt": "2026-08-01T09:00:00Z",
+    "updatedAt": "2026-08-23T12:00:00Z",
+    "webUrl": "https://gitlab.example.com/acme/platform/-/merge_requests/377",
+    "discussions": {
+      "nodes": []
+    },
+    "diffStatsSummary": {
+      "additions": 40,
+      "deletions": 8,
+      "fileCount": 4
+    },
+    "mergeabilityChecks": [
+      {
+        "identifier": "NOT_OPEN",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "DRAFT_STATUS",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "CONFLICT",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "CI_MUST_PASS",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "NOT_APPROVED",
+        "status": "FAILED"
+      },
+      {
+        "identifier": "DISCUSSIONS_NOT_RESOLVED",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "NEED_REBASE",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "REQUESTED_CHANGES",
+        "status": "SUCCESS"
+      }
+    ],
+    "headPipeline": {
+      "status": "SUCCESS",
+      "detailedStatus": {
+        "label": "passed"
+      },
+      "stages": {
+        "nodes": [
+          {
+            "name": "Info",
+            "status": "success"
+          },
+          {
+            "name": "Setup",
+            "status": "success"
+          },
+          {
+            "name": "Build",
+            "status": "success"
+          },
+          {
+            "name": "Lint",
+            "status": "success"
+          },
+          {
+            "name": "Test",
+            "status": "success"
+          }
+        ]
+      }
+    },
+    "approvalState": {
+      "rules": [
+        {
+          "name": "All Members",
+          "approvalsRequired": 2,
+          "approved": false,
+          "approvedBy": {
+            "nodes": [
+              {
+                "username": "dana"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "labels": {
+      "nodes": []
+    },
+    "reviewers": {
+      "nodes": [
+        {
+          "username": "dana",
+          "mergeRequestInteraction": {
+            "reviewState": "APPROVED"
+          }
+        },
+        {
+          "username": "priya",
+          "mergeRequestInteraction": {
+            "reviewState": "UNREVIEWED"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "iid": "368",
+    "title": "Split the ingest worker",
+    "draft": false,
+    "conflicts": true,
+    "detailedMergeStatus": "NOT_APPROVED",
+    "autoMergeEnabled": false,
+    "description": "Splits the worker into fetch and transform stages.",
+    "approved": false,
+    "approvalsRequired": 1,
+    "approvalsLeft": 1,
+    "resolvableDiscussionsCount": 0,
+    "resolvedDiscussionsCount": 0,
+    "sourceBranch": "refactor/ingest-split",
+    "targetBranch": "main",
+    "commitCount": 9,
+    "createdAt": "2026-08-01T09:00:00Z",
+    "updatedAt": "2026-08-11T15:00:00Z",
+    "webUrl": "https://gitlab.example.com/acme/platform/-/merge_requests/368",
+    "discussions": {
+      "nodes": []
+    },
+    "diffStatsSummary": {
+      "additions": 480,
+      "deletions": 220,
+      "fileCount": 22
+    },
+    "mergeabilityChecks": [
+      {
+        "identifier": "NOT_OPEN",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "DRAFT_STATUS",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "CONFLICT",
+        "status": "FAILED"
+      },
+      {
+        "identifier": "CI_MUST_PASS",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "NOT_APPROVED",
+        "status": "FAILED"
+      },
+      {
+        "identifier": "DISCUSSIONS_NOT_RESOLVED",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "NEED_REBASE",
+        "status": "SUCCESS"
+      },
+      {
+        "identifier": "REQUESTED_CHANGES",
+        "status": "SUCCESS"
+      }
+    ],
+    "headPipeline": {
+      "status": "SUCCESS",
+      "detailedStatus": {
+        "label": "passed"
+      },
+      "stages": {
+        "nodes": [
+          {
+            "name": "Info",
+            "status": "success"
+          },
+          {
+            "name": "Setup",
+            "status": "success"
+          },
+          {
+            "name": "Build",
+            "status": "success"
+          },
+          {
+            "name": "Lint",
+            "status": "success"
+          },
+          {
+            "name": "Test",
+            "status": "success"
+          }
+        ]
+      }
+    },
+    "approvalState": {
+      "rules": [
+        {
+          "name": "All Members",
+          "approvalsRequired": 1,
+          "approved": false,
+          "approvedBy": {
+            "nodes": []
+          }
+        }
+      ]
+    },
+    "labels": {
+      "nodes": []
+    },
+    "reviewers": {
+      "nodes": [
+        {
+          "username": "priya",
+          "mergeRequestInteraction": {
+            "reviewState": "UNREVIEWED"
+          }
+        }
+      ]
+    }
+  }
+]

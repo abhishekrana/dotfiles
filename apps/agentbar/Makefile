@@ -1,4 +1,4 @@
-.PHONY: gen build test unit e2e clean
+.PHONY: gen build test unit vet e2e clean
 
 # A test must never write to the developer's state dir: the trace log and the
 # pin mirror both live under XDG_STATE_HOME, and a fixture session name that
@@ -12,14 +12,25 @@ TEST_ENV = XDG_STATE_HOME=$(CURDIR)/bin/test-state
 gen:
 	@./scripts/gen-theme.sh
 
+# Two binaries from one module: agentbar is the sidebar, workdesk is the GitLab work
+# inbox. Separate commands so a forge failure is never a sidebar failure, sharing
+# internal/ so there is one trace writer and one tmux reader.
 build: gen
 	go build -o bin/agentbar ./cmd/agentbar
+	go build -o bin/workdesk ./cmd/workdesk
 
-test: gen
+test: gen vet
 	$(TEST_ENV) go test ./...
 
 unit:
 	$(TEST_ENV) go test -short ./...
+
+# gofmt and vet are not run anywhere else in this repo, so they run here. `gofmt -l`
+# exits 0 even when it lists files, so the listing itself has to be the failure.
+vet:
+	@unformatted=$$(gofmt -l cmd internal e2e); \
+	if [ -n "$$unformatted" ]; then echo "gofmt needed:"; echo "$$unformatted"; exit 1; fi
+	go vet ./...
 
 # Full lifecycle against throwaway tmux servers (private sockets; never
 # touches your live tmux). Needs tmux installed.

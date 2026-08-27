@@ -1,0 +1,82 @@
+[
+  {
+    "iid": "128",
+    "title": "Registry lookups are slow on cold start",
+    "updatedAt": "2026-08-24T10:00:00Z",
+    "webUrl": "https://gitlab.example.com/acme/platform/-/issues/128",
+    "labels": {
+      "nodes": [
+        {
+          "title": "prio::high"
+        },
+        {
+          "title": "type::bug"
+        }
+      ]
+    }
+  },
+  {
+    "iid": "126",
+    "title": "Export job retries forever on a 404",
+    "updatedAt": "2026-08-23T10:00:00Z",
+    "webUrl": "https://gitlab.example.com/acme/platform/-/issues/126",
+    "labels": {
+      "nodes": [
+        {
+          "title": "prio::high"
+        },
+        {
+          "title": "type::bug"
+        }
+      ]
+    }
+  },
+  {
+    "iid": "121",
+    "title": "Flaky test in the ingest suite",
+    "updatedAt": "2026-08-19T10:00:00Z",
+    "webUrl": "https://gitlab.example.com/acme/platform/-/issues/121",
+    "labels": {
+      "nodes": [
+        {
+          "title": "prio::mid"
+        }
+      ]
+    }
+  },
+  {
+    "iid": "117",
+    "title": "Add hit-rate metric to the cache layer",
+    "updatedAt": "2026-08-13T10:00:00Z",
+    "webUrl": "https://gitlab.example.com/acme/platform/-/issues/117",
+    "labels": {
+      "nodes": [
+        {
+          "title": "prio::mid"
+        }
+      ]
+    }
+  },
+  {
+    "iid": "114",
+    "title": "Charts should publish on tag, not merge",
+    "updatedAt": "2026-08-08T10:00:00Z",
+    "webUrl": "https://gitlab.example.com/acme/platform/-/issues/114",
+    "labels": {
+      "nodes": [
+        {
+          "title": "prio::low"
+        }
+      ]
+    }
+  },
+  {
+    "iid": "98",
+    "title": "Registry client should honour Retry-After",
+    "updatedAt": "2026-07-27T10:00:00Z",
+    "webUrl": "https://gitlab.example.com/acme/platform/-/issues/98",
+    "labels": {
+      "nodes": []
+    }
+  }
+]

@@ -63,6 +63,33 @@ launch hunk's native interactive reviewer directly. delta also colors `git add -
 | `gdm`         | review merge request (branch vs main)         |
 | `t`           | theme picker inside hunk (persists)           |
 
+### workdesk (GitLab work inbox)
+
+Reads a local mirror, so every command below is instant and offline. `workdesk sync` is the only one that touches the
+network.
+
+| Command             | Action                                                             |
+| ------------------- | ------------------------------------------------------------------ |
+| `workdesk sync`     | refresh the mirror from GitLab                                     |
+| `workdesk open`     | the popup: inbox, merge requests, issues, agents                   |
+| `workdesk board`    | the whole queue, grouped by what is blocking it                    |
+| `workdesk mr <iid>` | one merge request end to end: gates, approvals, reviewers, threads |
+| `workdesk matrix`   | one row per MR, one column per gate, plus a totals row             |
+| `workdesk ready`    | the rows asking something of you, one per line, for an agent       |
+
+Inside the popup:
+
+| Key             | Action                                                     |
+| --------------- | ---------------------------------------------------------- |
+| `1`-`4`, `tab`  | inbox · merge requests · issues · agents                   |
+| `↵`             | full detail; on an agent row, jump to that pane            |
+| `/`             | filter                                                     |
+| `o` / `y`       | open in the browser / copy the URL                         |
+| `c` / `d`       | add a worktree for the branch / open a diff pane           |
+| `m`             | the gate matrix                                            |
+| `a` / `e` / `M` | assign a reviewer / set auto-merge / merge (each confirms) |
+| `P` / `r` / `q` | promote to a pane / re-sync / close                        |
+
 ---
 
 ## Tmux (prefix = Ctrl+b)

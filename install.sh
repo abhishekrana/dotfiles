@@ -28,6 +28,7 @@ case "$(uname -s)" in
         GO_SLUG="linux_amd64"                 # fzf shfmt task
         GOREL_SLUG="Linux_x86_64"             # lazydocker lazygit
         GITLEAKS_SLUG="linux_x64"
+        GLAB_SLUG="linux_amd64"
         GO_DIST="linux-amd64"
         LEAF_SLUG="linux-x86_64"
         NEOVIM_SLUG="linux-x86_64"
@@ -46,6 +47,7 @@ FD_VERSION="10.4.2"
 FZF_VERSION="0.74.2"
 GIT_CLIFF_VERSION="2.13.1"
 GITLEAKS_VERSION="8.30.1"
+GLAB_VERSION="1.115.0"
 GO_VERSION="1.26.6"
 HUNK_VERSION="0.19.0"
 LAZYDOCKER_VERSION="0.25.2"
@@ -245,6 +247,28 @@ install_gitleaks() {
     chmod +x "$LOCAL_BIN/gitleaks"
     rm -rf "$tmp"
     ok "gitleaks $GITLEAKS_VERSION installed"
+}
+
+# glab is GitLab's own CLI and the only way this environment reaches a forge: workdesk
+# shells out to it so that the host and the token live in exactly one place, and nothing
+# in this repository has to hold either.
+#
+# Released on GitLab rather than GitHub, so it does not go through gh_url.
+install_glab() {
+    if [ -x "$LOCAL_BIN/glab" ] &&
+        "$LOCAL_BIN/glab" --version 2>/dev/null | grep -q "$GLAB_VERSION"; then
+        ok "glab $GLAB_VERSION already installed"
+        return
+    fi
+    log "Installing glab $GLAB_VERSION..."
+    local url tmp
+    url="https://gitlab.com/gitlab-org/cli/-/releases/v${GLAB_VERSION}/downloads"
+    url="$url/glab_${GLAB_VERSION}_${GLAB_SLUG}.tar.gz"
+    tmp=$(mktemp -d)
+    curl -sSL "$url" | tar xz -C "$tmp" bin/glab
+    install -m 755 "$tmp/bin/glab" "$LOCAL_BIN/glab"
+    rm -rf "$tmp"
+    ok "glab $GLAB_VERSION installed"
 }
 
 install_go() {
@@ -621,6 +645,7 @@ all_tools() {
     install_ghostty
     install_git_cliff
     install_gitleaks
+    install_glab
     install_go
     install_hunk
     install_lazydocker

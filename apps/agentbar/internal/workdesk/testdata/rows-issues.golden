@@ -1,0 +1,10 @@
+__band__	high ·2
+issues:128	  #128   Registry lookups are slow on cold start     3d
+issues:126	  #126   Export job retries forever on a 404         4d
+__band__	mid ·2
+issues:121	  #121   Flaky test in the ingest suite              8d
+issues:117	  #117   Add hit-rate metric to the cache layer     14d
+__band__	low ·1
+issues:114	  #114   Charts should publish on tag, not merge    19d
+__band__	unlabelled ·1
+issues:98	  #98    Registry client should honour Retry-Aft…   31d

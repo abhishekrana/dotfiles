@@ -244,6 +244,25 @@ tasks:
       - go.sum
     generates:
       - bin/agentbar
+      - bin/workdesk
+
+  workdesk:sync:
+    desc: Refresh the local mirror of the GitLab work you own
+    deps: [agentbar:build]
+    cmds:
+      - "{{.AGENTBAR}}/bin/workdesk sync"
+
+  workdesk:board:
+    desc: Print the work board (no network)
+    deps: [agentbar:build]
+    cmds:
+      - "{{.AGENTBAR}}/bin/workdesk board"
+
+  workdesk:schema-check:
+    desc: Validate the GraphQL query against the live GitLab schema
+    deps: [agentbar:build]
+    cmds:
+      - "{{.AGENTBAR}}/bin/workdesk schema-check"
 
   agentbar:test:
     desc: agentbar unit and e2e tests (e2e needs tmux)

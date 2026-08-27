@@ -1,0 +1,26 @@
+# Gate matrix
+
+| mr | title | draft | ci | appr | thr | conf | auto | band |
+|---|---|---|---|---|---|---|---|---|
+| !412 | Cache the manifest lookup | · | ok | 1/2 | 7/7 | · | off | returned to you |
+| !406 | Retry shim drops the last error | · | x | 0/1 | · | · | off | pipeline failed |
+| !368 | Split the ingest worker | · | ok | 0/1 | · | x | off | blocked on you |
+| !391 | Drop the legacy export path | · | ok | 0/1 | · | · | off | no reviewer yet |
+| !418 | Pin the base image digest | · | ok | 0/1 | · | · | off | no reviewer yet |
+| !423 | Correct the changelog anchor | · | ok | 1/1 | · | · | off | auto-merge not set |
+| !377 | Widen the retry window | · | ok | 1/2 | · | · | off | waiting for approvals |
+| !430 | Bump the ingest client | · | ok | 1/1 | · | · | on | auto-merging |
+| !402 | Drop the unused feature flag | x | ok | 0/1 | · | · | off | draft |
+
+## Stuck on
+
+| gate | count |
+|---|---|
+| draft | 1 |
+| pipeline | 1 |
+| approvals | 7 |
+| threads | 0 |
+| conflicts | 1 |
+| auto-merge off | 8 |
+
+_A gate that is high here is one setting to change, not one merge request at a time._
