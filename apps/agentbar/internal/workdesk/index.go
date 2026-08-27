@@ -9,10 +9,15 @@ import (
 // Index is the small, derived tier of the mirror: everything the picker's rows need
 // and nothing else.
 //
-// It exists for speed. On a real queue mrs.json runs to megabytes because
-// descriptions and discussion threads live in it, and fzf re-runs the preview command
-// on every cursor movement - so a reader that decoded the whole snapshot per keystroke
-// would be perceptibly slow. The index is a few kilobytes, written once by sync.
+// It exists for speed. On a real queue mrs.json runs to megabytes because descriptions
+// and discussion threads live in it, and decoding that costs around 7ms against 0.2ms
+// for the index. That matters for the one-shot commands - `list`, `ready` - where a
+// process start plus a decode is the whole runtime. The interactive UI holds the full
+// snapshot instead, because its previews need the descriptions and threads anyway, and
+// it pays that decode once rather than per keystroke.
+//
+// One classification either way: both paths go through BuildIndex, so a view can never
+// disagree with another view about which band something is in.
 //
 // It is derived, never a second source of truth: `workdesk render` rebuilds it from
 // the snapshot with no network, so deleting the mirror costs nothing.
@@ -26,9 +31,10 @@ type Index struct {
 	Todos     []Item      `json:"todos"`
 }
 
-// Item is one row's payload. Ages are absent on purpose: Updated is stored as an
-// epoch and the age is formatted at read time, because a baked-in "3d" is wrong by
-// morning.
+// Item is one row's payload, free of presentation: titles are stored at their natural
+// length and ages not at all. Updated is an epoch because a baked-in "3d" is wrong by
+// morning, and the title is unpadded because how wide a column is depends on the
+// terminal, not on the snapshot.
 type Item struct {
 	Ref     string `json:"ref"`
 	Title   string `json:"title"`
@@ -79,7 +85,7 @@ func buildMRs(mrs []MergeRequest) []MRItem {
 		out = append(out, MRItem{
 			Item: Item{
 				Ref:     "!" + mr.IID,
-				Title:   Pad(mr.Title, titleWidth),
+				Title:   mr.Title,
 				Label:   band.String(),
 				Flag:    band.Flag(),
 				Note:    note,
@@ -107,13 +113,13 @@ func buildIssues(issues []Issue, mrs []MergeRequest) []IssueItem {
 		is := &issues[i]
 		prio := is.Priority()
 		note := "not started"
-		if mr := inFlightFor(is.IID, mrs); mr != nil {
+		if mr := InFlightFor(is.IID, mrs); mr != nil {
 			note = "!" + mr.IID + " in flight"
 		}
 		out = append(out, IssueItem{
 			Item: Item{
 				Ref:     "#" + is.IID,
-				Title:   Pad(is.Title, titleWidth),
+				Title:   is.Title,
 				Label:   prio.String(),
 				Flag:    "a",
 				Note:    note,
@@ -134,13 +140,13 @@ func buildIssues(issues []Issue, mrs []MergeRequest) []IssueItem {
 	return out
 }
 
-// inFlightFor finds a merge request already working on an issue.
+// InFlightFor finds a merge request already working on an issue.
 //
 // Derived backwards from the merge requests we already hold, rather than asked of
 // GitLab: closesIssues is served one issue at a time, so asking costs a round trip
 // per issue. A branch named after the issue or a description mentioning it is how
 // these branches are actually named, so the link falls out for free.
-func inFlightFor(iid string, mrs []MergeRequest) *MergeRequest {
+func InFlightFor(iid string, mrs []MergeRequest) *MergeRequest {
 	if iid == "" {
 		return nil
 	}
@@ -188,7 +194,7 @@ func buildTodos(todos []Todo) []Item {
 		}
 		out = append(out, Item{
 			Ref:     ref,
-			Title:   Pad(title, titleWidth),
+			Title:   title,
 			Label:   todoBand,
 			Flag:    "a",
 			Note:    strings.ReplaceAll(td.ActionName, "_", " "),

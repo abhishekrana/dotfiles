@@ -127,10 +127,24 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
   forbids importing another module's `internal/`, and a second module would mean a **third** trace writer (see
   "Debugging") plus a second copy of the tmux reader that already resolves agent → worktree → branch.
   - `workdesk` mirrors the GitLab work you own into `~/.local/state/dotfiles/workdesk/`: `sync` fetches, `open` is the
-    fzf popup (inbox · merge requests · issues · agents, `1`-`4` and tab), `board` is the whole queue, `mr <iid>` is one
-    merge request end to end, `matrix` is one row per MR and one column per gate with a totals row, and `ready` prints
-    the actionable rows for an agent. `bootstrap.sh` links it into `~/.local/bin` - the one app binary that does get a
-    link, because it is a CLI you type.
+    Bubble Tea UI (inbox · merge requests · issues · agents, `1`-`4` and tab, `?` for help), `board` is the whole queue,
+    `mr <iid>` is one merge request end to end, `matrix` is one row per MR and one column per gate with a totals row,
+    and `ready` prints the actionable rows for an agent. `bootstrap.sh` links it into `~/.local/bin` - the one app
+    binary that does get a link, because it is a CLI you type.
+  - **Bubble Tea, not fzf, and the difference is structural.** fzf re-invoked a process per cursor movement, so previews
+    had to be markdown pre-rendered at sync time and cat'd, band headers had to be smuggled into the row list as fake
+    items the cursor was taught to skip, and the key hints had to fit ~52 columns or fzf truncated them silently. Here
+    the model is held: headers are derived at render time so the cursor is always on a real row, previews are built from
+    the snapshot with colour on the gates and a real table for the approval rules, the preview scrolls, and `?` renders
+    the keymap so no hint can go missing. The palette is `internal/ui`, generated from `design/palette.toml`, so it
+    matches tmux rather than approximating it.
+  - **The UI never acts.** It records which key was pressed on which row and quits; the caller runs the action. That is
+    what keeps every action a plain function `workdesk act <key> <ref>` can run with no terminal, and it is why the
+    write confirms do not live inside the render loop.
+  - **The model holds no presentation.** Titles are stored unpadded and ages not at all - only an epoch. A pre-padded
+    title looks harmless until a UI sizes the column to the terminal and re-pads it, at which point every row grows an
+    ellipsis it never earned. `Row.TSV()` is the one place a fixed column belongs, because its consumer is not this
+    program.
   - **Band names are GitLab's own**, from the merge request homepage that has shipped by default since 18.2, so this
     view and the web UI say the same words. Its active/inactive split is modelled too: the picker draws a line where the
     bands stop asking anything of you.

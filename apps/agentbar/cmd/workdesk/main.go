@@ -29,7 +29,6 @@ commands:
   sync               fetch and rewrite the mirror
   render             rebuild the derived views from the snapshot, no network
   list <view>        tab-separated rows, for a reader
-  rows <view>        the picker's own rows, with band headers
   board              the whole queue, bucketed by what is blocking it
   mr <iid>           one merge request end to end
   issue <iid>        one issue
@@ -66,9 +65,7 @@ func main() {
 	case "render":
 		err = runRender()
 	case "list":
-		err = runList(args, false)
-	case "rows":
-		err = runList(args, true)
+		err = runList(args)
 	case "board":
 		err = catFile("board.md")
 	case "mr":
@@ -181,17 +178,11 @@ func agentsNow() ([]workdesk.Agent, error) {
 	return workdesk.AgentsFromTmux(tmuxRunner{}, time.Now().Unix()), nil
 }
 
-func runList(args []string, picker bool) error {
+func runList(args []string) error {
 	view := workdesk.ParseView(first(args))
 	rows, err := rowsFor(view)
 	if err != nil {
 		return err
-	}
-	if picker {
-		for _, line := range workdesk.PickerRows(rows, view, pickerBandMark) {
-			fmt.Println(line)
-		}
-		return nil
 	}
 	return workdesk.WriteRows(os.Stdout, rows)
 }

@@ -8,10 +8,9 @@ import (
 	"time"
 )
 
-// frozen is the instant the golden files were captured from the shell implementation
-// this package replaces. Ages are relative to now, so the goldens are only meaningful
-// against the clock that produced them - without this they would drift a day at every
-// midnight and the parity tests would rot.
+// frozen is the instant the golden files were captured. Ages are relative to now, so a
+// golden is only meaningful against the clock that produced it; without this they would
+// drift a day at every midnight and rot.
 func frozen(t *testing.T) time.Time {
 	t.Helper()
 	b, err := os.ReadFile(filepath.Join("testdata", "captured-at"))
@@ -43,14 +42,14 @@ func golden(t *testing.T, name string) string {
 	return string(b)
 }
 
-// The fixture covers one merge request per band, so decoding it and classifying every
-// row proves Band() against real API shapes rather than hand-built structs.
+// The fixture covers one merge request per band, so decoding it and classifying every row
+// exercises Band() against real API shapes rather than hand-built structs.
 func TestBandsMatchGolden(t *testing.T) {
 	t.Parallel()
 	m := loadFixture(t)
 
-	// band name -> the iids the shell put in it, read out of its own output so the
-	// expectation cannot drift from the file it is checked against.
+	// band name -> the iids it holds, read out of the golden itself so the expectation
+	// cannot drift from the file it is checked against.
 	want := map[string][]string{}
 	for _, line := range strings.Split(strings.TrimRight(golden(t, "list-mrs.golden"), "\n"), "\n") {
 		f := strings.Split(line, "\t")
@@ -79,7 +78,7 @@ func TestBandsMatchGolden(t *testing.T) {
 				continue
 			}
 			if b := mr.Band().String(); b != band {
-				t.Errorf("!%s: Band() = %q, shell said %q (blockers: %v, ci: %s, reviewers: %d, auto: %v)",
+				t.Errorf("!%s: Band() = %q, want %q (blockers: %v, ci: %s, reviewers: %d, auto: %v)",
 					iid, b, band, mr.Blockers(), mr.CIStatus(), len(mr.Reviewers.Nodes), mr.AutoMergeEnabled)
 			}
 		}
@@ -125,9 +124,8 @@ func TestFixtureDecodes(t *testing.T) {
 	}
 }
 
-// The shell implementation this package replaces is the specification, and its output
-// is frozen in testdata. Byte-identical is the bar: a difference of one space is a
-// column that no longer lines up.
+// Rows are what every view is built from, so their exact shape is frozen. Byte-identical
+// is the bar: a difference of one space is a column that no longer lines up.
 func TestListRowsMatchGoldenExactly(t *testing.T) {
 	t.Parallel()
 	now := frozen(t)
@@ -178,38 +176,6 @@ func diffLines(t *testing.T, want, got string) {
 			t.Errorf("(%d lines want, %d got)", len(wl), len(gl))
 		}
 		return
-	}
-}
-
-// The picker's own row format - band headers, the active/inactive divider, and the
-// visible column - checked against the shell byte for byte. A column that shifts by one
-// is a list that no longer lines up.
-func TestPickerRowsMatchGoldenExactly(t *testing.T) {
-	t.Parallel()
-	now := frozen(t)
-	m := loadFixture(t)
-	idx := BuildIndex(m)
-
-	agents, err := fixtureAgents(t)
-	if err != nil {
-		t.Fatalf("fixture agents: %v", err)
-	}
-
-	for _, c := range []struct {
-		view   View
-		rows   []Row
-		golden string
-	}{
-		{ViewMRs, idx.Rows(ViewMRs, now), "rows-mrs.golden"},
-		{ViewIssues, idx.Rows(ViewIssues, now), "rows-issues.golden"},
-		{ViewInbox, idx.Rows(ViewInbox, now), "rows-inbox.golden"},
-		{ViewAgents, AgentRows(agents, idx), "rows-agents.golden"},
-	} {
-		t.Run(c.view.String(), func(t *testing.T) {
-			t.Parallel()
-			got := strings.Join(PickerRows(c.rows, c.view, "__band__"), "\n") + "\n"
-			diffLines(t, golden(t, c.golden), got)
-		})
 	}
 }
 

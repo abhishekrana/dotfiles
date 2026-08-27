@@ -63,18 +63,25 @@ func AgeAgo(t time.Time, now time.Time) string {
 	return a + " ago"
 }
 
-// ParseTime decodes the ISO-8601 timestamps GitLab returns. A field we cannot parse
-// yields the zero time, which Age renders as empty - a missing date is not worth
-// failing a whole view over.
+// SyncedLayout is how sync stamps meta.synced: local time, no zone, because it is read
+// by people as often as by code.
+const SyncedLayout = "2006-01-02 15:04:05"
+
+// ParseTime decodes the timestamps this tool handles: ISO-8601 as GitLab returns it, and
+// the local-time stamp sync writes into meta.json. A field we cannot parse yields the
+// zero time, which Age renders as empty - a missing date is not worth failing a view
+// over.
 func ParseTime(s string) time.Time {
 	if s == "" {
 		return time.Time{}
 	}
-	t, err := time.Parse(time.RFC3339, s)
-	if err != nil {
-		return time.Time{}
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		return t
 	}
-	return t
+	if t, err := time.ParseInLocation(SyncedLayout, s, time.Local); err == nil {
+		return t
+	}
+	return time.Time{}
 }
 
 // TSV joins fields the way the picker's awk reader expects, escaping the separators

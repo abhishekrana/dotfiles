@@ -8,15 +8,17 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/abhishekrana/agentbar/internal/deskui"
 	"github.com/abhishekrana/agentbar/internal/gitlab"
-	"github.com/abhishekrana/agentbar/internal/picker"
 	"github.com/abhishekrana/agentbar/internal/tmux"
 	"github.com/abhishekrana/agentbar/internal/trace"
+	"github.com/abhishekrana/agentbar/internal/ui"
 	"github.com/abhishekrana/agentbar/internal/workdesk"
 )
-
-const pickerBandMark = picker.BandMark
 
 // tmuxRunner is the real tmux, for the agent view and for the actions that move you
 // around.
@@ -24,79 +26,72 @@ type tmuxRunner struct{}
 
 func (tmuxRunner) Run(args ...string) (string, error) { return tmux.Exec{}.Run(args...) }
 
-// keys the picker hands back rather than acting on itself.
-var expectKeys = []string{
-	"tab", "1", "2", "3", "4",
-	"o", "c", "d", "y", "r", "m", "a", "e", "M", "P", "q",
-}
-
-// runOpen is the picker loop. A view switch or an action returns you to the list rather
-// than closing the popup: a mode item changes what you see, not whether you are here.
+// runOpen shows the UI, then carries out whatever it asked for and shows it again.
+//
+// The UI never acts: it records what the person chose and quits, so every action stays a
+// plain function that runs with no terminal attached - which is what `workdesk act` uses
+// and what the tests exercise.
 func runOpen(args []string) error {
 	view := workdesk.ParseView(first(args))
 	trace.Log("workdesk", "open", "view", view.String())
+
 	for {
-		rows, err := rowsFor(view)
+		mirror, err := workdesk.Load(mirrorDir())
 		if err != nil {
 			return err
 		}
-		lines := workdesk.PickerRows(rows, view, pickerBandMark)
-		if len(lines) == 0 {
-			say(fmt.Sprintf("nothing in %s", view))
-			return nil
-		}
-		res, err := picker.Run(picker.Options{
-			Rows:    lines,
-			Header:  header(view),
-			Preview: selfPath() + " preview {1}",
-			Keys:    expectKeys,
-			Colors:  os.Getenv("WORKDESK_FZF_COLORS"),
-		})
+		model := deskui.New(deskui.Deps{
+			Mirror: mirror,
+			Agents: func() []workdesk.Agent {
+				agents, err := agentsNow()
+				if err != nil {
+					return nil
+				}
+				return agents
+			},
+			Now: time.Now,
+		}, ui.ThemeByName(themeName()), view)
+
+		final, err := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseCellMotion()).Run()
 		if err != nil {
-			if errors.Is(err, picker.ErrClosed) {
-				return nil
-			}
-			return err
+			return fmt.Errorf("ui: %w", err)
 		}
-		switch res.Key {
-		case "q":
+		done, ok := final.(deskui.Model)
+		if !ok || done.Pending == nil {
 			return nil
-		case "tab":
-			view = view.Next()
-		case "1", "2", "3", "4":
-			view = workdesk.ParseView(res.Key)
+		}
+		view = done.CurrentView()
+
+		switch done.Pending.Key {
 		case "P":
 			return promote(view)
-		case "":
-			if res.Ref != "" {
-				if err := viewDoc(res.Ref); err != nil {
-					say(err.Error())
-				}
+		case "enter":
+			if err := viewDoc(done.Pending.Ref); err != nil {
+				say(err.Error())
 			}
 		default:
-			if err := act(res.Key, res.Ref); err != nil {
+			if err := act(done.Pending.Key, done.Pending.Ref); err != nil {
 				say(err.Error())
 			}
 		}
 	}
 }
 
-// header is three short lines, none over about 52 columns: the list is under half the
-// popup and fzf truncates a long header silently, taking the last keys with it.
-func header(v workdesk.View) string {
-	nav := v.String() + "   1-4 views  tab next  P pane  r sync  q close"
-	switch v {
-	case workdesk.ViewMRs:
-		return nav + "\n↵ view   o open   y copy   c tree   d diff" +
-			"\na assign   e auto   M merge   m matrix"
-	case workdesk.ViewIssues:
-		return nav + "\n↵ view   o open   y copy"
-	case workdesk.ViewAgents:
-		return nav + "\n↵ go to that pane   d diff"
-	default:
-		return nav + "\n↵ view   o open   y copy   c tree   d diff" +
-			"\na assign   e auto   m matrix"
+// themeName is the flavor the rest of the terminal is wearing. The theme switcher writes
+// it, so the UI matches tmux, ghostty and the pickers without being told twice.
+func themeName() string {
+	if t := os.Getenv("WORKDESK_THEME"); t != "" {
+		return t
 	}
+	// Parenthesised: a composite literal in an if initializer is ambiguous with the
+	// block that follows it, and Go rejects it.
+	out, err := (tmux.Exec{}).Run("show-option", "-gqv", "@theme")
+	if err == nil {
+		if name := strings.TrimSpace(out); name != "" {
+			return name
+		}
+	}
+	return ""
 }
 
 func selfPath() string {
@@ -151,7 +146,7 @@ func refKind(ref string) (kind, id string) {
 
 func runPreview(args []string) error {
 	ref := first(args)
-	if ref == "" || ref == pickerBandMark {
+	if ref == "" {
 		return nil
 	}
 	kind, id := refKind(ref)
@@ -282,7 +277,7 @@ func runAct(args []string) error {
 // act is one keypress. Every action is an ordinary function reachable without a terminal,
 // which is what lets the suite exercise them all.
 func act(key, ref string) error {
-	if ref == "" || ref == pickerBandMark {
+	if ref == "" {
 		return nil
 	}
 	kind, id := refKind(ref)

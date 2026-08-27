@@ -1,7 +1,6 @@
 package workdesk
 
 import (
-	"fmt"
 	"io"
 	"strings"
 	"time"
@@ -60,14 +59,16 @@ type Row struct {
 	Branch string
 }
 
-// TSV is the wire format the picker's reader consumes:
+// TSV is the wire format for a reader that is not this program:
 //
 //	label  flag  ref  title  age  note  branch
 //
+// The title is padded here rather than in the model, because a fixed column only makes
+// sense for a fixed-width consumer - the UI sizes it to the terminal instead.
 // Separators inside a field are escaped, so a merge request titled with a tab cannot
 // invent a column.
 func (r Row) TSV() string {
-	return TSV(r.Label, r.Flag, r.Ref, r.Title, r.Age, r.Note, r.Branch)
+	return TSV(r.Label, r.Flag, r.Ref, Pad(r.Title, titleWidth), r.Age, r.Note, r.Branch)
 }
 
 // WriteRows emits one TSV line per row.
@@ -170,40 +171,9 @@ func (idx *Index) inbox(now time.Time) []Row {
 	return append(out, issueRows...)
 }
 
-// Divider marks where the bands stop asking anything of you. GitLab's dashboard
-// excludes its inactive sections from the attention count; this is that line, drawn.
-const Divider = "  ──── nothing below asks anything of you ────"
-
-// PickerRows turns rows into the lines fzf reads: field one is the reference an action
-// acts on, field two is what the eye reads.
-//
-// Band headers carry their own counts, taken from the data rather than maintained
-// beside it, so a count can never disagree with the rows under it.
-func PickerRows(rows []Row, v View, bandMark string) []string {
-	counts := make(map[string]int, len(rows))
-	for _, r := range rows {
-		counts[r.Label]++
-	}
-
-	out := make([]string, 0, len(rows)+len(counts)+1)
-	prevLabel, prevFlag := "", "a"
-	for _, r := range rows {
-		if r.Flag == "i" && prevFlag == "a" {
-			out = append(out, bandMark+"\t"+Divider)
-			prevFlag = "i"
-		}
-		if r.Label != prevLabel {
-			out = append(out, fmt.Sprintf("%s\t%s ·%d", bandMark, r.Label, counts[r.Label]))
-			prevLabel = r.Label
-		}
-		out = append(out, refFor(r, v)+"\t"+display(r, v))
-	}
-	return out
-}
-
-// refFor is the handle a callback acts on: kind and identifier, so nothing downstream
+// RefFor is the handle an action acts on: kind and identifier, so nothing downstream
 // needs to know which view produced the row.
-func refFor(r Row, v View) string {
+func RefFor(r Row) string {
 	switch {
 	case strings.HasPrefix(r.Ref, "%"):
 		return "agents:" + r.Ref
@@ -212,16 +182,6 @@ func refFor(r Row, v View) string {
 	case strings.HasPrefix(r.Ref, "!"):
 		return "mrs:" + strings.TrimPrefix(r.Ref, "!")
 	default:
-		return v.String() + ":" + r.Ref
+		return r.Ref
 	}
-}
-
-// display is the visible column. An agent row carries its note because whether the work
-// reached GitLab at all is the fact that view exists for; on a merge request the note is
-// a list of gates, and the preview is right there.
-func display(r Row, v View) string {
-	if v == ViewAgents {
-		return fmt.Sprintf("  %-4s %s %4s  %s", r.Ref, r.Title, r.Age, r.Note)
-	}
-	return fmt.Sprintf("  %-6s %s %5s", r.Ref, r.Title, r.Age)
 }

@@ -83,7 +83,7 @@ func Sync(ctx context.Context, f Fetcher, dir, project string, now time.Time) (*
 	m := &Mirror{Meta: Meta{
 		Project: project,
 		User:    who,
-		Synced:  started.Format("2006-01-02 15:04:05"),
+		Synced:  started.Format(SyncedLayout),
 	}}
 	if err := decodeInto(mrsRes.mrs, &m.MRs); err != nil {
 		return nil, fmt.Errorf("merge requests: %w", err)

@@ -152,3 +152,35 @@ func TestAgesFollowTheClockNotTheSync(t *testing.T) {
 		t.Error("no row aged a day later; the age is baked in rather than computed")
 	}
 }
+
+// The model holds no presentation. A pre-padded title looks harmless until a UI sizes the
+// column to the terminal and re-pads it: the trailing spaces get truncated and the row
+// grows an ellipsis it never earned.
+func TestIndexHoldsRawTitles(t *testing.T) {
+	t.Parallel()
+	idx := BuildIndex(loadFixture(t))
+	check := func(kind, ref, title string) {
+		if title != strings.TrimRight(title, " ") {
+			t.Errorf("%s %s title is padded: %q", kind, ref, title)
+		}
+	}
+	for _, it := range idx.MRs {
+		check("mr", it.Ref, it.Title)
+	}
+	for _, it := range idx.Issues {
+		check("issue", it.Ref, it.Title)
+	}
+	for _, it := range idx.Todos {
+		check("todo", it.Ref, it.Title)
+	}
+	// The TSV is the one place a fixed column belongs, because its consumer is not this
+	// program.
+	rows := idx.Rows(ViewMRs, frozen(t))
+	if len(rows) == 0 {
+		t.Fatal("no rows")
+	}
+	field := strings.Split(rows[0].TSV(), "\t")[3]
+	if n := len([]rune(field)); n != titleWidth {
+		t.Errorf("TSV title field is %d runes, want %d", n, titleWidth)
+	}
+}

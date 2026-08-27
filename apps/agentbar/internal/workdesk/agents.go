@@ -177,7 +177,7 @@ func AgentRows(agents []Agent, idx *Index) []Row {
 				Label:  band.label,
 				Flag:   flag,
 				Ref:    a.Pane,
-				Title:  Pad(a.Title, titleWidth),
+				Title:  a.Title,
 				Age:    agentAge(a.AgeSecs),
 				Note:   note,
 				Branch: a.Branch,
