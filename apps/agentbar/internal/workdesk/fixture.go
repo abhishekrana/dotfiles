@@ -16,7 +16,7 @@ import (
 // the tests run in CI, so real data in either would leak an employer's queue somewhere it
 // cannot be taken back from.
 //
-// It covers one merge request per band, so the picker's grouping is exercised end to end
+// It covers one merge request per band, so the banding is exercised end to end
 // rather than sampled.
 //
 //go:embed fixture

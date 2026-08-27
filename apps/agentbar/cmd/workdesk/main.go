@@ -25,7 +25,7 @@ import (
 const usage = `usage: workdesk <command>
 
 commands:
-  open [view]        the picker: inbox, mrs, issues or agents (default inbox)
+  open [view]        the UI: inbox, mrs, issues or agents (default inbox)
   sync               fetch and rewrite the mirror
   render             rebuild the derived views from the snapshot, no network
   list <view>        tab-separated rows, for a reader
@@ -152,8 +152,8 @@ func runRender() error {
 	return nil
 }
 
-// rowsFor is the one place a view turns into rows, so `list`, `rows` and the picker can
-// never disagree about what a view contains.
+// rowsFor is the one place a view turns into rows, so `list` and the UI can never
+// disagree about what a view contains.
 func rowsFor(v workdesk.View) ([]workdesk.Row, error) {
 	idx, err := workdesk.LoadIndex(mirrorDir())
 	if err != nil {

@@ -7,9 +7,8 @@ import (
 	"time"
 )
 
-// Column widths the picker's rows are built from. The title is padded here rather
-// than by the caller so every render agrees, and so the byte-versus-codepoint bug
-// that dogged the shell version cannot come back: Pad counts runes, once.
+// titleWidth is the fixed column Row.TSV() pads to, for a consumer that is not this
+// program. Nothing else pads: the UI sizes its column to the terminal.
 const titleWidth = 40
 
 // Short truncates to n display cells, marking the cut with a single ellipsis. The
@@ -37,7 +36,7 @@ func Pad(s string, n int) string {
 	return s
 }
 
-// Age renders how long ago t was, in the picker's compact form: whole days, or
+// Age renders how long ago t was, in the compact form a row uses: whole days, or
 // "today" for anything under one. Callers pass now explicitly so every render is a
 // pure function of its inputs and the tests need no clock.
 func Age(t time.Time, now time.Time) string {
@@ -84,8 +83,8 @@ func ParseTime(s string) time.Time {
 	return time.Time{}
 }
 
-// TSV joins fields the way the picker's awk reader expects, escaping the separators
-// so a title containing a tab or a newline cannot invent a column or a row.
+// TSV joins fields with tabs, escaping any that appear inside a field so a title
+// containing a tab or a newline cannot invent a column or a row.
 func TSV(fields ...string) string {
 	out := make([]string, len(fields))
 	for i, f := range fields {

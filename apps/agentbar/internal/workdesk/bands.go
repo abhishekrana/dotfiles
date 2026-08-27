@@ -14,8 +14,8 @@ import (
 type Band int
 
 // Declared in the order they are shown. Everything from BandApprovals down is
-// inactive: GitLab excludes those sections from its attention count, and the picker
-// draws its line where Active() flips.
+// inactive: GitLab excludes those sections from its attention count, and the UI draws
+// its line where Active() flips.
 const (
 	BandReturned    Band = iota // a reviewer sent it back
 	BandCI                      // the pipeline is red
@@ -46,8 +46,8 @@ func (b Band) String() string { return bandNames[b] }
 // split is the whole idea, so it is modelled rather than inferred at render time.
 func (b Band) Active() bool { return b < BandApprovals }
 
-// Flag is the single letter the picker's row carries so its reader can find where
-// the active/inactive line falls without knowing what any band means.
+// Flag is the single letter a row carries so a reader can find where the active/inactive
+// line falls without knowing what any band means.
 func (b Band) Flag() string {
 	if b.Active() {
 		return "a"

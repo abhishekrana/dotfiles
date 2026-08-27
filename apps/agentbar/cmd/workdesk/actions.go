@@ -134,7 +134,7 @@ func rc(err error) int {
 	return 0
 }
 
-// refKind splits a picker reference into its kind and identifier, so a callback needs no
+// refKind splits a row reference into its kind and identifier, so an action needs no
 // other context.
 func refKind(ref string) (kind, id string) {
 	k, i, found := strings.Cut(ref, ":")

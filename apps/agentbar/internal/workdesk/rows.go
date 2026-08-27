@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// View is which question the picker is asking. The order is the ring 1-4 and tab walk,
+// View is which question is being asked. The order is the ring 1-4 and tab walk,
 // defined once here so no caller can disagree about it.
 type View int
 
@@ -47,7 +47,7 @@ func Views() []View { return []View{ViewInbox, ViewMRs, ViewIssues, ViewAgents} 
 // Next returns the view after this one, wrapping.
 func (v View) Next() View { return View((int(v) + 1) % len(viewNames)) }
 
-// Row is one picker line: the band it sits under, whether that band is asking anything
+// Row is one line: the band it sits under, whether that band is asking anything
 // of you, and the fields the eye reads.
 type Row struct {
 	Label  string

@@ -30,7 +30,7 @@ import (
 // the caller owns every side effect and every confirm.
 type Action struct {
 	Key string // the binding that asked for it: o, y, c, d, a, e, M, P, r
-	Ref string // kind:id, as the picker rows carry it
+	Ref string // kind:id, the same handle `workdesk act` takes
 }
 
 // Deps is what the model cannot do for itself.

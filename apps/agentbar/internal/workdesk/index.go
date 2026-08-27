@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Index is the small, derived tier of the mirror: everything the picker's rows need
+// Index is the small, derived tier of the mirror: everything a row needs
 // and nothing else.
 //
 // It exists for speed. On a real queue mrs.json runs to megabytes because descriptions
