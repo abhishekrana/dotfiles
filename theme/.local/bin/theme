@@ -159,27 +159,16 @@ apply_colors() {
     done
 }
 
-# Claude Code paints its own TUI and only distinguishes light from dark, so it
-# takes the flavor's mode rather than hexes. Written to ~/.claude.json, not to
-# ~/.claude/settings.json: that one is a stow symlink into this repo, and a
-# switcher must never dirty a tracked file. Claude Code reads the theme at
-# startup, so running sessions need /config (or a restart) to catch up.
-apply_claude() {
-    local f="$HOME/.claude.json" want tmp
-    [ -f "$f" ] || return 0
-    command -v jq >/dev/null 2>&1 || return 0
-    want=$(palette_get "$1" mode)
-    # Claude Code rewrites this file while it runs, so only write when the value
-    # actually changes: no write, no window in which to lose its session state.
-    [ "$(jq -r '.theme // ""' "$f" 2>/dev/null)" = "$want" ] && return 0
-    tmp=$(mktemp "$f.XXXXXX") || return 0
-    if jq --arg t "$want" '.theme = $t' "$f" >"$tmp" 2>/dev/null && [ -s "$tmp" ]; then
-        chmod --reference="$f" "$tmp" 2>/dev/null || true
-        mv "$tmp" "$f" # same dir, so the replace is atomic
-    else
-        rm -f "$tmp" # never leave a truncated config behind
-    fi
-}
+# Claude Code's TUI theme is deliberately NOT switched here. It owns that setting and
+# persists it itself - `/theme` writes `theme` into ~/.claude/settings.json, which is a
+# stow symlink into this repo, so every use of it dirties a tracked file. A switcher
+# write is then a second writer that either loses or fights, and the two files end up
+# disagreeing. `/theme` applies live and takes one keystroke, flavour switches are rare,
+# so the automation bought nothing and cost a dirty repo.
+#
+# Pick `light-ansi` / `dark-ansi` there: those paint from the terminal's own 16 colours,
+# so the TUI lands on this palette anyway. Plain light/dark are built-in hexes nothing
+# here can reach, which is what made every accent look faded on Solarized cream.
 
 apply_fzf() {
     local f="$STATE_DIR/fzf.sh"
@@ -343,7 +332,6 @@ main() {
     apply_fzf "$flavor"
     apply_agent_state "$flavor"
     apply_colors "$flavor"
-    apply_claude "$flavor"
     apply_env "$flavor"
     apply_delta "$flavor"
     apply_nvim "$flavor"

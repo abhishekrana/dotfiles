@@ -179,5 +179,6 @@
     }
   },
   "effortLevel": "xhigh",
+  "theme": "light-ansi",
   "skipAutoPermissionPrompt": true
 }
