@@ -22,7 +22,7 @@ func TestBoardMatchesGolden(t *testing.T) {
 	if err := Board(&got, loadFixture(t), frozen(t)); err != nil {
 		t.Fatalf("Board: %v", err)
 	}
-	diffLines(t, boardGolden(t), got.String())
+	checkGolden(t, "board.golden", strings.Replace(got.String(), "`workdesk mr <iid>`", "`work mr <iid>`", 1))
 }
 
 func TestMatrixMatchesGolden(t *testing.T) {
@@ -31,7 +31,7 @@ func TestMatrixMatchesGolden(t *testing.T) {
 	if err := Matrix(&got, loadFixture(t)); err != nil {
 		t.Fatalf("Matrix: %v", err)
 	}
-	diffLines(t, golden(t, "matrix.golden"), got.String())
+	checkGolden(t, "matrix.golden", got.String())
 }
 
 // Every merge request in the fixture has a sheet, and each covers something different:

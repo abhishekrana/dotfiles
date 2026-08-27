@@ -19,8 +19,8 @@ from the merge request homepage; `work mr <iid>` is one merge request end to end
 
 ## no reviewer yet (2)
 
-- !391  Drop the legacy export path  ·  8d  ·  passed  ·  not enough approvals
 - !418  Pin the base image digest  ·  1d  ·  passed  ·  not enough approvals
+- !391  Drop the legacy export path  ·  8d  ·  passed  ·  not enough approvals
 
 ## auto-merge not set (1)
 

@@ -70,9 +70,11 @@ func Board(w io.Writer, m *Mirror, now time.Time) error {
 		groups = append(groups, group{band: b, mrs: []*MergeRequest{mr}})
 	}
 	slices.SortStableFunc(groups, func(a, b group) int { return int(a.band) - int(b.band) })
+	// Newest first inside a band, the same order every view uses. ISO-8601 sorts
+	// lexically, so comparing the strings is comparing the instants.
 	for i := range groups {
 		slices.SortStableFunc(groups[i].mrs, func(a, b *MergeRequest) int {
-			return strings.Compare(a.UpdatedAt, b.UpdatedAt)
+			return strings.Compare(b.UpdatedAt, a.UpdatedAt)
 		})
 	}
 
@@ -295,7 +297,7 @@ func Matrix(w io.Writer, m *Mirror) error {
 		if ab, bb := a.Band(), b.Band(); ab != bb {
 			return int(ab) - int(bb)
 		}
-		return strings.Compare(a.UpdatedAt, b.UpdatedAt)
+		return strings.Compare(b.UpdatedAt, a.UpdatedAt)
 	})
 
 	var stuck struct{ draft, pipeline, approvals, threads, conflicts, autoOff int }

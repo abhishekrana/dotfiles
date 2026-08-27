@@ -101,13 +101,19 @@ func buildMRs(mrs []MergeRequest) []MRItem {
 			Band: band,
 		})
 	}
-	// Band first, then oldest within a band: the thing that has been waiting longest
-	// is the one most likely to have been forgotten.
+	// Band first, then newest within a band.
+	//
+	// The band is already the priority signal, so within one the useful order is the one
+	// you recognise: what you touched most recently. Oldest-first was the first attempt,
+	// on the theory that the longest-waiting item is the most forgotten - but it opens a
+	// band with something from seven months ago, which reads as a different tool's list,
+	// and it disagreed with the issue, todo and agent views, which were newest-first all
+	// along.
 	slices.SortStableFunc(out, func(a, b MRItem) int {
 		if a.Band != b.Band {
 			return int(a.Band) - int(b.Band)
 		}
-		return int(a.Updated - b.Updated)
+		return int(b.Updated - a.Updated)
 	})
 	return out
 }
@@ -134,8 +140,7 @@ func buildIssues(issues []Issue, mrs []MergeRequest) []IssueItem {
 			Prio: prio,
 		})
 	}
-	// Priority first, then newest: an issue queue is read to pick the next thing up,
-	// and a stale low-priority issue is not it.
+	// Priority first, then newest, matching every other view.
 	slices.SortStableFunc(out, func(a, b IssueItem) int {
 		if a.Prio != b.Prio {
 			return int(a.Prio) - int(b.Prio)

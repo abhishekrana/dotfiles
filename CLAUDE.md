@@ -150,6 +150,11 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
   - **The UI never acts.** It records which key was pressed on which row and quits; the caller runs the action. That is
     what keeps every action a plain function `workdesk act <key> <ref>` can run with no terminal, and it is why the
     write confirms do not live inside the render loop.
+  - **Newest first inside a band, in all six places that sort.** The band is already the priority signal, so within one
+    the useful order is what you touched most recently. Oldest-first was the first attempt - the longest-waiting item is
+    the most forgotten - but it opened a band with a merge request from seven months ago, and it silently disagreed with
+    the issue, todo and agent views, which were newest-first all along. **The index is a stored artifact, so changing a
+    sort needs `workdesk render`** (no network) before `list` reflects it.
   - **The model holds no presentation.** Titles are stored unpadded and ages not at all - only an epoch. A pre-padded
     title looks harmless until a UI sizes the column to the terminal and re-pads it, at which point every row grows an
     ellipsis it never earned. `Row.TSV()` is the one place a fixed column belongs, because its consumer is not this

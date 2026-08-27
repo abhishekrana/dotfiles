@@ -267,3 +267,55 @@ func todo(action, target, iid string) Todo {
 	td.Target.Title = "a thing"
 	return td
 }
+
+// Every view sorts the same way inside a band: newest first. Three of the six used to
+// disagree, which opened a band with something seven months old.
+func TestEveryViewSortsNewestFirst(t *testing.T) {
+	t.Parallel()
+	now := frozen(t)
+	idx := BuildIndex(loadFixture(t))
+
+	for _, c := range []struct {
+		view View
+		rows []Row
+	}{
+		{ViewMRs, idx.Rows(ViewMRs, now)},
+		{ViewIssues, idx.Rows(ViewIssues, now)},
+		{ViewInbox, idx.Rows(ViewInbox, now)},
+	} {
+		t.Run(c.view.String(), func(t *testing.T) {
+			t.Parallel()
+			epochs := map[string][]int64{}
+			for _, r := range c.rows {
+				epochs[r.Label] = append(epochs[r.Label], epochOf(idx, r.Ref))
+			}
+			for band, list := range epochs {
+				for i := 1; i < len(list); i++ {
+					if list[i-1] < list[i] {
+						t.Errorf("%s band %q: row %d is older than the one after it",
+							c.view, band, i)
+					}
+				}
+			}
+		})
+	}
+}
+
+func epochOf(idx *Index, ref string) int64 {
+	for _, it := range idx.MRs {
+		if it.Ref == ref {
+			return it.Updated
+		}
+	}
+	for _, it := range idx.Issues {
+		if it.Ref == ref {
+			return it.Updated
+		}
+	}
+	for _, it := range idx.Todos {
+		if it.Ref == ref {
+			return it.Updated
+		}
+	}
+	return 0
+}
