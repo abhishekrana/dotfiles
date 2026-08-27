@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -77,21 +78,25 @@ func runOpen(args []string) error {
 	}
 }
 
-// themeName is the flavor the rest of the terminal is wearing. The theme switcher writes
-// it, so the UI matches tmux, ghostty and the pickers without being told twice.
+// themeName is the flavor the rest of the terminal is wearing.
+//
+// Read from the file the theme switcher writes, which is the same one bash, hunk and
+// leaf read - not from a tmux option, which nothing sets. An unreadable file falls back
+// to the default flavor rather than failing: a wrong palette is a bad look, not a
+// broken tool.
 func themeName() string {
 	if t := os.Getenv("WORKDESK_THEME"); t != "" {
 		return t
 	}
-	// Parenthesised: a composite literal in an if initializer is ambiguous with the
-	// block that follows it, and Go rejects it.
-	out, err := (tmux.Exec{}).Run("show-option", "-gqv", "@theme")
-	if err == nil {
-		if name := strings.TrimSpace(out); name != "" {
-			return name
-		}
+	dir := os.Getenv("XDG_CONFIG_HOME")
+	if dir == "" {
+		dir = filepath.Join(os.Getenv("HOME"), ".config")
 	}
-	return ""
+	b, err := os.ReadFile(filepath.Join(dir, "theme", "current"))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
 }
 
 func selfPath() string {
