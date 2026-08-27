@@ -1,12 +1,18 @@
 package workdesk
 
 import (
+	"flag"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 )
+
+// update rewrites the golden files instead of comparing against them, for when a
+// behaviour change is intended. Deliberately a flag rather than an environment variable:
+// regenerating goldens should be something you typed, since it makes every test pass.
+var update = flag.Bool("update", false, "rewrite the golden files")
 
 // frozen is the instant the golden files were captured. Ages are relative to now, so a
 // golden is only meaningful against the clock that produced it; without this they would
@@ -40,6 +46,20 @@ func golden(t *testing.T, name string) string {
 		t.Fatalf("read golden %s: %v", name, err)
 	}
 	return string(b)
+}
+
+// checkGolden compares got against a golden file, or rewrites it under -update.
+func checkGolden(t *testing.T, name, got string) {
+	t.Helper()
+	path := filepath.Join("testdata", name)
+	if *update {
+		if err := os.WriteFile(path, []byte(got), 0o644); err != nil {
+			t.Fatalf("write golden %s: %v", name, err)
+		}
+		t.Logf("rewrote %s", name)
+		return
+	}
+	diffLines(t, golden(t, name), got)
 }
 
 // The fixture covers one merge request per band, so decoding it and classifying every row
@@ -145,7 +165,7 @@ func TestListRowsMatchGoldenExactly(t *testing.T) {
 			if err := WriteRows(&got, idx.Rows(c.view, now)); err != nil {
 				t.Fatalf("WriteRows: %v", err)
 			}
-			diffLines(t, golden(t, c.golden), got.String())
+			checkGolden(t, c.golden, got.String())
 		})
 	}
 }

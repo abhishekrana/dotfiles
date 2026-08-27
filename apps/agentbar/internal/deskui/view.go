@@ -216,6 +216,12 @@ func (m Model) bandHeader(r workdesk.Row, w int) string {
 	mark := lipgloss.NewStyle().Foreground(colour).Render(bandMark)
 	label := lipgloss.NewStyle().Foreground(colour).Bold(r.Flag == "a").Render(r.Label)
 	count := lipgloss.NewStyle().Foreground(t.Muted).Render(fmt.Sprintf(" ·%d", n))
+	// The todo band is filtered, so it says how much it left out. A view that caps
+	// silently reads as complete when it is not.
+	if r.Label == workdesk.TodoBand && m.idx.TodosDropped > 0 {
+		count += lipgloss.NewStyle().Foreground(t.Muted).
+			Render(fmt.Sprintf("   +%d the bands already cover", m.idx.TodosDropped))
+	}
 	return truncate(mark+" "+label+count, w)
 }
 

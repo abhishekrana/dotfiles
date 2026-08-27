@@ -127,8 +127,21 @@ func (idx *Index) Rows(v View, now time.Time) []Row {
 //   - Issues appear only when they are top priority and nothing is in flight - the
 //     unstarted work most worth picking up.
 func (idx *Index) inbox(now time.Time) []Row {
-	reason := make(map[string]string, len(idx.Todos))
+	// Aged out at read time rather than at sync, so the cutoff is always relative to
+	// now instead of to whenever the snapshot happened to be taken.
+	cutoff := now.Add(-TodoMaxAge).Unix()
+	fresh := make([]Item, 0, len(idx.Todos))
+	stale := 0
 	for _, td := range idx.Todos {
+		if td.Updated < cutoff {
+			stale++
+			continue
+		}
+		fresh = append(fresh, td)
+	}
+
+	reason := make(map[string]string, len(fresh))
+	for _, td := range fresh {
 		if _, seen := reason[td.Ref]; !seen {
 			reason[td.Ref] = td.Note
 		}
@@ -160,8 +173,8 @@ func (idx *Index) inbox(now time.Time) []Row {
 		issueRows = append(issueRows, r)
 	}
 
-	out := make([]Row, 0, len(idx.Todos)+len(mrRows)+len(issueRows))
-	for _, td := range idx.Todos {
+	out := make([]Row, 0, len(fresh)+len(mrRows)+len(issueRows))
+	for _, td := range fresh {
 		if claimed[td.Ref] {
 			continue
 		}

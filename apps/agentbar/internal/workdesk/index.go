@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"time"
 )
 
 // Index is the small, derived tier of the mirror: everything a row needs
@@ -29,6 +30,10 @@ type Index struct {
 	MRs       []MRItem    `json:"mrs"`
 	Issues    []IssueItem `json:"issues"`
 	Todos     []Item      `json:"todos"`
+	// TodosDropped is how many pending todos were left out because the bands already
+	// derive what they report. Kept so the count can be shown rather than the omission
+	// being silent.
+	TodosDropped int `json:"todosDropped"`
 }
 
 // Item is one row's payload, free of presentation: titles are stored at their natural
@@ -67,7 +72,7 @@ func BuildIndex(m *Mirror) *Index {
 	}
 	idx.MRs = buildMRs(m.MRs)
 	idx.Issues = buildIssues(m.Issues, m.MRs)
-	idx.Todos = buildTodos(m.Todos)
+	idx.Todos, idx.TodosDropped = buildTodos(m.Todos)
 	return idx
 }
 
@@ -162,15 +167,45 @@ func InFlightFor(iid string, mrs []MergeRequest) *MergeRequest {
 	return nil
 }
 
-// todoBand is the label todo rows carry. Named because it is the one band whose
-// contents GitLab vouches for rather than this package inferring them.
-const todoBand = "gitlab says it is you"
+// TodoBand is the label todo rows carry, and the one band whose contents GitLab vouches
+// for rather than this package inferring them. Exported so the UI can recognise the band
+// it has to report a filter on.
+// TodoBand is exported so the UI can recognise the one band that is filtered.
+const TodoBand = "gitlab says it is you"
 
-func buildTodos(todos []Todo) []Item {
+// TodoMaxAge is how far back a todo is still worth showing. GitLab never marks them
+// done, so the pending feed is an accumulating log rather than an inbox: on a real
+// account it runs back years. A todo you have not acted on in a fortnight is a decision
+// you already made.
+const TodoMaxAge = 14 * 24 * time.Hour
+
+// informativeActions are the todo kinds that tell you something the bands cannot derive.
+//
+// Measured against a real feed rather than assumed. The overwhelming majority of pending
+// todos are review_submitted, build_failed, unmergeable and merge_train_removed - all
+// machine notifications about state mergeabilityChecks and the pipeline already report
+// for a merge request you own, and pure noise for the far larger number you do not.
+// `assigned` is the one that earns its place: the mirror only fetches merge requests you
+// authored, so somebody assigning you theirs is genuinely not derivable here. Mentions
+// are kept for the same reason, even though this feed had none.
+var informativeActions = map[string]bool{
+	"assigned":           true,
+	"mentioned":          true,
+	"directly_addressed": true,
+	"marked":             true,
+}
+
+// buildTodos returns the todos worth a row, and how many were dropped.
+func buildTodos(todos []Todo) ([]Item, int) {
 	out := make([]Item, 0, len(todos))
+	dropped := 0
 	for i := range todos {
 		td := &todos[i]
 		if td.State != "pending" {
+			continue
+		}
+		if !informativeActions[td.ActionName] {
+			dropped++
 			continue
 		}
 		// Only merge requests and issues can be shown as rows: this tool has no view
@@ -183,6 +218,7 @@ func buildTodos(todos []Todo) []Item {
 		case "MergeRequest":
 			ref = "!" + td.Target.IID.String()
 		default:
+			dropped++
 			continue
 		}
 		title := td.Target.Title
@@ -195,7 +231,7 @@ func buildTodos(todos []Todo) []Item {
 		out = append(out, Item{
 			Ref:     ref,
 			Title:   title,
-			Label:   todoBand,
+			Label:   TodoBand,
 			Flag:    "a",
 			Note:    strings.ReplaceAll(td.ActionName, "_", " "),
 			URL:     td.TargetURL,
@@ -204,5 +240,5 @@ func buildTodos(todos []Todo) []Item {
 	}
 	// Newest first: a todo feed is read like a feed.
 	slices.SortStableFunc(out, func(a, b Item) int { return int(b.Updated - a.Updated) })
-	return out
+	return out, dropped
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 )
 
 // The index is written by sync and read by every interactive command, so a field that
@@ -114,7 +115,7 @@ func TestInboxFoldsTodoReasonIntoItsRow(t *testing.T) {
 			if !strings.Contains(r.Note, "directly addressed") {
 				t.Errorf("!412 note = %q, want the todo reason folded in", r.Note)
 			}
-			if r.Label == todoBand {
+			if r.Label == TodoBand {
 				t.Errorf("!412 stayed in the todo band instead of its own")
 			}
 		}
@@ -183,4 +184,86 @@ func TestIndexHoldsRawTitles(t *testing.T) {
 	if n := len([]rune(field)); n != titleWidth {
 		t.Errorf("TSV title field is %d runes, want %d", n, titleWidth)
 	}
+}
+
+// The todo feed is not an inbox. GitLab never marks todos done, so the pending list is an
+// accumulating log: on a real account it runs back years and is dominated by machine
+// notifications about state the bands already derive. Measured, not assumed - of 453
+// pending todos on one real account, 427 were review_submitted, build_failed, unmergeable
+// or merge_train_removed, and not one was a mention.
+func TestTodosKeepOnlyWhatTheBandsCannotDerive(t *testing.T) {
+	t.Parallel()
+	kept, dropped := buildTodos([]Todo{
+		todo("assigned", "MergeRequest", "991"),           // not derivable: not your MR
+		todo("mentioned", "Issue", "121"),                 // not derivable
+		todo("directly_addressed", "MergeRequest", "412"), // not derivable
+		todo("marked", "Issue", "77"),                     // you flagged it yourself
+		todo("review_submitted", "MergeRequest", "377"),   // you reviewed someone else's
+		todo("build_failed", "MergeRequest", "406"),       // the pipeline band says this
+		todo("unmergeable", "MergeRequest", "368"),        // the gates say this
+		todo("merge_train_removed", "MergeRequest", "402"),
+		todo("mentioned", "Commit", "0"), // no view for a commit
+	})
+
+	if len(kept) != 4 {
+		t.Errorf("kept %d todos, want 4", len(kept))
+		for _, it := range kept {
+			t.Logf("  kept %s %q", it.Ref, it.Note)
+		}
+	}
+	if dropped != 5 {
+		t.Errorf("dropped %d, want 5 - the count is shown, so it must be right", dropped)
+	}
+	for _, it := range kept {
+		switch it.Note {
+		case "assigned", "mentioned", "directly addressed", "marked":
+		default:
+			t.Errorf("kept a todo the bands already derive: %q", it.Note)
+		}
+	}
+}
+
+// A todo you have not acted on in a fortnight is a decision you already made. Aged out at
+// read time, not at sync: a todo 13 days old when the snapshot was taken is 15 days old
+// two days later, and the cutoff has to follow the clock rather than the snapshot.
+func TestStaleTodosAgeOutAtReadTime(t *testing.T) {
+	t.Parallel()
+	now := frozen(t)
+	m := &Mirror{Todos: []Todo{
+		{ID: 1, State: "pending", ActionName: "assigned", TargetType: "MergeRequest",
+			CreatedAt: now.Add(-2 * 24 * time.Hour).Format(time.RFC3339)},
+		{ID: 2, State: "pending", ActionName: "assigned", TargetType: "MergeRequest",
+			CreatedAt: now.Add(-200 * 24 * time.Hour).Format(time.RFC3339)},
+	}}
+	m.Todos[0].Target.IID = "1"
+	m.Todos[1].Target.IID = "2"
+	m.Todos[0].Target.Title = "recent"
+	m.Todos[1].Target.Title = "ancient"
+
+	idx := BuildIndex(m)
+	if len(idx.Todos) != 2 {
+		t.Fatalf("the index dropped a todo at build time: %d kept, want both", len(idx.Todos))
+	}
+
+	rows := idx.Rows(ViewInbox, now)
+	if len(rows) != 1 {
+		t.Fatalf("the inbox shows %d rows, want only the recent todo", len(rows))
+	}
+	if rows[0].Ref != "!1" {
+		t.Errorf("kept %s, want the recent one", rows[0].Ref)
+	}
+	// And the same index read further into the future drops it too.
+	if later := idx.Rows(ViewInbox, now.Add(30*24*time.Hour)); len(later) != 0 {
+		t.Errorf("a month later the inbox still shows %d todos", len(later))
+	}
+}
+
+func todo(action, target, iid string) Todo {
+	td := Todo{
+		State: "pending", ActionName: action, TargetType: target,
+		CreatedAt: "2026-08-27T09:00:00Z",
+	}
+	td.Target.IID = flexID(iid)
+	td.Target.Title = "a thing"
+	return td
 }

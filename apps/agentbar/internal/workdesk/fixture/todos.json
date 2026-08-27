@@ -1,44 +1,115 @@
 [
-  {
-    "id": 9001,
-    "action_name": "directly_addressed",
-    "state": "pending",
-    "created_at": "2026-08-26T15:12:00Z",
-    "target_type": "MergeRequest",
-    "target": {
-      "iid": 412,
-      "title": "Cache the manifest lookup"
-    },
-    "project": {
-      "path_with_namespace": "acme/platform"
-    }
+ {
+  "id": 9001,
+  "action_name": "directly_addressed",
+  "state": "pending",
+  "created_at": "2026-08-26T15:12:00Z",
+  "target_type": "MergeRequest",
+  "target": {
+   "iid": 412,
+   "title": "Cache the manifest lookup"
   },
-  {
-    "id": 9002,
-    "action_name": "build_failed",
-    "state": "pending",
-    "created_at": "2026-08-25T08:40:00Z",
-    "target_type": "MergeRequest",
-    "target": {
-      "iid": 406,
-      "title": "Retry shim drops the last error"
-    },
-    "project": {
-      "path_with_namespace": "acme/platform"
-    }
-  },
-  {
-    "id": 9003,
-    "action_name": "mentioned",
-    "state": "pending",
-    "created_at": "2026-08-22T11:05:00Z",
-    "target_type": "Issue",
-    "target": {
-      "iid": 121,
-      "title": "Flaky test in the ingest suite"
-    },
-    "project": {
-      "path_with_namespace": "acme/platform"
-    }
+  "project": {
+   "path_with_namespace": "acme/platform"
   }
+ },
+ {
+  "id": 9002,
+  "action_name": "build_failed",
+  "state": "pending",
+  "created_at": "2026-08-25T08:40:00Z",
+  "target_type": "MergeRequest",
+  "target": {
+   "iid": 406,
+   "title": "Retry shim drops the last error"
+  },
+  "project": {
+   "path_with_namespace": "acme/platform"
+  }
+ },
+ {
+  "id": 9003,
+  "action_name": "mentioned",
+  "state": "pending",
+  "created_at": "2026-08-22T11:05:00Z",
+  "target_type": "Issue",
+  "target": {
+   "iid": 121,
+   "title": "Flaky test in the ingest suite"
+  },
+  "project": {
+   "path_with_namespace": "acme/platform"
+  }
+ },
+ {
+  "id": 9004,
+  "action_name": "review_submitted",
+  "state": "pending",
+  "created_at": "2026-08-26T09:00:00Z",
+  "target_type": "MergeRequest",
+  "target": {
+   "iid": 377,
+   "title": "Widen the retry window"
+  },
+  "project": {
+   "path_with_namespace": "acme/platform"
+  }
+ },
+ {
+  "id": 9005,
+  "action_name": "unmergeable",
+  "state": "pending",
+  "created_at": "2026-08-25T09:00:00Z",
+  "target_type": "MergeRequest",
+  "target": {
+   "iid": 368,
+   "title": "Split the ingest worker"
+  },
+  "project": {
+   "path_with_namespace": "acme/platform"
+  }
+ },
+ {
+  "id": 9006,
+  "action_name": "assigned",
+  "state": "pending",
+  "created_at": "2026-08-27T08:00:00Z",
+  "target_type": "MergeRequest",
+  "target": {
+   "iid": 991,
+   "title": "Someone else's merge request, assigned to you"
+  },
+  "target_url": "https://gitlab.example.com/acme/platform/-/merge_requests/991",
+  "project": {
+   "path_with_namespace": "acme/platform"
+  }
+ },
+ {
+  "id": 9007,
+  "action_name": "assigned",
+  "state": "pending",
+  "created_at": "2026-03-14T09:00:00Z",
+  "target_type": "MergeRequest",
+  "target": {
+   "iid": 301,
+   "title": "An assignment you decided months ago not to act on"
+  },
+  "project": {
+   "path_with_namespace": "acme/platform"
+  }
+ },
+ {
+  "id": 9008,
+  "action_name": "mentioned",
+  "state": "pending",
+  "created_at": "2026-08-24T09:00:00Z",
+  "target_type": "Commit",
+  "target": {
+   "iid": 0,
+   "title": "a commit comment"
+  },
+  "project": {
+   "path_with_namespace": "acme/platform"
+  }
+ }
 ]

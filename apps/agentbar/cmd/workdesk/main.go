@@ -22,7 +22,9 @@ import (
 	"github.com/abhishekrana/agentbar/internal/workdesk"
 )
 
-const usage = `usage: workdesk <command>
+const usage = `usage: workdesk [command]
+
+With no command, opens the UI.
 
 commands:
   open [view]        the UI: inbox, mrs, issues or agents (default inbox)
@@ -51,9 +53,14 @@ environment:
 const glabTimeout = 3 * time.Minute
 
 func main() {
+	// Bare `workdesk` opens the UI rather than printing usage: it is what you want
+	// nine times in ten, and `--help` is there for the tenth.
 	if len(os.Args) < 2 {
-		fmt.Fprint(os.Stderr, usage)
-		os.Exit(2)
+		if err := runOpen(nil); err != nil {
+			fmt.Fprintln(os.Stderr, "workdesk:", err)
+			os.Exit(1)
+		}
+		return
 	}
 	args := os.Args[2:]
 	var err error

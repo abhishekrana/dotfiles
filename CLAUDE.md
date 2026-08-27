@@ -131,6 +131,15 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
     `mr <iid>` is one merge request end to end, `matrix` is one row per MR and one column per gate with a totals row,
     and `ready` prints the actionable rows for an agent. `bootstrap.sh` links it into `~/.local/bin` - the one app
     binary that does get a link, because it is a CLI you type.
+  - **`Alt+n`** opens it (`tmux/.tmux.conf`), invoked by absolute path like the agentbar bindings - `apps/` binaries are
+    not stow packages, so there is no `~/.local/bin` symlink to rely on inside tmux. Bare `workdesk` opens it too.
+  - **The todo feed is filtered, and the count says so.** GitLab never marks todos done, so the pending list is an
+    accumulating log: measured on a real account, 427 of 453 were `review_submitted`, `build_failed`, `unmergeable` or
+    `merge_train_removed` - machine notifications about state `mergeabilityChecks` and the pipeline already report for a
+    merge request you own, and noise for the far larger number you do not. Not one was a mention. So only the actions
+    the bands cannot derive are kept (`assigned`, `mentioned`, `directly_addressed`, `marked`), nothing older than
+    `TodoMaxAge`, and the band header reports how many were left out. Unfiltered, the inbox opened with 469 rows; it
+    opens with 61.
   - **Bubble Tea, not fzf, and the difference is structural.** fzf re-invoked a process per cursor movement, so previews
     had to be markdown pre-rendered at sync time and cat'd, band headers had to be smuggled into the row list as fake
     items the cursor was taught to skip, and the key hints had to fit ~52 columns or fzf truncated them silently. Here

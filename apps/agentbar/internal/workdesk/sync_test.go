@@ -82,8 +82,15 @@ func TestSyncProducesAMirrorThatRendersTheGoldens(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Sync: %v", err)
 	}
-	if res.MRs != 9 || res.Issues != 6 || res.Todos != 3 {
-		t.Errorf("synced %d mrs, %d issues, %d todos; want 9/6/3", res.MRs, res.Issues, res.Todos)
+	// Derived from the fixture rather than hardcoded, so extending it to cover a new
+	// case does not break an unrelated assertion.
+	want, err := FixtureMirror()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.MRs != len(want.MRs) || res.Issues != len(want.Issues) || res.Todos != len(want.Todos) {
+		t.Errorf("synced %d mrs, %d issues, %d todos; want %d/%d/%d",
+			res.MRs, res.Issues, res.Todos, len(want.MRs), len(want.Issues), len(want.Todos))
 	}
 
 	// The index on disk is what every interactive command reads, so it is the thing
