@@ -127,7 +127,7 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
   forbids importing another module's `internal/`, and a second module would mean a **third** trace writer (see
   "Debugging") plus a second copy of the tmux reader that already resolves agent → worktree → branch.
   - `workdesk` mirrors the GitLab work you own into `~/.local/state/dotfiles/workdesk/`: `sync` fetches, `open` is the
-    Bubble Tea UI (inbox · merge requests · issues · agents, `1`-`4` and tab, `?` for help), `board` is the whole queue,
+    Bubble Tea UI (inbox · issues · merge requests · agents, `1`-`4` and tab, `?` for help), `board` is the whole queue,
     `mr <iid>` is one merge request end to end, `matrix` is one row per MR and one column per gate with a totals row,
     and `ready` prints the actionable rows for an agent. `bootstrap.sh` links it into `~/.local/bin` - the one app
     binary that does get a link, because it is a CLI you type.
@@ -150,6 +150,11 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
   - **The UI never acts.** It records which key was pressed on which row and quits; the caller runs the action. That is
     what keeps every action a plain function `workdesk act <key> <ref>` can run with no terminal, and it is why the
     write confirms do not live inside the render loop.
+  - **The view ring follows the work, not the volume.** `1` inbox, `2` issues, `3` merge requests, `4` agents: not
+    started, then in flight, then who is doing it, with the inbox first because it cuts across all three. The `View`
+    const block is the only place that order lives - the tab bar, the digits, their help text, `tab` and `shift+tab` all
+    derive from it, so a reorder is one line. It was encoded in five places before, which is how three views came to
+    sort one way and three the other.
   - **Newest first inside a band, in all six places that sort.** The band is already the priority signal, so within one
     the useful order is what you touched most recently. Oldest-first was the first attempt - the longest-waiting item is
     the most forgotten - but it opened a band with a merge request from seven months ago, and it silently disagreed with

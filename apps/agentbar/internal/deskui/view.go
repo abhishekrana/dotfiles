@@ -62,8 +62,8 @@ func (m Model) tabBar() string {
 	idle := lipgloss.NewStyle().Foreground(t.Muted)
 
 	labels := make([]string, 0, 4)
-	for i, v := range workdesk.Views() {
-		label := fmt.Sprintf("%d %s", i+1, v)
+	for _, v := range workdesk.Views() {
+		label := v.Key() + " " + v.String()
 		if v == m.view {
 			labels = append(labels, active.Render(label))
 			continue

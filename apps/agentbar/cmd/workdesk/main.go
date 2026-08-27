@@ -27,7 +27,7 @@ const usage = `usage: workdesk [command]
 With no command, opens the UI.
 
 commands:
-  open [view]        the UI: inbox, mrs, issues or agents (default inbox)
+  open [view]        the UI: inbox, issues, mrs or agents (default inbox)
   sync               fetch and rewrite the mirror
   render             rebuild the derived views from the snapshot, no network
   list <view>        tab-separated rows, for a reader

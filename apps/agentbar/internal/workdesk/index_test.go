@@ -45,18 +45,37 @@ func TestViewRingWrapsAndParses(t *testing.T) {
 	if got := len(Views()); got != 4 {
 		t.Fatalf("Views() has %d entries, want 4", got)
 	}
-	// The ring must close: walking it four times returns where it started, which is
-	// what makes tab and 1-4 agree.
+	// The ring must close in both directions, which is what makes tab, shift-tab and
+	// 1-4 agree.
 	v := ViewInbox
 	for range Views() {
 		v = v.Next()
 	}
 	if v != ViewInbox {
-		t.Errorf("walking the ring landed on %q, want inbox", v)
+		t.Errorf("walking the ring forward landed on %q, want inbox", v)
+	}
+	for range Views() {
+		v = v.Prev()
+	}
+	if v != ViewInbox {
+		t.Errorf("walking the ring back landed on %q, want inbox", v)
+	}
+	// Every view needs both names: one for a command line, one for a reader.
+	for _, view := range Views() {
+		if view.String() == "" || view.Title() == "" || view.Key() == "" {
+			t.Errorf("view %d is missing a name, title or key", int(view))
+		}
+		if ParseView(view.Key()) != view {
+			t.Errorf("%s says its key is %q, which selects %s",
+				view, view.Key(), ParseView(view.Key()))
+		}
 	}
 	for _, c := range []struct{ in, want string }{
-		{"1", "inbox"}, {"2", "mrs"}, {"3", "issues"}, {"4", "agents"},
-		{"mrs", "mrs"}, {"agent", "agents"}, {"nonsense", "inbox"}, {"", "inbox"},
+		// The digits follow the ring, so this table is also the assertion that the
+		// order is inbox, issues, merge requests, agents.
+		{"1", "inbox"}, {"2", "issues"}, {"3", "mrs"}, {"4", "agents"},
+		{"mrs", "mrs"}, {"mr", "mrs"}, {"issue", "issues"}, {"agent", "agents"},
+		{"nonsense", "inbox"}, {"", "inbox"}, {"9", "inbox"}, {"0", "inbox"},
 	} {
 		if got := ParseView(c.in).String(); got != c.want {
 			t.Errorf("ParseView(%q) = %q, want %q", c.in, got, c.want)

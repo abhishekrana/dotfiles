@@ -1,6 +1,10 @@
 package deskui
 
-import "github.com/charmbracelet/bubbles/key"
+import (
+	"github.com/charmbracelet/bubbles/key"
+
+	"github.com/abhishekrana/agentbar/internal/workdesk"
+)
 
 // keyMap is every binding, declared once so the footer hints and the help overlay are
 // generated from the same source the Update loop dispatches on. The shell version kept
@@ -13,10 +17,11 @@ type keyMap struct {
 	Bottom   key.Binding
 	NextView key.Binding
 	PrevView key.Binding
-	View1    key.Binding
-	View2    key.Binding
-	View3    key.Binding
-	View4    key.Binding
+	// Views is one binding per view, generated from the ring, so a reordering there
+	// moves the digits and their help text together. These used to be four named
+	// fields with their labels typed out, which is how the order came to be encoded in
+	// five places at once.
+	Views    []key.Binding
 	Filter   key.Binding
 	Accept   key.Binding
 	ScrollUp key.Binding
@@ -35,6 +40,19 @@ type keyMap struct {
 	Quit     key.Binding
 }
 
+// viewBindings turns the ring into one binding per view.
+func viewBindings() []key.Binding {
+	views := workdesk.Views()
+	out := make([]key.Binding, 0, len(views))
+	for _, v := range views {
+		out = append(out, key.NewBinding(
+			key.WithKeys(v.Key()),
+			key.WithHelp(v.Key(), v.Title()),
+		))
+	}
+	return out
+}
+
 func defaultKeys() keyMap {
 	return keyMap{
 		Up:       key.NewBinding(key.WithKeys("k", "up"), key.WithHelp("k/↑", "up")),
@@ -43,10 +61,7 @@ func defaultKeys() keyMap {
 		Bottom:   key.NewBinding(key.WithKeys("G", "end"), key.WithHelp("G", "last")),
 		NextView: key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "next view")),
 		PrevView: key.NewBinding(key.WithKeys("shift+tab"), key.WithHelp("⇧tab", "previous view")),
-		View1:    key.NewBinding(key.WithKeys("1"), key.WithHelp("1", "inbox")),
-		View2:    key.NewBinding(key.WithKeys("2"), key.WithHelp("2", "merge requests")),
-		View3:    key.NewBinding(key.WithKeys("3"), key.WithHelp("3", "issues")),
-		View4:    key.NewBinding(key.WithKeys("4"), key.WithHelp("4", "agents")),
+		Views:    viewBindings(),
 		Filter:   key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "filter")),
 		Accept:   key.NewBinding(key.WithKeys("enter"), key.WithHelp("↵", "open detail")),
 		ScrollUp: key.NewBinding(key.WithKeys("ctrl+u", "pgup"), key.WithHelp("^u", "scroll preview up")),
@@ -76,7 +91,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.Top, k.Bottom, k.ScrollUp, k.ScrollDn},
-		{k.View1, k.View2, k.View3, k.View4, k.NextView, k.PrevView, k.Filter},
+		append(k.Views, k.NextView, k.PrevView, k.Filter),
 		{k.Accept, k.Open, k.Copy, k.Tree, k.Diff, k.Matrix},
 		{k.Assign, k.Auto, k.Merge, k.Promote, k.Sync, k.Quit},
 	}

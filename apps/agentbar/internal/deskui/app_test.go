@@ -119,7 +119,7 @@ func TestViewRing(t *testing.T) {
 	t.Parallel()
 	m := testModel(t)
 	for _, c := range []struct{ key, want string }{
-		{"2", "mrs"}, {"3", "issues"}, {"4", "agents"}, {"1", "inbox"},
+		{"2", "issues"}, {"3", "mrs"}, {"4", "agents"}, {"1", "inbox"},
 	} {
 		m = press(m, c.key)
 		if got := m.CurrentView().String(); got != c.want {
@@ -127,7 +127,7 @@ func TestViewRing(t *testing.T) {
 		}
 	}
 	// tab walks the same ring, so the two can never disagree.
-	for _, want := range []string{"mrs", "issues", "agents", "inbox"} {
+	for _, want := range []string{"issues", "mrs", "agents", "inbox"} {
 		m = press(m, "tab")
 		if got := m.CurrentView().String(); got != want {
 			t.Errorf("tab landed on %q, want %q", got, want)
@@ -137,7 +137,7 @@ func TestViewRing(t *testing.T) {
 
 func TestFilterNarrowsAndClears(t *testing.T) {
 	t.Parallel()
-	m := press(testModel(t), "2") // the merge request view
+	m := press(testModel(t), "3") // the merge request view
 	before := len(m.rows)
 
 	m = press(m, "/")
@@ -164,7 +164,7 @@ func TestFilterNarrowsAndClears(t *testing.T) {
 // plain function runnable with no terminal.
 func TestActionsAreRequestedNotPerformed(t *testing.T) {
 	t.Parallel()
-	m := press(testModel(t), "2") // a merge request is selected
+	m := press(testModel(t), "3") // a merge request is selected
 	for _, key := range []string{"o", "y", "c", "d", "a", "e", "M"} {
 		got := press(m, key)
 		if got.Pending == nil {
@@ -183,7 +183,7 @@ func TestActionsAreRequestedNotPerformed(t *testing.T) {
 // nothing - the shell silently ignored it.
 func TestWriteKeysRefuseNonMergeRequests(t *testing.T) {
 	t.Parallel()
-	m := press(testModel(t), "3") // the issue view
+	m := press(testModel(t), "2") // the issue view
 	for _, key := range []string{"a", "e", "M"} {
 		got := press(m, key)
 		if got.Pending != nil {

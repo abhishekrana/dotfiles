@@ -32,7 +32,7 @@ func TestViewShowsTheThingsItIsFor(t *testing.T) {
 	t.Parallel()
 	out := stripANSI(testModel(t).View())
 	for _, want := range []string{
-		"1 inbox", "2 mrs", "3 issues", "4 agents", // where you are
+		"1 inbox", "2 issues", "3 mrs", "4 agents", // where you are, in lifecycle order
 		"synced",                             // how old the snapshot is
 		"⚑",                                  // how much is asking for you
 		"gitlab says it is you",              // a band GitLab vouches for

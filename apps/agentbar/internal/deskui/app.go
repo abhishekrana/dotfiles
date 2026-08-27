@@ -229,15 +229,9 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case key.Matches(msg, k.NextView):
 		m.setView(m.view.Next())
 	case key.Matches(msg, k.PrevView):
-		m.setView(prevView(m.view))
-	case key.Matches(msg, k.View1):
-		m.setView(workdesk.ViewInbox)
-	case key.Matches(msg, k.View2):
-		m.setView(workdesk.ViewMRs)
-	case key.Matches(msg, k.View3):
-		m.setView(workdesk.ViewIssues)
-	case key.Matches(msg, k.View4):
-		m.setView(workdesk.ViewAgents)
+		m.setView(m.view.Prev())
+	case m.matchesView(msg):
+		m.setView(workdesk.ParseView(msg.String()))
 	case key.Matches(msg, k.Filter):
 		m.filtering = true
 		m.filter.Focus()
@@ -333,12 +327,13 @@ func (m *Model) setView(v workdesk.View) {
 	m.reload()
 }
 
-func prevView(v workdesk.View) workdesk.View {
-	all := workdesk.Views()
-	for i, c := range all {
-		if c == v {
-			return all[(i-1+len(all))%len(all)]
+// matchesView reports whether the key selects a view by its digit. One check over the
+// ring rather than one case per view, so adding a fifth view needs no edit here.
+func (m Model) matchesView(msg tea.KeyMsg) bool {
+	for _, b := range m.keys.Views {
+		if key.Matches(msg, b) {
+			return true
 		}
 	}
-	return all[0]
+	return false
 }

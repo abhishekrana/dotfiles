@@ -2,50 +2,106 @@ package workdesk
 
 import (
 	"io"
+	"strconv"
 	"strings"
 	"time"
 )
 
-// View is which question is being asked. The order is the ring 1-4 and tab walk,
-// defined once here so no caller can disagree about it.
+// View is which question is being asked.
+//
+// The const order IS the ring: the order the tab bar reads left to right, the order 1-4
+// select, and the order tab walks. It follows the work's own progression - what has not
+// been started, then what is in flight, then who is doing it right now - with the inbox
+// first because it cuts across all three.
+//
+// Everything else derives from this block. There used to be five separate lists encoding
+// this order, which is how three views ended up sorting one way and three the other.
 type View int
 
 const (
 	ViewInbox View = iota
-	ViewMRs
 	ViewIssues
+	ViewMRs
 	ViewAgents
+	viewCount
 )
 
-var viewNames = [...]string{"inbox", "mrs", "issues", "agents"}
+// Keyed by the constants rather than positional, so this cannot drift out of step with
+// the block above.
+var viewNames = [...]string{
+	ViewInbox:  "inbox",
+	ViewIssues: "issues",
+	ViewMRs:    "mrs",
+	ViewAgents: "agents",
+}
 
+// Titles are what a person reads; names are what a command line takes.
+var viewTitles = [...]string{
+	ViewInbox:  "inbox",
+	ViewIssues: "issues",
+	ViewMRs:    "merge requests",
+	ViewAgents: "agents",
+}
+
+// String is the name a command line and a row reference use.
 func (v View) String() string {
 	if int(v) < len(viewNames) {
 		return viewNames[v]
 	}
-	return "inbox"
+	return viewNames[ViewInbox]
 }
 
-// ParseView maps a name or a 1-4 key to a view, defaulting to the inbox rather than
-// failing: a typo should land you somewhere useful.
+// Title is the name a person reads, in the tab bar and the help.
+func (v View) Title() string {
+	if int(v) < len(viewTitles) {
+		return viewTitles[v]
+	}
+	return viewTitles[ViewInbox]
+}
+
+// Key is the digit that selects this view: its position in the ring, one-based.
+func (v View) Key() string { return strconv.Itoa(int(v) + 1) }
+
+// ParseView maps a name or a ring position to a view, defaulting to the inbox rather
+// than failing: a typo should land you somewhere useful.
 func ParseView(s string) View {
-	switch s {
-	case "mrs", "mr", "2":
-		return ViewMRs
-	case "issues", "issue", "3":
-		return ViewIssues
-	case "agents", "agent", "4":
-		return ViewAgents
-	default:
+	if n, err := strconv.Atoi(s); err == nil {
+		if n >= 1 && n <= int(viewCount) {
+			return View(n - 1)
+		}
 		return ViewInbox
 	}
+	for v, name := range viewNames {
+		if s == name {
+			return View(v)
+		}
+	}
+	// The singular forms, because both read naturally on a command line.
+	switch s {
+	case "mr":
+		return ViewMRs
+	case "issue":
+		return ViewIssues
+	case "agent":
+		return ViewAgents
+	}
+	return ViewInbox
 }
 
 // Views is the ring, in order.
-func Views() []View { return []View{ViewInbox, ViewMRs, ViewIssues, ViewAgents} }
+func Views() []View {
+	out := make([]View, viewCount)
+	for i := range out {
+		out[i] = View(i)
+	}
+	return out
+}
 
 // Next returns the view after this one, wrapping.
-func (v View) Next() View { return View((int(v) + 1) % len(viewNames)) }
+func (v View) Next() View { return (v + 1) % viewCount }
+
+// Prev returns the view before this one, wrapping.
+func (v View) Prev() View { return (v + viewCount - 1) % viewCount }
 
 // Row is one line: the band it sits under, whether that band is asking anything
 // of you, and the fields the eye reads.
