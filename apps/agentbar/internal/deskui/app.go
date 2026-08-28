@@ -240,6 +240,10 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			m.setView(v)
 			return m, nil
 		}
+		// Checked before the staleness beside it: ✕ is the hard-right cell.
+		if m.overClose(msg.X) {
+			return m, tea.Quit
+		}
 		if m.overStaleness(msg.X) {
 			return m.request("r")
 		}

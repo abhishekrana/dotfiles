@@ -77,7 +77,10 @@ func defaultKeys() keyMap {
 		Promote:  key.NewBinding(key.WithKeys("P"), key.WithHelp("P", "promote to a pane")),
 		Sync:     key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "re-sync")),
 		Help:     key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help")),
-		Quit:     key.NewBinding(key.WithKeys("q", "esc", "ctrl+c"), key.WithHelp("q", "close")),
+		// alt+n is the key tmux opens this with. While the popup is up that key reaches
+		// here instead of tmux, so quitting on it is what makes the opener a toggle -
+		// the status chip cannot do it, because a popup swallows the click.
+		Quit: key.NewBinding(key.WithKeys("q", "esc", "ctrl+c", "alt+n"), key.WithHelp("q/alt+n", "close")),
 	}
 }
 
@@ -89,6 +92,7 @@ func mouseHints() [][2]string {
 		{"click", "select a row"},
 		{"click again", "open it"},
 		{"click a tab", "switch view"},
+		{"click ✕", "close"},
 		{"click \"synced\"", "re-sync"},
 		{"wheel", "walk the list, or scroll the preview under the pointer"},
 	}

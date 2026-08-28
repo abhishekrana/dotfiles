@@ -14,6 +14,9 @@ import (
 const (
 	bandMark = "▌"
 	sep      = " · "
+	// The close button, in the corner every window puts one. A popup swallows a click
+	// on the tmux chip that opened it, so this is the only pointer that can close it.
+	closeMark = "✕"
 	// The list gets slightly less than half, because a merge request sheet is the wider
 	// of the two things on screen.
 	listShare = 0.46
@@ -98,9 +101,9 @@ func (m Model) tabBar() string {
 	return m.spread(left, right) + "\n" + rule
 }
 
-// tabBarRight is the right-hand group - what is asking for you, then how stale the mirror
-// is. Returned styled and plain, because the hit test needs its width and escape
-// sequences do not have one.
+// tabBarRight is the right-hand group - what is asking for you, how stale the mirror is,
+// then the close button hard against the edge. Returned styled and plain, because the hit
+// test needs its width and escape sequences do not have one.
 func (m Model) tabBarRight() (styled, plain string) {
 	idle := lipgloss.NewStyle().Foreground(m.theme.Muted)
 	plain = m.staleness()
@@ -110,7 +113,25 @@ func (m Model) tabBarRight() (styled, plain string) {
 		styled = lipgloss.NewStyle().Foreground(m.theme.Asking).Render(flag) + idle.Render(sep) + styled
 		plain = flag + sep + plain
 	}
+	// Muted like every other control with no state to report.
+	plain += "  " + closeMark
+	styled += idle.Render("  " + closeMark)
 	return styled, plain
+}
+
+// rightSpans locates the two clickable things in the tab bar's right-hand group. ok is
+// false when the bar is too narrow to draw that group at all - the same condition spread
+// applies, so a click cannot land on text that was never rendered.
+func (m Model) rightSpans() (staleStart, staleEnd, closeStart int, ok bool) {
+	_, plain := m.tabBarRight()
+	spans := tabSpans()
+	if m.width-spans[len(spans)-1].end-lipgloss.Width(plain) < 1 {
+		return 0, 0, 0, false
+	}
+	closeStart = m.width - lipgloss.Width(closeMark)
+	staleEnd = closeStart - 2
+	staleStart = staleEnd - lipgloss.Width(m.staleness())
+	return staleStart, staleEnd, closeStart, true
 }
 
 // spread puts left at the margin and right against the far edge, so nothing reflows as
@@ -436,16 +457,17 @@ func (m Model) tabAt(x int) (workdesk.View, bool) {
 	return m.view, false
 }
 
-// overStaleness reports whether a column is on the "synced ..." tail of the tab bar - the
-// one thing up there you would click to refresh. False when the bar is too narrow to draw
-// its right-hand group, which is the condition spread already applies.
+// overStaleness reports whether a column is on the "synced ..." text - the one thing up
+// there you would click to refresh.
 func (m Model) overStaleness(x int) bool {
-	_, plain := m.tabBarRight()
-	spans := tabSpans()
-	if m.width-spans[len(spans)-1].end-lipgloss.Width(plain) < 1 {
-		return false
-	}
-	return x >= m.width-lipgloss.Width(m.staleness())
+	start, end, _, ok := m.rightSpans()
+	return ok && x >= start && x < end
+}
+
+// overClose reports whether a column is on the ✕.
+func (m Model) overClose(x int) bool {
+	_, _, start, ok := m.rightSpans()
+	return ok && x >= start
 }
 
 func truncate(s string, w int) string {

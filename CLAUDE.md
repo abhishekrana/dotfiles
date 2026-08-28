@@ -167,6 +167,10 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
     preview is the reason to click at all. The tabs and the `synced` marker are clickable, a band header answers with
     the first row under it, and everything fires on release - terminals eat the press of a click that also focuses their
     window. `listItems` is the one pass the renderer, the scroll window and the hit test share.
+  - **The chip opens it; only the popup can close it.** A tmux popup swallows a status click, so `▤ workdesk` cannot
+    toggle - a second click never reaches `MouseUp1Status`, verified by probe rather than assumed. `Alt+n` is the toggle
+    instead: tmux opens the popup, and while it is up that key reaches this program, where it quits. `✕` in the tab
+    bar's corner is the pointer's way out, and the only one there is.
   - **The UI never acts.** It records which key was pressed on which row and quits; the caller runs the action. That is
     what keeps every action a plain function `workdesk act <key> <ref>` can run with no terminal, and it is why the
     write confirms do not live inside the render loop.

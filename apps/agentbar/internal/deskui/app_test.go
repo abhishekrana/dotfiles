@@ -346,9 +346,60 @@ func TestClickOnATabSwitchesView(t *testing.T) {
 func TestClickOnSyncedRequestsASync(t *testing.T) {
 	t.Parallel()
 	m := testModel(t)
-	got := click(m, m.width-1, 0)
+	start, end, _, ok := m.rightSpans()
+	if !ok {
+		t.Fatal("the tab bar's right group does not fit")
+	}
+	got := click(m, (start+end)/2, 0)
 	if got.Pending == nil || got.Pending.Key != "r" {
 		t.Errorf("clicking the staleness recorded %+v, want a re-sync", got.Pending)
+	}
+}
+
+// A popup swallows a click on the tmux chip that opened it, so the ✕ is the only pointer
+// that can close this - it has to be on the hard-right cell and it has to quit.
+func TestClickOnCloseQuits(t *testing.T) {
+	t.Parallel()
+	m := testModel(t)
+	_, _, closeStart, ok := m.rightSpans()
+	if !ok {
+		t.Fatal("the tab bar's right group does not fit")
+	}
+	if closeStart != m.width-1 {
+		t.Errorf("✕ starts at %d, want the last cell %d", closeStart, m.width-1)
+	}
+	if !strings.Contains(stripANSI(m.View()), closeMark) {
+		t.Error("the tab bar does not draw a ✕")
+	}
+	// The model quits by command, so assert on the command rather than on state.
+	next, cmd := m.Update(tea.MouseMsg{
+		X: m.width - 1, Y: 0, Action: tea.MouseActionRelease, Button: tea.MouseButtonLeft,
+	})
+	if cmd == nil {
+		t.Fatal("clicking ✕ issued no command, want quit")
+	}
+	if _, ok := cmd().(tea.QuitMsg); !ok {
+		t.Errorf("clicking ✕ issued %T, want tea.QuitMsg", cmd())
+	}
+	if next.(Model).Pending != nil {
+		t.Errorf("clicking ✕ recorded an action: %+v", next.(Model).Pending)
+	}
+}
+
+// alt+n is the key tmux opens this with, so it has to close it too - that is the whole
+// toggle, and the status chip cannot provide one.
+func TestAltNClosesSoTheOpenerToggles(t *testing.T) {
+	t.Parallel()
+	m := testModel(t)
+	next, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("n"), Alt: true})
+	if cmd == nil {
+		t.Fatal("alt+n issued no command, want quit")
+	}
+	if _, ok := cmd().(tea.QuitMsg); !ok {
+		t.Errorf("alt+n issued %T, want tea.QuitMsg", cmd())
+	}
+	if next.(Model).Pending != nil {
+		t.Errorf("alt+n recorded an action: %+v", next.(Model).Pending)
 	}
 }
 
