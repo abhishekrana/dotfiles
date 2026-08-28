@@ -53,6 +53,28 @@ func (m Model) View() string {
 	return strings.Join([]string{m.tabBar(), body, m.footer()}, "\n")
 }
 
+// tabSpan is a view's label and the columns it occupies, so the bar and the mouse hit
+// test read one geometry rather than each measuring the labels for itself.
+type tabSpan struct {
+	view       workdesk.View
+	text       string
+	start, end int // columns, end exclusive
+}
+
+func tabSpans() []tabSpan {
+	out := make([]tabSpan, 0, 4)
+	col := 0
+	for i, v := range workdesk.Views() {
+		if i > 0 {
+			col += lipgloss.Width(sep)
+		}
+		text := v.Key() + " " + v.String()
+		out = append(out, tabSpan{view: v, text: text, start: col, end: col + lipgloss.Width(text)})
+		col = out[len(out)-1].end
+	}
+	return out
+}
+
 // tabBar names where you are and what the mirror is worth. The count on the right is the
 // same number the bands above the line add up to - what is actually asking something of
 // you.
@@ -61,24 +83,34 @@ func (m Model) tabBar() string {
 	active := lipgloss.NewStyle().Foreground(t.Accent).Bold(true)
 	idle := lipgloss.NewStyle().Foreground(t.Muted)
 
-	labels := make([]string, 0, 4)
-	for _, v := range workdesk.Views() {
-		label := v.Key() + " " + v.String()
-		if v == m.view {
-			labels = append(labels, active.Render(label))
+	spans := tabSpans()
+	labels := make([]string, 0, len(spans))
+	for _, s := range spans {
+		if s.view == m.view {
+			labels = append(labels, active.Render(s.text))
 			continue
 		}
-		labels = append(labels, idle.Render(label))
+		labels = append(labels, idle.Render(s.text))
 	}
 	left := strings.Join(labels, idle.Render(sep))
-
-	right := idle.Render(m.staleness())
-	if n := m.attentionCount(); n > 0 {
-		right = lipgloss.NewStyle().Foreground(t.Asking).Render(fmt.Sprintf("⚑ %d", n)) +
-			idle.Render(sep) + right
-	}
+	right, _ := m.tabBarRight()
 	rule := lipgloss.NewStyle().Foreground(t.Muted).Render(strings.Repeat("─", m.width))
 	return m.spread(left, right) + "\n" + rule
+}
+
+// tabBarRight is the right-hand group - what is asking for you, then how stale the mirror
+// is. Returned styled and plain, because the hit test needs its width and escape
+// sequences do not have one.
+func (m Model) tabBarRight() (styled, plain string) {
+	idle := lipgloss.NewStyle().Foreground(m.theme.Muted)
+	plain = m.staleness()
+	styled = idle.Render(plain)
+	if n := m.attentionCount(); n > 0 {
+		flag := fmt.Sprintf("⚑ %d", n)
+		styled = lipgloss.NewStyle().Foreground(m.theme.Asking).Render(flag) + idle.Render(sep) + styled
+		plain = flag + sep + plain
+	}
+	return styled, plain
 }
 
 // spread puts left at the margin and right against the far edge, so nothing reflows as
@@ -125,6 +157,45 @@ func (m Model) attentionCount() int {
 	return n
 }
 
+// listItem is one display line before anything is rendered: a row, the band header
+// derived above it, or the active/inactive divider. A header names the first row beneath
+// it, so a click there lands on a real row - the same reason the cursor never sits on one.
+//
+// One pass, because the renderer, the scroll window and the mouse hit test all need to
+// count headers the same way, and three loops that agree today are three that can stop
+// agreeing.
+type listItem struct {
+	row    int // index into m.rows, -1 for the divider
+	header bool
+}
+
+func (m Model) listItems() []listItem {
+	items := make([]listItem, 0, len(m.rows)+8)
+	prevLabel, prevFlag := "", "a"
+	for i, r := range m.rows {
+		if r.Flag == "i" && prevFlag == "a" {
+			items = append(items, listItem{row: -1})
+			prevFlag = "i"
+		}
+		if r.Label != prevLabel {
+			items = append(items, listItem{row: i, header: true})
+			prevLabel = r.Label
+		}
+		items = append(items, listItem{row: i})
+	}
+	return items
+}
+
+// cursorLine is the display line the cursor row sits on, once headers are counted in.
+func cursorLine(items []listItem, cursor int) int {
+	for i, it := range items {
+		if !it.header && it.row == cursor {
+			return i
+		}
+	}
+	return 0
+}
+
 // listPane draws the rows with their band headers derived, and the active/inactive line
 // where the flag flips. Headers are not items, so the cursor never has to skip anything.
 func (m Model) listPane(w int) string {
@@ -136,50 +207,29 @@ func (m Model) listPane(w int) string {
 			Render(empty.Render("  nothing here"))
 	}
 
-	var lines []string
-	prevLabel, prevFlag := "", "a"
-	for i, r := range m.rows {
-		if r.Flag == "i" && prevFlag == "a" {
-			lines = append(lines, m.dividerLine(w))
-			prevFlag = "i"
-		}
-		if r.Label != prevLabel {
-			lines = append(lines, m.bandHeader(r, w))
-			prevLabel = r.Label
-		}
-		lines = append(lines, m.rowLine(r, w, i == m.cursor))
-	}
+	items := m.listItems()
 	// Keep the cursor on screen without a scrollbar: the list is short and a window that
 	// follows the cursor is less to look at than a bar that tracks it.
-	lines = window(lines, m.cursorLine(), height)
+	start := windowStart(len(items), cursorLine(items, m.cursor), height)
+	lines := make([]string, 0, height)
+	for _, it := range items[start:min(start+height, len(items))] {
+		switch {
+		case it.row < 0:
+			lines = append(lines, m.dividerLine(w))
+		case it.header:
+			lines = append(lines, m.bandHeader(m.rows[it.row], w))
+		default:
+			lines = append(lines, m.rowLine(m.rows[it.row], w, it.row == m.cursor))
+		}
+	}
 	return lipgloss.NewStyle().Width(w).Height(height).Render(strings.Join(lines, "\n"))
 }
 
-// cursorLine is where the cursor lands once headers are counted in.
-func (m Model) cursorLine() int {
-	n, prevLabel, prevFlag := 0, "", "a"
-	for i, r := range m.rows {
-		if r.Flag == "i" && prevFlag == "a" {
-			n++
-			prevFlag = "i"
-		}
-		if r.Label != prevLabel {
-			n++
-			prevLabel = r.Label
-		}
-		if i == m.cursor {
-			return n
-		}
-		n++
-	}
-	return n
-}
-
-// window scrolls a rendered list so line stays visible, keeping a little context either
-// side rather than snapping the cursor to an edge.
-func window(lines []string, line, height int) []string {
-	if len(lines) <= height {
-		return lines
+// windowStart scrolls a list of n lines so line stays visible, keeping a little context
+// either side rather than snapping the cursor to an edge.
+func windowStart(n, line, height int) int {
+	if n <= height {
+		return 0
 	}
 	const margin = 2
 	start := line - height + margin + 1
@@ -192,10 +242,10 @@ func window(lines []string, line, height int) []string {
 	if start < 0 {
 		start = 0
 	}
-	if start+height > len(lines) {
-		start = len(lines) - height
+	if start+height > n {
+		start = n - height
 	}
-	return lines[start : start+height]
+	return start
 }
 
 // bandHeader carries its own count, taken from the rows under it, so the two can never
@@ -327,8 +377,75 @@ func (m Model) helpScreen() string {
 	return strings.Join([]string{
 		title, sub, "",
 		m.help.View(m.keys), "",
+		m.mouseHelp(), "",
 		lipgloss.NewStyle().Foreground(t.Muted).Render("? closes this"),
 	}, "\n")
+}
+
+// mouseHelp renders the pointer's gestures in the keymap's own two colours, so they read
+// as part of the same list rather than as a footnote.
+func (m Model) mouseHelp() string {
+	k := lipgloss.NewStyle().Foreground(m.theme.Accent)
+	d := lipgloss.NewStyle().Foreground(m.theme.Muted)
+	hints := mouseHints()
+	// Sized from the hints themselves: a fixed column silently ellipsised the longest
+	// one, which is exactly the failure the generated keymap exists to rule out.
+	col := 0
+	for _, h := range hints {
+		col = max(col, lipgloss.Width(h[0])+2)
+	}
+	lines := make([]string, 0, len(hints))
+	for _, h := range hints {
+		lines = append(lines, k.Render(workdesk.Pad(h[0], col))+d.Render(h[1]))
+	}
+	return strings.Join(lines, "\n")
+}
+
+// bodyTop is the first body line: the tab bar and the rule under it sit above.
+const bodyTop = 2
+
+// rowAt maps a screen line to the row under it, or -1 for the divider, the footer and
+// anything outside the list.
+func (m Model) rowAt(y int) int {
+	height := bodyHeight(m.height)
+	if len(m.rows) == 0 || y < bodyTop || y >= bodyTop+height {
+		return -1
+	}
+	items := m.listItems()
+	i := windowStart(len(items), cursorLine(items, m.cursor), height) + y - bodyTop
+	if i < 0 || i >= len(items) {
+		return -1
+	}
+	return items[i].row
+}
+
+// overPreview reports whether a column is in the preview pane rather than the list. The
+// divider column counts as neither.
+func (m Model) overPreview(x int) bool {
+	lw, pw := paneWidths(m.width)
+	return pw > 0 && x > lw
+}
+
+// tabAt maps a column on the tab bar to the view whose label is under it.
+func (m Model) tabAt(x int) (workdesk.View, bool) {
+	for _, s := range tabSpans() {
+		if x >= s.start && x < s.end {
+			return s.view, true
+		}
+	}
+	return m.view, false
+}
+
+// overStaleness reports whether a column is on the "synced ..." tail of the tab bar - the
+// one thing up there you would click to refresh. False when the bar is too narrow to draw
+// its right-hand group, which is the condition spread already applies.
+func (m Model) overStaleness(x int) bool {
+	_, plain := m.tabBarRight()
+	spans := tabSpans()
+	if m.width-spans[len(spans)-1].end-lipgloss.Width(plain) < 1 {
+		return false
+	}
+	return x >= m.width-lipgloss.Width(m.staleness())
 }
 
 func truncate(s string, w int) string {

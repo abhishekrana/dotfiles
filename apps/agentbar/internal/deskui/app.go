@@ -191,8 +191,95 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case tea.KeyMsg:
 		return m.handleKey(msg)
+	case tea.MouseMsg:
+		return m.handleMouse(msg)
 	}
 	return m, nil
+}
+
+// wheelLines is how far one notch scrolls the preview.
+const wheelLines = 3
+
+// handleMouse is the pointer doing what the keys do: the wheel walks whichever pane it is
+// over, a click picks a row, and a click on the row already under the cursor opens it.
+//
+// Selecting rather than opening on the first click is the one difference from the sidebar,
+// which jumps straight away. The preview beside the list is the whole point here, so a
+// click is how you look at something and the second click is how you act on it.
+//
+// Release, not press, as everywhere else in this stack: terminals eat the press of a click
+// that also focuses their window, but always deliver the release.
+func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	if m.width == 0 || msg.Action == tea.MouseActionMotion {
+		return m, nil
+	}
+	// A notice reports what just happened and is dismissed by whatever you do next,
+	// pointer included.
+	m.notice = ""
+
+	if msg.Action == tea.MouseActionPress {
+		switch msg.Button {
+		case tea.MouseButtonWheelUp:
+			m.wheel(msg.X, -1)
+		case tea.MouseButtonWheelDown:
+			m.wheel(msg.X, 1)
+		}
+		return m, nil
+	}
+	if msg.Action != tea.MouseActionRelease || msg.Button != tea.MouseButtonLeft {
+		return m, nil
+	}
+	// The help overlay owns the whole window, so any click closes it.
+	if m.showHelp {
+		m.showHelp = false
+		m.help.ShowAll = false
+		return m, nil
+	}
+	if msg.Y == 0 {
+		if v, ok := m.tabAt(msg.X); ok {
+			m.setView(v)
+			return m, nil
+		}
+		if m.overStaleness(msg.X) {
+			return m.request("r")
+		}
+		return m, nil
+	}
+	if m.overPreview(msg.X) {
+		return m, nil
+	}
+	row := m.rowAt(msg.Y)
+	if row < 0 {
+		return m, nil
+	}
+	if row == m.cursor {
+		return m.request("enter")
+	}
+	m.cursor = row
+	m.syncPreview()
+	return m, nil
+}
+
+// wheel scrolls the pane the pointer is over: the preview by lines, the list by one row.
+//
+// Unlike j/k it stops at the ends. Wrapping is right for a key you press to walk a list
+// and wrong for a wheel you spin to look down one - a notch past the last row should stop,
+// not teleport.
+func (m *Model) wheel(x, d int) {
+	if m.overPreview(x) {
+		if d < 0 {
+			m.preview.LineUp(wheelLines)
+		} else {
+			m.preview.LineDown(wheelLines)
+		}
+		return
+	}
+	next := m.cursor + d
+	if next < 0 || next >= len(m.rows) {
+		return
+	}
+	m.cursor = next
+	m.syncPreview()
 }
 
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {

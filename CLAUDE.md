@@ -147,6 +147,12 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
     the snapshot with colour on the gates and a real table for the approval rules, the preview scrolls, and `?` renders
     the keymap so no hint can go missing. The palette is `internal/ui`, generated from `design/palette.toml`, so it
     matches tmux rather than approximating it.
+  - **The pointer does what the keys do, and a click is how you look.** The wheel walks whichever pane it is over - the
+    list by a row, the preview by lines - and stops at the ends, where `j`/`k` deliberately wrap. A click selects a row;
+    the second click on it opens the sheet. The sidebar jumps on the first click because it has no preview; here the
+    preview is the reason to click at all. The tabs and the `synced` marker are clickable, a band header answers with
+    the first row under it, and everything fires on release - terminals eat the press of a click that also focuses their
+    window. `listItems` is the one pass the renderer, the scroll window and the hit test share.
   - **The UI never acts.** It records which key was pressed on which row and quits; the caller runs the action. That is
     what keeps every action a plain function `workdesk act <key> <ref>` can run with no terminal, and it is why the
     write confirms do not live inside the render loop.

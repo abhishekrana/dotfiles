@@ -214,3 +214,203 @@ func TestAgentRowsRequestAJump(t *testing.T) {
 func writeFile(path string, b []byte) error {
 	return osWriteFile(path, b)
 }
+
+// click sends the release, which is what the model acts on - terminals eat the press of a
+// click that also focuses their window.
+func click(m Model, x, y int) Model {
+	next, _ := m.Update(tea.MouseMsg{
+		X: x, Y: y, Action: tea.MouseActionRelease, Button: tea.MouseButtonLeft,
+	})
+	return next.(Model)
+}
+
+func wheel(m Model, x int, button tea.MouseButton) Model {
+	next, _ := m.Update(tea.MouseMsg{X: x, Y: bodyTop, Action: tea.MouseActionPress, Button: button})
+	return next.(Model)
+}
+
+// screenY is the line a list item is drawn on, or -1 when it is scrolled out of view.
+func screenY(m Model, item int) int {
+	items := m.listItems()
+	height := bodyHeight(m.height)
+	start := windowStart(len(items), cursorLine(items, m.cursor), height)
+	if item < start || item >= start+height {
+		return -1
+	}
+	return bodyTop + item - start
+}
+
+// A click is how you look at a row; the second click on it is how you act. That is the
+// one place this differs from the sidebar, which jumps on the first click - here the
+// preview beside the list is the reason to click at all.
+func TestClickSelectsThenOpens(t *testing.T) {
+	t.Parallel()
+	m := testModel(t)
+	items := m.listItems()
+
+	var target, y int
+	for i, it := range items {
+		if !it.header && it.row > m.cursor {
+			target, y = it.row, screenY(m, i)
+			break
+		}
+	}
+	if y < 0 {
+		t.Fatal("no second row on screen to click")
+	}
+
+	m = click(m, 2, y)
+	if m.cursor != target {
+		t.Fatalf("click selected row %d, want %d", m.cursor, target)
+	}
+	if m.Pending != nil {
+		t.Fatalf("the first click acted: %+v", m.Pending)
+	}
+
+	m = click(m, 2, y)
+	if m.Pending == nil || m.Pending.Key != "enter" {
+		t.Errorf("the second click recorded %+v, want an enter", m.Pending)
+	}
+}
+
+// Band headers are derived, not items, so a click on one has to land on a real row rather
+// than on nothing.
+func TestClickOnABandHeaderLandsOnARow(t *testing.T) {
+	t.Parallel()
+	m := testModel(t)
+	items := m.listItems()
+
+	found := false
+	for i, it := range items {
+		if !it.header || it.row == m.cursor {
+			continue
+		}
+		y := screenY(m, i)
+		if y < 0 {
+			continue
+		}
+		found = true
+		got := click(m, 2, y)
+		if got.cursor != it.row {
+			t.Errorf("header click selected row %d, want the first row under it, %d", got.cursor, it.row)
+		}
+		if _, ok := got.current(); !ok {
+			t.Error("header click left the cursor on no row at all")
+		}
+		break
+	}
+	if !found {
+		t.Skip("no band header on screen below the cursor")
+	}
+}
+
+// The divider is a rule, not a row: clicking it must change nothing.
+func TestClickOnTheDividerDoesNothing(t *testing.T) {
+	t.Parallel()
+	m := press(testModel(t), "3")
+	for i, it := range m.listItems() {
+		if it.row >= 0 {
+			continue
+		}
+		y := screenY(m, i)
+		if y < 0 {
+			t.Skip("the active/inactive line is off screen")
+		}
+		got := click(m, 2, y)
+		if got.cursor != m.cursor || got.Pending != nil {
+			t.Errorf("clicking the divider moved to %d / recorded %+v", got.cursor, got.Pending)
+		}
+		return
+	}
+	t.Skip("this view has no active/inactive line")
+}
+
+// The tab bar is clickable at the same columns it renders, so the two cannot drift.
+func TestClickOnATabSwitchesView(t *testing.T) {
+	t.Parallel()
+	m := testModel(t)
+	for _, s := range tabSpans() {
+		got := click(m, s.start+1, 0)
+		if got.CurrentView() != s.view {
+			t.Errorf("clicking %q selected %q, want %q", s.text, got.CurrentView(), s.view)
+		}
+	}
+	// The gap between two labels is not a tab.
+	first := tabSpans()[0]
+	if got := click(m, first.end, 0); got.CurrentView() != m.CurrentView() {
+		t.Errorf("clicking the gap after %q switched to %q", first.text, got.CurrentView())
+	}
+}
+
+// The staleness marker is what you would click to refresh, so it re-syncs.
+func TestClickOnSyncedRequestsASync(t *testing.T) {
+	t.Parallel()
+	m := testModel(t)
+	got := click(m, m.width-1, 0)
+	if got.Pending == nil || got.Pending.Key != "r" {
+		t.Errorf("clicking the staleness recorded %+v, want a re-sync", got.Pending)
+	}
+}
+
+// A wheel is a scroll, not a walk: it stops at the ends rather than wrapping the way j/k
+// deliberately do.
+func TestWheelStopsAtTheEnds(t *testing.T) {
+	t.Parallel()
+	m := testModel(t)
+	if got := wheel(m, 2, tea.MouseButtonWheelUp); got.cursor != 0 {
+		t.Errorf("the wheel wrapped off the top to %d", got.cursor)
+	}
+	m = wheel(m, 2, tea.MouseButtonWheelDown)
+	if m.cursor != 1 {
+		t.Fatalf("the wheel moved to %d, want 1", m.cursor)
+	}
+	m.cursor = len(m.rows) - 1
+	if got := wheel(m, 2, tea.MouseButtonWheelDown); got.cursor != len(m.rows)-1 {
+		t.Errorf("the wheel wrapped off the end to %d", got.cursor)
+	}
+}
+
+// The wheel follows the pointer's pane: over the preview it scrolls the sheet and leaves
+// the cursor alone.
+func TestWheelOverThePreviewScrollsIt(t *testing.T) {
+	t.Parallel()
+	m := press(testModel(t), "3")
+	lw, _ := paneWidths(m.width)
+	before := m.cursor
+
+	m = wheel(m, lw+2, tea.MouseButtonWheelDown)
+	if m.cursor != before {
+		t.Errorf("a wheel over the preview moved the cursor to %d", m.cursor)
+	}
+	if m.preview.YOffset == 0 {
+		t.Error("a wheel over the preview did not scroll it")
+	}
+	m = wheel(m, lw+2, tea.MouseButtonWheelUp)
+	if m.preview.YOffset != 0 {
+		t.Errorf("the wheel did not scroll back up: offset %d", m.preview.YOffset)
+	}
+}
+
+// The help overlay owns the whole window, so any click closes it - the same dismissal the
+// next keypress gives a notice.
+func TestClickClosesHelp(t *testing.T) {
+	t.Parallel()
+	m := press(testModel(t), "?")
+	if !m.showHelp {
+		t.Fatal("? did not open help")
+	}
+	if got := click(m, 5, 5); got.showHelp {
+		t.Error("a click did not close the help overlay")
+	}
+}
+
+// The gestures have to be on the help screen: an undocumented one is one nobody finds.
+func TestHelpOverlayDocumentsTheMouse(t *testing.T) {
+	t.Parallel()
+	out := stripANSI(press(testModel(t), "?").View())
+	for _, h := range mouseHints() {
+		if !strings.Contains(out, h[1]) {
+			t.Errorf("help does not document the %q gesture", h[0])
+		}
+	}
+}

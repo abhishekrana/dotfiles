@@ -81,6 +81,19 @@ func defaultKeys() keyMap {
 	}
 }
 
+// mouseHints is what the pointer does, listed for the same reason the key hints are
+// generated from the keymap: an undocumented gesture is one nobody finds. There is no
+// key.Binding for a click, so these are plain pairs the help screen renders itself.
+func mouseHints() [][2]string {
+	return [][2]string{
+		{"click", "select a row"},
+		{"click again", "open it"},
+		{"click a tab", "switch view"},
+		{"click \"synced\"", "re-sync"},
+		{"wheel", "walk the list, or scroll the preview under the pointer"},
+	}
+}
+
 // ShortHelp is the footer strip: moving around, and the actions that apply to the row
 // under the cursor.
 func (k keyMap) ShortHelp() []key.Binding {
