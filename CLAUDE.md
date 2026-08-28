@@ -123,6 +123,10 @@ Rules:
 - **A chip and its key run one command.** `Alt+n` and `▤ workdesk` both run `@workdesk_popup`, defined once, so the
   geometry cannot drift between them - and `tmux-mockup.sh` overrides that option rather than rebinding the key, which
   is what keeps a click in the mock off the real queue.
+- **An option holding a command is run by `run-shell`, never `if-shell`.** `if-shell` does not expand `#{}` in its
+  command argument: it reports success and runs nothing, so the config parses, `list-keys` looks right, the click even
+  logs its range - and nothing happens. `run-shell -b "tmux #{@opt}"` is the form that works; `task conf` fails the gate
+  on the other one.
 
 ## Apps (built from source)
 
