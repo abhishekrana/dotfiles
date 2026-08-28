@@ -98,6 +98,14 @@ for flavor in $FLAVORS; do
     has "nvim carries the background" "$S/nvim.lua" "$mode"
     has "env exports the flavor" "$S/env.sh" "THEME=\"$flavor\""
 
+    # Every status chip the conf defines must also be repainted here. A @*_seg set
+    # only in .tmux.conf keeps its Solarized hex in every other flavor - the bug the
+    # switcher's own comment warns about, and one no per-file colour check can see,
+    # since the other lines still carry the right ground.
+    for seg in $(grep -o 'set -g @[a-z_]*_seg' "$REPO/tmux/.tmux.conf" | awk '{print $3}' | sort -u); do
+        has "$seg is repainted" "$S/tmux.conf" "set -g $seg "
+    done
+
     # No generated file may still carry another flavor's ground.
     for other in $FLAVORS; do
         [ "$other" = "$flavor" ] && continue

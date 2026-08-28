@@ -79,8 +79,8 @@ Rules:
   agentbar hook from each Edit/Write) and records what is on screen in `@diff_target`.
 - **The target then sticks.** A mode item changes what you see, not where you look; only `f` (follow),
   `tmux-worktree-picker.sh` (the menu's `W`) and per-window auto-follow (`F`, off by default) re-point a live pane.
-- An amber `◧ diff` chip means the worktree is in no agent's `@agent_workdirs`, and reports nothing else. A click only
-  opens the menu.
+- An amber `◧ changes` chip means the worktree is in no agent's `@agent_workdirs`, and reports nothing else. A click
+  only opens the menu.
 - **Three keys, three bands.** `p` pins, `a` puts a session in the active band, `d` sends it to dormant now rather than
   waiting out the window. One key, one destination: pressing it again changes nothing, and pressing another moves it -
   so `a` on a pinned session unpins and holds it active. A row never says how it got into its band; a hand-placed
@@ -114,6 +114,15 @@ Rules:
 - **The footer holds no per-pane facts** - the work's commit (7-char sha), its CI, the clock, and the `⚙` settings chip
   at the far right, where its fixed width cannot reflow the clock. Dropping the git-status plugin took ~72ms of git off
   every status redraw.
+- **The centre band is a toolbar, and every chip is fixed width.** `● dictate`, `⏎ send`, `● dictate+send`,
+  `⇡ commit+push`, `◧ changes`, `▤ workdesk` - one space of padding inside each and one between, so the row reads as a
+  toolbar rather than a ragged sentence, and a chip that changed width would clip the right-aligned segments. Labels
+  name what happens, never the key; `▤ workdesk` is the one that names its tool instead, because it is the only thing in
+  the row you also type. Colour is the only feedback a status bar has, so a chip is coloured only when it has state to
+  report - `▤ workdesk` and `⏎ send` rest muted for that reason.
+- **A chip and its key run one command.** `Alt+n` and `▤ workdesk` both run `@workdesk_popup`, defined once, so the
+  geometry cannot drift between them - and `tmux-mockup.sh` overrides that option rather than rebinding the key, which
+  is what keeps a click in the mock off the real queue.
 
 ## Apps (built from source)
 
@@ -131,8 +140,9 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
     `mr <iid>` is one merge request end to end, `matrix` is one row per MR and one column per gate with a totals row,
     and `ready` prints the actionable rows for an agent. `bootstrap.sh` links it into `~/.local/bin` - the one app
     binary that does get a link, because it is a CLI you type.
-  - **`Alt+n`** opens it (`tmux/.tmux.conf`), invoked by absolute path like the agentbar bindings - `apps/` binaries are
-    not stow packages, so there is no `~/.local/bin` symlink to rely on inside tmux. Bare `workdesk` opens it too.
+  - **`Alt+n` and the `▤ workdesk` chip** open it (`tmux/.tmux.conf`), both through `@workdesk_popup` so the two cannot
+    drift. Invoked by absolute path like the agentbar bindings - `apps/` binaries are not stow packages, so there is no
+    `~/.local/bin` symlink to rely on inside tmux. Bare `workdesk` opens it too.
   - **The todo feed is filtered, and the count says so.** GitLab never marks todos done, so the pending list is an
     accumulating log: measured on a real account, 427 of 453 were `review_submitted`, `build_failed`, `unmergeable` or
     `merge_train_removed` - machine notifications about state `mergeabilityChecks` and the pipeline already report for a

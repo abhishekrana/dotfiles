@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# fzf popup that points the diff pane at another worktree. Opened by the "◧ diff"
+# fzf popup that points the diff pane at another worktree. Opened by the "◧ changes"
 # menu ("Pick worktree…"), and the escape hatch for the case the agent-workdir
 # signal cannot cover: several agents writing in several worktrees at once, or
 # simply wanting to look somewhere else.

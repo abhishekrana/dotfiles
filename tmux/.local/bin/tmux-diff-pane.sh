@@ -1,7 +1,7 @@
 #!/bin/bash
 # tmux-diff-pane.sh -- summon / switch the hunk diff pane from the status bar.
 #
-# The centred "◧ diff" chip opens a display-menu (see tmux.conf MouseUp1Status)
+# The centred "◧ changes" chip opens a display-menu (see tmux.conf MouseUp1Status)
 # whose items call:
 #   tmux-diff-pane.sh <work|staged|main|last> [dir]  ensure the diff pane, in that mode
 #   tmux-diff-pane.sh follow                     re-point at the agent's workdir

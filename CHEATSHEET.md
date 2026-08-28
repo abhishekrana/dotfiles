@@ -66,12 +66,12 @@ launch hunk's native interactive reviewer directly. delta also colors `git add -
 ### workdesk (GitLab work inbox)
 
 Reads a local mirror, so every command below is instant and offline. `workdesk sync` is the only one that touches the
-network.
+network. `Alt+n` opens the popup from anywhere in tmux, and so does the `▤ workdesk` chip on the status bar.
 
 | Command             | Action                                                             |
 | ------------------- | ------------------------------------------------------------------ |
 | `workdesk sync`     | refresh the mirror from GitLab                                     |
-| `workdesk open`     | the popup: inbox, merge requests, issues, agents                   |
+| `workdesk open`     | the popup: inbox, issues, merge requests, agents                   |
 | `workdesk board`    | the whole queue, grouped by what is blocking it                    |
 | `workdesk mr <iid>` | one merge request end to end: gates, approvals, reviewers, threads |
 | `workdesk matrix`   | one row per MR, one column per gate, plus a totals row             |
@@ -79,16 +79,18 @@ network.
 
 Inside the popup:
 
-| Key             | Action                                                     |
-| --------------- | ---------------------------------------------------------- |
-| `1`-`4`, `tab`  | inbox · merge requests · issues · agents                   |
-| `↵`             | full detail; on an agent row, jump to that pane            |
-| `/`             | filter                                                     |
-| `o` / `y`       | open in the browser / copy the URL                         |
-| `c` / `d`       | add a worktree for the branch / open a diff pane           |
-| `m`             | the gate matrix                                            |
-| `a` / `e` / `M` | assign a reviewer / set auto-merge / merge (each confirms) |
-| `P` / `r` / `q` | promote to a pane / re-sync / close                        |
+| Key             | Action                                                                            |
+| --------------- | --------------------------------------------------------------------------------- |
+| `1`-`4`, `tab`  | inbox · issues · merge requests · agents                                          |
+| `↵`             | full detail; on an agent row, jump to that pane                                   |
+| `/`             | filter                                                                            |
+| `o` / `y`       | open in the browser / copy the URL                                                |
+| `c` / `d`       | add a worktree for the branch / open a diff pane                                  |
+| `m`             | the gate matrix                                                                   |
+| `a` / `e` / `M` | assign a reviewer / set auto-merge / merge (each confirms)                        |
+| `P` / `r` / `q` | promote to a pane / re-sync / close                                               |
+| `?`             | every binding, mouse included                                                     |
+| mouse           | click a row to select, again to open; click tabs; wheel scrolls the pane under it |
 
 ---
 
@@ -149,7 +151,7 @@ Far right, past the clock. Click it for a centred dialogue: setting names down t
 every value on screen. Click a value or press `↵` and it applies at once - there is no save step, and the dialogue stays
 open so you can try another. `j`/`k` move, `q` closes.
 
-### Status bar - the ◧ diff chip
+### Status bar - the ◧ changes chip
 
 Click it to open the menu - that is all a click does. The chip is **violet** while the diff pane shows a worktree an
 agent is working in, **amber** when it shows one none of them is touching; amber is a report, `f` is what follows. The
