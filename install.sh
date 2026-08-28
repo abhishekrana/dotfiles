@@ -63,7 +63,7 @@ SHFMT_VERSION="3.13.1"
 SPIRV_HEADERS_VERSION="vulkan-sdk-1.4.357.0"
 TASK_VERSION="3.52.0"
 TMUX_VERSION="3.7c"
-WHISPER_CPP_VERSION="1.9.2"
+WHISPER_CPP_VERSION="1.9.3"
 WHISPER_CPP_MODEL="ggml-small.en-q8_0.bin" # what dictate's whispercpp backend loads
 YAZI_VERSION="26.8.15"
 ZOXIDE_VERSION="0.10.0"
@@ -523,8 +523,12 @@ install_tpm() {
 # ~260MB model. Built static, so what lands on PATH is one self-contained binary.
 install_whisper_cpp() {
     local models="$HOME/.local/share/whisper-cpp/models" src
-    if [ -x "$LOCAL_BIN/whisper-server" ] && [ -f "$models/$WHISPER_CPP_MODEL" ]; then
-        ok "whisper.cpp (Vulkan) already installed"
+    # whisper-server has no --version, so the built version is stamped beside the
+    # models; a presence-only guard makes every VERSION bump a silent no-op here.
+    local stamp="$HOME/.local/share/whisper-cpp/.version"
+    if [ -x "$LOCAL_BIN/whisper-server" ] && [ -f "$models/$WHISPER_CPP_MODEL" ] &&
+        [ "$(cat "$stamp" 2>/dev/null)" = "$WHISPER_CPP_VERSION" ]; then
+        ok "whisper.cpp $WHISPER_CPP_VERSION (Vulkan) already installed"
         return
     fi
     # No DRM render node means no GPU to compile for - skip before apt-installing
@@ -574,7 +578,9 @@ install_whisper_cpp() {
     cmake --build "$src/build" -j "$(nproc)" --target whisper-server >/dev/null
     install -Dm755 "$src/build/bin/whisper-server" "$LOCAL_BIN/whisper-server"
     rm -rf "$src"
-    ok "whisper-server installed"
+    mkdir -p "$(dirname "$stamp")"
+    printf '%s\n' "$WHISPER_CPP_VERSION" >"$stamp"
+    ok "whisper-server $WHISPER_CPP_VERSION installed"
     if [ ! -f "$models/$WHISPER_CPP_MODEL" ]; then
         log "Downloading $WHISPER_CPP_MODEL (~260MB)..."
         mkdir -p "$models"
