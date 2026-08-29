@@ -63,6 +63,9 @@ Scripts in `tmux/.local/bin/`:
   areas and settings stay alphabetical. It is also the only home for a setting with no business being a sidebar key -
   agentbar's Notify lives here, not on the bar.
 - `tmux-reset.sh` - the `prefix + R` UI reset: reload + default geometry, nothing killed.
+- `tmux-workdesk.sh` - the one command behind `Alt+n` and the `▤ workdesk` chip: close this window's workdesk float if
+  one is up, else open what `@workdesk_open` says. Matching is floating + a command named `workdesk`, so the mockup's
+  fixture override toggles the same way.
 - `tmux-mockup.sh` - `task mockup`, previews the whole frame with fake data on a private server.
 - Session picker, resurrect guard, yank.
 
@@ -121,9 +124,10 @@ Rules:
   `▤ workdesk` is the one that names its tool instead, because it is the only thing in the row you also type. Colour is
   the only feedback a status bar has, so a chip is coloured only when it has state to report - `▤ workdesk` and
   `● dictate` rest muted for that reason.
-- **A chip and its key run one command.** `Alt+n` and `▤ workdesk` both run `@workdesk_popup`, defined once, so the
-  geometry cannot drift between them - and `tmux-mockup.sh` overrides that option rather than rebinding the key, which
-  is what keeps a click in the mock off the real queue.
+- **A chip and its key run one command.** `Alt+n` and `▤ workdesk` both run `tmux-workdesk.sh`, which opens what
+  `@workdesk_open` says or closes the float already up, so neither the geometry nor the toggle can drift between them -
+  and `tmux-mockup.sh` overrides that option rather than rebinding the key, which is what keeps a click in the mock off
+  the real queue.
 - **An option holding a command is run by `run-shell`, never `if-shell`.** `if-shell` does not expand `#{}` in its
   command argument: it reports success and runs nothing, so the config parses, `list-keys` looks right, the click even
   logs its range - and nothing happens. `run-shell -b "tmux #{@opt}"` is the form that works; `task conf` fails the gate
@@ -145,9 +149,9 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
     `mr <iid>` is one merge request end to end, `matrix` is one row per MR and one column per gate with a totals row,
     and `ready` prints the actionable rows for an agent. `bootstrap.sh` links it into `~/.local/bin` - the one app
     binary that does get a link, because it is a CLI you type.
-  - **`Alt+n` and the `▤ workdesk` chip** open it (`tmux/.tmux.conf`), both through `@workdesk_popup` so the two cannot
-    drift. Invoked by absolute path like the agentbar bindings - `apps/` binaries are not stow packages, so there is no
-    `~/.local/bin` symlink to rely on inside tmux. Bare `workdesk` opens it too.
+  - **`Alt+n` and the `▤ workdesk` chip** toggle it (`tmux/.tmux.conf`), both through `tmux-workdesk.sh` so the two
+    cannot drift. Invoked by absolute path like the agentbar bindings - `apps/` binaries are not stow packages, so there
+    is no `~/.local/bin` symlink to rely on inside tmux. Bare `workdesk` opens it too.
   - **The todo feed is filtered, and the count says so.** GitLab never marks todos done, so the pending list is an
     accumulating log: measured on a real account, 427 of 453 were `review_submitted`, `build_failed`, `unmergeable` or
     `merge_train_removed` - machine notifications about state `mergeabilityChecks` and the pipeline already report for a
@@ -168,10 +172,15 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
     preview is the reason to click at all. The tabs and the `synced` marker are clickable, a band header answers with
     the first row under it, and everything fires on release - terminals eat the press of a click that also focuses their
     window. `listItems` is the one pass the renderer, the scroll window and the hit test share.
-  - **The chip opens it; only the popup can close it.** A tmux popup swallows a status click, so `▤ workdesk` cannot
-    toggle - a second click never reaches `MouseUp1Status`, verified by probe rather than assumed. `Alt+n` is the toggle
-    instead: tmux opens the popup, and while it is up that key reaches this program, where it quits. `✕` in the tab
-    bar's corner is the pointer's way out, and the only one there is.
+  - **A float, not a popup, and the chip is the reason.** A popup is an overlay: it swallows every click outside its own
+    box, so a second click on `▤ workdesk` never reached `MouseUp1Status` and the chip could only ever open. A float
+    (tmux 3.7 `new-pane`) is a pane, so the click lands and `tmux-workdesk.sh` closes what it opened. Probed both ways,
+    not assumed. `Alt+n` and `✕` still close it from the keyboard and the pointer, and one float per window - the toggle
+    reads the current window's panes.
+  - **A float is a column to `select-layout`.** Evening a window that holds one shrinks it to a share of the width, so
+    `tmux-reset.sh` skips those windows whole rather than repairing geometry by breaking it; `prefix + R` picks them up
+    once the float is closed. `workdesk`'s own `P` (promote to a pane) targets `{last}` for the same family of reason -
+    tmux refuses to split a floating pane at all.
   - **The UI never acts.** It records which key was pressed on which row and quits; the caller runs the action. That is
     what keeps every action a plain function `workdesk act <key> <ref>` can run with no terminal, and it is why the
     write confirms do not live inside the render loop.
@@ -267,8 +276,13 @@ What to read, by symptom:
   restarted or its environment updated.
 - **The layout drifted.** A squeezed sidebar or skewed split is a screen change: tmux takes a shrink evenly from every
   pane and has no fixed-size pane. `src=sidebar evt=pin` is the `window-resized` hook fixing the width itself.
-  `prefix + R` logs `src=tmux evt=reset … changed=N` plus one `evt=layout win=… before=… after=…` per window changed,
-  and nothing when nothing had drifted.
+  `prefix + R` logs `src=tmux evt=reset … changed=N floated=N` plus one `evt=layout win=… before=… after=…` per window
+  changed, and nothing when nothing had drifted. A `floated=` above zero is windows the reset skipped whole: a float
+  counts as a column to `select-layout`, so those wait until it is closed.
+- **The ▤ workdesk chip did nothing.** `src=tmux evt=workdesk action=open|close rc=…` is every press of the chip and of
+  `Alt+n`, which run the same script. `action=close` with no float on screen means the match found someone else's
+  floating `workdesk`; `rc` non-zero on `open` means `@workdesk_open` failed, and `err=no_command` that the option is
+  unset - a config that was never sourced.
 - **A session jump landed wrong.** `Alt-h`/`Alt-l` log `src=agentbar evt=switch session=… from=… key=prev|next ms=…`. No
   line means the binary never ran, so the binding fell through to tmux's alphabetical `switch-client` - rebuild it. A
   `session=` that is not the neighbouring row means the bands moved under you; `agentbar order` prints the list the keys

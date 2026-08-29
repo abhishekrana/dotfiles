@@ -55,12 +55,17 @@ sidebar() {
 # DOTFILES_TRACE=0: a test run must not land in the live trace log.
 reset_ui() { RESET_SOCKET="$SOCK" DOTFILES_TRACE=0 bash "$RESET" >/dev/null 2>&1; }
 
-# pane <window> <n> - nth pane id from the left
-pane() { t list-panes -t "$1" -F '#{pane_left} #{pane_id}' | sort -n | sed -n "$2p" | cut -d' ' -f2; }
+# pane <window> <n> - nth pane id from the left. Floats are not in the layout, so
+# neither helper counts one.
+NOFLOAT='#{==:#{pane_floating_flag},0}'
+pane() {
+    t list-panes -t "$1" -f "$NOFLOAT" -F '#{pane_left} #{pane_id}' | sort -n | sed -n "$2p" | cut -d' ' -f2
+}
 
 # widths <window> - pane widths left to right
 widths() {
-    t list-panes -t "$1" -F '#{pane_left} #{pane_width}' | sort -n | cut -d' ' -f2 | tr '\n' ' ' | sed 's/ $//'
+    t list-panes -t "$1" -f "$NOFLOAT" -F '#{pane_left} #{pane_width}' |
+        sort -n | cut -d' ' -f2 | tr '\n' ' ' | sed 's/ $//'
 }
 
 echo
@@ -73,6 +78,26 @@ skewed=$(widths a)
 reset_ui
 # 200 cols - 2 borders - 30 sidebar = 168, even over the two content panes
 eq "sidebar 30, content 84|84 (was $skewed)" "30 84 84" "$(widths a)"
+
+echo
+echo "reset: a window holding a float is left alone"
+start e
+t split-window -h -t e
+sidebar e
+t resize-pane -t "$(pane e 2)" -x 140
+other=$(t new-window -d -P -F '#{window_id}' -t e:)
+t split-window -h -t "$other"
+t resize-pane -t "$(pane "$other" 1)" -x 150
+t new-pane -d -x 90% -y 85% -t e 'sleep 60' # the ▤ workdesk float
+sleep 0.3
+float=$(t list-panes -t e -f '#{pane_floating_flag}' -F '#{pane_id}')
+fw=$(t display-message -p -t "$float" '#{pane_width}')
+reset_ui
+# select-layout counts a float as a column, so evening this window would shrink the
+# float to a share of the width. It waits until the float is closed.
+eq "the skew is left as it is" "30 140 28" "$(widths e)"
+eq "the float keeps its size" "$fw" "$(t display-message -p -t "$float" '#{pane_width}')"
+eq "a sibling window is still evened" "100 99" "$(widths "$other")"
 
 echo
 echo "reset: even split with no sidebar"

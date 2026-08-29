@@ -44,6 +44,7 @@ tasks:
       - task: diff-target
       - task: theme
       - task: settings
+      - task: workdesk-toggle
       - task: test
 
   lint:
@@ -199,6 +200,11 @@ tasks:
     desc: The ⛭ dialogue applies the row you picked and leaves the cursor on it
     cmds:
       - bash test/settings.sh
+
+  workdesk-toggle:
+    desc: One command opens the ▤ workdesk float and closes it - the chip is a toggle
+    cmds:
+      - bash test/workdesk.sh
 
   fresh:
     desc: End-to-end fresh-machine test in a clean Ubuntu container (needs docker, ~10 min)

@@ -45,7 +45,7 @@ Binaries built from source under `apps/` (not stow packages). Each has a `Makefi
 | App        | Description                                                            | Language |
 | ---------- | ---------------------------------------------------------------------- | -------- |
 | `agentbar` | tmux sidebar showing every Claude Code agent's state across sessions   | Go       |
-| `workdesk` | GitLab work inbox: merge requests, issues, todos and agents in a popup | Go       |
+| `workdesk` | GitLab work inbox: merge requests, issues, todos and agents in a float | Go       |
 
 Both binaries build from the one module under `apps/agentbar/`. `workdesk` is linked into `~/.local/bin`; `agentbar` is
 invoked by absolute path from tmux and the Claude hooks.

@@ -22,8 +22,8 @@
 # Inside the mock (prefix is C-a, so the outer tmux keeps C-b):
 #   M-d      the agent moves to the next worktree (fires a real hook event)
 #   M-w      the "Pick worktree…" popup
-#   M-n      the workdesk popup on a fixture mirror (1-4 and tab switch views)
-#   click ▤ workdesk  the same popup, from the toolbar
+#   M-n      the workdesk float on a fixture mirror (1-4 and tab switch views)
+#   click ▤ workdesk  the same float, from the toolbar
 #   click ◧ changes  violet = menu, amber = follow the agent
 #   C-a d    detach
 set -uo pipefail
@@ -155,7 +155,7 @@ cat >"$TMP/agent.txt" <<TXT
               (fixture data; 1-4 and tab switch views, P promotes to a pane;
                rows, tabs and the wheel take the mouse)
         click ◧ changes   violet = menu · amber = follow the agent
-        click ▤ workdesk  the same popup as M-n
+        click ▤ workdesk  opens it, and closes it again
         C-a d detach, then: task mockup -- --stop
     ────────────────────────────────────
 
@@ -255,30 +255,31 @@ M select-pane -t "$agent"
 
 M bind -n M-w run-shell -b "PATH=$TMP/shim:\$PATH $REPO/tmux/.local/bin/tmux-diff-pane.sh pick"
 
-# The workdesk popup, on a fixture mirror of invented merge requests, agents and todos,
+# The workdesk float, on a fixture mirror of invented merge requests, agents and todos,
 # so the mock never renders a real queue into a screenshot. The shipped binary writes and
 # renders it - `workdesk fixture` is the same code path a real sync uses, only the data
 # is fake.
 #
-# One binding, not four: 1-4 and tab switch views inside the popup, and M-m is a real
+# One binding, not four: 1-4 and tab switch views inside the float, and M-m is a real
 # production binding (select-pane) that a mock key would shadow.
 #
 # Override the option, never the key: M-n and the ▤ workdesk chip both run
-# @workdesk_popup, so one override points both at the fixture. Rebinding M-n alone would
-# leave a click on the chip opening the real queue - the one thing this mock must not do.
+# tmux-workdesk.sh, which opens whatever @workdesk_open says, so one override points both
+# at the fixture. Rebinding M-n alone would leave a click on the chip opening the real
+# queue - the one thing this mock must not do.
 #
 # WORKDESK_DRY makes the three write keys (a, e, M) print the command they would run and
 # stop there, so every key in the popup is safe to press here.
 WORKDESK="$REPO/apps/agentbar/bin/workdesk"
 if [ -x "$WORKDESK" ] && "$WORKDESK" fixture "$TMP/workdesk" >/dev/null 2>&1; then
-    M set -g @workdesk_popup \
-        "display-popup -E -w 90% -h 80% \
+    M set -g @workdesk_open \
+        "new-pane -x 90% -y 80% \
          'WORKDESK_MIRROR=$TMP/workdesk WORKDESK_AGENTS=$TMP/workdesk/agents.tsv \
           WORKDESK_DRY=1 $WORKDESK open inbox'"
 else
     # Must be overridden even on failure: the sourced conf points it at the real
     # mirror, and a mock that opens the live queue is the one outcome to rule out.
-    M set -g @workdesk_popup "display-message 'mockup: no workdesk fixture'"
+    M set -g @workdesk_open "display-message 'mockup: no workdesk fixture'"
     printf 'mockup: workdesk fixture failed; M-n and the workdesk chip will say so\n' >&2
 fi
 
@@ -315,8 +316,8 @@ Attach with:
     tmux -L $SOCK attach -t mock
 
   M-d  agent writes in the other worktree   M-w  pick worktree
-  M-n  workdesk popup: inbox, issues, merge requests, agents
+  M-n  workdesk float: inbox, issues, merge requests, agents
        (1-4 and tab switch views; a/e/M are dry-run here; rows, tabs and the wheel take the mouse)
-  click ◧ changes (violet = menu, amber = follow)   click ▤ workdesk (the M-n popup)
+  click ◧ changes (violet = menu, amber = follow)   click ▤ workdesk (opens and closes)
   C-a d  detach   stop: task mockup -- --stop
 TXT

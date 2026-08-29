@@ -106,17 +106,31 @@ func selfPath() string {
 	return "workdesk"
 }
 
-// promote puts the current view in an ordinary pane. A popup is always fresh but always
-// transient; this is for a long triage sitting beside your code.
+// promote puts the current view in an ordinary pane. The float is always fresh but
+// always transient; this is for a long triage sitting beside your code.
+//
+// tmux refuses to split a floating pane ("size or position can't split a floating
+// pane"), so from inside one the split targets {last} - the pane you were in when you
+// opened it, and the one whose directory you want.
 func promote(v workdesk.View) error {
-	_, err := tmux.Exec{}.Run("split-window", "-h", "-c", "#{pane_current_path}",
-		selfPath()+" open "+v.String())
+	args := []string{"split-window", "-h", "-c", "#{pane_current_path}"}
+	if floating() {
+		args = append(args, "-t", "{last}")
+	}
+	args = append(args, selfPath()+" open "+v.String())
+	_, err := tmux.Exec{}.Run(args...)
 	trace.Log("workdesk", "promote", "view", v.String(), "rc", rc(err))
 	return err
 }
 
-// say reports something with nowhere better to go. In a popup there is no status line, so
-// it prints and waits - the popup is the terminal here.
+// floating reports whether this program is running in a floating pane.
+func floating() bool {
+	out, err := tmux.Exec{}.Run("display-message", "-p", "#{pane_floating_flag}")
+	return err == nil && strings.TrimSpace(out) == "1"
+}
+
+// say reports something with nowhere better to go. In the float there is no status line,
+// so it prints and waits - the pane is the terminal here.
 func say(msg string) {
 	fmt.Println(msg)
 	if isTTY() {

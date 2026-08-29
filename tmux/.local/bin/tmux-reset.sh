@@ -43,8 +43,14 @@ layouts() {
 snapshot() {
     local fmt='#{window_id} #{window_width} #{window_height} #{pane_id} #{pane_width}'
     fmt="$fmt #{pane_left} #{pane_height} #{pane_current_command} #{session_name}"
-    tmux list-panes -a -F "$fmt" 2>/dev/null
+    tmux list-panes -a -F "$fmt" 2>/dev/null | awk -v skip="$floatwins" 'index(skip, " " $1 " ") == 0'
 }
+
+# A window holding a float is left alone by every pass below. select-layout counts a
+# float as a column, so evening a window with the workdesk float up shrinks the float to
+# a share of the width - the geometry this is meant to repair is the one it would break.
+floatwins=" $(tmux list-panes -a -f '#{pane_floating_flag}' -F '#{window_id}' 2>/dev/null |
+    sort -u | tr '\n' ' ')"
 
 session=${1:-$(tmux display-message -p '#{session_name}' 2>/dev/null)}
 
@@ -145,7 +151,9 @@ while read -r win layout name; do
 done < <(layouts)
 
 tmux display-message "UI reset: $changed windows changed" 2>/dev/null || true
-trace reset session="$session" evened="$evened" resized="$resized" moved="$moved" changed="$changed"
+floated=$(printf '%s' "$floatwins" | wc -w)
+trace reset session="$session" evened="$evened" resized="$resized" moved="$moved" \
+    changed="$changed" floated="$floated"
 
 # No resurrect save here: what gets saved stays a deliberate act (prefix + C-s,
 # or the autosave), so a reset never overwrites a layout you arranged by hand.

@@ -66,13 +66,13 @@ launch hunk's native interactive reviewer directly. delta also colors `git add -
 ### workdesk (GitLab work inbox)
 
 Reads a local mirror, so every command below is instant and offline. `workdesk sync` is the only one that touches the
-network. `Alt+n` opens the popup from anywhere in tmux, and so does the `▤ workdesk` chip on the status bar. Pressing
-`Alt+n` again closes it; the chip cannot, because a tmux popup swallows a click on the status line.
+network. `Alt+n` opens it in a float from anywhere in tmux, and so does the `▤ workdesk` chip on the status bar. Either
+one closes it again, as do `q` and the `✕` in its corner.
 
 | Command             | Action                                                             |
 | ------------------- | ------------------------------------------------------------------ |
 | `workdesk sync`     | refresh the mirror from GitLab                                     |
-| `workdesk open`     | the popup: inbox, issues, merge requests, agents                   |
+| `workdesk open`     | the float: inbox, issues, merge requests, agents                   |
 | `workdesk board`    | the whole queue, grouped by what is blocking it                    |
 | `workdesk mr <iid>` | one merge request end to end: gates, approvals, reviewers, threads |
 | `workdesk matrix`   | one row per MR, one column per gate, plus a totals row             |
