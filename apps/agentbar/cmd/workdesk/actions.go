@@ -434,10 +434,12 @@ func open(url string) error {
 	if url == "" {
 		return errors.New("no url for that row")
 	}
+	// via= is the point of this line: the helper used to answer 0 for a subcommand it
+	// did not have, so `o` reported success and opened nothing.
 	helper := os.ExpandEnv("$HOME/.local/bin/tmux-gitlab.sh")
 	if _, err := os.Stat(helper); err == nil {
 		if err := exec.Command(helper, "open-url", url).Run(); err == nil {
-			trace.Log("workdesk", "open", "rc", 0)
+			trace.Log("workdesk", "open", "via", "gitlab-helper", "rc", 0)
 			return nil
 		}
 	}
@@ -446,7 +448,7 @@ func open(url string) error {
 	}
 	if _, err := exec.LookPath("xdg-open"); err == nil {
 		if err := exec.Command("xdg-open", url).Start(); err == nil {
-			trace.Log("workdesk", "open", "rc", 0)
+			trace.Log("workdesk", "open", "via", "xdg-open", "rc", 0)
 			return nil
 		}
 	}

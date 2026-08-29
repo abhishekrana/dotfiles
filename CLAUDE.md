@@ -46,7 +46,10 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
 Scripts in `tmux/.local/bin/`:
 
 - `tmux-gitlab.sh` - GitLab status, `#issue !mr CI ✓`. No words: the sigils are GitLab's own notation, and the CI glyph
-  is fixed-width so a flipping pipeline never shifts the clock.
+  is fixed-width so a flipping pipeline never shifts the clock. `open-url <url>` is the one place a link leaves this
+  machine - the chips, and workdesk's `o` - so the ssh case (OSC 52 to the local clipboard, since the browser is at the
+  other end) is decided once. **A subcommand it does not have exits 2**: the catch-all used to render a status segment
+  and answer 0, which is how `o` came to report success and open nothing.
 - `tmux-session-preview.sh` - the picker's fzf preview: the session's dir, repo, branch, aggregate state, its agents
   (one line each: glyph, title, state, age, and the `window.pane` it sits in) and its windows (one line each: index,
   name, pane count, and the flags the status line shows - current, zoomed, bell; never activity, which

@@ -115,5 +115,30 @@ eq "the sixth open is where the first was" "$left $top" \
 "$TOGGLE"
 
 echo
+echo "workdesk: o hands the row's url to a browser"
+# The bug this guards: tmux-gitlab.sh had no open-url subcommand, its catch-all rendered
+# a status segment instead and exited 0 - so `o` reported success and opened nothing.
+cat >"$TMP/shim/xdg-open" <<EOF
+#!/bin/sh
+echo "\$1" >>"$TMP/opened"
+EOF
+chmod +x "$TMP/shim/xdg-open"
+: >"$TMP/opened"
+WORKDESK="$REPO/apps/agentbar/bin/workdesk"
+if [ -x "$WORKDESK" ] && "$WORKDESK" fixture "$TMP/fx" >/dev/null 2>&1; then
+    iid=$(grep -o '"ref":"![0-9]*"' "$TMP/fx/index.json" | sed -n '1s/[^0-9]//gp')
+    HOME="$HOME" WORKDESK_MIRROR="$TMP/fx" "$WORKDESK" act o "mrs:$iid" >/dev/null 2>&1
+    sleep 0.4
+    eq "the fixture MR's url reached xdg-open" "1" \
+        "$(grep -c "merge_requests/$iid" "$TMP/opened")"
+else
+    no "workdesk fixture" "the binary is missing or the fixture failed - run task build"
+fi
+
+echo "workdesk: the gitlab helper refuses a command it does not have"
+"$REPO/tmux/.local/bin/tmux-gitlab.sh" open-urlx https://example.test/x >/dev/null 2>&1
+eq "an unknown subcommand fails" "2" "$?"
+
+echo
 printf 'workdesk: %d passed, %d failed\n\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

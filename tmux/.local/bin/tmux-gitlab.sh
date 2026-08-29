@@ -275,13 +275,28 @@ cmd_open() {
         return 0
     }
 
+    open_url "$url"
+}
+
+# open_url <url> - the one place a GitLab link leaves this machine, for the chips and for
+# workdesk's o. Over ssh the browser is at the other end, so the link goes to the local
+# clipboard through OSC 52 instead.
+open_url() {
+    local url="$1"
+    [ -n "$url" ] || return 1
     if [ "$(tmux show -gv @is_ssh 2>/dev/null)" = "1" ]; then
         tmux set-buffer -w -- "$url" # OSC 52 -> local clipboard
         tmux display-message "Copied: $url"
-    else
-        xdg-open "$url" >/dev/null 2>&1 &
-        tmux display-message "Opening: $url"
+        return 0
     fi
+    # Checked, not assumed: xdg-open is backgrounded, so its own failure is invisible
+    # here and the caller would read the whole thing as opened.
+    if ! command -v xdg-open >/dev/null 2>&1; then
+        tmux display-message "No xdg-open for: $url"
+        return 1
+    fi
+    xdg-open "$url" >/dev/null 2>&1 &
+    tmux display-message "Opening: $url"
 }
 
 case "${1:-render}" in
@@ -293,9 +308,17 @@ case "${1:-render}" in
         shift
         cmd_open "$@"
         ;;
+    open-url)
+        shift
+        open_url "$1"
+        ;;
     render)
         shift
         cmd_render "$@"
         ;;
-    *) cmd_render "$@" ;; # tolerate a bare path
+    /*) cmd_render "$@" ;; # tolerate a bare path
+    *)
+        printf 'tmux-gitlab.sh: no such command: %s\n' "$1" >&2
+        exit 2
+        ;;
 esac
