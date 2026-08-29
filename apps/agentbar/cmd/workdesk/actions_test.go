@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/abhishekrana/agentbar/internal/gitlab"
 )
 
 // The flavor has one home: the file the theme switcher writes, which bash, hunk and leaf
@@ -80,4 +83,35 @@ func TestRefKind(t *testing.T) {
 			t.Errorf("refKind(%q) = %q, %q; want %q, %q", c.ref, kind, id, c.kind, c.id)
 		}
 	}
+}
+
+// r used to refuse whenever the working directory was not a GitLab repo - which is most
+// of them, since the float inherits the cwd of the pane it was opened from. "dotfiles is
+// on github.com, not gitlab.com" is what a resync said, with a good mirror on disk that
+// names the project it holds.
+func TestSyncProjectFallsBackToTheMirror(t *testing.T) {
+	ctx := context.Background()
+	notARepo := t.TempDir() // git has no origin here, so ProjectFor fails without a network
+
+	t.Run("no mirror: the working directory's error stands", func(t *testing.T) {
+		_, _, err := syncProject(ctx, gitlab.New(), t.TempDir(), notARepo)
+		if err == nil {
+			t.Fatal("want the resolve error, got nil")
+		}
+	})
+
+	t.Run("a mirror names the project to refresh", func(t *testing.T) {
+		dir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(dir, "index.json"),
+			[]byte(`{"project":"acme/platform","mrs":[],"issues":[],"todos":[]}`), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		project, via, err := syncProject(ctx, gitlab.New(), dir, notARepo)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if project != "acme/platform" || via != "mirror" {
+			t.Fatalf("want acme/platform via mirror, got %q via %q", project, via)
+		}
+	})
 }

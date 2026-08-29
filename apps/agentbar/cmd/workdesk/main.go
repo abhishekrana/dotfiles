@@ -133,7 +133,7 @@ func runSync() error {
 	defer cancel()
 
 	client := gitlab.New()
-	project, err := gitlab.ProjectFor(ctx, client, repo)
+	project, via, err := syncProject(ctx, client, dir, repo)
 	if err != nil {
 		return err
 	}
@@ -142,12 +142,40 @@ func runSync() error {
 		trace.Log("workdesk", "sync", "project", project, "rc", 1, "err", trace.Err(err))
 		return err
 	}
-	trace.Log("workdesk", "sync", "project", res.Project, "user", res.User,
+	trace.Log("workdesk", "sync", "project", res.Project, "via", via, "user", res.User,
 		"mrs", res.MRs, "issues", res.Issues, "todos", res.Todos,
 		"ms", res.Took.Milliseconds(), "rc", 0)
 	fmt.Printf("synced %d mrs, %d issues, %d todos in %s -> %s\n",
 		res.MRs, res.Issues, res.Todos, res.Took.Round(time.Millisecond), dir)
 	return nil
+}
+
+// syncProject is the project a resync refreshes.
+//
+// The working directory wins when it names a GitLab project, which is what lets a cd
+// point the board at another one. It usually does not: the float inherits the cwd of the
+// pane it was opened from and a shell is wherever you were, so r used to refuse from any
+// repo that is not on GitLab. The mirror knows which project it holds, and refreshing
+// what is on screen is what r means.
+func syncProject(ctx context.Context, c *gitlab.Client, dir, repo string) (project, via string, err error) {
+	project, err = gitlab.ProjectFor(ctx, c, repo)
+	if err == nil {
+		return project, "cwd", nil
+	}
+	if held := mirrorProject(dir); held != "" {
+		return held, "mirror", nil
+	}
+	return "", "", err
+}
+
+// mirrorProject is the project the mirror on disk already holds, or "" if there is no
+// mirror to read.
+func mirrorProject(dir string) string {
+	idx, err := workdesk.LoadIndex(dir)
+	if err != nil {
+		return ""
+	}
+	return idx.Project
 }
 
 func runRender() error {

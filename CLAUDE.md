@@ -225,6 +225,11 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
     null rather than an error - once read as zero rows that silently replaced a good board with an empty one. A remote
     whose host is not glab's is refused for the same reason. `workdesk schema-check` validates the query against the
     live schema by probing a path that cannot exist, so a GitLab upgrade that moves a field is one command.
+  - **`r` refreshes what is on screen, so the mirror is the fallback.** The working directory wins when it names a
+    GitLab project - that is what lets a `cd` point the board at another one - but it usually names none: the float
+    inherits the cwd of the pane it was opened from. Resolving only from there made `r` refuse in every repo that is not
+    on GitLab, this one included, with a perfectly good mirror on disk naming the project it holds. The trace's
+    `via=cwd|mirror` says which answered.
   - Three keys write to GitLab - `a` assign, `e` auto-merge, `M` merge - each behind a typed confirm. `WORKDESK_DRY=1`
     prints the command and stops, which is what the mockup sets. Everything else is read-only.
 - `apps/agentbar/` (the sidebar itself) is loaded by a `run-shell` line at the end of `tmux/.tmux.conf`, so it builds
