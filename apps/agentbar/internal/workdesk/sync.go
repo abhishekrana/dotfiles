@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -16,26 +17,42 @@ import (
 type Fetcher interface {
 	Host(ctx context.Context) (string, error)
 	User(ctx context.Context) (string, error)
-	MergeRequests(ctx context.Context, project, who string) ([]json.RawMessage, error)
-	Issues(ctx context.Context, project, who string) ([]json.RawMessage, error)
-	Todos(ctx context.Context, project string) ([]json.RawMessage, error)
+	MergeRequestStamps(ctx context.Context, project, who string) ([]json.RawMessage, error)
+	IssueStamps(ctx context.Context, project, who string) ([]json.RawMessage, error)
+	MergeRequestsByIID(ctx context.Context, project string, iids []string) ([]json.RawMessage, error)
+	IssuesByIID(ctx context.Context, project string, iids []string) ([]json.RawMessage, error)
+	Todos(ctx context.Context, project string, actions []string) ([]json.RawMessage, error)
 }
 
-// SyncResult is what a sync did, for the caller to report.
+// stamp is one row's identity and its change token, which is all a manifest carries.
+type stamp struct {
+	IID       string `json:"iid"`
+	UpdatedAt string `json:"updatedAt"`
+}
+
+// SyncResult is what a sync did, for the caller to report. Refreshed counts the rows
+// that were actually fetched in full - the rest were already in the mirror and correct.
 type SyncResult struct {
-	Project string
-	User    string
-	MRs     int
-	Issues  int
-	Todos   int
-	Took    time.Duration
+	Project       string
+	User          string
+	MRs           int
+	Issues        int
+	Todos         int
+	MRsFetched    int
+	IssuesFetched int
+	Took          time.Duration
 }
 
 // Sync replaces the mirror with a fresh full snapshot.
 //
-// A full snapshot every time, never an incremental update: that is what makes a merge
-// request that merged, or an issue that closed, disappear for free, with no cursor state
-// to drift out of step with the forge.
+// The snapshot is still full, and that is what makes a merge request that merged, or an
+// issue that closed, disappear for free. What changed is how it is assembled: a manifest
+// call names every open row and carries GitLab's updatedAt for each, and only the rows
+// whose token moved are fetched in full. The manifest is the authority on what exists,
+// so nothing lingers, and there is no cursor state to drift out of step with the forge.
+//
+// Why it is worth the machinery: a detail node costs about 0.4s of GitLab's time, and a
+// manifest of a whole queue costs 0.4s once. A sync with nothing new is a single call.
 //
 // Written to a staging directory and moved into place at the end, so a sync that fails
 // halfway leaves the previous mirror intact rather than a truncated one that still looks
@@ -67,58 +84,57 @@ func SyncWithProgress(ctx context.Context, f Fetcher, dir, project string, now t
 	}
 	p.report("identity", true, 0)
 
-	// The three fetches are independent, so they run together. Merge request pages
-	// stay sequential inside their own fetch - they are cursor-chained.
-	type result struct {
-		mrs, issues, todos []json.RawMessage
-		err                error
+	// Best effort: no mirror yet, or an unreadable one, simply means every row is new.
+	prev, _ := Load(dir)
+	if prev == nil {
+		prev = &Mirror{}
 	}
-	mrsCh := make(chan result, 1)
-	issuesCh := make(chan result, 1)
-	todosCh := make(chan result, 1)
 
+	// The three legs are independent, so they run together.
+	var (
+		mrs               []MergeRequest
+		issues            []Issue
+		todos             []Todo
+		mrsGot, issuesGot int
+		mrsErr, issuesErr error
+		wg                sync.WaitGroup
+	)
 	p.report("merge requests", false, 0)
 	p.report("issues", false, 0)
 	p.report("todos", false, 0)
-	go func() {
-		n, err := f.MergeRequests(ctx, project, who)
-		p.report("merge requests", true, len(n))
-		mrsCh <- result{mrs: n, err: err}
-	}()
-	go func() {
-		n, err := f.Issues(ctx, project, who)
-		p.report("issues", true, len(n))
-		issuesCh <- result{issues: n, err: err}
-	}()
-	go func() {
+	wg.Go(func() {
+		mrs, mrsGot, mrsErr = refresh(ctx, project, who, prev.MRs, mrKey,
+			f.MergeRequestStamps, f.MergeRequestsByIID)
+		p.report("merge requests", true, len(mrs))
+	})
+	wg.Go(func() {
+		issues, issuesGot, issuesErr = refresh(ctx, project, who, prev.Issues, issueKey,
+			f.IssueStamps, f.IssuesByIID)
+		p.report("issues", true, len(issues))
+	})
+	wg.Go(func() {
 		// A todo failure is not fatal: a token without the scope simply has none, and
 		// the inferred bands still work without it.
-		n, err := f.Todos(ctx, project)
-		if err != nil {
-			n = nil
+		if raw, err := f.Todos(ctx, project, TodoActions()); err == nil {
+			_ = decodeInto(raw, &todos)
 		}
-		p.report("todos", true, len(n))
-		todosCh <- result{todos: n}
-	}()
+		p.report("todos", true, len(todos))
+	})
+	wg.Wait()
 
-	mrsRes, issuesRes, todosRes := <-mrsCh, <-issuesCh, <-todosCh
-	if err := errors.Join(mrsRes.err, issuesRes.err); err != nil {
+	if err := errors.Join(mrsErr, issuesErr); err != nil {
 		return nil, err
 	}
 
-	m := &Mirror{Meta: Meta{
-		Project: project,
-		User:    who,
-		Synced:  started.Format(SyncedLayout),
-	}}
-	if err := decodeInto(mrsRes.mrs, &m.MRs); err != nil {
-		return nil, fmt.Errorf("merge requests: %w", err)
-	}
-	if err := decodeInto(issuesRes.issues, &m.Issues); err != nil {
-		return nil, fmt.Errorf("issues: %w", err)
-	}
-	if err := decodeInto(todosRes.todos, &m.Todos); err != nil {
-		return nil, fmt.Errorf("todos: %w", err)
+	m := &Mirror{
+		MRs:    mrs,
+		Issues: issues,
+		Todos:  todos,
+		Meta: Meta{
+			Project: project,
+			User:    who,
+			Synced:  started.Format(SyncedLayout),
+		},
 	}
 
 	p.report("writing", false, 0)
@@ -129,8 +145,78 @@ func SyncWithProgress(ctx context.Context, f Fetcher, dir, project string, now t
 	return &SyncResult{
 		Project: project, User: who,
 		MRs: len(m.MRs), Issues: len(m.Issues), Todos: len(m.Todos),
+		MRsFetched: mrsGot, IssuesFetched: issuesGot,
 		Took: time.Since(started),
 	}, nil
+}
+
+func mrKey(m MergeRequest) (iid, updated string) { return m.IID, m.UpdatedAt }
+
+func issueKey(i Issue) (iid, updated string) { return i.IID, i.UpdatedAt }
+
+// refresh assembles one collection of the mirror.
+//
+// The manifest is the authority twice over: it says which rows are open - so a merged
+// merge request falls out with nothing to clean up - and it carries the token that says
+// which of them moved. Only those are fetched in full; the rest are the rows already on
+// disk, still correct because GitLab says they have not changed.
+//
+// A row the manifest names but the detail fetch does not return is dropped rather than
+// kept: it merged or closed between the two calls, and the count reported is what was
+// actually assembled, so nothing claims to be complete when it is not.
+func refresh[T any](ctx context.Context, project, who string, prev []T,
+	key func(T) (iid, updated string),
+	manifest func(ctx context.Context, project, who string) ([]json.RawMessage, error),
+	detail func(ctx context.Context, project string, iids []string) ([]json.RawMessage, error),
+) ([]T, int, error) {
+	raw, err := manifest(ctx, project, who)
+	if err != nil {
+		return nil, 0, err
+	}
+	var stamps []stamp
+	if err := decodeInto(raw, &stamps); err != nil {
+		return nil, 0, fmt.Errorf("manifest: %w", err)
+	}
+
+	have := make(map[string]T, len(prev))
+	token := make(map[string]string, len(prev))
+	for _, row := range prev {
+		iid, updated := key(row)
+		have[iid] = row
+		token[iid] = updated
+	}
+
+	var want []string
+	for _, st := range stamps {
+		if was, known := token[st.IID]; !known || was != st.UpdatedAt {
+			want = append(want, st.IID)
+		}
+	}
+
+	fetched := 0
+	if len(want) > 0 {
+		nodes, err := detail(ctx, project, want)
+		if err != nil {
+			return nil, 0, err
+		}
+		var fresh []T
+		if err := decodeInto(nodes, &fresh); err != nil {
+			return nil, 0, err
+		}
+		for _, row := range fresh {
+			iid, _ := key(row)
+			have[iid] = row
+		}
+		fetched = len(fresh)
+	}
+
+	rows := make([]T, 0, len(stamps))
+	for _, st := range stamps {
+		if row, ok := have[st.IID]; ok {
+			rows = append(rows, row)
+		}
+	}
+	return rows, fetched, nil
 }
 
 func decodeInto[T any](raw []json.RawMessage, out *[]T) error {

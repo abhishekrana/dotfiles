@@ -146,9 +146,13 @@ func runSync() error {
 	}
 	trace.Log("workdesk", "sync", "project", res.Project, "via", via, "user", res.User,
 		"mrs", res.MRs, "issues", res.Issues, "todos", res.Todos,
+		"fetched", res.MRsFetched+res.IssuesFetched,
 		"ms", res.Took.Milliseconds(), "rc", 0)
-	fmt.Printf("synced %d mrs, %d issues, %d todos in %s -> %s\n",
-		res.MRs, res.Issues, res.Todos, res.Took.Round(time.Millisecond), dir)
+	// The fetched count is the interesting number now: the rest of the queue was already
+	// on disk and GitLab said it had not changed.
+	fmt.Printf("synced %d mrs, %d issues, %d todos in %s (%d refreshed) -> %s\n",
+		res.MRs, res.Issues, res.Todos, res.Took.Round(time.Millisecond),
+		res.MRsFetched+res.IssuesFetched, dir)
 	return nil
 }
 

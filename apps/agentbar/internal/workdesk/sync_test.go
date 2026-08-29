@@ -15,9 +15,20 @@ import (
 // path runs with no forge: paging, decode, index build, document render and the atomic
 // move into place.
 type fakeFetcher struct {
+	mu                 sync.Mutex
 	mrs, issues, todos []json.RawMessage
 	todoErr            error
 	calls              []string
+	// fetched records the iids asked for in full, which is the whole point of the
+	// manifest: a row GitLab says has not changed must not be downloaded again.
+	fetched []string
+}
+
+func (f *fakeFetcher) note(call string, iids ...string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.calls = append(f.calls, call)
+	f.fetched = append(f.fetched, iids...)
 }
 
 func newFakeFetcher(t *testing.T) *fakeFetcher {
@@ -36,19 +47,67 @@ func newFakeFetcher(t *testing.T) *fakeFetcher {
 func (f *fakeFetcher) Host(context.Context) (string, error) { return "gitlab.example.com", nil }
 func (f *fakeFetcher) User(context.Context) (string, error) { return "you", nil }
 
-func (f *fakeFetcher) MergeRequests(_ context.Context, p, who string) ([]json.RawMessage, error) {
-	f.calls = append(f.calls, "mrs:"+p+":"+who)
-	return f.mrs, nil
+func (f *fakeFetcher) MergeRequestStamps(_ context.Context, p, who string) ([]json.RawMessage, error) {
+	f.note("mr-stamps:" + p + ":" + who)
+	return stampsOf(f.mrs), nil
 }
 
-func (f *fakeFetcher) Issues(_ context.Context, p, who string) ([]json.RawMessage, error) {
-	f.calls = append(f.calls, "issues:"+p+":"+who)
-	return f.issues, nil
+func (f *fakeFetcher) IssueStamps(_ context.Context, p, who string) ([]json.RawMessage, error) {
+	f.note("issue-stamps:" + p + ":" + who)
+	return stampsOf(f.issues), nil
 }
 
-func (f *fakeFetcher) Todos(_ context.Context, p string) ([]json.RawMessage, error) {
-	f.calls = append(f.calls, "todos:"+p)
+func (f *fakeFetcher) MergeRequestsByIID(_ context.Context, p string, iids []string) ([]json.RawMessage, error) {
+	f.note("mrs:"+p, iids...)
+	return pickByIID(f.mrs, iids), nil
+}
+
+func (f *fakeFetcher) IssuesByIID(_ context.Context, p string, iids []string) ([]json.RawMessage, error) {
+	f.note("issues:"+p, iids...)
+	return pickByIID(f.issues, iids), nil
+}
+
+func (f *fakeFetcher) Todos(_ context.Context, p string, actions []string) ([]json.RawMessage, error) {
+	f.note("todos:" + p + ":" + strings.Join(actions, ","))
 	return f.todos, f.todoErr
+}
+
+// stampsOf is the manifest GitLab would answer with: identity and change token, nothing
+// else.
+func stampsOf(nodes []json.RawMessage) []json.RawMessage {
+	out := make([]json.RawMessage, 0, len(nodes))
+	for _, n := range nodes {
+		var st struct {
+			IID       string `json:"iid"`
+			UpdatedAt string `json:"updatedAt"`
+		}
+		if err := json.Unmarshal(n, &st); err != nil {
+			continue
+		}
+		b, err := json.Marshal(st)
+		if err != nil {
+			continue
+		}
+		out = append(out, b)
+	}
+	return out
+}
+
+func pickByIID(nodes []json.RawMessage, iids []string) []json.RawMessage {
+	want := make(map[string]bool, len(iids))
+	for _, iid := range iids {
+		want[iid] = true
+	}
+	var out []json.RawMessage
+	for _, n := range nodes {
+		var st struct {
+			IID string `json:"iid"`
+		}
+		if err := json.Unmarshal(n, &st); err == nil && want[st.IID] {
+			out = append(out, n)
+		}
+	}
+	return out
 }
 
 // restamp accounts for the one line a fresh sync legitimately changes.
@@ -256,7 +315,7 @@ func TestFailedSyncLeavesThePreviousMirrorIntact(t *testing.T) {
 
 type failingFetcher struct{ *fakeFetcher }
 
-func (f *failingFetcher) MergeRequests(context.Context, string, string) ([]json.RawMessage, error) {
+func (f *failingFetcher) MergeRequestStamps(context.Context, string, string) ([]json.RawMessage, error) {
 	return nil, errors.New("the forge went away")
 }
 
@@ -339,4 +398,121 @@ func TestSyncReportsEveryLeg(t *testing.T) {
 		t.Errorf("counts %d/%d do not match the result %d/%d",
 			counts["merge requests"], counts["issues"], res.MRs, res.Issues)
 	}
+}
+
+// The manifest is the whole optimisation: GitLab's updatedAt says which rows moved, and
+// only those are downloaded. A detail node costs about 0.4s of the forge's time, so a
+// sync that re-fetched an unchanged queue is the difference between one second and
+// half a minute.
+func TestSyncFetchesOnlyWhatChanged(t *testing.T) {
+	t.Parallel()
+	dir := filepath.Join(t.TempDir(), "mirror")
+	f := newFakeFetcher(t)
+	now := frozen(t)
+
+	first, err := Sync(context.Background(), f, dir, "acme/platform", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.MRsFetched != first.MRs || first.MRs == 0 {
+		t.Fatalf("a first sync must fetch every row: got %d of %d", first.MRsFetched, first.MRs)
+	}
+
+	f.fetched = nil
+	again, err := Sync(context.Background(), f, dir, "acme/platform", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again.MRsFetched != 0 || again.IssuesFetched != 0 {
+		t.Errorf("nothing changed, yet %d merge requests and %d issues were fetched",
+			again.MRsFetched, again.IssuesFetched)
+	}
+	if again.MRs != first.MRs || again.Issues != first.Issues {
+		t.Errorf("the mirror lost rows it did not refetch: %d/%d, want %d/%d",
+			again.MRs, again.Issues, first.MRs, first.Issues)
+	}
+
+	moved := bumpUpdatedAt(t, f.mrs[0])
+	f.mrs[0] = moved.node
+	f.fetched = nil
+	third, err := Sync(context.Background(), f, dir, "acme/platform", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if third.MRsFetched != 1 {
+		t.Errorf("one merge request moved, %d were fetched", third.MRsFetched)
+	}
+	if len(f.fetched) != 1 || f.fetched[0] != moved.iid {
+		t.Errorf("fetched %v, want just %s", f.fetched, moved.iid)
+	}
+}
+
+// The manifest is also what keeps the snapshot full. A merge request that merged is
+// simply absent from it, and must leave the mirror with it - the old sync got this for
+// free by overwriting everything, and this one has to mean it.
+func TestSyncDropsWhatLeftTheManifest(t *testing.T) {
+	t.Parallel()
+	dir := filepath.Join(t.TempDir(), "mirror")
+	f := newFakeFetcher(t)
+	now := frozen(t)
+
+	first, err := Sync(context.Background(), f, dir, "acme/platform", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gone := iidOf(t, f.mrs[0])
+	f.mrs = f.mrs[1:] // merged since the last sync
+
+	after, err := Sync(context.Background(), f, dir, "acme/platform", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.MRs != first.MRs-1 {
+		t.Fatalf("want %d merge requests after one merged, got %d", first.MRs-1, after.MRs)
+	}
+	m, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, mr := range m.MRs {
+		if mr.IID == gone {
+			t.Fatalf("!%s merged but is still in the mirror", gone)
+		}
+	}
+	if after.MRsFetched != 0 {
+		t.Errorf("a row leaving the manifest is not a reason to fetch anything: %d fetched",
+			after.MRsFetched)
+	}
+}
+
+func iidOf(t *testing.T, node json.RawMessage) string {
+	t.Helper()
+	var st struct {
+		IID string `json:"iid"`
+	}
+	if err := json.Unmarshal(node, &st); err != nil {
+		t.Fatal(err)
+	}
+	return st.IID
+}
+
+// bumpUpdatedAt is a row changing on the forge, which is all the manifest reports.
+func bumpUpdatedAt(t *testing.T, node json.RawMessage) struct {
+	iid  string
+	node json.RawMessage
+} {
+	t.Helper()
+	var row map[string]any
+	if err := json.Unmarshal(node, &row); err != nil {
+		t.Fatal(err)
+	}
+	row["updatedAt"] = "2099-01-01T00:00:00Z"
+	b, err := json.Marshal(row)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return struct {
+		iid  string
+		node json.RawMessage
+	}{iid: iidOf(t, node), node: b}
 }

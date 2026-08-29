@@ -291,7 +291,7 @@ func (m Model) bandHeader(r workdesk.Row, w int) string {
 	// silently reads as complete when it is not.
 	if r.Label == workdesk.TodoBand && m.idx.TodosDropped > 0 {
 		count += lipgloss.NewStyle().Foreground(t.Muted).
-			Render(fmt.Sprintf("   +%d the bands already cover", m.idx.TodosDropped))
+			Render(fmt.Sprintf("   +%d with no row to show them in", m.idx.TodosDropped))
 	}
 	return truncate(mark+" "+label+count, w)
 }

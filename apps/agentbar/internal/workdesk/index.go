@@ -3,6 +3,7 @@ package workdesk
 import (
 	"regexp"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 )
@@ -30,9 +31,10 @@ type Index struct {
 	MRs       []MRItem    `json:"mrs"`
 	Issues    []IssueItem `json:"issues"`
 	Todos     []Item      `json:"todos"`
-	// TodosDropped is how many pending todos were left out because the bands already
-	// derive what they report. Kept so the count can be shown rather than the omission
-	// being silent.
+	// TodosDropped is how many pending todos arrived with no row to put them in - a
+	// todo about a commit or a wiki page, which this tool has no view for. The noisy
+	// kinds the bands already derive are no longer fetched at all, so this is now a
+	// handful at most. Kept so the omission is never silent.
 	TodosDropped int `json:"todosDropped"`
 }
 
@@ -200,6 +202,21 @@ var informativeActions = map[string]bool{
 	"marked":             true,
 }
 
+// TodoActions is that same set as a fetch list, so what is asked for and what is kept
+// cannot drift apart. Sorted, so a sync is the same shape every time.
+//
+// Asking GitLab for these four by name is most of what a todo sync costs: the pending
+// feed is an accumulating log, and everything outside this set is thrown away here
+// anyway - it was five pages of download to reach the handful that matter.
+func TodoActions() []string {
+	out := make([]string, 0, len(informativeActions))
+	for action := range informativeActions {
+		out = append(out, action)
+	}
+	sort.Strings(out)
+	return out
+}
+
 // buildTodos returns the todos worth a row, and how many were dropped.
 func buildTodos(todos []Todo) ([]Item, int) {
 	out := make([]Item, 0, len(todos))
@@ -209,6 +226,8 @@ func buildTodos(todos []Todo) ([]Item, int) {
 		if td.State != "pending" {
 			continue
 		}
+		// A safety net, not the filter: TodoActions asks GitLab for these four kinds
+		// and nothing else, so this only catches a mismatch between the two.
 		if !informativeActions[td.ActionName] {
 			dropped++
 			continue

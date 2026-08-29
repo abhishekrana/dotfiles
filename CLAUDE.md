@@ -159,13 +159,15 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
   - **`Alt+n` and the `≡ workdesk` chip** toggle it (`tmux/.tmux.conf`), both through `tmux-workdesk.sh` so the two
     cannot drift. Invoked by absolute path like the agentbar bindings - `apps/` binaries are not stow packages, so there
     is no `~/.local/bin` symlink to rely on inside tmux. Bare `workdesk` opens it too.
-  - **The todo feed is filtered, and the count says so.** GitLab never marks todos done, so the pending list is an
-    accumulating log: measured on a real account, 427 of 453 were `review_submitted`, `build_failed`, `unmergeable` or
-    `merge_train_removed` - machine notifications about state `mergeabilityChecks` and the pipeline already report for a
-    merge request you own, and noise for the far larger number you do not. Not one was a mention. So only the actions
-    the bands cannot derive are kept (`assigned`, `mentioned`, `directly_addressed`, `marked`), nothing older than
-    `TodoMaxAge`, and the band header reports how many were left out. Unfiltered, the inbox opened with 469 rows; it
-    opens with 61.
+  - **The todo feed is asked for by action, not filtered after the fact.** GitLab never marks todos done, so the pending
+    list is an accumulating log, and on a real account it is overwhelmingly `review_submitted`, `build_failed`,
+    `unmergeable` and `merge_train_removed` - machine notifications about state `mergeabilityChecks` and the pipeline
+    already report for a merge request you own, and noise for the far larger number you do not. Only the actions the
+    bands cannot derive are wanted (`assigned`, `mentioned`, `directly_addressed`, `marked`), so `TodoActions` asks
+    GitLab for exactly those, one call each and concurrent - measured, that is pages of download replaced by a fraction
+    of one, and three of the four come back empty. `informativeActions` stays as the local net, and is the same set, so
+    the request and the filter cannot drift. `TodoMaxAge` still drops the stale ones at render, and the band header
+    still owns up to anything left out - now only a todo about a commit or a wiki page, which has no row to go in.
   - **Bubble Tea, not fzf, and the difference is structural.** fzf re-invoked a process per cursor movement, so previews
     had to be markdown pre-rendered at sync time and cat'd, band headers had to be smuggled into the row list as fake
     items the cursor was taught to skip, and the key hints had to fit ~52 columns or fzf truncated them silently. Here
@@ -218,6 +220,17 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
     only what rows need; the full snapshot and the pre-rendered documents are read by nothing interactive. fzf re-runs
     the preview command on every cursor movement, so decoding the snapshot per keystroke would cost ~7ms against ~0.2ms.
     Ages are stored as epochs and formatted at read time - a baked-in "3d" is wrong by morning.
+  - **A manifest first, then only what moved.** A detail node - description, threads, merge checks - costs GitLab about
+    0.4s on its own, and a queue of them is most of a minute. So a sync opens with one cheap call per collection
+    (`iid updatedAt`, 100 at a time, ~0.4s for a whole queue), and fetches in full only the rows whose `updatedAt` moved
+    since the mirror was written. Measured on a real queue: 26.6s every time before, 1.4s when nothing changed and 8.2s
+    when everything did. `updatedAt` is the only change token GitLab offers here - it has no content hash, and its
+    GraphQL endpoint sends an `ETag` but ignores `If-None-Match` (its REST endpoints do honour it). **The manifest is
+    also what keeps the snapshot full**: it is the authority on which rows are open, so a merged MR falls out of the
+    mirror by being absent from it, exactly as an overwrite used to manage - and that property has its own test.
+  - **Detail fetches go out several at a time.** GitLab charges per node either way, so the only thing a single long
+    request buys is a single slow one: the same 52 merge requests took 29s in one call and 9s in four concurrent chunks.
+    Hence `detailChunk`/`detailAtOnce` rather than the cursor walk this replaced, which could not overlap at all.
   - A full snapshot every sync, so a merged MR disappears with no cursor state to drift, and the mirror is derived, so
     deleting it costs nothing. It lives outside any repo because MR bodies can carry credentials. Project comes from the
     git remote and identity from glab's token, so nothing here holds a host, group or username.
