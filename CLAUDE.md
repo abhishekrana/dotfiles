@@ -129,6 +129,9 @@ Rules:
   `@workdesk_open` says or closes the float already up, so neither the geometry nor the toggle can drift between them -
   and `tmux-mockup.sh` overrides that option rather than rebinding the key, which is what keeps a click in the mock off
   the real queue.
+- **A float is placed, or tmux cascades it.** `new-pane` with no `-X`/`-Y` steps every new float 4 columns right and 2
+  rows down from the last one, so the second open is already off centre and the fifth is half off the screen -
+  `@workdesk_open` carries both offsets and `task conf` fails without them.
 - **An option holding a command is run by `run-shell`, never `if-shell`.** `if-shell` does not expand `#{}` in its
   command argument: it reports success and runs nothing, so the config parses, `list-keys` looks right, the click even
   logs its range - and nothing happens. `run-shell -b "tmux #{@opt}"` is the form that works; `task conf` fails the gate

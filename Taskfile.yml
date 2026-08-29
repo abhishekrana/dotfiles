@@ -93,6 +93,13 @@ tasks:
         bad=$(grep -nE 'if(-shell)? +-F +[^ ]+ +"#\{@' tmux/.tmux.conf || true)
         [ -z "$bad" ] || { printf '%s\n' "$bad" \
           "  ^ a tmux option run by if-shell never runs; use: run-shell -b \"tmux #{@opt}\"" >&2; exit 1; }
+      # A float with no -X/-Y is not centred: tmux cascades them, stepping 4 columns
+      # right and 2 rows down per open, so the fifth lands half off the screen.
+      - |
+        grep -qE 'new-pane .*-X [0-9]+% .*-Y [0-9]+%' tmux/.tmux.conf || {
+          echo "@workdesk_open needs -X/-Y, or tmux cascades the float down the screen" >&2
+          exit 1
+        }
 
   perms:
     desc: Every script under a .local/bin must be executable (tmux runs them directly)

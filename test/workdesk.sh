@@ -21,6 +21,12 @@ no() {
     [ $# -gt 1 ] && printf '      %s\n' "$2"
 }
 eq() { [ "$2" = "$3" ] && ok "$1" || no "$1" "want [$2] got [$3]"; }
+# near <name> <want> <got> - equal to within a cell, which is all a border rounds to
+near() {
+    local d=$(($2 - $3))
+    [ "$d" -lt 0 ] && d=$((-d))
+    [ "$d" -le 1 ] && ok "$1" || no "$1" "want [$2] got [$3], more than a cell apart"
+}
 
 TMP=$(mktemp -d)
 TMUX_BIN=$(command -v tmux)
@@ -54,7 +60,7 @@ trap cleanup EXIT
 floats() { t list-panes -t "$1" -F '#{pane_floating_flag}' 2>/dev/null | grep -c '^1$'; }
 
 t -f /dev/null new-session -d -s w -x 120 -y 40 'sleep 300'
-t set -g @workdesk_open "new-pane -x 90% -y 85% '$TMP/shim/workdesk'"
+t set -g @workdesk_open "new-pane -x 90% -y 85% -X 5% -Y 7% '$TMP/shim/workdesk'"
 sleep 0.3
 
 echo
@@ -76,6 +82,37 @@ sleep 0.3
 # The toggle reads the current window, which the new -d window did not become.
 eq "the first window still has its float" "1" "$(floats w:0)"
 eq "the new window has none" "0" "$(floats w:1)"
+
+echo
+echo "workdesk: the float lands in the same place every time"
+# the case above left one up
+[ "$(floats w:0)" = 1 ] && {
+    "$TOGGLE"
+    sleep 0.3
+}
+"$TOGGLE"
+sleep 0.5
+read -r left top pw ph < <(t list-panes -t w:0 -f '#{pane_floating_flag}' \
+    -F '#{pane_left} #{pane_top} #{pane_width} #{pane_height}')
+ww=$(t display-message -p -t w:0 '#{window_width}')
+wh=$(t display-message -p -t w:0 '#{window_height}')
+near "centred across the window" "$(((ww - pw) / 2))" "$left"
+near "centred down the window" "$(((wh - ph) / 2))" "$top"
+"$TOGGLE"
+sleep 0.3
+# With no -X/-Y tmux cascades: 4 columns right and 2 rows down on every open, so this
+# is the assertion that the offsets are still there.
+for _ in 1 2 3 4; do
+    "$TOGGLE"
+    sleep 0.4
+    "$TOGGLE"
+    sleep 0.3
+done
+"$TOGGLE"
+sleep 0.5
+eq "the sixth open is where the first was" "$left $top" \
+    "$(t list-panes -t w:0 -f '#{pane_floating_flag}' -F '#{pane_left} #{pane_top}')"
+"$TOGGLE"
 
 echo
 printf 'workdesk: %d passed, %d failed\n\n' "$pass" "$fail"

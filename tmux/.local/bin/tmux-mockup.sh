@@ -273,7 +273,7 @@ M bind -n M-w run-shell -b "PATH=$TMP/shim:\$PATH $REPO/tmux/.local/bin/tmux-dif
 WORKDESK="$REPO/apps/agentbar/bin/workdesk"
 if [ -x "$WORKDESK" ] && "$WORKDESK" fixture "$TMP/workdesk" >/dev/null 2>&1; then
     M set -g @workdesk_open \
-        "new-pane -x 90% -y 80% \
+        "new-pane -x 90% -y 80% -X 5% -Y 10% \
          'WORKDESK_MIRROR=$TMP/workdesk WORKDESK_AGENTS=$TMP/workdesk/agents.tsv \
           WORKDESK_DRY=1 $WORKDESK open inbox'"
 else
