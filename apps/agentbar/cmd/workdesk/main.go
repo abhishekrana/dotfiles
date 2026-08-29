@@ -137,7 +137,9 @@ func runSync() error {
 	if err != nil {
 		return err
 	}
-	res, err := workdesk.Sync(ctx, client, dir, project, time.Now())
+	line := newProgressLine(project)
+	res, err := workdesk.SyncWithProgress(ctx, client, dir, project, time.Now(), line.leg)
+	line.close()
 	if err != nil {
 		trace.Log("workdesk", "sync", "project", project, "rc", 1, "err", trace.Err(err))
 		return err

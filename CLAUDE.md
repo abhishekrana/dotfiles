@@ -225,6 +225,12 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
     null rather than an error - once read as zero rows that silently replaced a good board with an empty one. A remote
     whose host is not glab's is refused for the same reason. `workdesk schema-check` validates the query against the
     live schema by probing a path that cannot exist, so a GitLab upgrade that moves a field is one command.
+  - **A sync says what it is doing, because it is slow and the UI is down.** `r` tears the UI down - the UI never acts -
+    and a full fetch runs tens of seconds, so `progressLine` draws one row, rewritten in place: the project, every leg
+    (identity, merge requests, issues, todos, writing) with the rows it brought back as it lands, and the seconds so
+    far. Naming the legs is the point - "syncing…" for half a minute says nothing about whether it is stuck, and this is
+    what shows the merge request pages are the entire wait, since they are cursor-chained while the other two run beside
+    them. Silent when stdout is not a terminal, so a scripted `workdesk sync` prints its result and nothing else.
   - **`r` refreshes what is on screen, so the mirror is the fallback.** The working directory wins when it names a
     GitLab project - that is what lets a `cd` point the board at another one - but it usually names none: the float
     inherits the cwd of the pane it was opened from. Resolving only from there made `r` refuse in every repo that is not

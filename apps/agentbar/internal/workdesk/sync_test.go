@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -300,4 +301,42 @@ func remarshal[T any](t *testing.T, items []T) []json.RawMessage {
 		out = append(out, b)
 	}
 	return out
+}
+
+// A sync is half a minute of network with the UI torn down, so the caller draws a line
+// from these reports. Each leg must open and close exactly once, and close with the
+// number of rows it brought back - a leg that never closes reads as stuck.
+func TestSyncReportsEveryLeg(t *testing.T) {
+	dir := t.TempDir()
+	f := newFakeFetcher(t)
+	now := frozen(t)
+
+	var mu sync.Mutex
+	opened := map[string]int{}
+	closed := map[string]int{}
+	counts := map[string]int{}
+	report := func(leg string, done bool, n int) {
+		mu.Lock()
+		defer mu.Unlock()
+		if done {
+			closed[leg]++
+			counts[leg] = n
+			return
+		}
+		opened[leg]++
+	}
+
+	res, err := SyncWithProgress(context.Background(), f, dir, "acme/platform", now, report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, leg := range []string{"identity", "merge requests", "issues", "todos", "writing"} {
+		if opened[leg] != 1 || closed[leg] != 1 {
+			t.Errorf("%s: opened %d, closed %d, want 1 and 1", leg, opened[leg], closed[leg])
+		}
+	}
+	if counts["merge requests"] != res.MRs || counts["issues"] != res.Issues {
+		t.Errorf("counts %d/%d do not match the result %d/%d",
+			counts["merge requests"], counts["issues"], res.MRs, res.Issues)
+	}
 }

@@ -41,11 +41,31 @@ type SyncResult struct {
 // halfway leaves the previous mirror intact rather than a truncated one that still looks
 // whole.
 func Sync(ctx context.Context, f Fetcher, dir, project string, now time.Time) (*SyncResult, error) {
+	return SyncWithProgress(ctx, f, dir, project, now, nil)
+}
+
+// Progress is told a leg's name as it starts and again when it lands, with how many rows
+// it brought back. A sync is seconds of network with the UI torn down, so the caller has
+// something to put on screen; nil reports nothing. It is called from the fetch
+// goroutines, so an implementation has to be safe for concurrent use.
+type Progress func(leg string, done bool, n int)
+
+func (p Progress) report(leg string, done bool, n int) {
+	if p != nil {
+		p(leg, done, n)
+	}
+}
+
+// SyncWithProgress is Sync, reporting each leg as it goes.
+func SyncWithProgress(ctx context.Context, f Fetcher, dir, project string, now time.Time,
+	p Progress) (*SyncResult, error) {
 	started := now
+	p.report("identity", false, 0)
 	who, err := f.User(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("identify: %w", err)
 	}
+	p.report("identity", true, 0)
 
 	// The three fetches are independent, so they run together. Merge request pages
 	// stay sequential inside their own fetch - they are cursor-chained.
@@ -57,12 +77,17 @@ func Sync(ctx context.Context, f Fetcher, dir, project string, now time.Time) (*
 	issuesCh := make(chan result, 1)
 	todosCh := make(chan result, 1)
 
+	p.report("merge requests", false, 0)
+	p.report("issues", false, 0)
+	p.report("todos", false, 0)
 	go func() {
 		n, err := f.MergeRequests(ctx, project, who)
+		p.report("merge requests", true, len(n))
 		mrsCh <- result{mrs: n, err: err}
 	}()
 	go func() {
 		n, err := f.Issues(ctx, project, who)
+		p.report("issues", true, len(n))
 		issuesCh <- result{issues: n, err: err}
 	}()
 	go func() {
@@ -72,6 +97,7 @@ func Sync(ctx context.Context, f Fetcher, dir, project string, now time.Time) (*
 		if err != nil {
 			n = nil
 		}
+		p.report("todos", true, len(n))
 		todosCh <- result{todos: n}
 	}()
 
@@ -95,9 +121,11 @@ func Sync(ctx context.Context, f Fetcher, dir, project string, now time.Time) (*
 		return nil, fmt.Errorf("todos: %w", err)
 	}
 
+	p.report("writing", false, 0)
 	if err := WriteMirror(dir, m, started); err != nil {
 		return nil, err
 	}
+	p.report("writing", true, 0)
 	return &SyncResult{
 		Project: project, User: who,
 		MRs: len(m.MRs), Issues: len(m.Issues), Todos: len(m.Todos),
