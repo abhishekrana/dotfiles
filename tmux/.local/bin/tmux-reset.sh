@@ -126,7 +126,7 @@ while read -r pane target; do
     tmux resize-pane -t "$pane" -x "$target" 2>/dev/null && resized=$((resized + 1))
 done < <(snapshot | plan)
 
-for opt in @dictate @submit_flash @push_flash; do
+for opt in @dictate @push_flash; do
     tmux set-option -gu "$opt" 2>/dev/null || true
 done
 while IFS= read -r sess; do

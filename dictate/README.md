@@ -23,12 +23,11 @@ elevated privilege; on the GPU where there is one, on the CPU otherwise (see bel
   your speakers can't bleed into the mic; the prior state is saved so a crash can't leave it muted. `DICTATE_DUCK=0`
   disables it.
 - Feedback & mouse control: a clickable `● dictate` segment sits dead-centre in the tmux status bar - grey idle, red
-  recording, amber transcribing. Click it to toggle, same as the key. Same width in every state, so nothing shifts. A
-  `⏎ send` button beside it submits - it presses Enter in the pane the transcript went to. Next to those,
-  `● dictate+send` does the whole loop in one press-pair: it records, types the transcript, and presses Enter for you,
-  so you never reach for the keyboard; it rests in teal, the row's one lit chip. A `⇡ commit+push` button types "commit
-  and push" + Enter into the same pane, a one-click way to tell the agent to commit and push, and `◧ changes` opens the
-  diff pane.
+  recording, amber transcribing. Click it to toggle, same as the key. Same width in every state, so nothing shifts.
+  Beside it, `● dictate+send` does the whole loop in one press-pair: it records, types the transcript, and presses Enter
+  for you, so you never reach for the keyboard; it rests in teal, the row's one lit chip. A `⇡ commit+push` button types
+  "commit and push" + Enter into the same pane, a one-click way to tell the agent to commit and push, and `◧ changes`
+  opens the diff pane.
 
 ## Targeting
 
@@ -95,7 +94,7 @@ The server picks up its config (model, prompt, etc.) at spawn time, so after cha
 `dictate --serve-stop` (or wait for the idle timeout) so the next dictation starts a fresh server.
 
 Dictated newlines are collapsed to spaces, so the speech itself can never submit a prompt - only `--send` presses Enter,
-whether from the key, the `dictate+send` chip, or the `⏎ send` chip.
+whether from the key or the `dictate+send` chip.
 
 ## Config (env vars)
 

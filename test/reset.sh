@@ -132,12 +132,10 @@ echo
 echo "reset: stuck status chips clear"
 start f
 t set -g @dictate rec
-t set -g @submit_flash 1
 t set -g @push_flash 1
 t set -t f -q @sidebar_moving 1
 reset_ui
 eq "@dictate cleared" "" "$(t show-option -gqv @dictate)"
-eq "@submit_flash cleared" "" "$(t show-option -gqv @submit_flash)"
 eq "@push_flash cleared" "" "$(t show-option -gqv @push_flash)"
 eq "@sidebar_moving cleared" "" "$(t show-option -t f -qv @sidebar_moving)"
 

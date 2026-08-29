@@ -34,7 +34,7 @@ tracked config.
 | -------------- | --------------- | ---------------------------------------------------------------------------------------- | --------------------------------- |
 | agent sidebar  | hex → generated | `@agentbar-theme`; colors from `theme_gen.go` (built from the palette)                   | this session's, immediate         |
 | ghostty        | named           | `theme = <Name>` → `ghostty.conf` (a `config-file` include)                              | `pkill -USR2 -x ghostty`          |
-| tmux frame     | hex → generated | `tmux.conf` (status/window/pane + the dictate/submit/push/diff/⛭ chips)                  | `tmux source-file` (immediate)    |
+| tmux frame     | hex → generated | `tmux.conf` (status/window/pane + the workdesk/dictate/push/diff/⛭ chips)                | `tmux source-file` (immediate)    |
 | fzf            | hex → export    | `fzf.sh` (`_fzf_color` `--color` block, sourced by fzf.bash)                             | new shells                        |
 | bat / `$THEME` | named           | `env.sh` (`export THEME`, `export BAT_THEME`)                                            | new shells                        |
 | leaf           | named           | `env.sh` (`export LEAF_THEME`)                                                           | next `leaf` launch                |

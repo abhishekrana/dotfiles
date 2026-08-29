@@ -114,12 +114,13 @@ Rules:
 - **The footer holds no per-pane facts** - the work's commit (7-char sha), its CI, the clock, and the `⚙` settings chip
   at the far right, where its fixed width cannot reflow the clock. Dropping the git-status plugin took ~72ms of git off
   every status redraw.
-- **The centre band is a toolbar, and every chip is fixed width.** `● dictate`, `⏎ send`, `● dictate+send`,
-  `⇡ commit+push`, `◧ changes`, `▤ workdesk` - one space of padding inside each and one between, so the row reads as a
-  toolbar rather than a ragged sentence, and a chip that changed width would clip the right-aligned segments. Labels
-  name what happens, never the key; `▤ workdesk` is the one that names its tool instead, because it is the only thing in
-  the row you also type. Colour is the only feedback a status bar has, so a chip is coloured only when it has state to
-  report - `▤ workdesk` and `⏎ send` rest muted for that reason.
+- **The centre band is a toolbar, and every chip is fixed width.** `▤ workdesk`, `● dictate`, `● dictate+send`,
+  `⇡ commit+push`, `◧ changes` - one space of padding inside each and one between, so the row reads as a toolbar rather
+  than a ragged sentence, and a chip that changed width would clip the right-aligned segments. The order is the order of
+  the work: pick it up, say what to do, then commit it and look at the diff. Labels name what happens, never the key;
+  `▤ workdesk` is the one that names its tool instead, because it is the only thing in the row you also type. Colour is
+  the only feedback a status bar has, so a chip is coloured only when it has state to report - `▤ workdesk` and
+  `● dictate` rest muted for that reason.
 - **A chip and its key run one command.** `Alt+n` and `▤ workdesk` both run `@workdesk_popup`, defined once, so the
   geometry cannot drift between them - and `tmux-mockup.sh` overrides that option rather than rebinding the key, which
   is what keeps a click in the mock off the real queue.

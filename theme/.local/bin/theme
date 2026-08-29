@@ -134,7 +134,6 @@ set -g window-status-current-format "#[fg=$bg,bg=$accent,bold] #I:#W#{?window_zo
 set -g window-status-format "#{?window_bell_flag,#[fg=$bg bg=$block bold],#[fg=$muted bg=$surface]} #I:#W "
 set -g @dictate_seg "$dseg"
 set -g @dictsend_seg "$dsend"
-set -g @submit_seg "#{?@submit_flash,#[fg=$bg bg=$grn] ⏎ send ,#[fg=$muted bg=$surface] ⏎ send }"
 set -g @push_seg "#{?@push_flash,#[fg=$bg bg=$grn] ⇡ commit+push ,#[fg=$accent bg=$surface] ⇡ commit+push }"
 set -g @diff_seg "$diffseg"
 set -g @workdesk_seg "#[fg=$muted bg=$surface] ▤ workdesk "
