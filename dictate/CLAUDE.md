@@ -109,7 +109,7 @@ and the GPU stay local and only the transcript crosses.
 - `dictate+send` is one press-pair, not a second recorder: the first press drops `SEND_FILE` beside the PCM buffer and
   the second reads it _before_ `cleanup()` removes it, then presses Enter once the transcript is in the pane. Only the
   chip you clicked lights up - both read `@dictate`, but each colours itself only when `@dictate_src` names it.
-- **One chip rests lit, and it is `dictate+send`** (`working` teal); `dictate` and `▤ workdesk` rest grey. It is the one
+- **One chip rests lit, and it is `dictate+send`** (`working` teal); `dictate` and `≡ workdesk` rest grey. It is the one
   used most, and grey reads as unavailable. Never a warm hue: the chip's own states are red (recording) and amber
   (transcribing), so orange blurs idle into busy. To recolor, move the highlight - do not add a second.
 - **Hover is impossible** - tmux has no `MouseMoveStatus`; only Down/Up/Drag/Wheel exist for the status line.

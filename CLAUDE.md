@@ -63,7 +63,7 @@ Scripts in `tmux/.local/bin/`:
   areas and settings stay alphabetical. It is also the only home for a setting with no business being a sidebar key -
   agentbar's Notify lives here, not on the bar.
 - `tmux-reset.sh` - the `prefix + R` UI reset: reload + default geometry, nothing killed.
-- `tmux-workdesk.sh` - the one command behind `Alt+n` and the `▤ workdesk` chip: close this window's workdesk float if
+- `tmux-workdesk.sh` - the one command behind `Alt+n` and the `≡ workdesk` chip: close this window's workdesk float if
   one is up, else open what `@workdesk_open` says. Matching is floating + a command named `workdesk`, so the mockup's
   fixture override toggles the same way.
 - `tmux-mockup.sh` - `task mockup`, previews the whole frame with fake data on a private server.
@@ -117,14 +117,15 @@ Rules:
 - **The footer holds no per-pane facts** - the work's commit (7-char sha), its CI, the clock, and the `⚙` settings chip
   at the far right, where its fixed width cannot reflow the clock. Dropping the git-status plugin took ~72ms of git off
   every status redraw.
-- **The centre band is a toolbar, and every chip is fixed width.** `▤ workdesk`, `● dictate`, `● dictate+send`,
+- **The centre band is a toolbar, and every chip is fixed width.** `≡ workdesk`, `● dictate`, `● dictate+send`,
   `⇡ commit+push`, `◧ changes` - one space of padding inside each and one between, so the row reads as a toolbar rather
-  than a ragged sentence, and a chip that changed width would clip the right-aligned segments. The order is the order of
-  the work: pick it up, say what to do, then commit it and look at the diff. Labels name what happens, never the key;
-  `▤ workdesk` is the one that names its tool instead, because it is the only thing in the row you also type. Colour is
-  the only feedback a status bar has, so a chip is coloured only when it has state to report - `▤ workdesk` and
-  `● dictate` rest muted for that reason.
-- **A chip and its key run one command.** `Alt+n` and `▤ workdesk` both run `tmux-workdesk.sh`, which opens what
+  than a ragged sentence, and a chip that changed width would clip the right-aligned segments. Glyphs clear the top of
+  their cell: a full-height box (`▤`) butts against the pane above and reads as a second status bar. The order is the
+  order of the work: pick it up, say what to do, then commit it and look at the diff. Labels name what happens, never
+  the key; `≡ workdesk` is the one that names its tool instead, because it is the only thing in the row you also type.
+  Colour is the only feedback a status bar has, so a chip is coloured only when it has state to report - `≡ workdesk`
+  and `● dictate` rest muted for that reason.
+- **A chip and its key run one command.** `Alt+n` and `≡ workdesk` both run `tmux-workdesk.sh`, which opens what
   `@workdesk_open` says or closes the float already up, so neither the geometry nor the toggle can drift between them -
   and `tmux-mockup.sh` overrides that option rather than rebinding the key, which is what keeps a click in the mock off
   the real queue.
@@ -149,7 +150,7 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
     `mr <iid>` is one merge request end to end, `matrix` is one row per MR and one column per gate with a totals row,
     and `ready` prints the actionable rows for an agent. `bootstrap.sh` links it into `~/.local/bin` - the one app
     binary that does get a link, because it is a CLI you type.
-  - **`Alt+n` and the `▤ workdesk` chip** toggle it (`tmux/.tmux.conf`), both through `tmux-workdesk.sh` so the two
+  - **`Alt+n` and the `≡ workdesk` chip** toggle it (`tmux/.tmux.conf`), both through `tmux-workdesk.sh` so the two
     cannot drift. Invoked by absolute path like the agentbar bindings - `apps/` binaries are not stow packages, so there
     is no `~/.local/bin` symlink to rely on inside tmux. Bare `workdesk` opens it too.
   - **The todo feed is filtered, and the count says so.** GitLab never marks todos done, so the pending list is an
@@ -173,7 +174,7 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
     the first row under it, and everything fires on release - terminals eat the press of a click that also focuses their
     window. `listItems` is the one pass the renderer, the scroll window and the hit test share.
   - **A float, not a popup, and the chip is the reason.** A popup is an overlay: it swallows every click outside its own
-    box, so a second click on `▤ workdesk` never reached `MouseUp1Status` and the chip could only ever open. A float
+    box, so a second click on `≡ workdesk` never reached `MouseUp1Status` and the chip could only ever open. A float
     (tmux 3.7 `new-pane`) is a pane, so the click lands and `tmux-workdesk.sh` closes what it opened. Probed both ways,
     not assumed. `Alt+n` and `✕` still close it from the keyboard and the pointer, and one float per window - the toggle
     reads the current window's panes.
@@ -279,7 +280,7 @@ What to read, by symptom:
   `prefix + R` logs `src=tmux evt=reset … changed=N floated=N` plus one `evt=layout win=… before=… after=…` per window
   changed, and nothing when nothing had drifted. A `floated=` above zero is windows the reset skipped whole: a float
   counts as a column to `select-layout`, so those wait until it is closed.
-- **The ▤ workdesk chip did nothing.** `src=tmux evt=workdesk action=open|close rc=…` is every press of the chip and of
+- **The ≡ workdesk chip did nothing.** `src=tmux evt=workdesk action=open|close rc=…` is every press of the chip and of
   `Alt+n`, which run the same script. `action=close` with no float on screen means the match found someone else's
   floating `workdesk`; `rc` non-zero on `open` means `@workdesk_open` failed, and `err=no_command` that the option is
   unset - a config that was never sourced.

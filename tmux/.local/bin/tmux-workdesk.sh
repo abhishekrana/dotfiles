@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Alt+n and the ▤ workdesk chip: raise the workdesk float, or close the one already up.
+# Alt+n and the ≡ workdesk chip: raise the workdesk float, or close the one already up.
 #
 # The float is a pane (tmux 3.7 `new-pane`), not a popup, and that is what makes the
 # chip a toggle: a popup is an overlay and swallows every click outside its own box, so

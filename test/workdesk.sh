@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Guards the ▤ workdesk toggle: one command opens the float and the same command closes
+# Guards the ≡ workdesk toggle: one command opens the float and the same command closes
 # it. That is the whole point of the float - a popup is an overlay and eats the second
 # click on the chip, so the chip could only ever open.
 #

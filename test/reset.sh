@@ -88,7 +88,7 @@ t resize-pane -t "$(pane e 2)" -x 140
 other=$(t new-window -d -P -F '#{window_id}' -t e:)
 t split-window -h -t "$other"
 t resize-pane -t "$(pane "$other" 1)" -x 150
-t new-pane -d -x 90% -y 85% -t e 'sleep 60' # the ▤ workdesk float
+t new-pane -d -x 90% -y 85% -t e 'sleep 60' # the ≡ workdesk float
 sleep 0.3
 float=$(t list-panes -t e -f '#{pane_floating_flag}' -F '#{pane_id}')
 fw=$(t display-message -p -t "$float" '#{pane_width}')

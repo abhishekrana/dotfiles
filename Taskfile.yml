@@ -202,7 +202,7 @@ tasks:
       - bash test/settings.sh
 
   workdesk-toggle:
-    desc: One command opens the ▤ workdesk float and closes it - the chip is a toggle
+    desc: One command opens the ≡ workdesk float and closes it - the chip is a toggle
     cmds:
       - bash test/workdesk.sh
 

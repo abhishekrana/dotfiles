@@ -66,7 +66,7 @@ launch hunk's native interactive reviewer directly. delta also colors `git add -
 ### workdesk (GitLab work inbox)
 
 Reads a local mirror, so every command below is instant and offline. `workdesk sync` is the only one that touches the
-network. `Alt+n` opens it in a float from anywhere in tmux, and so does the `▤ workdesk` chip on the status bar. Either
+network. `Alt+n` opens it in a float from anywhere in tmux, and so does the `≡ workdesk` chip on the status bar. Either
 one closes it again, as do `q` and the `✕` in its corner.
 
 | Command             | Action                                                             |
