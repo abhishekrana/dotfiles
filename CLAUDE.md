@@ -81,6 +81,17 @@ Rules:
   this pane's folder and branch. RIGHT, only when that pane runs Claude: the worktree it is _writing_ in, which its cwd
   never follows, since the Bash tool's `cd` does not move a pane. Two zones via `#[align=right]` - the left anchored at
   one column, the right growing leftward into rule - so nothing shifts as state changes.
+- **The float wears the review hue, bold, and names itself.** A float IS a pane, so it drew its border in the same
+  accent as any focused split while the rail painted that accent on every border on screen - the one thing that should
+  read as a layer over the work looked like part of it. `pane-active-border-style` and `pane-border-format` both expand
+  formats, so `#{?pane_floating_flag,…}` states both cases in one setting each and nothing has to set and unset them
+  around the toggle. The hue is `changes`, already the palette's review surfaces; the label is `≡ workdesk`, the status
+  chip's own words, in place of the folder-and-branch rail every other pane repeats. **Bold is the only weight that
+  isolates**: `heavy`/`double` come from `pane-border-lines`, which takes no format and - even set on the float's own
+  pane with `set -p` - is resolved from the active pane for the whole window, so the dividers behind the float thicken
+  with it and it stops standing out at all. Attributes are honoured on the _active_ border, though the manual says they
+  are ignored on `pane-border-style`. **Both settings live twice** - `.tmux.conf` and the `theme` switcher, which
+  rewrites them per flavor - so a change to one without the other survives only until the next `theme`.
 - **A fresh diff pane follows the agent, not the pane.** `tmux-diff-pane.sh` targets `@agent_workdir` (stamped by the
   agentbar hook from each Edit/Write) and records what is on screen in `@diff_target`.
 - **The target then sticks.** A mode item changes what you see, not where you look; only `f` (follow),

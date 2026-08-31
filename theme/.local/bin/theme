@@ -108,13 +108,16 @@ apply_tmux() {
     # accent, so the rail reads as chrome instead of blending into the log
     # scrolling under it. Each zone is given the pane's width and its share of
     # it, so the branch is cut only when the pane has no room (see .tmux.conf).
+    # A floating pane names itself rather than repeating the folder and branch
+    # every other pane's rail already carries (see .tmux.conf).
     local border rail
     rail="#($HOME/.local/bin/tmux-rail.sh '#{pane_current_path}' '#{pane_width}'"
     rail="$rail '#{?#{E:@rail_agent},2,1}')"
-    border="#{?#{==:#{pane_current_command},agentbar},,"
+    border="#{?pane_floating_flag, #[fg=$chg]≡ workdesk ,"
+    border="$border#{?#{==:#{pane_current_command},agentbar},,"
     border="$border #[fg=$accent]$rail "
     border="$border#{?#{E:@rail_agent},#[align=right fg=$accent]→ "
-    border="$border#($HOME/.local/bin/tmux-rail.sh '#{@agent_workdir}' '#{pane_width}' 2) , }}"
+    border="$border#($HOME/.local/bin/tmux-rail.sh '#{@agent_workdir}' '#{pane_width}' 2) , }}}"
     # The footer: branch, the work's sha, GitLab, clock. Rebuilt here because a
     # value only set in .tmux.conf keeps its Solarized hex in every other flavor.
     local right
@@ -128,7 +131,7 @@ set -g status-style "fg=$fg,bg=$surface"
 set -g window-style "fg=$fg,bg=$bg"
 set -g window-active-style "fg=$fg,bg=$bg"
 set -g pane-border-style "fg=$muted,bg=$bg"
-set -g pane-active-border-style "fg=$accent,bg=$bg"
+set -g pane-active-border-style "#{?pane_floating_flag,fg=$chg#,bold,fg=$accent},bg=$bg"
 set -g status-left "$left"
 set -g window-status-current-format "#[fg=$bg,bg=$accent,bold] #I:#W#{?window_zoomed_flag, Z,} "
 set -g window-status-format "#{?window_bell_flag,#[fg=$bg bg=$block bold],#[fg=$muted bg=$surface]} #I:#W "
