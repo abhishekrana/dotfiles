@@ -61,11 +61,24 @@ const mrFields = `
 // id is fetched because a status or iteration move addresses the work item behind the
 // issue; status and iteration because they are what the issue view bands and marks by.
 // The lifecycle that orders those bands is a separate call - see Statuses.
+//
+// description and discussions are the ticket itself. Without them a preview could say
+// where the work sat and never what it was, which is a row with a URL on it. Threads take
+// `last:` for the same reason the merge request selection does: GitLab returns them
+// oldest-first, and the oldest are the system notes.
 const issueFields = `
-        id iid title updatedAt webUrl
+        id iid title description updatedAt webUrl
         labels { nodes { title } }
+        assignees { nodes { username } }
         status { id name category }
-        iteration { id title startDate dueDate iterationCadence { title } }`
+        iteration { id title startDate dueDate iterationCadence { title } }
+        discussions(last: %d) {
+          nodes { resolved notes(last: 8) { nodes { body system author { username } } } }
+        }`
+
+// Threads per issue. Fewer than a merge request gets: an issue's argument is one
+// conversation, where a merge request's is one per line of the diff.
+const threadsPerIssue = 20
 
 type pageInfo struct {
 	HasNextPage bool   `json:"hasNextPage"`
@@ -109,7 +122,7 @@ func (c *Client) MergeRequestsByIID(ctx context.Context, project string, iids []
 
 // IssuesByIID is the same for issues.
 func (c *Client) IssuesByIID(ctx context.Context, project string, iids []string) ([]json.RawMessage, error) {
-	return c.chunked(ctx, "issues", project, issueFields, iids)
+	return c.chunked(ctx, "issues", project, fmt.Sprintf(issueFields, threadsPerIssue), iids)
 }
 
 // ownership is the two ways a row can be yours, asked for separately and unioned.

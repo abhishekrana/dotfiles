@@ -230,6 +230,13 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
     the same issue in two places or neither. The row shows a scoped label as its value alone (`high · chore`, not
     `prio::high`) - on a list where every row shares the namespace, the namespace is the half that says nothing - and
     the preview keeps the full titles. The column is sized against the title and given up entirely on a narrow pane.
+  - **A preview carries the ticket, not a link to it.** An issue's `description`, its comments and its assignees are
+    fetched and rendered - what was asked, then what was said about it, system notes dropped - because a preview that
+    showed only metadata and a URL made you leave for the browser to read the thing you had already found. Comments are
+    whole here and first lines only on a merge request: an issue's argument is the content, where a merge request's
+    annotates a diff you can go and read. **Bodies are wrapped to the pane** (`renderPreview` wraps once, at the end):
+    the viewport truncates what it cannot fit, so before this the right-hand half of every long line was silently not
+    there. `workdesk preview` on a command line has no pane and is left unwrapped.
   - **The sprint is a marker, and the row is what says which way `i` goes.** `◆` between the title and the age on the
     issues in the iteration the sync recorded; two cells are reserved on every issue row, marked or not, so the age
     column does not move as the sprint changes under it.

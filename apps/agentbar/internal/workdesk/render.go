@@ -205,28 +205,7 @@ func Sheet(w io.Writer, mr *MergeRequest, meta Meta, now time.Time) error {
 		d.addf("%d of %d resolved.", mr.ResolvedDiscussionsCount, mr.ResolvableDiscussionsCount)
 	}
 	d.blank()
-	// System notes are GitLab talking to itself ("added 3 commits", "assigned to @x")
-	// and drown the human argument, so a thread with nothing but system notes is
-	// dropped rather than shown empty.
-	for _, disc := range mr.Discussions.Nodes {
-		var human []Note
-		for _, n := range disc.Notes.Nodes {
-			if !n.System {
-				human = append(human, n)
-			}
-		}
-		if len(human) == 0 {
-			continue
-		}
-		d.add("", "**["+resolvedLabel(disc.Resolved)+"]**")
-		for _, n := range human {
-			who := n.Author.Username
-			if who == "" {
-				who = "?"
-			}
-			d.addf("- **%s**  %s", who, indentBody(n.Body))
-		}
-	}
+	writeNotes(d, mr.Discussions.Nodes)
 	return d.writeTo(w)
 }
 
@@ -258,8 +237,8 @@ func indentBody(s string) string {
 	return strings.ReplaceAll(s, "\n", "\n  ")
 }
 
-// IssueSheet is everything known about an issue without another API call: an issue
-// carries no gates, so its status, row and labels are the whole of it.
+// IssueSheet is everything known about an issue without another API call: its status and
+// labels, then the ticket itself - what was asked, and what was said about it.
 func IssueSheet(w io.Writer, is *Issue) error {
 	d := &doc{}
 	d.addf("# #%s  %s", is.IID, is.Title)
@@ -274,8 +253,17 @@ func IssueSheet(w io.Writer, is *Issue) error {
 	if joined == "" {
 		joined = "none"
 	}
+	who := make([]string, 0, len(is.Assignees.Nodes))
+	for _, a := range is.Assignees.Nodes {
+		who = append(who, a.Username)
+	}
+	assignees := strings.Join(who, ", ")
+	if assignees == "" {
+		assignees = "nobody"
+	}
 	d.addf("status: %s", is.StatusName())
 	d.addf("labels: %s", joined)
+	d.addf("assignees: %s", assignees)
 	if it := is.Iteration.Label(); it != "" {
 		d.addf("sprint: %s", it)
 	}
@@ -284,7 +272,52 @@ func IssueSheet(w io.Writer, is *Issue) error {
 		updated = updated[:10]
 	}
 	d.addf("updated: %s", updated)
+
+	// The ticket itself, in the order GitLab writes it.
+	if body := strings.TrimSpace(is.Description); body != "" {
+		d.blank()
+		d.add("## Description", "")
+		d.add(body)
+	}
+	human := 0
+	for _, disc := range is.Discussions.Nodes {
+		for _, n := range disc.Notes.Nodes {
+			if !n.System {
+				human++
+			}
+		}
+	}
+	if human > 0 {
+		d.blank()
+		d.addf("## Comments  %d", human)
+		writeNotes(d, is.Discussions.Nodes)
+	}
 	return d.writeTo(w)
+}
+
+// writeNotes renders the human half of a discussion list. System notes are GitLab
+// talking to itself ("added 3 commits", "assigned to @x") and drown the argument, so a
+// thread with nothing but those is dropped rather than shown empty.
+func writeNotes(d *doc, discussions []Discussion) {
+	for _, disc := range discussions {
+		var human []Note
+		for _, n := range disc.Notes.Nodes {
+			if !n.System {
+				human = append(human, n)
+			}
+		}
+		if len(human) == 0 {
+			continue
+		}
+		d.add("", "**["+resolvedLabel(disc.Resolved)+"]**")
+		for _, n := range human {
+			who := n.Author.Username
+			if who == "" {
+				who = "?"
+			}
+			d.addf("- **%s**  %s", who, indentBody(n.Body))
+		}
+	}
 }
 
 // Matrix renders one row per merge request and one column per gate, with a totals row.

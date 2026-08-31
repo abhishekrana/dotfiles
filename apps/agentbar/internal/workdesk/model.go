@@ -24,7 +24,7 @@ import (
 // written before a field existed keeps serving rows that lack it, for as long as they sit
 // untouched: adding status to the query left every quiet issue banded as "no status" and
 // nothing said why. A mismatch refetches everything once.
-const MirrorSchema = 2
+const MirrorSchema = 3
 
 // ErrNoMirror means nothing has been synced yet. Callers branch on it to say "run
 // workdesk sync" rather than reporting a bare file-not-found.
@@ -201,12 +201,15 @@ type nodes[T any] struct {
 type Issue struct {
 	// ID is the global ID. Kept because a status or iteration move addresses the work
 	// item, not the iid: gid://gitlab/WorkItem/<n> resolves for the same n.
-	ID        string       `json:"id"`
-	IID       string       `json:"iid"`
-	Title     string       `json:"title"`
-	UpdatedAt string       `json:"updatedAt"`
-	WebURL    string       `json:"webUrl"`
-	Labels    nodes[Label] `json:"labels"`
+	ID          string            `json:"id"`
+	IID         string            `json:"iid"`
+	Title       string            `json:"title"`
+	Description string            `json:"description"`
+	UpdatedAt   string            `json:"updatedAt"`
+	WebURL      string            `json:"webUrl"`
+	Labels      nodes[Label]      `json:"labels"`
+	Assignees   nodes[Username]   `json:"assignees"`
+	Discussions nodes[Discussion] `json:"discussions"`
 	// Pointers: an issue with no status or no iteration decodes to nil rather than a
 	// zero value that would read as a status named "".
 	Status    *Status    `json:"status"`

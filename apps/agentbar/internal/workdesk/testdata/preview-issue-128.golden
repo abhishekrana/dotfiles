@@ -4,5 +4,22 @@ https://gitlab.example.com/acme/platform/-/issues/128
 
 status: To do
 labels: prio::high, type::bug
+assignees: you
 sprint: 2026-08-24 - 2026-09-06
 updated: 2026-08-24
+
+## Description
+
+Cold start walks the whole registry before the first request is served.
+
+The lookup is O(n) over every entry and the cache is only populated on the second
+request, so the first one after a deploy pays for all of them.
+
+- [ ] index the registry by name at load
+- [ ] warm the cache on boot
+
+## Comments  2
+
+**[OPEN]**
+- **dana**  Reproduced on a cold pod: 4.2s to first byte, 40ms after that.
+- **you**  Warming on boot moves the cost rather than removing it - can we index instead?

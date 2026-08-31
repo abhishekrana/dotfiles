@@ -79,6 +79,58 @@ func TestIssuesViewIsTheBoard(t *testing.T) {
 	}
 }
 
+// A preview that shows only a URL is a row with a link on it. The issue's own body and
+// the argument about it are the reason to look at it at all.
+func TestIssuePreviewCarriesTheTicket(t *testing.T) {
+	t.Parallel()
+	m := testModel(t)
+	m.setView(workdesk.ViewIssues)
+	for i, r := range m.rows {
+		if r.Ref == "#128" {
+			m.cursor = i
+		}
+	}
+	m.syncPreview()
+	out := stripANSI(m.renderPreview(m.rows[m.cursor]))
+	for _, want := range []string{
+		"Description",
+		"Cold start walks the whole registry", // the body, not a link to it
+		"index the registry by name at load",  // and all of it, not the first line
+		"Comments  2",                         // what was said, system notes dropped
+		"dana", "Reproduced on a cold pod",
+		"assignees", "status", "sprint",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the issue preview does not show %q", want)
+		}
+	}
+	if strings.Contains(out, "assigned to @you") {
+		t.Error("a system note reached the preview")
+	}
+}
+
+// The viewport truncates what it cannot fit, so a body has to be wrapped to the pane
+// rather than left to run off the edge.
+func TestPreviewWrapsBodiesToThePane(t *testing.T) {
+	t.Parallel()
+	m := testModel(t)
+	m.setView(workdesk.ViewIssues)
+	for i, r := range m.rows {
+		if r.Ref == "#128" {
+			m.cursor = i
+		}
+	}
+	for _, width := range []int{80, 100, 140} {
+		m.resize(width, 40)
+		for _, line := range strings.Split(stripANSI(m.renderPreview(m.rows[m.cursor])), "\n") {
+			if w := len([]rune(line)); w > m.preview.Width {
+				t.Errorf("at %d cols a preview line is %d wide, over the %d-wide pane: %q",
+					width, w, m.preview.Width, line)
+			}
+		}
+	}
+}
+
 // The two moves apply to an issue, and say so on a row that is not one.
 func TestStatusAndSprintOnlyApplyToIssues(t *testing.T) {
 	t.Parallel()

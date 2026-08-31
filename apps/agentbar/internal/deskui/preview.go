@@ -20,14 +20,21 @@ import (
 // <iid>` and `board` are for reading and for agents to consume - but nothing interactive
 // depends on them now.
 func (m Model) renderPreview(r workdesk.Row) string {
+	var body string
 	switch {
 	case strings.HasPrefix(r.Ref, "!"):
-		return m.mrPreview(strings.TrimPrefix(r.Ref, "!"))
+		body = m.mrPreview(strings.TrimPrefix(r.Ref, "!"))
 	case strings.HasPrefix(r.Ref, "#"):
-		return m.issuePreview(strings.TrimPrefix(r.Ref, "#"))
+		body = m.issuePreview(strings.TrimPrefix(r.Ref, "#"))
 	default:
-		return m.agentPreview(r)
+		body = m.agentPreview(r)
 	}
+	// Wrapped once, here, so nothing a preview builds can run off the pane: the
+	// viewport truncates the lines it cannot fit, and a truncated line is one whose
+	// right-hand half is silently missing. A title, a url and a ticket body are all
+	// written to no particular width. Sections that wrapped themselves are already
+	// inside it, so this is a no-op for them.
+	return m.wrap(body, 0)
 }
 
 // styles bundles the roles a preview draws with, so each render reads as layout rather
@@ -119,31 +126,74 @@ func (m Model) mrPreview(iid string) string {
 
 	if t := mr.Threads(); t != "" {
 		fmt.Fprintln(&b, s.head.Render("Threads")+"  "+s.muted.Render(t))
-		for _, disc := range mr.Discussions.Nodes {
-			for _, n := range disc.Notes.Nodes {
-				if n.System {
-					continue
-				}
-				state, style := s.muted.Render("resolved"), s.muted
-				if !disc.Resolved {
-					state, style = s.warn.Render("OPEN"), s.val
-				}
-				who := n.Author.Username
-				if who == "" {
-					who = "?"
-				}
-				fmt.Fprintf(&b, "  [%s] %s\n", state, s.accent.Render(who))
-				fmt.Fprintln(&b, "      "+style.Render(firstLine(n.Body)))
-			}
-		}
+		// One line each: on a merge request the threads are one per line of the diff,
+		// and what is wanted here is which arguments are still open.
+		m.writeThreads(&b, mr.Discussions.Nodes, true)
 		fmt.Fprintln(&b)
 	}
 
-	if body := strings.TrimSpace(mr.Description); body != "" {
-		fmt.Fprintln(&b, s.head.Render("Description"))
-		fmt.Fprintln(&b, s.val.Render(body))
-	}
+	m.writeDescription(&b, mr.Description)
 	return b.String()
+}
+
+// writeThreads renders a discussion list. brief keeps each note to its first line, for
+// the merge request preview where the count matters more than the argument.
+func (m Model) writeThreads(b *strings.Builder, discussions []workdesk.Discussion, brief bool) {
+	s := m.styles()
+	for _, disc := range discussions {
+		for _, n := range disc.Notes.Nodes {
+			// System notes are GitLab talking to itself ("added 3 commits").
+			if n.System {
+				continue
+			}
+			state, style := s.muted.Render("resolved"), s.muted
+			if !disc.Resolved {
+				state, style = s.warn.Render("OPEN"), s.val
+			}
+			who := n.Author.Username
+			if who == "" {
+				who = "?"
+			}
+			fmt.Fprintf(b, "  [%s] %s\n", state, s.accent.Render(who))
+			if brief {
+				fmt.Fprintln(b, "      "+style.Render(firstLine(n.Body)))
+				continue
+			}
+			fmt.Fprintln(b, m.indent(style.Render(m.wrap(strings.TrimSpace(n.Body), 6)), "      "))
+		}
+	}
+}
+
+func (m Model) writeDescription(b *strings.Builder, body string) {
+	s := m.styles()
+	body = strings.TrimSpace(body)
+	if body == "" {
+		return
+	}
+	fmt.Fprintln(b, s.head.Render("Description"))
+	fmt.Fprintln(b, s.val.Render(m.wrap(body, 0)))
+}
+
+// wrap reflows a body to the preview's own width, less an indent.
+//
+// A ticket body is prose written to no particular width, and the viewport truncates the
+// lines it cannot fit rather than wrapping them - so without this the right-hand half of
+// every long paragraph is simply not on screen. Zero width means the preview has not been
+// sized yet, where the text is left alone rather than reflowed to nothing.
+func (m Model) wrap(body string, indent int) string {
+	w := m.preview.Width - indent
+	if w <= 0 {
+		return body
+	}
+	return lipgloss.NewStyle().Width(w).Render(body)
+}
+
+func (m Model) indent(body, pad string) string {
+	lines := strings.Split(body, "\n")
+	for i, l := range lines {
+		lines[i] = pad + l
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (m Model) rulesTable(mr *workdesk.MergeRequest) string {
@@ -194,9 +244,19 @@ func (m Model) issuePreview(iid string) string {
 	if joined == "" {
 		joined = s.muted.Render("none")
 	}
+	who := make([]string, 0, len(is.Assignees.Nodes))
+	for _, a := range is.Assignees.Nodes {
+		who = append(who, a.Username)
+	}
+	assignees := strings.Join(who, sep)
+	if assignees == "" {
+		assignees = s.warn.Render("nobody")
+	}
+
 	fmt.Fprintln(&b, s.kv("status", s.accent.Render(is.StatusName())))
 	fmt.Fprintln(&b, s.kv("priority", s.warn.Render(is.Priority().String())))
 	fmt.Fprintln(&b, s.kv("labels", s.val.Render(joined)))
+	fmt.Fprintln(&b, s.kv("assignees", s.val.Render(assignees)))
 	fmt.Fprintln(&b, s.kv("sprint", s.val.Render(m.sprintLine(is))))
 	fmt.Fprintln(&b, s.kv("updated", s.val.Render(
 		workdesk.AgeAgo(workdesk.ParseTime(is.UpdatedAt), m.deps.Now()))))
@@ -208,9 +268,32 @@ func (m Model) issuePreview(iid string) string {
 	} else {
 		fmt.Fprintln(&b, s.kv("in flight", s.muted.Render("nothing yet")))
 	}
-	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, s.kv("url", s.muted.Render(is.WebURL)))
+	fmt.Fprintln(&b)
+
+	// The ticket itself, in the order GitLab writes it: what was asked, then what was
+	// said about it. Whole comments rather than first lines - on an issue the argument
+	// is the content, where on a merge request it annotates a diff you can go and read.
+	m.writeDescription(&b, is.Description)
+	if n := comments(is.Discussions.Nodes); n > 0 {
+		fmt.Fprintln(&b)
+		fmt.Fprintln(&b, s.head.Render("Comments")+"  "+s.muted.Render(fmt.Sprint(n)))
+		m.writeThreads(&b, is.Discussions.Nodes, false)
+	}
 	return b.String()
+}
+
+// comments counts what a person wrote, which is every note GitLab did not.
+func comments(discussions []workdesk.Discussion) int {
+	n := 0
+	for _, d := range discussions {
+		for _, note := range d.Notes.Nodes {
+			if !note.System {
+				n++
+			}
+		}
+	}
+	return n
 }
 
 // sprintLine says where the issue stands against the sprint the sync recorded, because
