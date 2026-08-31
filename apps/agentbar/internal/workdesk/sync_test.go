@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -47,14 +48,46 @@ func newFakeFetcher(t *testing.T) *fakeFetcher {
 func (f *fakeFetcher) Host(context.Context) (string, error) { return "gitlab.example.com", nil }
 func (f *fakeFetcher) User(context.Context) (string, error) { return "you", nil }
 
-func (f *fakeFetcher) MergeRequestStamps(_ context.Context, p, who string) ([]json.RawMessage, error) {
-	f.note("mr-stamps:" + p + ":" + who)
+// The manifest is asked once per account per relation and the answers unioned, so the
+// fake answers the whole collection every time: the sync has to be the thing that drops
+// the duplicates.
+func (f *fakeFetcher) MergeRequestStamps(_ context.Context, p string, users []string) ([]json.RawMessage, error) {
+	f.note("mr-stamps:" + p + ":" + strings.Join(users, ","))
 	return stampsOf(f.mrs), nil
 }
 
-func (f *fakeFetcher) IssueStamps(_ context.Context, p, who string) ([]json.RawMessage, error) {
-	f.note("issue-stamps:" + p + ":" + who)
+func (f *fakeFetcher) IssueStamps(_ context.Context, p string, users []string) ([]json.RawMessage, error) {
+	f.note("issue-stamps:" + p + ":" + strings.Join(users, ","))
 	return stampsOf(f.issues), nil
+}
+
+func (f *fakeFetcher) Statuses(_ context.Context, p string) ([]json.RawMessage, error) {
+	f.note("statuses:" + p)
+	m, err := FixtureMirror()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]json.RawMessage, 0, len(m.Meta.Statuses))
+	for _, st := range m.Meta.Statuses {
+		b, err := json.Marshal(st)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, b)
+	}
+	return out, nil
+}
+
+func (f *fakeFetcher) CurrentIteration(_ context.Context, p string) (json.RawMessage, error) {
+	f.note("iteration:" + p)
+	m, err := FixtureMirror()
+	if err != nil {
+		return nil, err
+	}
+	if m.Meta.Iteration == nil {
+		return nil, nil
+	}
+	return json.Marshal(m.Meta.Iteration)
 }
 
 func (f *fakeFetcher) MergeRequestsByIID(_ context.Context, p string, iids []string) ([]json.RawMessage, error) {
@@ -138,7 +171,7 @@ func TestSyncProducesAMirrorThatRendersTheGoldens(t *testing.T) {
 	f := newFakeFetcher(t)
 	now := frozen(t)
 
-	res, err := Sync(context.Background(), f, dir, "acme/platform", now)
+	res, err := Sync(context.Background(), f, dir, "acme/platform", nil, now)
 	if err != nil {
 		t.Fatalf("Sync: %v", err)
 	}
@@ -193,6 +226,134 @@ func TestSyncProducesAMirrorThatRendersTheGoldens(t *testing.T) {
 	})
 }
 
+// Two accounts, and a row either of them owns is one row.
+//
+// The manifest is asked once per account per relation - author and assignee - because
+// GitLab's own or: filter answered with a fraction of what its parts return. The fake
+// answers the whole collection every time, which is the worst case: every row named four
+// times over.
+func TestSyncUnionsTheAccountsAndDeduplicates(t *testing.T) {
+	t.Parallel()
+	dir := filepath.Join(t.TempDir(), "mirror")
+	f := newFakeFetcher(t)
+	cfg := &Config{Accounts: []string{Self, "colleague"}}
+	res, err := Sync(context.Background(), f, dir, "acme/platform", cfg, frozen(t))
+	if err != nil {
+		t.Fatalf("Sync: %v", err)
+	}
+	if got := strings.Join(res.Users, ","); got != "you,colleague" {
+		t.Errorf("synced for %q, want \"you,colleague\"", got)
+	}
+	if got, want := len(res.Users), 2; got != want {
+		t.Fatalf("%d accounts, want %d", got, want)
+	}
+	// One manifest call per account, and the caller sees the accounts it asked for.
+	for _, want := range []string{"mr-stamps:acme/platform:you,colleague", "issue-stamps:acme/platform:you,colleague"} {
+		if !slices.Contains(f.calls, want) {
+			t.Errorf("no %q among %v", want, f.calls)
+		}
+	}
+	m, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	seen := map[string]bool{}
+	for _, is := range m.Issues {
+		if seen[is.IID] {
+			t.Errorf("#%s is in the mirror twice", is.IID)
+		}
+		seen[is.IID] = true
+	}
+	for _, mr := range m.MRs {
+		if seen[mr.IID] {
+			t.Errorf("!%s is in the mirror twice", mr.IID)
+		}
+		seen[mr.IID] = true
+	}
+	// A row named twice must still be fetched in full once.
+	fetched := map[string]int{}
+	for _, iid := range f.fetched {
+		fetched[iid]++
+	}
+	for iid, n := range fetched {
+		if n > 1 {
+			t.Errorf("%s was downloaded %d times", iid, n)
+		}
+	}
+}
+
+// A mirror written by an older selection is refetched in full, once.
+//
+// The manifest only names rows GitLab says have changed, so a field added to the query
+// would otherwise reach only the rows that happened to move: adding status left every
+// quiet issue banded as "no status" with nothing to say why.
+func TestSyncRefetchesWhenTheSelectionChanged(t *testing.T) {
+	t.Parallel()
+	dir := filepath.Join(t.TempDir(), "mirror")
+	f := newFakeFetcher(t)
+	now := frozen(t)
+	first, err := Sync(context.Background(), f, dir, "acme/platform", nil, now)
+	if err != nil {
+		t.Fatalf("Sync: %v", err)
+	}
+	if first.IssuesFetched == 0 {
+		t.Fatal("the first sync fetched nothing")
+	}
+
+	// Nothing moved, so nothing is downloaded again.
+	f.fetched = nil
+	again, err := Sync(context.Background(), f, dir, "acme/platform", nil, now)
+	if err != nil {
+		t.Fatalf("Sync: %v", err)
+	}
+	if again.IssuesFetched+again.MRsFetched != 0 {
+		t.Errorf("an unchanged queue refetched %d rows", again.IssuesFetched+again.MRsFetched)
+	}
+
+	// Now the rows on disk are the wrong shape, and GitLab still says they have not
+	// changed.
+	m, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	m.Meta.Schema = MirrorSchema - 1
+	if err := WriteMirror(dir, m, now); err != nil {
+		t.Fatalf("WriteMirror: %v", err)
+	}
+	after, err := Sync(context.Background(), f, dir, "acme/platform", nil, now)
+	if err != nil {
+		t.Fatalf("Sync: %v", err)
+	}
+	if after.IssuesFetched != after.Issues || after.MRsFetched != after.MRs {
+		t.Errorf("refetched %d of %d issues and %d of %d merge requests, want all of both",
+			after.IssuesFetched, after.Issues, after.MRsFetched, after.MRs)
+	}
+}
+
+// The lifecycle and the sprint reach the mirror, because the issue bands and the sprint
+// marker are read back out of it by every view.
+func TestSyncRecordsTheWorkflow(t *testing.T) {
+	t.Parallel()
+	dir := filepath.Join(t.TempDir(), "mirror")
+	f := newFakeFetcher(t)
+	if _, err := Sync(context.Background(), f, dir, "acme/platform", nil, frozen(t)); err != nil {
+		t.Fatalf("Sync: %v", err)
+	}
+	m, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(m.Meta.Statuses) == 0 {
+		t.Fatal("the mirror holds no lifecycle, so every issue would band as one")
+	}
+	if m.Meta.Statuses[0].Name != "Backlog" {
+		t.Errorf("lifecycle starts at %q, want GitLab's own first column", m.Meta.Statuses[0].Name)
+	}
+	if m.Meta.Iteration == nil {
+		t.Fatal("the mirror holds no current sprint, so no row could be marked")
+	}
+}
+
 // The mirror is a full snapshot, and the point of that is deletion: work that merged or
 // closed has to leave, not linger.
 func TestSyncDropsWhatLeftTheQueue(t *testing.T) {
@@ -201,7 +362,7 @@ func TestSyncDropsWhatLeftTheQueue(t *testing.T) {
 	f := newFakeFetcher(t)
 	now := frozen(t)
 
-	if _, err := Sync(context.Background(), f, dir, "acme/platform", now); err != nil {
+	if _, err := Sync(context.Background(), f, dir, "acme/platform", nil, now); err != nil {
 		t.Fatalf("first sync: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "mr", "412.md")); err != nil {
@@ -226,7 +387,7 @@ func TestSyncDropsWhatLeftTheQueue(t *testing.T) {
 		t.Fatalf("fixture no longer contains !412")
 	}
 	f.mrs = kept
-	if _, err := Sync(context.Background(), f, dir, "acme/platform", now); err != nil {
+	if _, err := Sync(context.Background(), f, dir, "acme/platform", nil, now); err != nil {
 		t.Fatalf("second sync: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "mr", "412.md")); !os.IsNotExist(err) {
@@ -251,7 +412,7 @@ func TestSyncSurvivesATodoFailure(t *testing.T) {
 	f := newFakeFetcher(t)
 	f.todoErr = errors.New("403 Forbidden")
 
-	res, err := Sync(context.Background(), f, dir, "acme/platform", frozen(t))
+	res, err := Sync(context.Background(), f, dir, "acme/platform", nil, frozen(t))
 	if err != nil {
 		t.Fatalf("a todo failure should not fail the sync: %v", err)
 	}
@@ -292,7 +453,7 @@ func TestFailedSyncLeavesThePreviousMirrorIntact(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "mirror")
 	f := newFakeFetcher(t)
 	now := frozen(t)
-	if _, err := Sync(context.Background(), f, dir, "acme/platform", now); err != nil {
+	if _, err := Sync(context.Background(), f, dir, "acme/platform", nil, now); err != nil {
 		t.Fatalf("first sync: %v", err)
 	}
 	before, err := os.ReadFile(filepath.Join(dir, "index.json"))
@@ -301,7 +462,7 @@ func TestFailedSyncLeavesThePreviousMirrorIntact(t *testing.T) {
 	}
 
 	broken := &failingFetcher{fakeFetcher: f}
-	if _, err := Sync(context.Background(), broken, dir, "acme/platform", now); err == nil {
+	if _, err := Sync(context.Background(), broken, dir, "acme/platform", nil, now); err == nil {
 		t.Fatal("a failing fetch reported success")
 	}
 	after, err := os.ReadFile(filepath.Join(dir, "index.json"))
@@ -315,7 +476,7 @@ func TestFailedSyncLeavesThePreviousMirrorIntact(t *testing.T) {
 
 type failingFetcher struct{ *fakeFetcher }
 
-func (f *failingFetcher) MergeRequestStamps(context.Context, string, string) ([]json.RawMessage, error) {
+func (f *failingFetcher) MergeRequestStamps(context.Context, string, []string) ([]json.RawMessage, error) {
 	return nil, errors.New("the forge went away")
 }
 
@@ -324,7 +485,7 @@ func TestRenderRebuildsWithoutANetwork(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "mirror")
 	f := newFakeFetcher(t)
 	now := frozen(t)
-	if _, err := Sync(context.Background(), f, dir, "acme/platform", now); err != nil {
+	if _, err := Sync(context.Background(), f, dir, "acme/platform", nil, now); err != nil {
 		t.Fatal(err)
 	}
 	// Throw the derived tiers away; Render must put them back from the snapshot alone.
@@ -385,7 +546,7 @@ func TestSyncReportsEveryLeg(t *testing.T) {
 		opened[leg]++
 	}
 
-	res, err := SyncWithProgress(context.Background(), f, dir, "acme/platform", now, report)
+	res, err := SyncWithProgress(context.Background(), f, dir, "acme/platform", nil, now, report)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -410,7 +571,7 @@ func TestSyncFetchesOnlyWhatChanged(t *testing.T) {
 	f := newFakeFetcher(t)
 	now := frozen(t)
 
-	first, err := Sync(context.Background(), f, dir, "acme/platform", now)
+	first, err := Sync(context.Background(), f, dir, "acme/platform", nil, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -419,7 +580,7 @@ func TestSyncFetchesOnlyWhatChanged(t *testing.T) {
 	}
 
 	f.fetched = nil
-	again, err := Sync(context.Background(), f, dir, "acme/platform", now)
+	again, err := Sync(context.Background(), f, dir, "acme/platform", nil, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -435,7 +596,7 @@ func TestSyncFetchesOnlyWhatChanged(t *testing.T) {
 	moved := bumpUpdatedAt(t, f.mrs[0])
 	f.mrs[0] = moved.node
 	f.fetched = nil
-	third, err := Sync(context.Background(), f, dir, "acme/platform", now)
+	third, err := Sync(context.Background(), f, dir, "acme/platform", nil, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -456,14 +617,14 @@ func TestSyncDropsWhatLeftTheManifest(t *testing.T) {
 	f := newFakeFetcher(t)
 	now := frozen(t)
 
-	first, err := Sync(context.Background(), f, dir, "acme/platform", now)
+	first, err := Sync(context.Background(), f, dir, "acme/platform", nil, now)
 	if err != nil {
 		t.Fatal(err)
 	}
 	gone := iidOf(t, f.mrs[0])
 	f.mrs = f.mrs[1:] // merged since the last sync
 
-	after, err := Sync(context.Background(), f, dir, "acme/platform", now)
+	after, err := Sync(context.Background(), f, dir, "acme/platform", nil, now)
 	if err != nil {
 		t.Fatal(err)
 	}

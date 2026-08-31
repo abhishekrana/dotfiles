@@ -1,10 +1,10 @@
-gitlab says it is you	a	!991	Someone else's merge request, assigned …	today	assigned	
-gitlab says it is you	a	#121	Flaky test in the ingest suite          	5d	mentioned	
-returned to you	a	!412	Cache the manifest lookup               	3d	directly addressed · not enough approvals	feat/manifest-cache
-pipeline failed	a	!406	Retry shim drops the last error         	9d	pipeline must pass, not enough approvals	fix/retry-shim
-blocked on you	a	!368	Split the ingest worker                 	16d	conflicts with the target branch, not enough approvals	refactor/ingest-split
-no reviewer yet	a	!418	Pin the base image digest               	1d	not enough approvals	chore/pin-base-digest
-no reviewer yet	a	!391	Drop the legacy export path             	8d	not enough approvals	chore/drop-legacy-export
-auto-merge not set	a	!423	Correct the changelog anchor            	today	dana ✓	fix/changelog-anchor
-waiting for approvals	i	!377	Widen the retry window                  	4d	not enough approvals	feat/retry-window
-not started	i	#126	Export job retries forever on a 404     	4d	not started	
+gitlab says it is you	a	!991	Someone else's merge request, assigned …	today	assigned			
+gitlab says it is you	a	#121	Flaky test in the ingest suite          	5d	mentioned			
+returned to you	a	!412	Cache the manifest lookup               	3d	directly addressed · not enough approvals	feat/manifest-cache		
+pipeline failed	a	!406	Retry shim drops the last error         	9d	pipeline must pass, not enough approvals	fix/retry-shim		
+blocked on you	a	!368	Split the ingest worker                 	16d	conflicts with the target branch, not enough approvals	refactor/ingest-split		
+no reviewer yet	a	!418	Pin the base image digest               	1d	not enough approvals	chore/pin-base-digest		
+no reviewer yet	a	!391	Drop the legacy export path             	8d	not enough approvals	chore/drop-legacy-export		
+auto-merge not set	a	!423	Correct the changelog anchor            	today	dana ✓	fix/changelog-anchor		
+waiting for approvals	i	!377	Widen the retry window                  	4d	not enough approvals	feat/retry-window		
+not started	i	#126	Export job retries forever on a 404     	4d	not started		high,bug	sprint

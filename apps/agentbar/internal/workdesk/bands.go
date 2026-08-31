@@ -226,8 +226,78 @@ func (mr *MergeRequest) Band() Band {
 	}
 }
 
-// Priority is the prio:: label an issue carries, as its band. Unlabelled sorts last
-// and stays visible: an issue nobody triaged is a decision nobody made.
+// NoStatus is the band for an issue GitLab has no status for. It sorts after the whole
+// lifecycle rather than being hidden: an issue outside the workflow is one nobody placed.
+const NoStatus = "no status"
+
+// StatusName is the issue's status as its band label.
+func (i *Issue) StatusName() string {
+	if i.Status == nil || i.Status.Name == "" {
+		return NoStatus
+	}
+	return i.Status.Name
+}
+
+// InSprint reports whether the issue is in the iteration passed - the current one, as
+// recorded by the sync.
+func (i *Issue) InSprint(current *Iteration) bool {
+	return current != nil && i.Iteration != nil && i.Iteration.ID == current.ID
+}
+
+// Lifecycle answers the two questions a row asks of the project's statuses: where one
+// sorts, and whether it is still asking something of you.
+//
+// The order is GitLab's own, exactly as it declares the lifecycle, so this view and the
+// board name the same columns in the same sequence and a status added upstream needs no
+// code here. Only which categories end the work is ours.
+type Lifecycle struct {
+	rank map[string]int
+	// active is the rank the work stops asking anything at: the first status GitLab
+	// files under done or canceled. Deriving the flag from position rather than from
+	// each status's own category is what guarantees exactly one active-to-inactive
+	// transition, which is the line the UI draws.
+	active int
+}
+
+// NewLifecycle indexes the statuses in the order given.
+func NewLifecycle(defs []Status) *Lifecycle {
+	l := &Lifecycle{rank: make(map[string]int, len(defs)), active: len(defs)}
+	for i, d := range defs {
+		l.rank[d.Name] = i
+		if l.active == len(defs) && finished(d.Category) {
+			l.active = i
+		}
+	}
+	return l
+}
+
+func finished(category string) bool { return category == "done" || category == "canceled" }
+
+// Rank is where a status sorts. A name the lifecycle does not carry - a status retired
+// since the issue was set to it - sorts after every known one rather than silently
+// joining the first band.
+func (l *Lifecycle) Rank(name string) int {
+	if r, ok := l.rank[name]; ok {
+		return r
+	}
+	return len(l.rank)
+}
+
+// Active reports whether a status is still asking something of you.
+func (l *Lifecycle) Active(name string) bool { return l.Rank(name) < l.active }
+
+// Flag is Active as the single letter a row carries.
+func (l *Lifecycle) Flag(name string) string {
+	if l.Active(name) {
+		return "a"
+	}
+	return "i"
+}
+
+// Priority is the prio:: label an issue carries. It is no longer the band - the status
+// is - but it is still what the inbox picks the unstarted work by, and what a sheet
+// reports. Unlabelled sorts last and stays visible: an issue nobody triaged is a
+// decision nobody made.
 type Priority int
 
 const (

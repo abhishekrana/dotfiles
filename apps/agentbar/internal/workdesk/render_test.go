@@ -79,7 +79,7 @@ func TestIssueSheetMatchesGolden(t *testing.T) {
 	if err := IssueSheet(&got, target); err != nil {
 		t.Fatalf("IssueSheet: %v", err)
 	}
-	diffLines(t, golden(t, "preview-issue-128.golden"), got.String())
+	checkGolden(t, "preview-issue-128.golden", got.String())
 }
 
 // The sheet's job is to answer one question, so the two answers get their own check

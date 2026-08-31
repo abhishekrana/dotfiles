@@ -29,7 +29,7 @@ import (
 // worktree, writing to GitLab. Returned rather than performed: the model stays pure, and
 // the caller owns every side effect and every confirm.
 type Action struct {
-	Key string // the binding that asked for it: o, y, c, d, a, e, M, P, r
+	Key string // the binding that asked for it: o, y, c, d, a, e, M, s, i, P, r
 	Ref string // kind:id, the same handle `workdesk act` takes
 }
 
@@ -345,6 +345,10 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.request("e")
 	case key.Matches(msg, k.Merge):
 		return m.request("M")
+	case key.Matches(msg, k.Status):
+		return m.request("s")
+	case key.Matches(msg, k.Sprint):
+		return m.request("i")
 	case key.Matches(msg, k.Promote):
 		return m.request("P")
 	case key.Matches(msg, k.Sync):
@@ -387,6 +391,10 @@ func (m Model) request(k string) (tea.Model, tea.Cmd) {
 	// Views without a write to make say so rather than silently doing nothing.
 	if (k == "a" || k == "e" || k == "M") && !strings.HasPrefix(row.Ref, "!") {
 		m.notice = "that only applies to a merge request"
+		return m, nil
+	}
+	if (k == "s" || k == "i") && !strings.HasPrefix(row.Ref, "#") {
+		m.notice = "that only applies to an issue"
 		return m, nil
 	}
 	m.Pending = &Action{Key: k, Ref: workdesk.RefFor(row)}

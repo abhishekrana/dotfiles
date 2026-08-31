@@ -47,6 +47,51 @@ func TestViewShowsTheThingsItIsFor(t *testing.T) {
 	}
 }
 
+// The issues view is the board: GitLab's own columns as bands, in its order, with the
+// labels and the sprint on the row.
+func TestIssuesViewIsTheBoard(t *testing.T) {
+	t.Parallel()
+	m := testModel(t)
+	m.setView(workdesk.ViewIssues)
+	out := stripANSI(m.View())
+	for _, want := range []string{
+		"Backlog", "To do", "In progress", "In review", // GitLab's columns, as bands
+		"no status",                          // an issue outside the workflow still gets a row
+		"nothing below asks anything of you", // done and cancelled are below the line
+		"high", "bug",                        // scoped labels, as their values
+		sprintMark, // in the current sprint
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the issues view does not show %q", want)
+		}
+	}
+	// The bands are in the lifecycle's order, not alphabetical and not by priority.
+	if backlog, todo := strings.Index(out, "Backlog"), strings.Index(out, "To do"); backlog > todo {
+		t.Error("Backlog sorts after To do; the bands are not in GitLab's order")
+	}
+	// Grouped by status, never by label: a label is a column on the row.
+	if strings.Contains(out, "▌ high") {
+		t.Error("priority is still a band header")
+	}
+}
+
+// The two moves apply to an issue, and say so on a row that is not one.
+func TestStatusAndSprintOnlyApplyToIssues(t *testing.T) {
+	t.Parallel()
+	for _, key := range []string{"s", "i"} {
+		m := testModel(t)
+		m.setView(workdesk.ViewMRs)
+		next, _ := m.request(key)
+		got := next.(Model)
+		if got.Pending != nil {
+			t.Errorf("%q asked for %v on a merge request", key, got.Pending)
+		}
+		if !strings.Contains(got.notice, "issue") {
+			t.Errorf("%q on a merge request said %q", key, got.notice)
+		}
+	}
+}
+
 // Nothing may run off the edge: a line wider than the terminal wraps and shears the
 // whole layout.
 func TestViewNeverExceedsItsWidth(t *testing.T) {

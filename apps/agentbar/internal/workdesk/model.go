@@ -17,6 +17,15 @@ import (
 	"path/filepath"
 )
 
+// MirrorSchema is the shape of the rows the current selection produces. Bump it whenever
+// a field is added to what sync asks GitLab for.
+//
+// A sync fetches in full only the rows whose updatedAt moved, so without this a mirror
+// written before a field existed keeps serving rows that lack it, for as long as they sit
+// untouched: adding status to the query left every quiet issue banded as "no status" and
+// nothing said why. A mismatch refetches everything once.
+const MirrorSchema = 2
+
 // ErrNoMirror means nothing has been synced yet. Callers branch on it to say "run
 // workdesk sync" rather than reporting a bare file-not-found.
 var ErrNoMirror = errors.New("no mirror yet")
@@ -34,6 +43,51 @@ type Meta struct {
 	Project string `json:"project"`
 	User    string `json:"user"`
 	Synced  string `json:"synced"`
+	// Schema is the shape of the rows on disk, so a sync can tell that they were written
+	// by an older selection. See MirrorSchema.
+	Schema int `json:"schema,omitempty"`
+	// Users is every account the mirror was fetched for. User stays the identity glab
+	// authenticates as, which is whose todo feed this holds - the two differ the moment
+	// a second account is configured.
+	Users []string `json:"users,omitempty"`
+	// Statuses is the project's status lifecycle, in GitLab's own declared order, which
+	// is the order the issue bands are drawn in. Stored rather than derived: the bands
+	// have to survive `workdesk render`, which has no network.
+	Statuses []Status `json:"statuses,omitempty"`
+	// Iteration is the sprint running when the mirror was written, so a row can say
+	// whether it is in it.
+	Iteration *Iteration `json:"iteration,omitempty"`
+}
+
+// Status is one entry of the project's work-item status lifecycle. GitLab owns the name,
+// the order and the category; nothing here invents a workflow.
+type Status struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Category string `json:"category"`
+}
+
+// Iteration is one sprint. Title is empty on a cadence-generated iteration - GitLab
+// names those by their dates - so Label falls back to them rather than rendering blank.
+type Iteration struct {
+	ID        string `json:"id"`
+	Title     string `json:"title"`
+	StartDate string `json:"startDate"`
+	DueDate   string `json:"dueDate"`
+	Cadence   struct {
+		Title string `json:"title"`
+	} `json:"iterationCadence"`
+}
+
+// Label is what a person reads: the iteration's own title, else its dates.
+func (it *Iteration) Label() string {
+	if it == nil {
+		return ""
+	}
+	if it.Title != "" {
+		return it.Title
+	}
+	return join(" - ", it.StartDate, it.DueDate)
 }
 
 // Only the fields a view reads are declared. An addition upstream is ignored rather
@@ -145,11 +199,18 @@ type nodes[T any] struct {
 }
 
 type Issue struct {
+	// ID is the global ID. Kept because a status or iteration move addresses the work
+	// item, not the iid: gid://gitlab/WorkItem/<n> resolves for the same n.
+	ID        string       `json:"id"`
 	IID       string       `json:"iid"`
 	Title     string       `json:"title"`
 	UpdatedAt string       `json:"updatedAt"`
 	WebURL    string       `json:"webUrl"`
 	Labels    nodes[Label] `json:"labels"`
+	// Pointers: an issue with no status or no iteration decodes to nil rather than a
+	// zero value that would read as a status named "".
+	Status    *Status    `json:"status"`
+	Iteration *Iteration `json:"iteration"`
 }
 
 // Todo is REST, not GraphQL - the only part of the mirror that is. Field names and

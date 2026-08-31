@@ -58,9 +58,14 @@ const mrFields = `
         labels { nodes { title } }
         reviewers { nodes { username mergeRequestInteraction { reviewState } } }`
 
+// id is fetched because a status or iteration move addresses the work item behind the
+// issue; status and iteration because they are what the issue view bands and marks by.
+// The lifecycle that orders those bands is a separate call - see Statuses.
 const issueFields = `
-        iid title updatedAt webUrl
-        labels { nodes { title } }`
+        id iid title updatedAt webUrl
+        labels { nodes { title } }
+        status { id name category }
+        iteration { id title startDate dueDate iterationCadence { title } }`
 
 type pageInfo struct {
 	HasNextPage bool   `json:"hasNextPage"`
@@ -84,15 +89,15 @@ type page[T any] struct {
 	} `json:"data"`
 }
 
-// MergeRequestStamps lists every open merge request you authored as an iid and an
-// updatedAt, and nothing else. One call for a whole queue.
-func (c *Client) MergeRequestStamps(ctx context.Context, project, who string) ([]json.RawMessage, error) {
-	return c.walk(ctx, "mergeRequests", project, stampFields, authored(who), manifestPage)
+// MergeRequestStamps lists every open merge request that is yours as an iid and an
+// updatedAt, and nothing else. One call per account per relation, for a whole queue.
+func (c *Client) MergeRequestStamps(ctx context.Context, project string, users []string) ([]json.RawMessage, error) {
+	return c.stamps(ctx, "mergeRequests", project, users)
 }
 
 // IssueStamps is the same for issues.
-func (c *Client) IssueStamps(ctx context.Context, project, who string) ([]json.RawMessage, error) {
-	return c.walk(ctx, "issues", project, stampFields, authored(who), manifestPage)
+func (c *Client) IssueStamps(ctx context.Context, project string, users []string) ([]json.RawMessage, error) {
+	return c.stamps(ctx, "issues", project, users)
 }
 
 // MergeRequestsByIID fetches the full selection for the merge requests named, and only
@@ -107,8 +112,54 @@ func (c *Client) IssuesByIID(ctx context.Context, project string, iids []string)
 	return c.chunked(ctx, "issues", project, issueFields, iids)
 }
 
-func authored(who string) string {
-	return "state: opened, authorUsername: " + strconv.Quote(who)
+// ownership is the two ways a row can be yours, asked for separately and unioned.
+//
+// Both, because the halves are different queues: an account that files the work is
+// rarely the account it is assigned to, and either half alone reads as a complete board
+// while hiding most of it. GitLab's own `or:` filter would do this in one call, but it
+// answered with a fraction of what its parts return, so the union is done here where it
+// can be seen.
+var ownership = []string{"authorUsername", "assigneeUsername"}
+
+func owned(relation, who string) string {
+	return "state: opened, " + relation + ": " + strconv.Quote(who)
+}
+
+func authored(who string) string { return owned("authorUsername", who) }
+
+// stamps walks the manifest once per account per relation, all of them in flight
+// together, and concatenates. Duplicates are expected - a row you authored and were
+// assigned is named twice - and are dropped by the caller, which decodes the iids anyway.
+func (c *Client) stamps(ctx context.Context, field, project string, users []string) ([]json.RawMessage, error) {
+	type call struct{ relation, who string }
+	var calls []call
+	for _, who := range users {
+		for _, relation := range ownership {
+			calls = append(calls, call{relation, who})
+		}
+	}
+	got := make([][]json.RawMessage, len(calls))
+	errs := make([]error, len(calls))
+
+	slot := make(chan struct{}, detailAtOnce)
+	var wg sync.WaitGroup
+	for i, cl := range calls {
+		wg.Go(func() {
+			slot <- struct{}{}
+			defer func() { <-slot }()
+			got[i], errs[i] = c.walk(ctx, field, project, stampFields, owned(cl.relation, cl.who), manifestPage)
+		})
+	}
+	wg.Wait()
+
+	if err := errors.Join(errs...); err != nil {
+		return nil, err
+	}
+	var all []json.RawMessage
+	for _, nodes := range got {
+		all = append(all, nodes...)
+	}
+	return all, nil
 }
 
 // chunked runs the detail fetches a few at a time. GitLab charges per node either way,
@@ -278,6 +329,102 @@ func todoProject(raw json.RawMessage) string {
 		return ""
 	}
 	return td.Project.Path
+}
+
+// Statuses is the project's work-item status lifecycle: every status, in the order
+// GitLab declares it.
+//
+// This is where the issue bands and their order come from, so neither is written down
+// here - a column added or moved upstream appears on the next sync. Read from the work
+// item type rather than from a board: a project can carry dozens of boards, they disagree
+// about which statuses to show and in what order, and picking one of them would be
+// picking a workflow rather than reading it.
+func (c *Client) Statuses(ctx context.Context, project string) ([]json.RawMessage, error) {
+	const q = `query {
+  project(fullPath: %s) {
+    workItemTypes(first: 30) {
+      nodes {
+        name
+        widgetDefinitions {
+          type
+          ... on WorkItemWidgetDefinitionStatus { allowedStatuses { id name category } }
+        }
+      }
+    }
+  }
+}`
+	var resp struct {
+		Data struct {
+			Project *struct {
+				WorkItemTypes struct {
+					Nodes []struct {
+						Name              string `json:"name"`
+						WidgetDefinitions []struct {
+							Type            string            `json:"type"`
+							AllowedStatuses []json.RawMessage `json:"allowedStatuses"`
+						} `json:"widgetDefinitions"`
+					} `json:"nodes"`
+				} `json:"workItemTypes"`
+			} `json:"project"`
+		} `json:"data"`
+	}
+	if err := c.graphQL(ctx, fmt.Sprintf(q, strconv.Quote(project)), &resp); err != nil {
+		return nil, err
+	}
+	if resp.Data.Project == nil {
+		return nil, fmt.Errorf("%s: %w", project, ErrNotVisible)
+	}
+	// The Issue type's lifecycle, falling back to the first type that declares one: every
+	// type on a project shares its lifecycle, and a project whose work is filed under
+	// another type should still get bands.
+	var fallback []json.RawMessage
+	for _, t := range resp.Data.Project.WorkItemTypes.Nodes {
+		for _, w := range t.WidgetDefinitions {
+			if w.Type != "STATUS" || len(w.AllowedStatuses) == 0 {
+				continue
+			}
+			if t.Name == "Issue" {
+				return w.AllowedStatuses, nil
+			}
+			if fallback == nil {
+				fallback = w.AllowedStatuses
+			}
+		}
+	}
+	return fallback, nil
+}
+
+// CurrentIteration is the sprint running now, or nil where the project has none.
+//
+// includeAncestors because iteration cadences are usually defined on the group rather
+// than the project, and the project's own list is then empty.
+func (c *Client) CurrentIteration(ctx context.Context, project string) (json.RawMessage, error) {
+	const q = `query {
+  project(fullPath: %s) {
+    iterations(first: 1, state: current, includeAncestors: true) {
+      nodes { id title startDate dueDate iterationCadence { title } }
+    }
+  }
+}`
+	var resp struct {
+		Data struct {
+			Project *struct {
+				Iterations struct {
+					Nodes []json.RawMessage `json:"nodes"`
+				} `json:"iterations"`
+			} `json:"project"`
+		} `json:"data"`
+	}
+	if err := c.graphQL(ctx, fmt.Sprintf(q, strconv.Quote(project)), &resp); err != nil {
+		return nil, err
+	}
+	if resp.Data.Project == nil {
+		return nil, fmt.Errorf("%s: %w", project, ErrNotVisible)
+	}
+	if len(resp.Data.Project.Iterations.Nodes) == 0 {
+		return nil, nil
+	}
+	return resp.Data.Project.Iterations.Nodes[0], nil
 }
 
 // SchemaCheck validates the merge-request selection against the live schema without

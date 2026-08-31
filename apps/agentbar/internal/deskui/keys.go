@@ -34,6 +34,8 @@ type keyMap struct {
 	Assign   key.Binding
 	Auto     key.Binding
 	Merge    key.Binding
+	Status   key.Binding
+	Sprint   key.Binding
 	Promote  key.Binding
 	Sync     key.Binding
 	Help     key.Binding
@@ -74,9 +76,12 @@ func defaultKeys() keyMap {
 		Assign:   key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "assign a reviewer")),
 		Auto:     key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "set auto-merge")),
 		Merge:    key.NewBinding(key.WithKeys("M"), key.WithHelp("M", "merge")),
-		Promote:  key.NewBinding(key.WithKeys("P"), key.WithHelp("P", "promote to a pane")),
-		Sync:     key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "re-sync")),
-		Help:     key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help")),
+		Status:   key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "move to a status")),
+		// One key both ways: the row's ◆ already says which way it will go.
+		Sprint:  key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "in/out of the sprint")),
+		Promote: key.NewBinding(key.WithKeys("P"), key.WithHelp("P", "promote to a pane")),
+		Sync:    key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "re-sync")),
+		Help:    key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help")),
 		// alt+n is the key tmux opens this with. While the popup is up that key reaches
 		// here instead of tmux, so quitting on it is what makes the opener a toggle -
 		// the status chip cannot do it, because a popup swallows the click.
@@ -110,6 +115,6 @@ func (k keyMap) FullHelp() [][]key.Binding {
 		{k.Up, k.Down, k.Top, k.Bottom, k.ScrollUp, k.ScrollDn},
 		append(k.Views, k.NextView, k.PrevView, k.Filter),
 		{k.Accept, k.Open, k.Copy, k.Tree, k.Diff, k.Matrix},
-		{k.Assign, k.Auto, k.Merge, k.Promote, k.Sync, k.Quit},
+		{k.Assign, k.Auto, k.Merge, k.Status, k.Sprint, k.Promote, k.Sync, k.Quit},
 	}
 }

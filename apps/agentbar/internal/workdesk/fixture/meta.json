@@ -1,5 +1,50 @@
 {
   "project": "acme/platform",
   "user": "you",
-  "synced": "2026-08-27 10:31:02"
+  "synced": "2026-08-27 10:31:02",
+  "users": [
+    "you",
+    "you-bot"
+  ],
+  "statuses": [
+    {
+      "id": "gid://gitlab/WorkItems::Statuses::Custom::Status/1",
+      "name": "Backlog",
+      "category": "triage"
+    },
+    {
+      "id": "gid://gitlab/WorkItems::Statuses::Custom::Status/2",
+      "name": "To do",
+      "category": "to_do"
+    },
+    {
+      "id": "gid://gitlab/WorkItems::Statuses::Custom::Status/3",
+      "name": "In progress",
+      "category": "in_progress"
+    },
+    {
+      "id": "gid://gitlab/WorkItems::Statuses::Custom::Status/4",
+      "name": "In review",
+      "category": "in_progress"
+    },
+    {
+      "id": "gid://gitlab/WorkItems::Statuses::Custom::Status/5",
+      "name": "Done",
+      "category": "done"
+    },
+    {
+      "id": "gid://gitlab/WorkItems::Statuses::Custom::Status/6",
+      "name": "Cancelled",
+      "category": "canceled"
+    }
+  ],
+  "iteration": {
+    "id": "gid://gitlab/Iteration/7",
+    "title": "",
+    "startDate": "2026-08-24",
+    "dueDate": "2026-09-06",
+    "iterationCadence": {
+      "title": "Fortnightly"
+    }
+  }
 }

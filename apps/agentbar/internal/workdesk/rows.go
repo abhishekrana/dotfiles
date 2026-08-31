@@ -113,18 +113,29 @@ type Row struct {
 	Age    string
 	Note   string
 	Branch string
+	// Tags is the labels, unjoined: the TSV wants commas and the UI wants its own
+	// separator, and joining here would make one of them undo the other.
+	Tags []string
+	// Sprint marks membership of the current iteration.
+	Sprint bool
 }
 
 // TSV is the wire format for a reader that is not this program:
 //
-//	label  flag  ref  title  age  note  branch
+//	label  flag  ref  title  age  note  branch  tags  sprint
 //
 // The title is padded here rather than in the model, because a fixed column only makes
 // sense for a fixed-width consumer - the UI sizes it to the terminal instead.
 // Separators inside a field are escaped, so a merge request titled with a tab cannot
-// invent a column.
+// invent a column. New columns are appended, never inserted, so a reader that knows the
+// first seven keeps working.
 func (r Row) TSV() string {
-	return TSV(r.Label, r.Flag, r.Ref, Pad(r.Title, titleWidth), r.Age, r.Note, r.Branch)
+	sprint := ""
+	if r.Sprint {
+		sprint = "sprint"
+	}
+	return TSV(r.Label, r.Flag, r.Ref, Pad(r.Title, titleWidth), r.Age, r.Note, r.Branch,
+		strings.Join(r.Tags, ","), sprint)
 }
 
 // WriteRows emits one TSV line per row.
@@ -147,6 +158,8 @@ func (it Item) row(now time.Time) Row {
 		Age:    Age(time.Unix(it.Updated, 0), now),
 		Note:   it.Note,
 		Branch: it.Branch,
+		Tags:   it.Tags,
+		Sprint: it.Sprint,
 	}
 }
 

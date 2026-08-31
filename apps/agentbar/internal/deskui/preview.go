@@ -194,8 +194,10 @@ func (m Model) issuePreview(iid string) string {
 	if joined == "" {
 		joined = s.muted.Render("none")
 	}
+	fmt.Fprintln(&b, s.kv("status", s.accent.Render(is.StatusName())))
 	fmt.Fprintln(&b, s.kv("priority", s.warn.Render(is.Priority().String())))
 	fmt.Fprintln(&b, s.kv("labels", s.val.Render(joined)))
+	fmt.Fprintln(&b, s.kv("sprint", s.val.Render(m.sprintLine(is))))
 	fmt.Fprintln(&b, s.kv("updated", s.val.Render(
 		workdesk.AgeAgo(workdesk.ParseTime(is.UpdatedAt), m.deps.Now()))))
 
@@ -209,6 +211,23 @@ func (m Model) issuePreview(iid string) string {
 	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, s.kv("url", s.muted.Render(is.WebURL)))
 	return b.String()
+}
+
+// sprintLine says where the issue stands against the sprint the sync recorded, because
+// that is what `i` will move it into or out of. An issue in some other iteration is named
+// rather than reported as out: "not in it" would be false.
+func (m Model) sprintLine(is *workdesk.Issue) string {
+	current := m.deps.Mirror.Meta.Iteration
+	switch {
+	case is.InSprint(current):
+		return sprintMark + " " + current.Label() + "  " + is.Iteration.Cadence.Title
+	case is.Iteration != nil:
+		return is.Iteration.Label() + "  " + is.Iteration.Cadence.Title
+	case current != nil:
+		return "not in " + current.Label()
+	default:
+		return "none"
+	}
 }
 
 func (m Model) agentPreview(r workdesk.Row) string {

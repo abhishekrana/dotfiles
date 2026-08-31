@@ -259,7 +259,7 @@ func indentBody(s string) string {
 }
 
 // IssueSheet is everything known about an issue without another API call: an issue
-// carries no gates, so its row plus its labels is the whole of it.
+// carries no gates, so its status, row and labels are the whole of it.
 func IssueSheet(w io.Writer, is *Issue) error {
 	d := &doc{}
 	d.addf("# #%s  %s", is.IID, is.Title)
@@ -274,7 +274,11 @@ func IssueSheet(w io.Writer, is *Issue) error {
 	if joined == "" {
 		joined = "none"
 	}
+	d.addf("status: %s", is.StatusName())
 	d.addf("labels: %s", joined)
+	if it := is.Iteration.Label(); it != "" {
+		d.addf("sprint: %s", it)
+	}
 	updated := is.UpdatedAt
 	if len(updated) >= 10 {
 		updated = updated[:10]

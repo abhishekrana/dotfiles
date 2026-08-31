@@ -51,6 +51,14 @@ type Item struct {
 	Branch  string `json:"branch,omitempty"`
 	URL     string `json:"url,omitempty"`
 	Updated int64  `json:"updated"`
+	// Tags is the labels as a row shows them: the value of a scoped label, the whole
+	// title of a plain one. Values only, because the namespace is the same on every row
+	// in a column and the row has no width to spend saying it again - the preview keeps
+	// the full titles.
+	Tags []string `json:"tags,omitempty"`
+	// Sprint is membership of the current iteration, resolved at build time against the
+	// one the sync recorded.
+	Sprint bool `json:"sprint,omitempty"`
 }
 
 // MRItem keeps the band as a value rather than only its label, so the inbox can select
@@ -60,10 +68,12 @@ type MRItem struct {
 	Band Band `json:"band"`
 }
 
-// IssueItem keeps the priority for the same reason.
+// IssueItem keeps the status it was banded by, and the priority the inbox still selects
+// on, for the same reason.
 type IssueItem struct {
 	Item
-	Prio Priority `json:"prio"`
+	Status string   `json:"status"`
+	Prio   Priority `json:"prio"`
 }
 
 // BuildIndex does every classification and join once, at sync time.
@@ -73,7 +83,7 @@ func BuildIndex(m *Mirror) *Index {
 		idx.Generated = t.Unix()
 	}
 	idx.MRs = buildMRs(m.MRs)
-	idx.Issues = buildIssues(m.Issues, m.MRs)
+	idx.Issues = buildIssues(m.Issues, m.MRs, m.Meta)
 	idx.Todos, idx.TodosDropped = buildTodos(m.Todos)
 	return idx
 }
@@ -120,11 +130,19 @@ func buildMRs(mrs []MergeRequest) []MRItem {
 	return out
 }
 
-func buildIssues(issues []Issue, mrs []MergeRequest) []IssueItem {
+// buildIssues bands the issues by their GitLab status, in GitLab's own lifecycle order.
+//
+// The status is the band because it is the question the board answers - where is this
+// piece of work - and it is the one grouping that already exists upstream, so the two
+// never disagree and a column added there appears here on the next sync. Labels are shown
+// on the row and group nothing: an issue carries several of them, so any one of them
+// makes a grouping that puts the same issue in two places or neither.
+func buildIssues(issues []Issue, mrs []MergeRequest, meta Meta) []IssueItem {
+	life := NewLifecycle(meta.Statuses)
 	out := make([]IssueItem, 0, len(issues))
 	for i := range issues {
 		is := &issues[i]
-		prio := is.Priority()
+		status := is.StatusName()
 		note := "not started"
 		if mr := InFlightFor(is.IID, mrs); mr != nil {
 			note = "!" + mr.IID + " in flight"
@@ -133,22 +151,46 @@ func buildIssues(issues []Issue, mrs []MergeRequest) []IssueItem {
 			Item: Item{
 				Ref:     "#" + is.IID,
 				Title:   is.Title,
-				Label:   prio.String(),
-				Flag:    "a",
+				Label:   status,
+				Flag:    life.Flag(status),
 				Note:    note,
 				URL:     is.WebURL,
 				Updated: ParseTime(is.UpdatedAt).Unix(),
+				Tags:    Tags(is.Labels.Nodes),
+				Sprint:  is.InSprint(meta.Iteration),
 			},
-			Prio: prio,
+			Status: status,
+			Prio:   is.Priority(),
 		})
 	}
-	// Priority first, then newest, matching every other view.
+	// Status first, then newest, matching every other view. Priority is a label on the
+	// row rather than a second sort: the band already says where the work is, and one
+	// list cannot be ordered by two things without disagreeing with the other five.
 	slices.SortStableFunc(out, func(a, b IssueItem) int {
-		if a.Prio != b.Prio {
-			return int(a.Prio) - int(b.Prio)
+		if r := life.Rank(a.Status) - life.Rank(b.Status); r != 0 {
+			return r
+		}
+		if a.Status != b.Status {
+			return strings.Compare(a.Status, b.Status)
 		}
 		return int(b.Updated - a.Updated)
 	})
+	return out
+}
+
+// Tags renders labels the way a row shows them: a scoped label as its value alone, a
+// plain one whole. GitLab writes a scoped label as namespace::value, and on a list where
+// every row carries the same handful of namespaces the namespace is the half that says
+// nothing.
+func Tags(labels []Label) []string {
+	out := make([]string, 0, len(labels))
+	for _, l := range labels {
+		if _, value, scoped := strings.Cut(l.Title, "::"); scoped {
+			out = append(out, value)
+			continue
+		}
+		out = append(out, l.Title)
+	}
 	return out
 }
 

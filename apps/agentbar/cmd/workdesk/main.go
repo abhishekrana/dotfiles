@@ -36,13 +36,14 @@ commands:
   issue <iid>        one issue
   matrix             one row per merge request, one column per gate, and totals
   preview <ref>      the preview for one row (mrs:412, issues:128, agents:%3)
-  act <key> <ref>    run one action without a terminal
+  act <key> <ref>    run one action without a terminal (s takes a status name)
   ready              the rows asking something of you, one per line, for agents
   fixture <dir>      write the invented mirror the mockup and the tests share
   schema-check       validate the query against the live GitLab schema
   path               print the mirror directory
 
 environment:
+  WORKDESK_CONFIG    the accounts file (default ~/.config/workdesk/config.toml)
   WORKDESK_MIRROR    where the mirror lives
   WORKDESK_AGENTS    read agents from a file instead of tmux
   WORKDESK_DRY       print what a write would run, and stop
@@ -123,6 +124,20 @@ func mirrorDir() string {
 	return filepath.Join(state, "dotfiles", "workdesk")
 }
 
+// configPath is where the accounts are configured. Outside this repository, like the
+// mirror: a username is exactly what must never be committed here, and the file is
+// per-machine anyway.
+func configPath() string {
+	if p := os.Getenv("WORKDESK_CONFIG"); p != "" {
+		return p
+	}
+	dir := os.Getenv("XDG_CONFIG_HOME")
+	if dir == "" {
+		dir = filepath.Join(os.Getenv("HOME"), ".config")
+	}
+	return filepath.Join(dir, "workdesk", "config.toml")
+}
+
 func runSync() error {
 	dir := mirrorDir()
 	repo, err := os.Getwd()
@@ -137,14 +152,19 @@ func runSync() error {
 	if err != nil {
 		return err
 	}
+	cfg, err := workdesk.LoadConfig(configPath())
+	if err != nil {
+		return err
+	}
 	line := newProgressLine(project)
-	res, err := workdesk.SyncWithProgress(ctx, client, dir, project, time.Now(), line.leg)
+	res, err := workdesk.SyncWithProgress(ctx, client, dir, project, cfg, time.Now(), line.leg)
 	line.close()
 	if err != nil {
 		trace.Log("workdesk", "sync", "project", project, "rc", 1, "err", trace.Err(err))
 		return err
 	}
 	trace.Log("workdesk", "sync", "project", res.Project, "via", via, "user", res.User,
+		"accounts", len(res.Users),
 		"mrs", res.MRs, "issues", res.Issues, "todos", res.Todos,
 		"fetched", res.MRsFetched+res.IssuesFetched,
 		"ms", res.Took.Milliseconds(), "rc", 0)

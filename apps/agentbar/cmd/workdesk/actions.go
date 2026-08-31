@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -71,7 +72,7 @@ func runOpen(args []string) error {
 				say(err.Error())
 			}
 		default:
-			if err := act(done.Pending.Key, done.Pending.Ref); err != nil {
+			if err := act(done.Pending.Key, done.Pending.Ref, ""); err != nil {
 				say(err.Error())
 			}
 		}
@@ -288,14 +289,16 @@ func jump(pane string) error {
 
 func runAct(args []string) error {
 	if len(args) < 2 {
-		return errors.New("usage: workdesk act <key> <ref>")
+		return errors.New("usage: workdesk act <key> <ref> [status]")
 	}
-	return act(args[0], args[1])
+	// The status a move goes to, named rather than picked, so `s` is one command for an
+	// agent as well as a keypress for a person.
+	return act(args[0], args[1], first(args[2:]))
 }
 
 // act is one keypress. Every action is an ordinary function reachable without a terminal,
 // which is what lets the suite exercise them all.
-func act(key, ref string) error {
+func act(key, ref, choice string) error {
 	if ref == "" {
 		return nil
 	}
@@ -340,8 +343,87 @@ func act(key, ref string) error {
 			return errors.New("that only applies to a merge request")
 		}
 		return write(key, id, strings.TrimSpace(it.Title))
+	case "s", "i":
+		if kind != "issues" {
+			return errors.New("that only applies to an issue")
+		}
+		return move(key, id, choice)
 	}
 	return nil
+}
+
+// move is the status change and the sprint toggle: the two writes that act on an issue.
+//
+// The full snapshot rather than the index, because both need what a row does not carry -
+// the issue's global ID, the lifecycle to choose from, and the sprint to move it to or
+// from. It is one decode on a keypress that is about to make a network call.
+func move(key, iid, choice string) error {
+	m, err := workdesk.Load(mirrorDir())
+	if err != nil {
+		return err
+	}
+	var is *workdesk.Issue
+	for i := range m.Issues {
+		if m.Issues[i].IID == iid {
+			is = &m.Issues[i]
+		}
+	}
+	if is == nil {
+		return fmt.Errorf("#%s is not in the mirror", iid)
+	}
+	title := strings.TrimSpace(is.Title)
+
+	if key == "i" {
+		sprint := m.Meta.Iteration
+		if sprint == nil {
+			return errors.New("this project has no current sprint")
+		}
+		// The row already says which way this goes, so the key is one key: in the
+		// sprint means out of it, and out means in.
+		id := sprint.ID
+		if is.InSprint(sprint) {
+			id = ""
+		}
+		return confirm(key, iid, gitlab.SetIteration(iid, title, is.ID, id, sprint.Label()))
+	}
+
+	to, ok := pickStatus(m.Meta.Statuses, is.StatusName(), choice)
+	if !ok {
+		return nil
+	}
+	return confirm(key, iid, gitlab.SetStatus(iid, title, is.ID, to.ID, to.Name))
+}
+
+// pickStatus asks which column to move to, listing the lifecycle in GitLab's own order
+// and marking where the issue is now. The UI never acts, so this is the terminal it quit
+// to - and the same list an agent gets by number from `workdesk act`.
+func pickStatus(statuses []workdesk.Status, now, choice string) (workdesk.Status, bool) {
+	if len(statuses) == 0 {
+		fmt.Println("no statuses in the mirror - run 'workdesk sync'")
+		return workdesk.Status{}, false
+	}
+	if choice != "" {
+		for _, st := range statuses {
+			if strings.EqualFold(st.Name, choice) {
+				return st, true
+			}
+		}
+		fmt.Printf("no status named %q in this project\n", choice)
+		return workdesk.Status{}, false
+	}
+	for i, st := range statuses {
+		here := ""
+		if st.Name == now {
+			here = "  ← now"
+		}
+		fmt.Printf("  %d  %s%s\n", i+1, st.Name, here)
+	}
+	n, err := strconv.Atoi(prompt("move to: "))
+	if err != nil || n < 1 || n > len(statuses) {
+		say("left alone")
+		return workdesk.Status{}, false
+	}
+	return statuses[n-1], true
 }
 
 func findItem(kind, id string) (workdesk.Item, bool) {
@@ -379,8 +461,7 @@ func agentBranch(pane string) string {
 	return ""
 }
 
-// write is the confirm gate in front of the only three calls that change GitLab.
-// WORKDESK_DRY stops before running, which is how the mockup stays harmless.
+// write is the three merge request calls that change GitLab.
 func write(key, iid, title string) error {
 	var w gitlab.Write
 	switch key {
@@ -395,7 +476,13 @@ func write(key, iid, title string) error {
 	case "M":
 		w = gitlab.Merge(iid, title)
 	}
+	return confirm(key, iid, w)
+}
 
+// confirm is the gate in front of every call that changes GitLab: what it will do, the
+// command that will do it, and a yes. WORKDESK_DRY stops before running, which is how the
+// mockup stays harmless.
+func confirm(key, iid string, w gitlab.Write) error {
 	fmt.Printf("%s\n\n  %s\n\n", w.Label, w.Command())
 	if os.Getenv("WORKDESK_DRY") != "" {
 		say("WORKDESK_DRY is set - not run.")
@@ -408,7 +495,7 @@ func write(key, iid, title string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), glabTimeout)
 	defer cancel()
 	out, err := gitlab.New().Do(ctx, w)
-	trace.Log("workdesk", "write", "key", key, "mr", iid, "rc", rc(err))
+	trace.Log("workdesk", "write", "key", key, "ref", iid, "rc", rc(err))
 	if err != nil {
 		return err
 	}

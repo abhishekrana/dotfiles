@@ -1,9 +1,9 @@
-returned to you	a	!412	Cache the manifest lookup               	3d	not enough approvals	feat/manifest-cache
-pipeline failed	a	!406	Retry shim drops the last error         	9d	pipeline must pass, not enough approvals	fix/retry-shim
-blocked on you	a	!368	Split the ingest worker                 	16d	conflicts with the target branch, not enough approvals	refactor/ingest-split
-no reviewer yet	a	!418	Pin the base image digest               	1d	not enough approvals	chore/pin-base-digest
-no reviewer yet	a	!391	Drop the legacy export path             	8d	not enough approvals	chore/drop-legacy-export
-auto-merge not set	a	!423	Correct the changelog anchor            	today	dana ✓	fix/changelog-anchor
-waiting for approvals	i	!377	Widen the retry window                  	4d	not enough approvals	feat/retry-window
-auto-merging	i	!430	Bump the ingest client                  	today	dana ✓	chore/bump-ingest
-draft	i	!402	Drop the unused feature flag            	12d	still marked draft, not enough approvals	chore/drop-legacy-flag
+returned to you	a	!412	Cache the manifest lookup               	3d	not enough approvals	feat/manifest-cache		
+pipeline failed	a	!406	Retry shim drops the last error         	9d	pipeline must pass, not enough approvals	fix/retry-shim		
+blocked on you	a	!368	Split the ingest worker                 	16d	conflicts with the target branch, not enough approvals	refactor/ingest-split		
+no reviewer yet	a	!418	Pin the base image digest               	1d	not enough approvals	chore/pin-base-digest		
+no reviewer yet	a	!391	Drop the legacy export path             	8d	not enough approvals	chore/drop-legacy-export		
+auto-merge not set	a	!423	Correct the changelog anchor            	today	dana ✓	fix/changelog-anchor		
+waiting for approvals	i	!377	Widen the retry window                  	4d	not enough approvals	feat/retry-window		
+auto-merging	i	!430	Bump the ingest client                  	today	dana ✓	chore/bump-ingest		
+draft	i	!402	Drop the unused feature flag            	12d	still marked draft, not enough approvals	chore/drop-legacy-flag		

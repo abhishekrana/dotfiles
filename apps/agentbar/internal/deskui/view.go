@@ -308,7 +308,22 @@ func (m Model) dividerLine(w int) string {
 		Render(strings.Repeat("─", left) + text + strings.Repeat("─", rule-left))
 }
 
-// rowLine is reference, title, age and - where it earns the room - the note.
+// sprintMark is the current iteration, on the rows that are in it. Two cells are
+// reserved on every issue row, marked or not, so the column does not move as the sprint
+// changes under it.
+const sprintMark = "◆"
+
+// The room the labels get, and the title they may not eat into. The labels are the
+// second thing a row says, so they take what is left over a readable title and are given
+// up entirely on a narrow pane - a truncated title says nothing at all.
+const (
+	maxTagW  = 22
+	minTitle = 28
+	minTagW  = 8
+)
+
+// rowLine is reference, title, labels, sprint, age and - where it earns the room - the
+// note.
 func (m Model) rowLine(r workdesk.Row, w int, selected bool) string {
 	t := m.theme
 	refW, ageW := 6, 6
@@ -332,23 +347,45 @@ func (m Model) rowLine(r workdesk.Row, w int, selected bool) string {
 		}
 	}
 
+	// The two columns an issue row carries. Keyed off the reference rather than off
+	// whether this particular row has labels or a sprint, so every issue row reserves
+	// the same width and the age column stays where it was.
+	tags, sprint := "", ""
+	if strings.HasPrefix(r.Ref, "#") {
+		sprint = " "
+		if r.Sprint {
+			sprint = sprintMark
+		}
+		sprint = " " + sprint
+		titleW -= lipgloss.Width(sprint)
+		if w := min(maxTagW, titleW-2-minTitle); w >= minTagW {
+			titleW -= w + 2
+			tags = "  " + workdesk.Pad(strings.Join(r.Tags, sep), w)
+		}
+		// The same floor the width started at, so an issue row never gets a shorter
+		// title than a merge request row on the same pane.
+		if titleW < 10 {
+			titleW = 10
+		}
+	}
+
 	ref := lipgloss.NewStyle().Foreground(t.Accent).Render(workdesk.Pad(r.Ref, refW))
 	titleColour := t.Fg
 	if selected {
 		titleColour = t.Emphasis
 	}
 	title := lipgloss.NewStyle().Foreground(titleColour).Render(workdesk.Pad(r.Title, titleW))
-	age := lipgloss.NewStyle().Foreground(t.Muted).Render(fmt.Sprintf("%*s", ageW, r.Age))
-	noteStyled := lipgloss.NewStyle().Foreground(t.Muted).Render(note)
+	dim := lipgloss.NewStyle().Foreground(t.Muted)
+	age := dim.Render(fmt.Sprintf("%*s", ageW, r.Age))
+	body := title + dim.Render(tags) + lipgloss.NewStyle().Foreground(t.Accent).Render(sprint) +
+		age + dim.Render(note)
 
-	line := "  " + ref + " " + title + age + noteStyled
 	if selected {
 		// A full-width band, so the selection reads as a row rather than as coloured
 		// text - the sidebar and the pickers all mark selection the same way.
-		return lipgloss.NewStyle().Width(w).Background(t.SelBg).Render(
-			"▸ " + ref + " " + title + age + noteStyled)
+		return lipgloss.NewStyle().Width(w).Background(t.SelBg).Render("▸ " + ref + " " + body)
 	}
-	return truncate(line, w)
+	return truncate("  "+ref+" "+body, w)
 }
 
 func (m Model) dividerPane() string {

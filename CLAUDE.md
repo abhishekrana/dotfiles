@@ -201,8 +201,10 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
   - **Newest first inside a band, in all six places that sort.** The band is already the priority signal, so within one
     the useful order is what you touched most recently. Oldest-first was the first attempt - the longest-waiting item is
     the most forgotten - but it opened a band with a merge request from seven months ago, and it silently disagreed with
-    the issue, todo and agent views, which were newest-first all along. **The index is a stored artifact, so changing a
-    sort needs `workdesk render`** (no network) before `list` reflects it.
+    the issue, todo and agent views, which were newest-first all along. `prio::` is a label on the row, not a second
+    sort: one list cannot be ordered by two things without disagreeing with the other five. It still picks the issues
+    the inbox surfaces. **The index is a stored artifact, so changing a sort needs `workdesk render`** (no network)
+    before `list` reflects it.
   - **The model holds no presentation.** Titles are stored unpadded and ages not at all - only an epoch. A pre-padded
     title looks harmless until a UI sizes the column to the terminal and re-pads it, at which point every row grows an
     ellipsis it never earned. `Row.TSV()` is the one place a fixed column belongs, because its consumer is not this
@@ -210,6 +212,22 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
   - **Band names are GitLab's own**, from the merge request homepage that has shipped by default since 18.2, so this
     view and the web UI say the same words. Its active/inactive split is modelled too: the picker draws a line where the
     bands stop asking anything of you.
+  - **Issues band by GitLab's status, and the lifecycle is read, never written down.** The bands are the board's own
+    columns in the order GitLab declares them (`project.workItemTypes` → the `STATUS` widget's `allowedStatuses`), so a
+    column added or moved upstream appears here on the next sync and nothing in this repo names a workflow. **Not from a
+    board**: a project can carry dozens, they disagree about which statuses to show and in what order, and picking one
+    would be picking a workflow rather than reading it. `Lifecycle` answers the only two questions a row asks of it -
+    where a status sorts, and whether it is still asking something. The flag comes from _position_ (the first status
+    GitLab files under `done`/`canceled`), not from each status's own category, which is what guarantees the one
+    active-to-inactive transition the divider draws. A status the lifecycle no longer carries, and an issue GitLab has
+    no status for (`no status`), sort after everything known rather than joining the first band.
+  - **Labels are a column, never a grouping.** An issue carries several, so any one of them makes a grouping that puts
+    the same issue in two places or neither. The row shows a scoped label as its value alone (`high · chore`, not
+    `prio::high`) - on a list where every row shares the namespace, the namespace is the half that says nothing - and
+    the preview keeps the full titles. The column is sized against the title and given up entirely on a narrow pane.
+  - **The sprint is a marker, and the row is what says which way `i` goes.** `◆` between the title and the age on the
+    issues in the iteration the sync recorded; two cells are reserved on every issue row, marked or not, so the age
+    column does not move as the sprint changes under it.
   - **"Can I merge it" comes from `mergeabilityChecks`, never inferred.** `detailedMergeStatus` names one blocker and is
     computed lazily (`UNCHECKED` for much of any real queue); `mergeabilityChecks` returns every gate with its own
     state, so an MR with three problems says so instead of revealing them one at a time. The identifier→message map is
@@ -231,6 +249,18 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
   - **Detail fetches go out several at a time.** GitLab charges per node either way, so the only thing a single long
     request buys is a single slow one: the same 52 merge requests took 29s in one call and 9s in four concurrent chunks.
     Hence `detailChunk`/`detailAtOnce` rather than the cursor walk this replaced, which could not overlap at all.
+  - **Whose work it is, is configurable, and the file is not in this repo.** `~/.config/workdesk/config.toml` holds
+    `accounts = ["@me", "..."]` (`WORKDESK_CONFIG` overrides the path); `@me` is whoever glab authenticates as, so the
+    file never has to carry a project bot's generated username, and no config at all means that identity alone - what it
+    did before there was a file. A username is exactly what must never be committed here, which is why the config lives
+    outside the repo rather than in a stow package. The parser takes the slice of TOML this needs and **refuses a line
+    it does not understand by name**: a silently ignored table header is a board that looks complete while holding one
+    account's work.
+  - **A row is yours by author OR assignee, for every account, and the union is done here.** They are different queues -
+    the account that files the work is rarely the account it is assigned to - so the manifest is asked once per account
+    per relation and deduped by iid in `refresh`, which decodes them anyway. GitLab's own `or:` filter would do it in
+    one call and was measured returning a fraction of what its parts return, so it is not used. `meta.user` stays the
+    token's identity (whose todo feed the mirror holds); `meta.users` is every account fetched for.
   - A full snapshot every sync, so a merged MR disappears with no cursor state to drift, and the mirror is derived, so
     deleting it costs nothing. It lives outside any repo because MR bodies can carry credentials. Project comes from the
     git remote and identity from glab's token, so nothing here holds a host, group or username.
@@ -240,17 +270,25 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
     live schema by probing a path that cannot exist, so a GitLab upgrade that moves a field is one command.
   - **A sync says what it is doing, because it is slow and the UI is down.** `r` tears the UI down - the UI never acts -
     and a full fetch runs tens of seconds, so `progressLine` draws one row, rewritten in place: the project, every leg
-    (identity, merge requests, issues, todos, writing) with the rows it brought back as it lands, and the seconds so
-    far. Naming the legs is the point - "syncing…" for half a minute says nothing about whether it is stuck, and this is
-    what shows the merge request pages are the entire wait, since they are cursor-chained while the other two run beside
-    them. Silent when stdout is not a terminal, so a scripted `workdesk sync` prints its result and nothing else.
+    (identity, merge requests, issues, todos, workflow, writing) with the rows it brought back as it lands, and the
+    seconds so far. Naming the legs is the point - "syncing…" for half a minute says nothing about whether it is stuck,
+    and this is what shows the merge request pages are the entire wait, since they are cursor-chained while the other
+    two run beside them. Silent when stdout is not a terminal, so a scripted `workdesk sync` prints its result and
+    nothing else.
   - **`r` refreshes what is on screen, so the mirror is the fallback.** The working directory wins when it names a
     GitLab project - that is what lets a `cd` point the board at another one - but it usually names none: the float
     inherits the cwd of the pane it was opened from. Resolving only from there made `r` refuse in every repo that is not
     on GitLab, this one included, with a perfectly good mirror on disk naming the project it holds. The trace's
     `via=cwd|mirror` says which answered.
-  - Three keys write to GitLab - `a` assign, `e` auto-merge, `M` merge - each behind a typed confirm. `WORKDESK_DRY=1`
-    prints the command and stops, which is what the mockup sets. Everything else is read-only.
+  - Five keys write to GitLab - `a` assign, `e` auto-merge, `M` merge on a merge request; `s` move to a status and `i`
+    in/out of the current sprint on an issue - each behind the one `confirm` gate. `WORKDESK_DRY=1` prints the command
+    and stops, which is what the mockup sets. Everything else is read-only.
+  - **`s` and `i` are one mutation, and `i` is one key both ways.** Neither status nor iteration has a glab subcommand,
+    so both go through `workItemUpdate` - addressed as `gid://gitlab/WorkItem/<n>`, which is the same n GitLab hands out
+    as `gid://gitlab/Issue/<n>`. `s` lists the lifecycle and asks (`workdesk act s issues:128 "In review"` names it
+    instead, for an agent); `i` reads the row's `◆` and goes the other way. **A refused mutation is a 200**: GitLab puts
+    its complaint in the payload's own `errors` array, which glab does not read, so `Do` reads it - without that a move
+    GitLab declined printed as one that worked.
 - `apps/agentbar/` (the sidebar itself) is loaded by a `run-shell` line at the end of `tmux/.tmux.conf`, so it builds
   and runs straight from the repo. The Claude lifecycle hooks in `claude/.claude/settings.json` invoke its binary at
   `$HOME/dotfiles/apps/agentbar/bin/agentbar`. It has its own nested `CLAUDE.md` - read that before touching the code.

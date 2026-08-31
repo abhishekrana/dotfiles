@@ -13,6 +13,21 @@
           "title": "type::bug"
         }
       ]
+    },
+    "id": "gid://gitlab/Issue/9128",
+    "status": {
+      "id": "gid://gitlab/WorkItems::Statuses::Custom::Status/2",
+      "name": "To do",
+      "category": "to_do"
+    },
+    "iteration": {
+      "id": "gid://gitlab/Iteration/7",
+      "title": "",
+      "startDate": "2026-08-24",
+      "dueDate": "2026-09-06",
+      "iterationCadence": {
+        "title": "Fortnightly"
+      }
     }
   },
   {
@@ -29,6 +44,21 @@
           "title": "type::bug"
         }
       ]
+    },
+    "id": "gid://gitlab/Issue/9126",
+    "status": {
+      "id": "gid://gitlab/WorkItems::Statuses::Custom::Status/3",
+      "name": "In progress",
+      "category": "in_progress"
+    },
+    "iteration": {
+      "id": "gid://gitlab/Iteration/7",
+      "title": "",
+      "startDate": "2026-08-24",
+      "dueDate": "2026-09-06",
+      "iterationCadence": {
+        "title": "Fortnightly"
+      }
     }
   },
   {
@@ -42,7 +72,14 @@
           "title": "prio::mid"
         }
       ]
-    }
+    },
+    "id": "gid://gitlab/Issue/9121",
+    "status": {
+      "id": "gid://gitlab/WorkItems::Statuses::Custom::Status/1",
+      "name": "Backlog",
+      "category": "triage"
+    },
+    "iteration": null
   },
   {
     "iid": "117",
@@ -55,6 +92,21 @@
           "title": "prio::mid"
         }
       ]
+    },
+    "id": "gid://gitlab/Issue/9117",
+    "status": {
+      "id": "gid://gitlab/WorkItems::Statuses::Custom::Status/4",
+      "name": "In review",
+      "category": "in_progress"
+    },
+    "iteration": {
+      "id": "gid://gitlab/Iteration/7",
+      "title": "",
+      "startDate": "2026-08-24",
+      "dueDate": "2026-09-06",
+      "iterationCadence": {
+        "title": "Fortnightly"
+      }
     }
   },
   {
@@ -68,7 +120,14 @@
           "title": "prio::low"
         }
       ]
-    }
+    },
+    "id": "gid://gitlab/Issue/9114",
+    "status": {
+      "id": "gid://gitlab/WorkItems::Statuses::Custom::Status/5",
+      "name": "Done",
+      "category": "done"
+    },
+    "iteration": null
   },
   {
     "iid": "98",
@@ -77,6 +136,9 @@
     "webUrl": "https://gitlab.example.com/acme/platform/-/issues/98",
     "labels": {
       "nodes": []
-    }
+    },
+    "id": "gid://gitlab/Issue/998",
+    "status": null,
+    "iteration": null
   }
 ]
