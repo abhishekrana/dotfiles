@@ -65,9 +65,13 @@ func TestIssuesViewIsTheBoard(t *testing.T) {
 			t.Errorf("the issues view does not show %q", want)
 		}
 	}
-	// The bands are in the lifecycle's order, not alphabetical and not by priority.
-	if backlog, todo := strings.Index(out, "Backlog"), strings.Index(out, "To do"); backlog > todo {
-		t.Error("Backlog sorts after To do; the bands are not in GitLab's order")
+	// Furthest along at the top, the backlog at the bottom - a list is read top down,
+	// and the backlog is the biggest band there is.
+	if backlog, todo := strings.Index(out, "▌ Backlog"), strings.Index(out, "▌ To do"); backlog < todo {
+		t.Error("Backlog sorts above To do; the bands are not flipped")
+	}
+	if review, dev := strings.Index(out, "▌ In review"), strings.Index(out, "▌ In progress"); review > dev {
+		t.Error("In review sorts below In progress; the bands are not in GitLab's order reversed")
 	}
 	// Grouped by status, never by label: a label is a column on the row.
 	if strings.Contains(out, "▌ high") {

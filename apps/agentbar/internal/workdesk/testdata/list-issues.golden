@@ -1,6 +1,6 @@
-Backlog	a	#121	Flaky test in the ingest suite          	8d	not started		mid	
-To do	a	#128	Registry lookups are slow on cold start 	3d	!412 in flight		high,bug	sprint
-In progress	a	#126	Export job retries forever on a 404     	4d	not started		high,bug	sprint
 In review	a	#117	Add hit-rate metric to the cache layer  	14d	!377 in flight		mid	sprint
+In progress	a	#126	Export job retries forever on a 404     	4d	not started		high,bug	sprint
+To do	a	#128	Registry lookups are slow on cold start 	3d	!412 in flight		high,bug	sprint
+Backlog	a	#121	Flaky test in the ingest suite          	8d	not started		mid	
 Done	i	#114	Charts should publish on tag, not merge 	19d	not started		low	
 no status	i	#98	Registry client should honour Retry-Aft…	31d	not started			

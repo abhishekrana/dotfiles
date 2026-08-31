@@ -213,14 +213,19 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
     view and the web UI say the same words. Its active/inactive split is modelled too: the picker draws a line where the
     bands stop asking anything of you.
   - **Issues band by GitLab's status, and the lifecycle is read, never written down.** The bands are the board's own
-    columns in the order GitLab declares them (`project.workItemTypes` → the `STATUS` widget's `allowedStatuses`), so a
-    column added or moved upstream appears here on the next sync and nothing in this repo names a workflow. **Not from a
-    board**: a project can carry dozens, they disagree about which statuses to show and in what order, and picking one
-    would be picking a workflow rather than reading it. `Lifecycle` answers the only two questions a row asks of it -
-    where a status sorts, and whether it is still asking something. The flag comes from _position_ (the first status
-    GitLab files under `done`/`canceled`), not from each status's own category, which is what guarantees the one
-    active-to-inactive transition the divider draws. A status the lifecycle no longer carries, and an issue GitLab has
-    no status for (`no status`), sort after everything known rather than joining the first band.
+    columns (`project.workItemTypes` → the `STATUS` widget's `allowedStatuses`), so a column added or moved upstream
+    appears here on the next sync and nothing in this repo names a workflow. **Not from a board**: a project can carry
+    dozens, they disagree about which statuses to show and in what order, and picking one would be picking a workflow
+    rather than reading it. **The sequence is GitLab's, read from the far end** - furthest along at the top, backlog at
+    the bottom. A board is read left to right, where the backlog costs nothing to scroll past; a list is read top down,
+    and the backlog is the biggest band there is, so declared order buries everything you are doing under it. The
+    finished categories keep the bottom whichever way the rest runs, because the divider needs them contiguous at one
+    end. `Lifecycle` answers the only two questions a row asks of it - where a status sorts, and whether it is still
+    asking something. The flag comes from _position_ (where the `done`/`canceled` statuses begin), not from each
+    status's own category, which is what guarantees the one active-to-inactive transition the divider draws. A status
+    the lifecycle no longer carries, and an issue GitLab has no status for (`no status`), sort after everything known
+    rather than joining the first band. `s` still lists the lifecycle as GitLab declares it: a numbered menu is not a
+    reading order, and stable numbers are what `workdesk act` takes.
   - **Labels are a column, never a grouping.** An issue carries several, so any one of them makes a grouping that puts
     the same issue in two places or neither. The row shows a scoped label as its value alone (`high · chore`, not
     `prio::high`) - on a list where every row shares the namespace, the namespace is the half that says nothing - and

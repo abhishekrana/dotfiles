@@ -21,14 +21,15 @@ func lifecycle() []Status {
 func TestLifecycleOrdersAndFlagsStatuses(t *testing.T) {
 	t.Parallel()
 	l := NewLifecycle(lifecycle())
+	// Furthest along first, backlog last, and the finished columns keep the bottom.
 	cases := []struct {
 		status string
 		rank   int
 		active bool
 	}{
-		{"Backlog", 0, true},
+		{"In progress", 0, true},
 		{"To do", 1, true},
-		{"In progress", 2, true},
+		{"Backlog", 2, true},
 		{"Done", 3, false},
 		{"Cancelled", 4, false},
 		// A status the lifecycle no longer carries, and an issue GitLab has none for:
@@ -99,8 +100,8 @@ func statusMirror() *Mirror {
 	}
 }
 
-// The bands are GitLab's columns in GitLab's order, and an issue it has no status for
-// still gets a row.
+// The bands are GitLab's columns, read from the far end: what is furthest along first,
+// the backlog last, and an issue GitLab has no status for still gets a row.
 func TestIssuesBandByStatusInLifecycleOrder(t *testing.T) {
 	t.Parallel()
 	idx := BuildIndex(statusMirror())
@@ -108,7 +109,7 @@ func TestIssuesBandByStatusInLifecycleOrder(t *testing.T) {
 	for _, it := range idx.Issues {
 		got = append(got, it.Label+" #"+strings.TrimPrefix(it.Ref, "#"))
 	}
-	want := "Backlog #1, To do #2, In progress #3, Done #4, Cancelled #5, no status #6"
+	want := "In progress #3, To do #2, Backlog #1, Done #4, Cancelled #5, no status #6"
 	if strings.Join(got, ", ") != want {
 		t.Errorf("issue bands\n got %s\nwant %s", strings.Join(got, ", "), want)
 	}

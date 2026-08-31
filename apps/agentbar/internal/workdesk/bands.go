@@ -1,6 +1,7 @@
 package workdesk
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -247,26 +248,38 @@ func (i *Issue) InSprint(current *Iteration) bool {
 // Lifecycle answers the two questions a row asks of the project's statuses: where one
 // sorts, and whether it is still asking something of you.
 //
-// The order is GitLab's own, exactly as it declares the lifecycle, so this view and the
-// board name the same columns in the same sequence and a status added upstream needs no
-// code here. Only which categories end the work is ours.
+// The columns are GitLab's own and so is their sequence - a status added upstream needs
+// no code here - but the list runs the other way up: furthest along at the top, backlog
+// at the bottom. A board is read left to right, where the backlog costs nothing to scroll
+// past; a list is read top down, and the backlog is the biggest band there is, so
+// declared order buries everything you are actually doing under it. Only which categories
+// end the work is ours, and they keep the bottom whichever way the rest runs - the line
+// the UI draws needs them contiguous at one end.
 type Lifecycle struct {
 	rank map[string]int
-	// active is the rank the work stops asking anything at: the first status GitLab
-	// files under done or canceled. Deriving the flag from position rather than from
-	// each status's own category is what guarantees exactly one active-to-inactive
-	// transition, which is the line the UI draws.
+	// active is the rank the work stops asking anything at: where the statuses GitLab
+	// files under done or canceled begin. Deriving the flag from position rather than
+	// from each status's own category is what guarantees exactly one active-to-inactive
+	// transition.
 	active int
 }
 
-// NewLifecycle indexes the statuses in the order given.
+// NewLifecycle indexes the statuses: the unfinished ones in reverse, then the finished
+// ones in GitLab's own order.
 func NewLifecycle(defs []Status) *Lifecycle {
-	l := &Lifecycle{rank: make(map[string]int, len(defs)), active: len(defs)}
-	for i, d := range defs {
-		l.rank[d.Name] = i
-		if l.active == len(defs) && finished(d.Category) {
-			l.active = i
+	var open, done []Status
+	for _, d := range defs {
+		if finished(d.Category) {
+			done = append(done, d)
+			continue
 		}
+		open = append(open, d)
+	}
+	slices.Reverse(open)
+
+	l := &Lifecycle{rank: make(map[string]int, len(defs)), active: len(open)}
+	for i, d := range append(open, done...) {
+		l.rank[d.Name] = i
 	}
 	return l
 }
