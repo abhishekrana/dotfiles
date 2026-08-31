@@ -9,6 +9,12 @@
 #   @agentbar-focus   'on' to focus the sidebar when opening
 #   @agentbar-autostart 'off' to skip opening the sidebar at server start
 #                          (default: on - every session gets one, so do new ones)
+#
+# Per-window (set with -w on the window, by whoever opens it):
+#   @agentbar-skip    '1' to keep the sidebar out of this window. For a window
+#                     opened to hold one transient thing: without it the sidebar
+#                     follows in and is left as the last pane when that thing
+#                     exits, so the window never closes.
 set -euo pipefail
 
 CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -1075,6 +1075,50 @@ func TestFollowWindowAndSelfHeal(t *testing.T) {
 	}
 }
 
+// A window opened for one transient thing must be able to decline the sidebar.
+// Without that the sidebar follows in, the transient command exits, and the window
+// survives holding nothing but a full-width sidebar - the screen never comes back.
+func TestFollowSkipsAWindowThatDeclines(t *testing.T) {
+	s := start(t)
+	s.newSession("work")
+	s.script("open.sh", "work")
+	side := s.sidebarPane("work")
+	waitFor(t, "sidebar open", 5*time.Second, func() bool { return s.sidebarAlive("work") })
+	before, _ := s.tmuxErr("display-message", "-t", side, "-p", "#{window_id}")
+
+	// Opened detached, marked, and only then selected - the order workdesk uses, so
+	// the mark is in place before the window is ever the active one.
+	win := strings.TrimSpace(s.tmux("new-window", "-d", "-P", "-F", "#{window_id}", "-t", "work"))
+	s.tmux("set-option", "-t", win, "-w", "@agentbar-skip", "1")
+	s.tmux("select-window", "-t", win)
+
+	// Give the hook the time it would have needed to move the sidebar.
+	time.Sleep(1500 * time.Millisecond)
+	after, _ := s.tmuxErr("display-message", "-t", side, "-p", "#{window_id}")
+	if after == win {
+		t.Error("the sidebar followed into a window that declined it")
+	}
+	if after != before {
+		t.Errorf("the sidebar moved to %s, want it left in %s", after, before)
+	}
+	// And the declining window holds only what it was opened for, so it closes on
+	// its own when that exits.
+	if n := strings.TrimSpace(s.tmux("display-message", "-t", win, "-p", "#{window_panes}")); n != "1" {
+		t.Errorf("the declining window holds %s panes, want 1", n)
+	}
+
+	// The control: drop the mark and come back, and the sidebar follows. Without
+	// this the test would pass just as well if the hook never fired on this path,
+	// which would prove nothing about the mark.
+	s.tmux("set-option", "-t", win, "-w", "-u", "@agentbar-skip")
+	s.tmux("select-window", "-t", before)
+	s.tmux("select-window", "-t", win)
+	waitFor(t, "sidebar follows once the window stops declining", 5*time.Second, func() bool {
+		now, _ := s.tmuxErr("display-message", "-t", side, "-p", "#{window_id}")
+		return now == win
+	})
+}
+
 // TestFollowClearsMovingGuardOnFailure: a failed move must not strand the
 // @sidebar_moving re-entrancy guard. The window or pane disappearing mid-move
 // is the very race the guard exists for, and a stranded guard makes every

@@ -29,6 +29,14 @@ curwin=$(tmux display-message -t "$session" -p '#{window_id}')
 sidewin=$(tmux display-message -t "$pane" -p '#{window_id}')
 [ "$curwin" = "$sidewin" ] && exit 0
 
+# A window can decline the sidebar. A window opened to hold one transient thing -
+# a diff, a pager - dies with the command it was opened for, and following into it
+# leaves the sidebar as the last pane standing: the window survives, holding
+# nothing but a full-width sidebar, and the thing you closed never gives the
+# screen back. Declining keeps the sidebar where it was, so that window empties
+# and tmux closes it.
+[ "$(tmux show-option -t "$curwin" -wqv @agentbar-skip)" = "1" ] && exit 0
+
 width=$(tmux show-option -gqv @agentbar-width)
 width=${width:-30}
 
