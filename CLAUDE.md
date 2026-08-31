@@ -173,14 +173,19 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
     items the cursor was taught to skip, and the key hints had to fit ~52 columns or fzf truncated them silently. Here
     the model is held: headers are derived at render time so the cursor is always on a real row, previews are built from
     the snapshot with colour on the gates and a real table for the approval rules, the preview scrolls, and `?` renders
-    the keymap so no hint can go missing. The palette is `internal/ui`, generated from `design/palette.toml`, so it
-    matches tmux rather than approximating it.
-  - **The pointer does what the keys do, and a click is how you look.** The wheel walks whichever pane it is over - the
-    list by a row, the preview by lines - and stops at the ends, where `j`/`k` deliberately wrap. A click selects a row;
-    the second click on it opens the sheet. The sidebar jumps on the first click because it has no preview; here the
-    preview is the reason to click at all. The tabs and the `synced` marker are clickable, a band header answers with
-    the first row under it, and everything fires on release - terminals eat the press of a click that also focuses their
-    window. `listItems` is the one pass the renderer, the scroll window and the hit test share.
+    the keymap so no hint can go missing. The markdown documents are still written, and are still what
+    `workdesk mr <iid>`, `issue <iid>` and `board` print for an agent - nothing interactive opens them any more. The
+    palette is `internal/ui`, generated from `design/palette.toml`, so it matches tmux rather than approximating it.
+  - **The pointer does what the keys do, and a click is how you look - which is all it does.** The wheel walks whichever
+    pane it is over - the list by a row, the preview by lines - and stops at the ends, where `j`/`k` deliberately wrap.
+    A click selects a row, and on a ticket that is the whole of it: the preview beside the list is the detail, so there
+    is nothing left for a second click or for `↵` to open. **The agents view is the exception**, because an agent row is
+    a place rather than a document - `↵` and the second click go to its pane, which is why `↵` stays out of the footer
+    strip and lives in the `?` overlay alone. The guard is in `request`, not in the caller: a pending action tears the
+    UI down and rebuilds it, so a second click that recorded one would flash and lose the cursor to do nothing. The tabs
+    and the `synced` marker are clickable, a band header answers with the first row under it, and everything fires on
+    release - terminals eat the press of a click that also focuses their window. `listItems` is the one pass the
+    renderer, the scroll window and the hit test share.
   - **A float, not a popup, and the chip is the reason.** A popup is an overlay: it swallows every click outside its own
     box, so a second click on `≡ workdesk` never reached `MouseUp1Status` and the chip could only ever open. A float
     (tmux 3.7 `new-pane`) is a pane, so the click lands and `tmux-workdesk.sh` closes what it opened. Probed both ways,

@@ -67,10 +67,6 @@ func runOpen(args []string) error {
 		switch done.Pending.Key {
 		case "P":
 			return promote(view)
-		case "enter":
-			if err := viewDoc(done.Pending.Ref); err != nil {
-				say(err.Error())
-			}
 		default:
 			if err := act(done.Pending.Key, done.Pending.Ref, ""); err != nil {
 				say(err.Error())
@@ -218,37 +214,6 @@ func agentPreview(pane string) error {
 	}
 	fmt.Println("that pane is gone")
 	return nil
-}
-
-// viewDoc opens the full document in a pager. An agent row is a place rather than a
-// document, so the useful thing is to go there.
-func viewDoc(ref string) error {
-	kind, id := refKind(ref)
-	if kind == "agents" {
-		return jump(id)
-	}
-	var buf strings.Builder
-	stdout := os.Stdout
-	r, w, err := os.Pipe()
-	if err != nil {
-		return err
-	}
-	os.Stdout = w
-	err = runPreview([]string{ref})
-	os.Stdout = stdout
-	w.Close()
-	if err != nil {
-		r.Close()
-		return err
-	}
-	sc := bufio.NewScanner(r)
-	sc.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
-	for sc.Scan() {
-		buf.WriteString(sc.Text())
-		buf.WriteByte('\n')
-	}
-	r.Close()
-	return page(buf.String())
 }
 
 // page shows markdown in whatever this box has. leaf already carries the flavour; bat and

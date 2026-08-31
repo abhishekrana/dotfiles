@@ -397,6 +397,14 @@ func (m Model) request(k string) (tea.Model, tea.Cmd) {
 	if !ok {
 		return m, nil
 	}
+	// Enter is the agents view's jump, and nothing anywhere else: the preview beside the
+	// list already holds everything the sheet used to open in a pager. Dropped here
+	// rather than in the caller so a second click on a ticket leaves the UI up - a
+	// pending action tears it down and rebuilds it, which would flash and lose the
+	// cursor to open nothing.
+	if k == "enter" && !strings.HasPrefix(row.Ref, "%") {
+		return m, nil
+	}
 	// Views without a write to make say so rather than silently doing nothing.
 	if (k == "a" || k == "e" || k == "M") && !strings.HasPrefix(row.Ref, "!") {
 		m.notice = "that only applies to a merge request"

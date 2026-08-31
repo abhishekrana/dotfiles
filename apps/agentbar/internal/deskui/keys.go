@@ -65,7 +65,7 @@ func defaultKeys() keyMap {
 		PrevView: key.NewBinding(key.WithKeys("shift+tab"), key.WithHelp("⇧tab", "previous view")),
 		Views:    viewBindings(),
 		Filter:   key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "filter")),
-		Accept:   key.NewBinding(key.WithKeys("enter"), key.WithHelp("↵", "open detail")),
+		Accept:   key.NewBinding(key.WithKeys("enter"), key.WithHelp("↵", "jump to that agent")),
 		ScrollUp: key.NewBinding(key.WithKeys("ctrl+u", "pgup"), key.WithHelp("^u", "scroll preview up")),
 		ScrollDn: key.NewBinding(key.WithKeys("ctrl+d", "pgdown"), key.WithHelp("^d", "scroll preview down")),
 		Open:     key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "open in browser")),
@@ -95,7 +95,7 @@ func defaultKeys() keyMap {
 func mouseHints() [][2]string {
 	return [][2]string{
 		{"click", "select a row"},
-		{"click again", "open it"},
+		{"click again", "jump to that agent's pane"},
 		{"click a tab", "switch view"},
 		{"click ✕", "close"},
 		{"click \"synced\"", "re-sync"},
@@ -104,9 +104,11 @@ func mouseHints() [][2]string {
 }
 
 // ShortHelp is the footer strip: moving around, and the actions that apply to the row
-// under the cursor.
+// under the cursor. Enter is not among them - it belongs to the agents view alone, and a
+// strip that is always on screen should not advertise a key that does nothing on three
+// views out of four. The overlay still documents it.
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Accept, k.Open, k.Copy, k.NextView, k.Filter, k.Help, k.Quit}
+	return []key.Binding{k.Open, k.Copy, k.NextView, k.Filter, k.Help, k.Quit}
 }
 
 // FullHelp is the overlay, grouped the way the work is: navigate, act, write.

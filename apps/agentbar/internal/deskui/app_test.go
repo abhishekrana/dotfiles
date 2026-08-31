@@ -240,10 +240,11 @@ func screenY(m Model, item int) int {
 	return bodyTop + item - start
 }
 
-// A click is how you look at a row; the second click on it is how you act. That is the
-// one place this differs from the sidebar, which jumps on the first click - here the
-// preview beside the list is the reason to click at all.
-func TestClickSelectsThenOpens(t *testing.T) {
+// A click is how you look at a row, and on a ticket looking is all it does. The preview
+// beside the list is the detail now, so there is nothing left for a second click to open
+// - and it must not record an action either, since a pending one tears the UI down and
+// rebuilds it, which would flash and lose the cursor to do nothing.
+func TestClickSelectsAndDoesNotOpen(t *testing.T) {
 	t.Parallel()
 	m := testModel(t)
 	items := m.listItems()
@@ -268,8 +269,31 @@ func TestClickSelectsThenOpens(t *testing.T) {
 	}
 
 	m = click(m, 2, y)
+	if m.Pending != nil {
+		t.Errorf("the second click on a ticket acted: %+v", m.Pending)
+	}
+	if m.cursor != target {
+		t.Errorf("the second click moved the cursor to %d, want %d", m.cursor, target)
+	}
+}
+
+// The agents view is the exception, because an agent row is a place rather than a
+// document: enter and the second click both go to its pane.
+func TestSecondClickOnAnAgentJumps(t *testing.T) {
+	t.Parallel()
+	m := press(testModel(t), "4")
+	y := -1
+	for i, it := range m.listItems() {
+		if !it.header && it.row == m.cursor {
+			y = screenY(m, i)
+		}
+	}
+	if y < 0 {
+		t.Fatal("no agent row on screen to click")
+	}
+	m = click(m, 2, y)
 	if m.Pending == nil || m.Pending.Key != "enter" {
-		t.Errorf("the second click recorded %+v, want an enter", m.Pending)
+		t.Errorf("the second click on an agent recorded %+v, want an enter", m.Pending)
 	}
 }
 
