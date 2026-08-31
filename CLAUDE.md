@@ -27,7 +27,11 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
   are the candidates, it routes to whichever tmux holds focus, and the transcript crosses over ssh, never the audio.
 - `ghostty/` → `~/.config/ghostty/` (Ghostty terminal config)
 - `git/` → `~/.config/git/config` (delta pager, merge settings)
-- `hunk/` → `~/.config/hunk/` (hunk diff viewer config, Solarized Light theme)
+- `hunk/` → `~/.config/hunk/` (hunk diff viewer config, Solarized Light theme). `mode = "stack"` is what every hunk here
+  starts from - full width per line, no half-width columns - and it is deliberate. **Workdesk's `D` overrides it to
+  `split` at the call**, because a merge request's diff is the one that gets a window of its own and so the one with
+  room for two columns; the diff pane beside your work does not. The pane's `L` still flips its own window, and hunk
+  reads the file at startup, so an open pane keeps its layout until respawned.
 - `leaf/` → `~/.config/leaf/` (leaf markdown previewer config). Carries a full Solarized Light palette as
   `[themes.solarized-light]`, since leaf ships only `solarized-dark`; that registration is what lets the theme switcher
   drive leaf by name via `LEAF_THEME`. **leaf writes this file itself** - a first run with no config seeds upstream's

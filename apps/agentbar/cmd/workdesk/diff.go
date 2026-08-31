@@ -128,12 +128,20 @@ func diffRefs(ctx context.Context, project, iid string) (base, head string, err 
 	return mr.DiffRefs.BaseSHA, mr.DiffRefs.HeadSHA, nil
 }
 
-// hunk runs the viewer, in the flavour the rest of the terminal is wearing.
+// hunk runs the viewer, in the flavour the rest of the terminal is wearing and side by
+// side.
+//
+// Split is passed here rather than set in ~/.config/hunk/config.toml, because that file
+// is where every other hunk in this environment starts from - the diff pane beside your
+// work, the shell wrapper - and those want the full width per line that stack gives them.
+// A merge request's diff is the one that gets a window of its own, so it is the one with
+// room for two columns.
 func hunk(in io.Reader, dir string, args ...string) error {
 	bin := hunkBin()
 	if bin == "" {
 		return errors.New("hunk is not installed")
 	}
+	args = append(args, "--mode", "split")
 	if t := themeName(); t != "" {
 		args = append(args, "--theme", t)
 	}
