@@ -34,7 +34,7 @@ commands:
   board              the whole queue, bucketed by what is blocking it
   mr <iid>           one merge request end to end
   issue <iid>        one issue
-  diff <iid> [--full]  the merge request's diff in hunk; --full fetches for whole files
+  diff <iid> [--patch] the merge request's diff in hunk; --patch skips the fetch
   matrix             one row per merge request, one column per gate, and totals
   preview <ref>      the preview for one row (mrs:412, issues:128, agents:%3)
   act <key> <ref>    run one action without a terminal (s takes a status name)

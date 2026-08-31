@@ -29,7 +29,7 @@ import (
 func runDiff(args []string) error {
 	iid := first(args)
 	if iid == "" {
-		return errors.New("usage: workdesk diff <iid> [--full]")
+		return errors.New("usage: workdesk diff <iid> [--patch]")
 	}
 	idx, err := workdesk.LoadIndex(mirrorDir())
 	if err != nil {
@@ -40,14 +40,14 @@ func runDiff(args []string) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), glabTimeout)
 	defer cancel()
-	if len(args) > 1 && args[1] == "--full" {
-		return fullDiff(ctx, idx.Project, iid)
+	if len(args) > 1 && args[1] == "--patch" {
+		return patchDiff(ctx, idx.Project, iid)
 	}
-	return patchDiff(ctx, idx.Project, iid)
+	return fullDiff(ctx, idx.Project, iid)
 }
 
-// patchDiff reads what GitLab already has: no clone, no fetch, and it answers for a merge
-// request whose branch this machine has never seen.
+// patchDiff reads what GitLab already has: no clone, no fetch, and the only form that can
+// answer for a project this machine has never cloned.
 func patchDiff(ctx context.Context, project, iid string) error {
 	out, err := exec.CommandContext(ctx, "glab", "mr", "diff", iid,
 		"-R", project, "--color=never").Output()
@@ -77,6 +77,9 @@ func fullDiff(ctx context.Context, project, iid string) error {
 		return err
 	}
 	ref := fmt.Sprintf("refs/merge-requests/%s/head", iid)
+	// The window is already up and the fetch is seconds; say what it is waiting on
+	// rather than showing a blank pane until hunk starts.
+	fmt.Fprintf(os.Stderr, "fetching !%s into %s…\n", iid, repo)
 	fetch := exec.CommandContext(ctx, "git", "-C", repo, "fetch", "--quiet", "origin", ref)
 	fetch.Stderr = os.Stderr
 	if err := fetch.Run(); err != nil {
@@ -92,12 +95,12 @@ func fullDiff(ctx context.Context, project, iid string) error {
 func cloneOf(project string) (string, error) {
 	out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
 	if err != nil {
-		return "", fmt.Errorf("--full needs a clone of %s - open the float in one, or press D", project)
+		return "", fmt.Errorf("no clone of %s here - open the float in one, or run: workdesk diff <iid> --patch", project)
 	}
 	repo := strings.TrimSpace(string(out))
 	remote, err := exec.Command("git", "-C", repo, "remote", "get-url", "origin").Output()
 	if err != nil || !strings.Contains(string(remote), project) {
-		return "", fmt.Errorf("%s is not a clone of %s - press D for the patch instead", repo, project)
+		return "", fmt.Errorf("%s is not a clone of %s - run: workdesk diff <iid> --patch", repo, project)
 	}
 	return repo, nil
 }
@@ -158,16 +161,27 @@ func hunkBin() string {
 // diffWindow puts the diff in a window of its own: a diff wants the full width, and this
 // leaves both the float and the agent's own diff pane where they were. Closing hunk closes
 // the window and returns you to the float, still on the row you opened it from.
-func diffWindow(iid string, full bool) error {
+func diffWindow(iid string) error {
 	cmd := selfPath() + " diff " + iid
-	if full {
-		cmd += " --full"
-	}
 	if os.Getenv("TMUX") == "" {
 		// No server to open a window on - show it here instead of refusing.
 		return runDiff(strings.Fields(cmd)[1:])
 	}
-	_, err := tmux.Exec{}.Run("new-window", "-n", "!"+iid, cmd)
-	trace.Log("workdesk", "mrdiff", "mr", iid, "full", full, "rc", rc(err))
+	// Detached first, so the window can decline the sidebar before it is ever the
+	// active one. The sidebar follows the session's active window, and a window it
+	// has already moved into does not close when the diff exits - it is left holding
+	// a full-width sidebar and the screen never comes back.
+	var tm tmux.Exec
+	out, err := tm.Run("new-window", "-d", "-P", "-F", "#{window_id}", "-n", "!"+iid, cmd)
+	if err != nil {
+		trace.Log("workdesk", "mrdiff", "mr", iid, "rc", rc(err))
+		return err
+	}
+	win := strings.TrimSpace(out)
+	if _, err = tm.Run("set-option", "-t", win, "-w", "@agentbar-skip", "1"); err != nil {
+		return err
+	}
+	_, err = tm.Run("select-window", "-t", win)
+	trace.Log("workdesk", "mrdiff", "mr", iid, "win", win, "rc", rc(err))
 	return err
 }

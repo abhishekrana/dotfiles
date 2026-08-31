@@ -329,17 +329,23 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
     inherits the cwd of the pane it was opened from. Resolving only from there made `r` refuse in every repo that is not
     on GitLab, this one included, with a perfectly good mirror on disk naming the project it holds. The trace's
     `via=cwd|mirror` says which answered.
-  - **Reading a merge request means reading its diff, and that needs neither a clone nor a worktree.** `D` pipes
-    `glab mr diff` into `hunk patch -`: about a second, no fetch, and it answers for every merge request in the queue
-    rather than only the projects this machine has cloned. GitLab's patch carries `---`/`+++` pairs but no `diff --git`
-    headers, and hunk splits it into files on those alone. `F` is the same diff with the file around it - it fetches
-    `refs/merge-requests/<iid>/head` (FETCH_HEAD only, so nothing is written into the clone) and runs
-    `hunk diff <base>...<head>` where **the base is GitLab's own `diff_refs.base_sha`, never a local merge-base**: a
-    working clone's `origin/main` is routinely months behind, and computing the base against it reported 8996 files
-    changed for a two-file merge request. It costs a fetch and a clone, which is why it is the second key.
-  - **A diff opens in a window of its own.** It wants the full width, and it leaves both the float and the agent's diff
-    pane where they are; closing hunk closes the window and returns you to the float, on the row you opened it from. The
-    window runs `workdesk diff <iid>` rather than a quoted shell pipeline, so there is one command to get right.
+  - **`D` reads a merge request's diff, fetched, with the files around it.** It fetches `refs/merge-requests/<iid>/head`
+    (FETCH_HEAD only, so nothing is written into the clone) and runs `hunk diff <base>...<head>`, where **the base is
+    GitLab's own `diff_refs.base_sha`, never a local merge-base**: a working clone's `origin/main` is routinely months
+    behind, and computing the base against it reported 8996 files changed for a two-file merge request. The fetch is
+    seconds and the window is already up, so it says what it is waiting on rather than sitting blank.
+  - **The patch alone is the command, not a key.** `glab mr diff` piped into `hunk patch -` needs no clone and no fetch
+    and takes about a second, and it is the only form that can answer for a project this machine has never cloned - so
+    it stays as `workdesk diff <iid> --patch`, and it is what the missing-clone error points at. It is not a second key:
+    two keys for one question is a question you answer every time. (GitLab's patch carries `---`/`+++` pairs but no
+    `diff --git` headers; hunk splits it into files on those alone.)
+  - **A diff opens in a window of its own, and that window declines the sidebar.** It wants the full width, and it
+    leaves both the float and the agent's diff pane where they are. The sidebar follows the session's active window, so
+    without declining it moves in - and when hunk exits it is the last pane standing: the window survives holding
+    nothing but a full-width sidebar, and the screen never comes back. The window is therefore opened **detached**,
+    marked `@agentbar-skip 1`, and only then selected, so the mark is in place before `session-window-changed` can fire.
+    `follow.sh` honours that mark on any window, so anything else opened to hold one transient thing can say the same.
+    The window runs `workdesk diff <iid>` rather than a quoted shell pipeline, so there is one command to get right.
   - **`d` needs a directory, not a branch.** The diff pane's helper takes a worktree path; it was being handed the
     branch, so it answered "<branch> is not a git repo" - and answered 0 while doing it, so the fallback never fired
     either and `d` on a merge request row did nothing and said nothing. `worktreeOn` resolves the branch to the checkout

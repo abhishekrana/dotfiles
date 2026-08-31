@@ -143,19 +143,15 @@ func TestPreviewWrapsBodiesToThePane(t *testing.T) {
 }
 
 // Reading the diff applies to a merge request, and says so on a row that is not one.
-func TestDiffKeysOnlyApplyToMergeRequests(t *testing.T) {
+func TestDiffKeyOnlyAppliesToMergeRequests(t *testing.T) {
 	t.Parallel()
-	for _, key := range []string{"D", "F"} {
-		m := testModel(t)
-		m.setView(workdesk.ViewIssues)
-		next, _ := m.request(key)
-		got := next.(Model)
-		if got.Pending != nil {
-			t.Errorf("%q asked for %v on an issue", key, got.Pending)
-		}
-		if !strings.Contains(got.notice, "merge request") {
-			t.Errorf("%q on an issue said %q", key, got.notice)
-		}
+	m0 := testModel(t)
+	m0.setView(workdesk.ViewIssues)
+	next0, _ := m0.request("D")
+	if got := next0.(Model); got.Pending != nil {
+		t.Errorf("D asked for %v on an issue", got.Pending)
+	} else if !strings.Contains(got.notice, "merge request") {
+		t.Errorf("D on an issue said %q", got.notice)
 	}
 	// And on a merge request it records the action for the caller to run.
 	m := testModel(t)

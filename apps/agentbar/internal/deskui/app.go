@@ -30,7 +30,7 @@ import (
 // worktree, writing to GitLab. Returned rather than performed: the model stays pure, and
 // the caller owns every side effect and every confirm.
 type Action struct {
-	Key string // the binding that asked for it: o, y, c, d, D, F, a, e, M, s, i, P, r
+	Key string // the binding that asked for it: o, y, c, d, D, a, e, M, s, i, P, r
 	Ref string // kind:id, the same handle `workdesk act` takes
 }
 
@@ -461,8 +461,6 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.request("i")
 	case key.Matches(msg, k.MRDiff):
 		return m.request("D")
-	case key.Matches(msg, k.MRFull):
-		return m.request("F")
 	case key.Matches(msg, k.Promote):
 		return m.request("P")
 	case key.Matches(msg, k.Sync):
@@ -511,7 +509,7 @@ func (m Model) request(k string) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	// Views without a write to make say so rather than silently doing nothing.
-	if (k == "a" || k == "e" || k == "M" || k == "D" || k == "F") && !strings.HasPrefix(row.Ref, "!") {
+	if (k == "a" || k == "e" || k == "M" || k == "D") && !strings.HasPrefix(row.Ref, "!") {
 		m.notice = "that only applies to a merge request"
 		return m, nil
 	}

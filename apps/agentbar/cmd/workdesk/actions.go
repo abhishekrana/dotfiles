@@ -323,11 +323,11 @@ func act(key, ref, choice string) error {
 			return errors.New("that only applies to an issue")
 		}
 		return move(key, id, choice)
-	case "D", "F":
+	case "D":
 		if kind != "mrs" {
 			return errors.New("that only applies to a merge request")
 		}
-		return diffWindow(id, key == "F")
+		return diffWindow(id)
 	}
 	return nil
 }
