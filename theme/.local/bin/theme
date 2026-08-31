@@ -60,13 +60,14 @@ apply_ghostty() {
 apply_tmux() {
     command -v tmux >/dev/null || return 0
     local f="$STATE_DIR/tmux.conf"
-    local bg surface fg muted accent chg block ask grn work
+    local bg surface fg muted accent chg flt block ask grn work
     bg=$(palette_get "$1" bg)
     surface=$(palette_get "$1" surface)
     fg=$(palette_get "$1" fg)
     muted=$(palette_get "$1" muted)
     accent=$(palette_get "$1" accent)
     chg=$(palette_get "$1" changes)
+    flt=$(palette_get "$1" float)
     block=$(palette_get "$1" blocked)
     ask=$(palette_get "$1" asking)
     grn=$(palette_get "$1" "done")
@@ -113,7 +114,7 @@ apply_tmux() {
     local border rail
     rail="#($HOME/.local/bin/tmux-rail.sh '#{pane_current_path}' '#{pane_width}'"
     rail="$rail '#{?#{E:@rail_agent},2,1}')"
-    border="#{?pane_floating_flag, #[fg=$chg]≡ workdesk ,"
+    border="#{?pane_floating_flag, #[fg=$flt]≡ workdesk ,"
     border="$border#{?#{==:#{pane_current_command},agentbar},,"
     border="$border #[fg=$accent]$rail "
     border="$border#{?#{E:@rail_agent},#[align=right fg=$accent]→ "
@@ -131,7 +132,7 @@ set -g status-style "fg=$fg,bg=$surface"
 set -g window-style "fg=$fg,bg=$bg"
 set -g window-active-style "fg=$fg,bg=$bg"
 set -g pane-border-style "fg=$muted,bg=$bg"
-set -g pane-active-border-style "#{?pane_floating_flag,fg=$chg#,bold,fg=$accent},bg=$bg"
+set -g pane-active-border-style "#{?pane_floating_flag,fg=$flt#,bold,fg=$accent},bg=$bg"
 set -g status-left "$left"
 set -g window-status-current-format "#[fg=$bg,bg=$accent,bold] #I:#W#{?window_zoomed_flag, Z,} "
 set -g window-status-format "#{?window_bell_flag,#[fg=$bg bg=$block bold],#[fg=$muted bg=$surface]} #I:#W "
@@ -157,7 +158,9 @@ apply_colors() {
     local f="$STATE_DIR/colors.sh"
     : >"$f"
     local tok
-    for tok in bg surface selection border fg emphasis muted accent changes working asking blocked 'done' add remove; do
+    local toks="bg surface selection border fg emphasis muted accent changes float"
+    toks="$toks working asking blocked done add remove"
+    for tok in $toks; do
         printf '_theme_%s="%s"\n' "$tok" "$(palette_get "$1" "$tok")" >>"$f"
     done
 }

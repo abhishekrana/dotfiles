@@ -76,6 +76,7 @@ hierarchy, and the meaning of each color never move.
 | --------- | -------------------------------------------------------------------------- |
 | `accent`  | Selection rail, active pane, links, "you are here." Exactly one per theme. |
 | `changes` | Review surfaces: the changes chip, the MR glyph, the diff menu.            |
+| `float`   | A floating pane's border: a layer over the work, not a pane in it.         |
 
 **State** - see [The state language](#the-state-language). The tokens `working`, `asking`, `blocked`, and `done` carry
 meaning through color; `idle` reuses `muted`.

@@ -9,6 +9,7 @@
 #   fg emphasis muted             - content
 #   accent                        - the one interactive/identity hue
 #   changes                       - review surfaces: the changes chip, MR glyph, diff menu
+#   float                         - a floating pane's border: a layer over the work, not a pane in it
 #   working asking blocked done   - the agent-state language (idle reuses `muted`)
 #   add remove                    - diff tints
 #
@@ -31,6 +32,7 @@ emphasis  = "#586e75"
 muted     = "#93a1a1"
 accent    = "#268bd2"
 changes   = "#6c71c4"
+float     = "#d33682"
 working   = "#2aa198"
 asking    = "#b58900"
 blocked   = "#dc322f"
@@ -50,6 +52,7 @@ emphasis  = "#93a1a1"
 muted     = "#586e75"
 accent    = "#268bd2"
 changes   = "#6c71c4"
+float     = "#d33682"
 working   = "#2aa198"
 asking    = "#b58900"
 blocked   = "#dc322f"
@@ -69,6 +72,7 @@ emphasis  = "#2e3047"
 muted     = "#8c8fa1"
 accent    = "#1e66f5"
 changes   = "#8839ef"
+float     = "#ea76cb"
 working   = "#179299"
 asking    = "#df8e1d"
 blocked   = "#d20f39"
@@ -88,6 +92,7 @@ emphasis  = "#eef1fb"
 muted     = "#6c7086"
 accent    = "#89b4fa"
 changes   = "#cba6f7"
+float     = "#f5c2e7"
 working   = "#94e2d5"
 asking    = "#fab387"
 blocked   = "#f38ba8"
