@@ -297,6 +297,74 @@ func TestSecondClickOnAnAgentJumps(t *testing.T) {
 	}
 }
 
+// tmux owns the mouse while this is up, so the terminal never gets to make a URL
+// clickable itself - the click arrives here, and the preview has to answer it.
+func TestClickOnALinkInThePreviewOpensIt(t *testing.T) {
+	t.Parallel()
+	m := press(testModel(t), "2")
+	if len(m.links) == 0 {
+		t.Fatal("the preview indexed no links at all")
+	}
+	target := m.links[0]
+	lw, _ := paneWidths(m.width)
+	x := lw + 2 + target.start
+	y := bodyTop + target.line - m.preview.YOffset
+
+	got := click(m, x, y)
+	if got.Pending == nil {
+		t.Fatal("a click on a link did nothing")
+	}
+	if got.Pending.Key != "o" || got.Pending.Ref != "url:"+target.url {
+		t.Errorf("the click recorded %+v, want o on url:%s", got.Pending, target.url)
+	}
+}
+
+// Only the link is clickable: the rest of the preview is text to read, and a click on it
+// must not tear the UI down.
+func TestClickOnPlainPreviewTextDoesNothing(t *testing.T) {
+	t.Parallel()
+	m := press(testModel(t), "2")
+	lw, _ := paneWidths(m.width)
+	// The far right of the first line: past the title, and no link is there.
+	got := click(m, lw+2+m.preview.Width-1, bodyTop)
+	if got.Pending != nil {
+		t.Errorf("a click on plain preview text recorded %+v", got.Pending)
+	}
+}
+
+// An action rebuilds the UI, so where you were has to survive it - otherwise a link
+// clicked deep in a description puts you back at the top of the list.
+func TestRestorePutsTheCursorAndPreviewBack(t *testing.T) {
+	t.Parallel()
+	m := press(testModel(t), "2")
+	m = press(m, "j")
+	m = press(m, "j")
+	ref, offset := m.CurrentRef(), 3
+	if ref == "" {
+		t.Fatal("no row under the cursor to remember")
+	}
+
+	fresh := testModel(t)
+	// Short enough that the preview has somewhere to scroll to: a viewport holding
+	// content shorter than its own height stays at the top, correctly.
+	fresh.resize(140, 12)
+	fresh.setView(m.CurrentView())
+	fresh.Restore(ref, offset)
+	if got := fresh.CurrentRef(); got != ref {
+		t.Errorf("restored to %q, want %q", got, ref)
+	}
+	if fresh.preview.YOffset != offset {
+		t.Errorf("preview restored to line %d, want %d", fresh.preview.YOffset, offset)
+	}
+
+	// A row that is gone leaves the cursor where it was rather than guessing.
+	before := fresh.CurrentRef()
+	fresh.Restore("issues:999999", 0)
+	if fresh.CurrentRef() != before {
+		t.Error("restoring a row that is no longer in the view moved the cursor")
+	}
+}
+
 // Band headers are derived, not items, so a click on one has to land on a real row rather
 // than on nothing.
 func TestClickOnABandHeaderLandsOnARow(t *testing.T) {

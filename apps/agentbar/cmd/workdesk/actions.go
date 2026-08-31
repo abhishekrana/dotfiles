@@ -37,6 +37,10 @@ func runOpen(args []string) error {
 	view := workdesk.ParseView(first(args))
 	trace.Log("workdesk", "open", "view", view.String())
 
+	// Where the last pass was, so the next one opens there. The UI is rebuilt after every
+	// action, and landing back at the top of the list is a poor answer to having clicked
+	// a link forty lines into a description.
+	at, offset := "", 0
 	for {
 		mirror, err := workdesk.Load(mirrorDir())
 		if err != nil {
@@ -53,6 +57,7 @@ func runOpen(args []string) error {
 			},
 			Now: time.Now,
 		}, ui.ThemeByName(themeName()), view)
+		model.Restore(at, offset)
 
 		final, err := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseCellMotion()).Run()
 		if err != nil {
@@ -62,7 +67,7 @@ func runOpen(args []string) error {
 		if !ok || done.Pending == nil {
 			return nil
 		}
-		view = done.CurrentView()
+		view, at, offset = done.CurrentView(), done.CurrentRef(), done.PreviewOffset()
 
 		switch done.Pending.Key {
 		case "P":
@@ -268,6 +273,11 @@ func act(key, ref, choice string) error {
 		return nil
 	}
 	kind, id := refKind(ref)
+	// A link clicked in the preview carries its target rather than a row: the thing it
+	// points at is routinely not in the mirror at all.
+	if kind == "url" {
+		return open(id)
+	}
 	if kind == "agents" {
 		if key == "d" {
 			return diffFor(agentBranch(id))

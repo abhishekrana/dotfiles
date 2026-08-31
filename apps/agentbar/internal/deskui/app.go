@@ -66,6 +66,9 @@ type Model struct {
 	// under the line naming its author.
 	md         *glamour.TermRenderer
 	mdIndented *glamour.TermRenderer
+	// links is what is clickable in the preview as it stands, indexed when its content
+	// is set rather than hunted for on every click.
+	links []link
 
 	width, height int
 	showHelp      bool
@@ -119,6 +122,37 @@ func (m Model) Init() tea.Cmd { return nil }
 // lands you back where you were. Not named View: that is Bubble Tea's renderer.
 func (m Model) CurrentView() workdesk.View { return m.view }
 
+// CurrentRef and PreviewOffset are the rest of where you were: which row, and how far
+// down its preview. Every action tears the UI down and the caller builds a new one, so
+// without these an action taken on the fortieth line of a description put you back at the
+// top of the list - which is a long way from a link you clicked to read something.
+func (m Model) CurrentRef() string {
+	row, ok := m.current()
+	if !ok {
+		return ""
+	}
+	return workdesk.RefFor(row)
+}
+
+func (m Model) PreviewOffset() int { return m.preview.YOffset }
+
+// Restore puts the cursor and the preview back. A reference no longer in the view - a
+// merge request that merged since - leaves both alone rather than guessing.
+func (m *Model) Restore(ref string, offset int) {
+	if ref == "" {
+		return
+	}
+	for i, r := range m.rows {
+		if workdesk.RefFor(r) != ref {
+			continue
+		}
+		m.cursor = i
+		m.syncPreview()
+		m.preview.SetYOffset(offset)
+		return
+	}
+}
+
 // reload rebuilds the current view's rows. Called on a view switch, a filter change and
 // after a sync - never during a render, so View stays free of side effects.
 func (m *Model) reload() {
@@ -154,6 +188,21 @@ func matching(rows []workdesk.Row, q string) []workdesk.Row {
 	return out
 }
 
+// linkUnder is the link at a point on screen, mapped through the preview's own scroll
+// position and the columns its pane starts at.
+func (m Model) linkUnder(x, y int) (string, bool) {
+	if y < bodyTop || y >= bodyTop+bodyHeight(m.height) {
+		return "", false
+	}
+	lw, _ := paneWidths(m.width)
+	// The divider is one column, and the preview pane is padded by one more.
+	col := x - lw - 2
+	if col < 0 {
+		return "", false
+	}
+	return linkAt(m.links, m.preview.YOffset+y-bodyTop, col)
+}
+
 func (m *Model) clampCursor() {
 	if m.cursor >= len(m.rows) {
 		m.cursor = len(m.rows) - 1
@@ -176,10 +225,58 @@ func (m *Model) syncPreview() {
 	row, ok := m.current()
 	if !ok {
 		m.preview.SetContent("")
+		m.links = nil
 		return
 	}
-	m.preview.SetContent(m.renderPreview(row))
+	content := m.renderPreview(row)
+	m.preview.SetContent(content)
+	m.links = findLinks(content, m.resolveRef)
 	m.preview.GotoTop()
+}
+
+// resolveRef turns a GitLab reference into the URL it points at.
+//
+// From the mirror when the row is in it, which is the usual case and needs no knowledge
+// of the host. Otherwise from the shape of a URL the mirror already holds - a description
+// routinely mentions a merge request that is nobody's here - which is also what keeps
+// this program free of a host, a group or a project name.
+func (m Model) resolveRef(sigil, iid string) string {
+	for i := range m.deps.Mirror.Issues {
+		if sigil == "#" && m.deps.Mirror.Issues[i].IID == iid {
+			return m.deps.Mirror.Issues[i].WebURL
+		}
+	}
+	for i := range m.deps.Mirror.MRs {
+		if sigil == "!" && m.deps.Mirror.MRs[i].IID == iid {
+			return m.deps.Mirror.MRs[i].WebURL
+		}
+	}
+	base := m.projectURL()
+	if base == "" {
+		return ""
+	}
+	if sigil == "#" {
+		return base + "/-/issues/" + iid
+	}
+	return base + "/-/merge_requests/" + iid
+}
+
+// projectURL is the project's own address, cut from any row's url. Read rather than
+// configured: the mirror holds no host of its own, and this is the only place that needs
+// one.
+func (m Model) projectURL() string {
+	known := ""
+	switch {
+	case len(m.deps.Mirror.MRs) > 0:
+		known = m.deps.Mirror.MRs[0].WebURL
+	case len(m.deps.Mirror.Issues) > 0:
+		known = m.deps.Mirror.Issues[0].WebURL
+	}
+	base, _, found := strings.Cut(known, "/-/")
+	if !found {
+		return ""
+	}
+	return base
 }
 
 func (m *Model) resize(w, h int) {
@@ -259,6 +356,10 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if m.overPreview(msg.X) {
+		if url, ok := m.linkUnder(msg.X, msg.Y); ok {
+			m.Pending = &Action{Key: "o", Ref: "url:" + url}
+			return m, tea.Quit
+		}
 		return m, nil
 	}
 	row := m.rowAt(msg.Y)

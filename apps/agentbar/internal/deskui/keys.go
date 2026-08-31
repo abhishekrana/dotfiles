@@ -96,6 +96,7 @@ func mouseHints() [][2]string {
 	return [][2]string{
 		{"click", "select a row"},
 		{"click again", "jump to that agent's pane"},
+		{"click a link", "open it in the browser - a url, or a #1234 or !1234"},
 		{"click a tab", "switch view"},
 		{"click ✕", "close"},
 		{"click \"synced\"", "re-sync"},

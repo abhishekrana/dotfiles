@@ -186,6 +186,17 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
     and the `synced` marker are clickable, a band header answers with the first row under it, and everything fires on
     release - terminals eat the press of a click that also focuses their window. `listItems` is the one pass the
     renderer, the scroll window and the hit test share.
+  - **A link in the preview is clicked, and workdesk is what answers.** tmux has the mouse while the float is up, so the
+    terminal never gets the chance to make a URL clickable itself - the click arrives here. `findLinks` indexes the
+    rendered preview when its content is set: every `https://`, and every `#1234` and `!1234`, which no terminal could
+    make clickable because a bare reference is not a URL. It reads the _rendered_ text, so a markdown link glamour has
+    already expanded, a reference in a comment and the `url` row are all found by one scanner. Columns are display
+    columns, not bytes - `columns` walks the escape sequences - and the target comes from the mirror, falling back to
+    the shape of a URL the mirror already holds, which is what keeps a host out of this repo.
+  - **Where you were survives an action.** Every action tears the UI down and the caller builds a new one, so
+    `CurrentRef`/`PreviewOffset` go out and `Restore` puts the cursor and the scroll position back - otherwise a link
+    clicked forty lines into a description returns you to the top of the list. A row that has since left the view leaves
+    both alone rather than guessing.
   - **A float, not a popup, and the chip is the reason.** A popup is an overlay: it swallows every click outside its own
     box, so a second click on `≡ workdesk` never reached `MouseUp1Status` and the chip could only ever open. A float
     (tmux 3.7 `new-pane`) is a pane, so the click lands and `tmux-workdesk.sh` closes what it opened. Probed both ways,
