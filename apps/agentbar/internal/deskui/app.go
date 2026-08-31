@@ -20,6 +20,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/glamour"
 
 	"github.com/abhishekrana/agentbar/internal/ui"
 	"github.com/abhishekrana/agentbar/internal/workdesk"
@@ -59,6 +60,12 @@ type Model struct {
 	cursor  int
 	preview viewport.Model
 	filter  textinput.Model
+	// md renders the markdown bodies. Held rather than built per render, because what it
+	// wraps to is the pane width - so both are rebuilt on resize and nowhere else.
+	// mdIndented is the same renderer one indent narrower, for a comment body that sits
+	// under the line naming its author.
+	md         *glamour.TermRenderer
+	mdIndented *glamour.TermRenderer
 
 	width, height int
 	showHelp      bool
@@ -181,6 +188,8 @@ func (m *Model) resize(w, h int) {
 	_, pw := paneWidths(w)
 	m.preview.Width = previewWidth(pw)
 	m.preview.Height = bodyHeight(h)
+	m.md = newMarkdown(m.theme, m.preview.Width)
+	m.mdIndented = newMarkdown(m.theme, m.preview.Width-commentIndent)
 	m.syncPreview()
 }
 

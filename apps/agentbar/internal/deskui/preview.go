@@ -146,9 +146,9 @@ func (m Model) writeThreads(b *strings.Builder, discussions []workdesk.Discussio
 			if n.System {
 				continue
 			}
-			state, style := s.muted.Render("resolved"), s.muted
-			if !disc.Resolved {
-				state, style = s.warn.Render("OPEN"), s.val
+			state := s.warn.Render("OPEN")
+			if disc.Resolved {
+				state = s.muted.Render("resolved")
 			}
 			who := n.Author.Username
 			if who == "" {
@@ -156,10 +156,14 @@ func (m Model) writeThreads(b *strings.Builder, discussions []workdesk.Discussio
 			}
 			fmt.Fprintf(b, "  [%s] %s\n", state, s.accent.Render(who))
 			if brief {
+				style := s.val
+				if disc.Resolved {
+					style = s.muted
+				}
 				fmt.Fprintln(b, "      "+style.Render(firstLine(n.Body)))
 				continue
 			}
-			fmt.Fprintln(b, m.indent(style.Render(m.wrap(strings.TrimSpace(n.Body), 6)), "      "))
+			fmt.Fprintln(b, m.comment(n.Body))
 		}
 	}
 }
@@ -171,7 +175,7 @@ func (m Model) writeDescription(b *strings.Builder, body string) {
 		return
 	}
 	fmt.Fprintln(b, s.head.Render("Description"))
-	fmt.Fprintln(b, s.val.Render(m.wrap(body, 0)))
+	fmt.Fprintln(b, m.markdown(body))
 }
 
 // wrap reflows a body to the preview's own width, less an indent.

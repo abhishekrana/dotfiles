@@ -91,14 +91,17 @@ func TestIssuePreviewCarriesTheTicket(t *testing.T) {
 		}
 	}
 	m.syncPreview()
-	out := stripANSI(m.renderPreview(m.rows[m.cursor]))
+	// Whitespace-flattened: the body is rendered markdown now, so where a line breaks
+	// depends on the pane and a phrase can straddle two of them.
+	out := flatten(stripANSI(m.renderPreview(m.rows[m.cursor])))
 	for _, want := range []string{
 		"Description",
 		"Cold start walks the whole registry", // the body, not a link to it
 		"index the registry by name at load",  // and all of it, not the first line
-		"Comments  2",                         // what was said, system notes dropped
+		"Comments 2",                          // what was said, system notes dropped
 		"dana", "Reproduced on a cold pod",
 		"assignees", "status", "sprint",
+		"[ ] index the registry", // a task list, rendered as one
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the issue preview does not show %q", want)
@@ -107,7 +110,15 @@ func TestIssuePreviewCarriesTheTicket(t *testing.T) {
 	if strings.Contains(out, "assigned to @you") {
 		t.Error("a system note reached the preview")
 	}
+	// The syntax itself is what a renderer removes.
+	if strings.Contains(out, "- [ ]") || strings.Contains(out, "## Summary") {
+		t.Error("markdown source is showing through: the body was not rendered")
+	}
 }
+
+// flatten collapses every run of whitespace, so an assertion is about the words rather
+// than about where the wrap happened to fall.
+func flatten(s string) string { return strings.Join(strings.Fields(s), " ") }
 
 // The viewport truncates what it cannot fit, so a body has to be wrapped to the pane
 // rather than left to run off the edge.

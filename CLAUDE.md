@@ -237,6 +237,16 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
     annotates a diff you can go and read. **Bodies are wrapped to the pane** (`renderPreview` wraps once, at the end):
     the viewport truncates what it cannot fit, so before this the right-hand half of every long line was silently not
     there. `workdesk preview` on a command line has no pane and is left unwrapped.
+  - **The body is rendered markdown, not its source.** A ticket is written in markdown and GitLab renders it, so showing
+    the source meant reading around `##`, backticks and pipes. glamour does it - the same family as the rest of this UI,
+    what glab itself renders with, and a parser rather than a set of patterns, which is what makes nested lists, tables
+    and paragraph reflow come out right. **It costs ~8.7MB of binary** (6.5 → 15.2, most of it chroma's lexers) and
+    1.3ms a render, measured; goldmark alone was +1.4MB, and a renderer of our own was the thing that 250 lines would
+    have got wrong. The stylesheet is `markdownStyle`, built in Go from the theme, because a second palette that only
+    approximated `design/palette.toml` would show. Two renderers are held and rebuilt on resize alone - what they wrap
+    to is the pane width - the second one an indent narrower, for a comment body sitting under the line naming its
+    author. No renderer (a pane not yet sized, or `workdesk preview` on a command line) falls back to the wrapped
+    source.
   - **The sprint is a marker, and the row is what says which way `i` goes.** `◆` between the title and the age on the
     issues in the iteration the sync recorded; two cells are reserved on every issue row, marked or not, so the age
     column does not move as the sprint changes under it.
