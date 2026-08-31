@@ -36,6 +36,8 @@ type keyMap struct {
 	Merge    key.Binding
 	Status   key.Binding
 	Sprint   key.Binding
+	MRDiff   key.Binding
+	MRFull   key.Binding
 	Promote  key.Binding
 	Sync     key.Binding
 	Help     key.Binding
@@ -77,6 +79,10 @@ func defaultKeys() keyMap {
 		Auto:     key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "set auto-merge")),
 		Merge:    key.NewBinding(key.WithKeys("M"), key.WithHelp("M", "merge")),
 		Status:   key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "move to a status")),
+		// The patch is the default because it answers for every merge request in the
+		// queue; F costs a fetch and needs a clone, so it is the second key.
+		MRDiff: key.NewBinding(key.WithKeys("D"), key.WithHelp("D", "read the diff")),
+		MRFull: key.NewBinding(key.WithKeys("F"), key.WithHelp("F", "diff with whole files")),
 		// One key both ways: the row's ◆ already says which way it will go.
 		Sprint:  key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "in/out of the sprint")),
 		Promote: key.NewBinding(key.WithKeys("P"), key.WithHelp("P", "promote to a pane")),
@@ -117,7 +123,8 @@ func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.Top, k.Bottom, k.ScrollUp, k.ScrollDn},
 		append(k.Views, k.NextView, k.PrevView, k.Filter),
-		{k.Accept, k.Open, k.Copy, k.Tree, k.Diff, k.Matrix},
+		{k.Open, k.Copy},
+		{k.Accept, k.MRDiff, k.MRFull, k.Tree, k.Diff, k.Matrix},
 		{k.Assign, k.Auto, k.Merge, k.Status, k.Sprint, k.Promote, k.Sync, k.Quit},
 	}
 }

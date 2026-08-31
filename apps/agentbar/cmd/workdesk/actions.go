@@ -323,6 +323,11 @@ func act(key, ref, choice string) error {
 			return errors.New("that only applies to an issue")
 		}
 		return move(key, id, choice)
+	case "D", "F":
+		if kind != "mrs" {
+			return errors.New("that only applies to a merge request")
+		}
+		return diffWindow(id, key == "F")
 	}
 	return nil
 }
@@ -562,6 +567,12 @@ func worktreeFor(it workdesk.Item) error {
 	return nil
 }
 
+// diffFor points the diff pane at the worktree that holds a branch.
+//
+// The pane's helper takes a DIRECTORY. It was being handed the branch, so it answered
+// "<branch> is not a git repo" - and answered 0 while doing it, so the fallback below it
+// never fired either and `d` on a merge request row did nothing and said nothing. A branch
+// with no worktree now says so, and says which key does want it.
 func diffFor(branch string) error {
 	if branch == "" {
 		return nil
@@ -570,9 +581,39 @@ func diffFor(branch string) error {
 	if _, err := os.Stat(helper); err != nil {
 		return errors.New("no diff pane helper")
 	}
-	if err := exec.Command(helper, "main", branch).Run(); err != nil {
-		_ = exec.Command(helper, "main").Run()
+	dir := worktreeOn(branch)
+	if dir == "" {
+		return fmt.Errorf("no worktree on %s - c adds one, D reads the diff", branch)
 	}
-	trace.Log("workdesk", "diff", "branch", branch, "rc", 0)
-	return nil
+	err := exec.Command(helper, "main", dir).Run()
+	trace.Log("workdesk", "diff", "branch", branch, "dir", dir, "rc", rc(err))
+	return err
+}
+
+// worktreeOn finds the checkout a branch is on, or empty when nothing holds it.
+func worktreeOn(branch string) string {
+	out, err := exec.Command("git", "worktree", "list", "--porcelain").Output()
+	if err != nil {
+		return ""
+	}
+	return worktreeIn(string(out), branch)
+}
+
+// worktreeIn is the parse, split out so it can be tested without a repo. Porcelain lists
+// a worktree's path first and its branch after, so the path is carried forward until the
+// branch that matches names it; a detached worktree has no branch line at all.
+func worktreeIn(porcelain, branch string) string {
+	dir := ""
+	for _, line := range strings.Split(porcelain, "\n") {
+		if path, ok := strings.CutPrefix(line, "worktree "); ok {
+			dir = path
+			continue
+		}
+		if ref, ok := strings.CutPrefix(line, "branch "); ok {
+			if strings.TrimPrefix(ref, "refs/heads/") == branch {
+				return dir
+			}
+		}
+	}
+	return ""
 }

@@ -329,6 +329,21 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
     inherits the cwd of the pane it was opened from. Resolving only from there made `r` refuse in every repo that is not
     on GitLab, this one included, with a perfectly good mirror on disk naming the project it holds. The trace's
     `via=cwd|mirror` says which answered.
+  - **Reading a merge request means reading its diff, and that needs neither a clone nor a worktree.** `D` pipes
+    `glab mr diff` into `hunk patch -`: about a second, no fetch, and it answers for every merge request in the queue
+    rather than only the projects this machine has cloned. GitLab's patch carries `---`/`+++` pairs but no `diff --git`
+    headers, and hunk splits it into files on those alone. `F` is the same diff with the file around it - it fetches
+    `refs/merge-requests/<iid>/head` (FETCH_HEAD only, so nothing is written into the clone) and runs
+    `hunk diff <base>...<head>` where **the base is GitLab's own `diff_refs.base_sha`, never a local merge-base**: a
+    working clone's `origin/main` is routinely months behind, and computing the base against it reported 8996 files
+    changed for a two-file merge request. It costs a fetch and a clone, which is why it is the second key.
+  - **A diff opens in a window of its own.** It wants the full width, and it leaves both the float and the agent's diff
+    pane where they are; closing hunk closes the window and returns you to the float, on the row you opened it from. The
+    window runs `workdesk diff <iid>` rather than a quoted shell pipeline, so there is one command to get right.
+  - **`d` needs a directory, not a branch.** The diff pane's helper takes a worktree path; it was being handed the
+    branch, so it answered "<branch> is not a git repo" - and answered 0 while doing it, so the fallback never fired
+    either and `d` on a merge request row did nothing and said nothing. `worktreeOn` resolves the branch to the checkout
+    holding it, and a branch nothing holds now says which key does want it.
   - Five keys write to GitLab - `a` assign, `e` auto-merge, `M` merge on a merge request; `s` move to a status and `i`
     in/out of the current sprint on an issue - each behind the one `confirm` gate. `WORKDESK_DRY=1` prints the command
     and stops, which is what the mockup sets. Everything else is read-only.

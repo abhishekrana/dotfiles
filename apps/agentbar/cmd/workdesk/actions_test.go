@@ -115,3 +115,34 @@ func TestSyncProjectFallsBackToTheMirror(t *testing.T) {
 		}
 	})
 }
+
+// The diff pane takes a directory, so a branch has to be resolved to the checkout holding
+// it. Handing it the branch was the bug: the helper answered "not a git repo" and returned
+// 0, so `d` on a merge request row did nothing and said nothing about why.
+func TestWorktreeIn(t *testing.T) {
+	t.Parallel()
+	const porcelain = `worktree /home/you/alpha
+HEAD 1111111111111111111111111111111111111111
+branch refs/heads/main
+
+worktree /home/you/alpha-5407
+HEAD 2222222222222222222222222222222222222222
+branch refs/heads/4802-jetson-base-native-arm
+
+worktree /home/you/alpha-detached
+HEAD 3333333333333333333333333333333333333333
+detached
+`
+	cases := []struct{ branch, want string }{
+		{"4802-jetson-base-native-arm", "/home/you/alpha-5407"},
+		{"main", "/home/you/alpha"},
+		{"never-checked-out", ""},
+		{"4802", ""}, // a prefix of a real branch is not that branch
+		{"", ""},
+	}
+	for _, c := range cases {
+		if got := worktreeIn(porcelain, c.branch); got != c.want {
+			t.Errorf("worktreeIn(%q) = %q, want %q", c.branch, got, c.want)
+		}
+	}
+}
