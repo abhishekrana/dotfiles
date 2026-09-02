@@ -47,6 +47,7 @@ environment:
   WORKDESK_CONFIG    the accounts file (default ~/.config/workdesk/config.toml)
   WORKDESK_MIRROR    where the mirror lives
   WORKDESK_AGENTS    read agents from a file instead of tmux
+  WORKDESK_WINDOW    how far back the inbox opens ("7d", "all"); overrides the config
   WORKDESK_DRY       print what a write would run, and stop
 `
 

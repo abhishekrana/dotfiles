@@ -163,24 +163,50 @@ func (it Item) row(now time.Time) Row {
 	}
 }
 
-// Rows renders a view. now is passed in so a render is a pure function of the index
-// plus the clock, which is what lets the golden tests freeze time.
+// Listing is a view's rows and how many the window left out.
+//
+// One value rather than two calls: a view that owns up to an omission has to have it
+// counted by the pass that made it, or the two can disagree.
+type Listing struct {
+	Rows []Row
+	// Older is how many rows widening the window would bring back, and nothing else - a
+	// todo past TodoMaxAge is not counted, because no window reaches that far.
+	//
+	// A total rather than a tally per band: at a narrow window whole bands age out, and
+	// a band with no rows left has no header to carry a count.
+	Older int
+}
+
+// Rows renders a view whole. now is passed in so a render is a pure function of the
+// index plus the clock, which is what lets the golden tests freeze time.
+//
+// No window: this is what `list` and `ready` print, and an agent handed a shortened
+// queue would be an agent quietly missing work.
 func (idx *Index) Rows(v View, now time.Time) []Row {
+	return idx.List(v, WindowAll, now).Rows
+}
+
+// List renders a view through a window.
+//
+// The window is the inbox's alone. It is the view that asks what you are working on now,
+// where views 2 and 3 are the complete lists you go to for the thing you last touched in
+// spring - so widening is a tab away even when the window is narrow.
+func (idx *Index) List(v View, w Window, now time.Time) Listing {
 	switch v {
 	case ViewMRs:
 		out := make([]Row, 0, len(idx.MRs))
 		for _, it := range idx.MRs {
 			out = append(out, it.row(now))
 		}
-		return out
+		return Listing{Rows: out}
 	case ViewIssues:
 		out := make([]Row, 0, len(idx.Issues))
 		for _, it := range idx.Issues {
 			out = append(out, it.row(now))
 		}
-		return out
+		return Listing{Rows: out}
 	default:
-		return idx.inbox(now)
+		return idx.inbox(w, now)
 	}
 }
 
@@ -195,15 +221,23 @@ func (idx *Index) Rows(v View, now time.Time) []Row {
 //     inactive band worth seeing.
 //   - Issues appear only when they are top priority and nothing is in flight - the
 //     unstarted work most worth picking up.
-func (idx *Index) inbox(now time.Time) []Row {
+//
+// The window then decides which of those rows you are looking at now. It is applied last
+// and counted, so the foot of the list can say what it held back; membership is settled
+// before it, which is why claimed is stamped whether or not a row survives - otherwise a
+// merge request ageing out would hand its todo a row and the item would appear to change
+// bands as the window widened.
+func (idx *Index) inbox(w Window, now time.Time) Listing {
+	older := 0
+
 	// Aged out at read time rather than at sync, so the cutoff is always relative to
-	// now instead of to whenever the snapshot happened to be taken.
+	// now instead of to whenever the snapshot happened to be taken. This is the todos'
+	// own bound, not the window's: GitLab never marks one done, so the feed is an
+	// accumulating log however far back the view is asked to reach.
 	cutoff := now.Add(-TodoMaxAge).Unix()
 	fresh := make([]Item, 0, len(idx.Todos))
-	stale := 0
 	for _, td := range idx.Todos {
 		if td.Updated < cutoff {
-			stale++
 			continue
 		}
 		fresh = append(fresh, td)
@@ -223,6 +257,10 @@ func (idx *Index) inbox(now time.Time) []Row {
 			continue
 		}
 		claimed[it.Ref] = true
+		if !w.Covers(it.Updated, now) {
+			older++
+			continue
+		}
 		r := it.row(now)
 		if why, ok := reason[it.Ref]; ok {
 			r.Note = why + " · " + r.Note
@@ -236,6 +274,10 @@ func (idx *Index) inbox(now time.Time) []Row {
 			continue
 		}
 		claimed[it.Ref] = true
+		if !w.Covers(it.Updated, now) {
+			older++
+			continue
+		}
 		r := it.row(now)
 		r.Label = "not started"
 		r.Flag = "i"
@@ -247,10 +289,15 @@ func (idx *Index) inbox(now time.Time) []Row {
 		if claimed[td.Ref] {
 			continue
 		}
+		if !w.Covers(td.Updated, now) {
+			older++
+			continue
+		}
 		out = append(out, td.row(now))
 	}
 	out = append(out, mrRows...)
-	return append(out, issueRows...)
+	out = append(out, issueRows...)
+	return Listing{Rows: out, Older: older}
 }
 
 // RefFor is the handle an action acts on: kind and identifier, so nothing downstream

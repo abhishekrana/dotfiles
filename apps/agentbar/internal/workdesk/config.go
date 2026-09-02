@@ -14,13 +14,25 @@ import (
 // able to type from memory.
 const Self = "@me"
 
-// Config is the accounts whose work the mirror holds.
+// Config is whose work the mirror holds, and how far back the inbox reaches.
 //
 // It lives outside this repository (see ConfigPath) because a username is exactly the
 // kind of thing that must not be committed here, and because it is per-machine: the same
 // dotfiles serve accounts that have nothing to do with each other.
 type Config struct {
 	Accounts []string
+	// InboxSince is the window the inbox opens at, nil when the file says nothing. A
+	// pointer rather than a zero value, because "all" is a window someone can ask for
+	// and Window(0) is what it is.
+	InboxSince *Window
+}
+
+// Window is how far back the inbox opens: what the config asks for, else a week.
+func (c *Config) Window() Window {
+	if c == nil || c.InboxSince == nil {
+		return DefaultWindow
+	}
+	return *c.InboxSince
 }
 
 // LoadConfig reads the config file. A missing file is not an error - with no config the
@@ -69,14 +81,33 @@ func ParseConfig(r io.Reader) (*Config, error) {
 				return nil, fmt.Errorf("line %d: accounts: %w", n, err)
 			}
 			cfg.Accounts = list
+		case "inbox_since":
+			raw, err := parseString(strings.TrimSpace(value))
+			if err != nil {
+				return nil, fmt.Errorf("line %d: inbox_since: %w", n, err)
+			}
+			w, err := ParseWindow(raw)
+			if err != nil {
+				return nil, fmt.Errorf("line %d: inbox_since: %w", n, err)
+			}
+			cfg.InboxSince = &w
 		default:
-			return nil, fmt.Errorf("line %d: unknown setting %q (only accounts)", n, key)
+			return nil, fmt.Errorf("line %d: unknown setting %q (only accounts and inbox_since)", n, key)
 		}
 	}
 	if err := sc.Err(); err != nil {
 		return nil, err
 	}
 	return cfg, nil
+}
+
+// parseString takes one quoted value.
+func parseString(s string) (string, error) {
+	one, err := strconv.Unquote(s)
+	if err != nil {
+		return "", fmt.Errorf("expected a quoted value, got %s", s)
+	}
+	return one, nil
 }
 
 // parseList takes a quoted string or an array of them, so a single account needs no

@@ -101,13 +101,24 @@ func (m Model) tabBar() string {
 	return m.spread(left, right) + "\n" + rule
 }
 
-// tabBarRight is the right-hand group - what is asking for you, how stale the mirror is,
-// then the close button hard against the edge. Returned styled and plain, because the hit
-// test needs its width and escape sequences do not have one.
+// tabBarRight is the right-hand group - what is asking for you, how far back the list
+// reaches, how stale the mirror is, then the close button hard against the edge. Returned
+// styled and plain, because the hit test needs its width and escape sequences do not have
+// one.
 func (m Model) tabBarRight() (styled, plain string) {
 	idle := lipgloss.NewStyle().Foreground(m.theme.Muted)
 	plain = m.staleness()
 	styled = idle.Render(plain)
+	if w, ok := m.windowLabel(); ok {
+		// Coloured only while it is holding rows back - the one thing in this group with
+		// state to report. At "all" it is muted like the staleness beside it.
+		colour := m.theme.Muted
+		if m.window != workdesk.WindowAll {
+			colour = m.theme.Accent
+		}
+		styled = lipgloss.NewStyle().Foreground(colour).Render(w) + idle.Render(sep) + styled
+		plain = w + sep + plain
+	}
 	if n := m.attentionCount(); n > 0 {
 		flag := fmt.Sprintf("⚑ %d", n)
 		styled = lipgloss.NewStyle().Foreground(m.theme.Asking).Render(flag) + idle.Render(sep) + styled
@@ -117,6 +128,17 @@ func (m Model) tabBarRight() (styled, plain string) {
 	plain += "  " + closeMark
 	styled += idle.Render("  " + closeMark)
 	return styled, plain
+}
+
+// windowLabel is how far back the inbox reaches, on the one view that has a window.
+//
+// Shown always, including at "all", for the reason the staleness beside it is: a list
+// that quietly leaves rows out reads as complete when it is not.
+func (m Model) windowLabel() (string, bool) {
+	if m.view != workdesk.ViewInbox {
+		return "", false
+	}
+	return m.window.String(), true
 }
 
 // rightSpans locates the two clickable things in the tab bar's right-hand group. ok is
@@ -222,17 +244,31 @@ func cursorLine(items []listItem, cursor int) int {
 func (m Model) listPane(w int) string {
 	t := m.theme
 	height := bodyHeight(m.height)
+	// The window's own line is pinned to the foot rather than scrolled with the rows,
+	// and it costs a line only while there is something to say.
+	foot := ""
+	if m.older > 0 {
+		foot = m.olderLine(w)
+		height--
+	}
+	frame := func(lines []string) string {
+		if foot != "" {
+			lines = append(lines, foot)
+		}
+		return lipgloss.NewStyle().Width(w).Height(bodyHeight(m.height)).
+			Render(strings.Join(lines, "\n"))
+	}
+
 	if len(m.rows) == 0 {
 		empty := lipgloss.NewStyle().Foreground(t.Muted).Italic(true)
-		return lipgloss.NewStyle().Width(w).Height(height).
-			Render(empty.Render("  nothing here"))
+		return frame([]string{empty.Render("  nothing here")})
 	}
 
 	items := m.listItems()
 	// Keep the cursor on screen without a scrollbar: the list is short and a window that
 	// follows the cursor is less to look at than a bar that tracks it.
 	start := windowStart(len(items), cursorLine(items, m.cursor), height)
-	lines := make([]string, 0, height)
+	lines := make([]string, 0, height+1)
 	for _, it := range items[start:min(start+height, len(items))] {
 		switch {
 		case it.row < 0:
@@ -243,7 +279,24 @@ func (m Model) listPane(w int) string {
 			lines = append(lines, m.rowLine(m.rows[it.row], w, it.row == m.cursor))
 		}
 	}
-	return lipgloss.NewStyle().Width(w).Height(height).Render(strings.Join(lines, "\n"))
+	return frame(lines)
+}
+
+// olderLine is what the window is holding back, and the key that reveals it.
+//
+// One line at the foot rather than a count per band header: at a narrow window whole
+// bands age out, and a band with no rows left has no header to put a count on. It names
+// the next stop, which is what makes w findable without a hint in the footer strip - and
+// it can never name a narrower one, because at the widest window there is nothing older
+// to report.
+func (m Model) olderLine(w int) string {
+	text := fmt.Sprintf(" %d older · w widens to %s ", m.older, m.ring.Next(m.window))
+	rule := w - lipgloss.Width(text)
+	style := lipgloss.NewStyle().Foreground(m.theme.Muted)
+	if rule < 4 {
+		return style.Render(truncate(text, w))
+	}
+	return style.Render(strings.Repeat("─", 2) + text + strings.Repeat("─", rule-2))
 }
 
 // windowStart scrolls a list of n lines so line stays visible, keeping a little context
@@ -423,7 +476,7 @@ func (m Model) totalRows() int {
 	if m.view == workdesk.ViewAgents {
 		return len(m.rows)
 	}
-	return len(m.idx.Rows(m.view, m.deps.Now()))
+	return len(m.idx.List(m.view, m.window, m.deps.Now()).Rows)
 }
 
 func (m Model) helpScreen() string {

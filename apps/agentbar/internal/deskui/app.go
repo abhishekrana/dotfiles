@@ -42,6 +42,9 @@ type Deps struct {
 	Agents func() []workdesk.Agent
 	// Now is injected so a render is a pure function of its inputs.
 	Now func() time.Time
+	// Window is the window the config asks for: the ring's first stop, and where w
+	// wraps back to. Distinct from the one the UI opens at, which is where you left it.
+	Window workdesk.Window
 }
 
 // Model is the whole UI.
@@ -54,9 +57,14 @@ type Model struct {
 	// idx is built once. Classification is the same work for every view, and reload
 	// runs on each filter keystroke - rebuilding it there would cost a millisecond per
 	// character typed for no reason.
-	idx     *workdesk.Index
-	view    workdesk.View
-	rows    []workdesk.Row
+	idx  *workdesk.Index
+	view workdesk.View
+	rows []workdesk.Row
+	// window is how far back the inbox reaches, and older is how many rows it left out.
+	// Both come from the one List call, so the foot of the list cannot disagree with it.
+	window  workdesk.Window
+	ring    workdesk.Ring
+	older   int
 	cursor  int
 	preview viewport.Model
 	filter  textinput.Model
@@ -82,7 +90,7 @@ type Model struct {
 
 // New builds the model. The mirror is decoded by the caller and handed over whole: at a
 // few milliseconds once, that buys previews with no further I/O.
-func New(deps Deps, theme ui.Theme, view workdesk.View) Model {
+func New(deps Deps, theme ui.Theme, view workdesk.View, window workdesk.Window) Model {
 	if deps.Now == nil {
 		deps.Now = time.Now
 	}
@@ -109,6 +117,8 @@ func New(deps Deps, theme ui.Theme, view workdesk.View) Model {
 		keys:    defaultKeys(),
 		help:    h,
 		view:    view,
+		window:  window,
+		ring:    workdesk.NewRing(deps.Window),
 		preview: viewport.New(0, 0),
 		filter:  fi,
 	}
@@ -121,6 +131,10 @@ func (m Model) Init() tea.Cmd { return nil }
 // CurrentView is which view was showing when the UI quit, so reopening after an action
 // lands you back where you were. Not named View: that is Bubble Tea's renderer.
 func (m Model) CurrentView() workdesk.View { return m.view }
+
+// CurrentWindow is how far back the inbox was reaching, so an action does not quietly
+// snap it back to the configured one.
+func (m Model) CurrentWindow() workdesk.Window { return m.window }
 
 // CurrentRef and PreviewOffset are the rest of where you were: which row, and how far
 // down its preview. Every action tears the UI down and the caller builds a new one, so
@@ -162,9 +176,10 @@ func (m *Model) reload() {
 		if m.deps.Agents != nil {
 			agents = m.deps.Agents()
 		}
-		m.rows = workdesk.AgentRows(agents, m.idx)
+		m.rows, m.older = workdesk.AgentRows(agents, m.idx), 0
 	} else {
-		m.rows = m.idx.Rows(m.view, now)
+		l := m.idx.List(m.view, m.window, now)
+		m.rows, m.older = l.Rows, l.Older
 	}
 	if q := strings.TrimSpace(m.filter.Value()); q != "" {
 		m.rows = matching(m.rows, q)
@@ -433,6 +448,14 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.setView(m.view.Prev())
 	case m.matchesView(msg):
 		m.setView(workdesk.ParseView(msg.String()))
+	case key.Matches(msg, k.Window):
+		// Inert off the inbox: the window is that view's, and a key that silently
+		// reshaped another one would be worse than a key that does nothing.
+		if m.view == workdesk.ViewInbox {
+			m.window = m.ring.Next(m.window)
+			m.reload()
+		}
+		return m, nil
 	case key.Matches(msg, k.Filter):
 		m.filtering = true
 		m.filter.Focus()

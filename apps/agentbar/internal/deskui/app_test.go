@@ -15,7 +15,15 @@ import (
 // the real clock would render differently every day.
 var frozen = time.Date(2026, 8, 27, 21, 27, 32, 0, time.UTC)
 
+// testModel opens on the whole inbox. The window has tests of its own; everything else
+// here is about rows the fixture holds, and a seven-day window over a fixture whose dates
+// are fixed would quietly take most of them away.
 func testModel(t *testing.T) Model {
+	t.Helper()
+	return testModelWindow(t, workdesk.WindowAll)
+}
+
+func testModelWindow(t *testing.T, window workdesk.Window) Model {
 	t.Helper()
 	mirror, err := workdesk.FixtureMirror()
 	if err != nil {
@@ -31,7 +39,8 @@ func testModel(t *testing.T) Model {
 		Mirror: mirror,
 		Agents: func() []workdesk.Agent { return agents },
 		Now:    func() time.Time { return frozen },
-	}, ui.SolarizedLight(), workdesk.ViewInbox)
+		Window: workdesk.DefaultWindow,
+	}, ui.SolarizedLight(), workdesk.ViewInbox, window)
 	m.resize(140, 40)
 	return m
 }

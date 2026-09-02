@@ -12,7 +12,10 @@ func TestParseConfig(t *testing.T) {
 		name string
 		in   string
 		want []string
-		bad  string
+		// win is the window the file asks for; unset means the file says nothing and
+		// the default stands.
+		win *Window
+		bad string
 	}{{
 		name: "an array of accounts",
 		in:   "accounts = [\"you\", \"you-bot\"]\n",
@@ -39,6 +42,23 @@ func TestParseConfig(t *testing.T) {
 		name: "an unquoted name is refused",
 		in:   "accounts = [you]\n",
 		bad:  "quoted username",
+	}, {
+		name: "a window alongside the accounts",
+		in:   "accounts = [\"you\"]\ninbox_since = \"14d\"\n",
+		want: []string{"you"},
+		win:  ptr(14 * day),
+	}, {
+		name: "a window of all",
+		in:   "inbox_since = \"all\"\n",
+		win:  ptr(WindowAll),
+	}, {
+		name: "a window that is not a count of days is refused",
+		in:   "inbox_since = \"a fortnight\"\n",
+		bad:  "count of days",
+	}, {
+		name: "an unquoted window is refused",
+		in:   "inbox_since = 7d\n",
+		bad:  "quoted value",
 	}}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -59,7 +79,33 @@ func TestParseConfig(t *testing.T) {
 			if got := strings.Join(cfg.Accounts, ","); got != strings.Join(c.want, ",") {
 				t.Errorf("accounts = %q, want %q", got, c.want)
 			}
+			want := DefaultWindow
+			if c.win != nil {
+				want = *c.win
+			}
+			if got := cfg.Window(); got != want {
+				t.Errorf("inbox window = %v, want %v", got, want)
+			}
 		})
+	}
+}
+
+func ptr(w Window) *Window { return &w }
+
+// A file that says nothing about the window gets the default, and so does no file at all
+// - the window is a preference, not a thing you have to declare.
+func TestConfigWindowDefaults(t *testing.T) {
+	t.Parallel()
+	var none *Config
+	if got := none.Window(); got != DefaultWindow {
+		t.Errorf("no config at all gives %v, want %v", got, DefaultWindow)
+	}
+	cfg, err := LoadConfig(filepath.Join(t.TempDir(), "absent.toml"))
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if got := cfg.Window(); got != DefaultWindow {
+		t.Errorf("a missing file gives %v, want %v", got, DefaultWindow)
 	}
 }
 

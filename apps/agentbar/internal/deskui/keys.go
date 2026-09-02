@@ -23,6 +23,7 @@ type keyMap struct {
 	// five places at once.
 	Views    []key.Binding
 	Filter   key.Binding
+	Window   key.Binding
 	Accept   key.Binding
 	ScrollUp key.Binding
 	ScrollDn key.Binding
@@ -66,6 +67,9 @@ func defaultKeys() keyMap {
 		PrevView: key.NewBinding(key.WithKeys("shift+tab"), key.WithHelp("⇧tab", "previous view")),
 		Views:    viewBindings(),
 		Filter:   key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "filter")),
+		// The ring's stops are configurable, so the hint names the question rather than
+		// the values; the tab bar carries the answer.
+		Window:   key.NewBinding(key.WithKeys("w"), key.WithHelp("w", "how far back the inbox reaches")),
 		Accept:   key.NewBinding(key.WithKeys("enter"), key.WithHelp("↵", "jump to that agent")),
 		ScrollUp: key.NewBinding(key.WithKeys("ctrl+u", "pgup"), key.WithHelp("^u", "scroll preview up")),
 		ScrollDn: key.NewBinding(key.WithKeys("ctrl+d", "pgdown"), key.WithHelp("^d", "scroll preview down")),
@@ -109,7 +113,8 @@ func mouseHints() [][2]string {
 // ShortHelp is the footer strip: moving around, and the actions that apply to the row
 // under the cursor. Enter is not among them - it belongs to the agents view alone, and a
 // strip that is always on screen should not advertise a key that does nothing on three
-// views out of four. The overlay still documents it.
+// views out of four. The overlay still documents it, and w is left out for the same
+// reason: the window is the inbox's, and the tab bar already shows where it stands.
 func (k keyMap) ShortHelp() []key.Binding {
 	return []key.Binding{k.Open, k.Copy, k.NextView, k.Filter, k.Help, k.Quit}
 }
@@ -118,7 +123,7 @@ func (k keyMap) ShortHelp() []key.Binding {
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.Top, k.Bottom, k.ScrollUp, k.ScrollDn},
-		append(k.Views, k.NextView, k.PrevView, k.Filter),
+		append(k.Views, k.NextView, k.PrevView, k.Filter, k.Window),
 		{k.Open, k.Copy},
 		{k.Accept, k.MRDiff, k.Tree, k.Diff, k.Matrix},
 		{k.Assign, k.Auto, k.Merge, k.Status, k.Sprint, k.Promote, k.Sync, k.Quit},

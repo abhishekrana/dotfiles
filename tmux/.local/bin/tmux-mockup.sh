@@ -270,12 +270,17 @@ M bind -n M-w run-shell -b "PATH=$TMP/shim:\$PATH $REPO/tmux/.local/bin/tmux-dif
 #
 # WORKDESK_DRY makes the three write keys (a, e, M) print the command they would run and
 # stop there, so every key in the popup is safe to press here.
+#
+# WORKDESK_WINDOW opens the mock wide enough to hold the whole fixture: its dates are
+# fixed and the default window is a week, so at the default the mock empties out as the
+# fixture ages. A month rather than all, because a ring of one stop leaves w inert and w
+# is a key the mock is there to demonstrate.
 WORKDESK="$REPO/apps/agentbar/bin/workdesk"
 if [ -x "$WORKDESK" ] && "$WORKDESK" fixture "$TMP/workdesk" >/dev/null 2>&1; then
     M set -g @workdesk_open \
         "new-pane -x 90% -y 80% -X 5% -Y 10% \
          'WORKDESK_MIRROR=$TMP/workdesk WORKDESK_AGENTS=$TMP/workdesk/agents.tsv \
-          WORKDESK_DRY=1 $WORKDESK open inbox'"
+          WORKDESK_DRY=1 WORKDESK_WINDOW=30d $WORKDESK open inbox'"
 else
     # Must be overridden even on failure: the sourced conf points it at the real
     # mirror, and a mock that opens the live queue is the one outcome to rule out.

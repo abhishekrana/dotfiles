@@ -302,13 +302,27 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
   - **Detail fetches go out several at a time.** GitLab charges per node either way, so the only thing a single long
     request buys is a single slow one: the same 52 merge requests took 29s in one call and 9s in four concurrent chunks.
     Hence `detailChunk`/`detailAtOnce` rather than the cursor walk this replaced, which could not overlap at all.
+  - **How far back the inbox reaches is a window, and `w` widens it.** The inbox is the view that asks what you are
+    working on now, so it opens on the last week (`inbox_since` in the config, `WORKDESK_WINDOW` overrides it) and `w`
+    cycles that stop, then a month, then the whole queue - only ever widening until it wraps, so a configured window a
+    fixed stop already covers drops that stop rather than narrowing halfway round. **The window is the inbox's alone**:
+    views 2 and 3 are the complete lists you widen into, `list` and `ready` are never windowed - an agent handed a
+    shortened queue is one quietly missing work - and the mockup sets `WORKDESK_WINDOW=30d`, since the fixture's dates
+    are fixed and a week would empty it as it ages (a month rather than `all`, which would leave a ring of one and `w`
+    inert). **It is a lens, not a reclassification**: membership is settled before the window, so a merge request ageing
+    out cannot hand its todo a row and make the item look like it changed bands. Two things say so on screen, because a
+    list that quietly leaves rows out reads as complete when it is not - the window in the tab bar beside the staleness,
+    accented only while it is holding rows back, and one pinned line at the foot of the list naming the count and the
+    next stop. **The count is one total, not a tally per band**: at a narrow window whole bands age out, and a band with
+    no rows left has no header to carry a count. `TodoMaxAge` is still the todos' own bound and no window reaches past
+    it, so a todo it dropped is never offered by that line.
   - **Whose work it is, is configurable, and the file is not in this repo.** `~/.config/workdesk/config.toml` holds
-    `accounts = ["@me", "..."]` (`WORKDESK_CONFIG` overrides the path); `@me` is whoever glab authenticates as, so the
-    file never has to carry a project bot's generated username, and no config at all means that identity alone - what it
-    did before there was a file. A username is exactly what must never be committed here, which is why the config lives
-    outside the repo rather than in a stow package. The parser takes the slice of TOML this needs and **refuses a line
-    it does not understand by name**: a silently ignored table header is a board that looks complete while holding one
-    account's work.
+    `accounts = ["@me", "..."]` and `inbox_since = "7d"` (`WORKDESK_CONFIG` overrides the path); `@me` is whoever glab
+    authenticates as, so the file never has to carry a project bot's generated username, and no config at all means that
+    identity alone - what it did before there was a file. A username is exactly what must never be committed here, which
+    is why the config lives outside the repo rather than in a stow package. The parser takes the slice of TOML this
+    needs and **refuses a line it does not understand by name**: a silently ignored table header is a board that looks
+    complete while holding one account's work, and an ignored `inbox_since` is a window you did not ask for.
   - **A row is yours by author OR assignee, for every account, and the union is done here.** They are different queues -
     the account that files the work is rarely the account it is assigned to - so the manifest is asked once per account
     per relation and deduped by iid in `refresh`, which decodes them anyway. GitLab's own `or:` filter would do it in

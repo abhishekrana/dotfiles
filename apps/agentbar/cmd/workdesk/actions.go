@@ -35,12 +35,17 @@ func (tmuxRunner) Run(args ...string) (string, error) { return tmux.Exec{}.Run(a
 // and what the tests exercise.
 func runOpen(args []string) error {
 	view := workdesk.ParseView(first(args))
-	trace.Log("workdesk", "open", "view", view.String())
+	configured, err := openWindow()
+	if err != nil {
+		return err
+	}
+	trace.Log("workdesk", "open", "view", view.String(), "window", configured.String())
 
 	// Where the last pass was, so the next one opens there. The UI is rebuilt after every
 	// action, and landing back at the top of the list is a poor answer to having clicked
-	// a link forty lines into a description.
+	// a link forty lines into a description - or to having widened the window.
 	at, offset := "", 0
+	window := configured
 	for {
 		mirror, err := workdesk.Load(mirrorDir())
 		if err != nil {
@@ -55,8 +60,9 @@ func runOpen(args []string) error {
 				}
 				return agents
 			},
-			Now: time.Now,
-		}, ui.ThemeByName(themeName()), view)
+			Now:    time.Now,
+			Window: configured,
+		}, ui.ThemeByName(themeName()), view, window)
 		model.Restore(at, offset)
 
 		final, err := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseCellMotion()).Run()
@@ -68,6 +74,7 @@ func runOpen(args []string) error {
 			return nil
 		}
 		view, at, offset = done.CurrentView(), done.CurrentRef(), done.PreviewOffset()
+		window = done.CurrentWindow()
 
 		switch done.Pending.Key {
 		case "P":
@@ -78,6 +85,26 @@ func runOpen(args []string) error {
 			}
 		}
 	}
+}
+
+// openWindow is how far back the inbox opens: the config, or WORKDESK_WINDOW when it is
+// set - which is what lets the mockup open wide enough to hold its whole fixture.
+//
+// A malformed value fails rather than falling back, for the reason the config parser is
+// strict: a window quietly ignored is a board that looks complete and is not.
+func openWindow() (workdesk.Window, error) {
+	if w := os.Getenv("WORKDESK_WINDOW"); w != "" {
+		parsed, err := workdesk.ParseWindow(w)
+		if err != nil {
+			return 0, fmt.Errorf("WORKDESK_WINDOW: %w", err)
+		}
+		return parsed, nil
+	}
+	cfg, err := workdesk.LoadConfig(configPath())
+	if err != nil {
+		return 0, err
+	}
+	return cfg.Window(), nil
 }
 
 // themeName is the flavor the rest of the terminal is wearing.
