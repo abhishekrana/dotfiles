@@ -34,6 +34,7 @@
       "mcp__claude_ai_Slack__slack_create_conversation",
       "mcp__claude_ai_Slack__slack_create_canvas",
       "mcp__claude_ai_Slack__slack_update_canvas",
+      "mcp__plugin_slack_slack__*",
       "mcp__plugin_Notion_notion__notion-create-pages",
       "mcp__plugin_Notion_notion__notion-update-page",
       "mcp__plugin_Notion_notion__notion-move-pages",
@@ -43,7 +44,13 @@
       "mcp__plugin_Notion_notion__notion-create-comment",
       "mcp__plugin_Notion_notion__notion-create-attachment",
       "mcp__plugin_Notion_notion__notion-create-view",
-      "mcp__plugin_Notion_notion__notion-update-view"
+      "mcp__plugin_Notion_notion__notion-update-view",
+      "mcp__plugin_Notion_notion__notion-create-folder",
+      "mcp__plugin_Notion_notion__notion-update-folder",
+      "mcp__plugin_Notion_notion__notion-create-file-upload",
+      "mcp__plugin_Notion_notion__notion-spawn-session",
+      "mcp__plugin_Notion_notion__notion-send-message-to-session",
+      "mcp__plugin_Notion_notion__notion-stop-session"
     ]
   },
   "model": "opus[1m]",
