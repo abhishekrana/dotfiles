@@ -302,6 +302,12 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
   - **Detail fetches go out several at a time.** GitLab charges per node either way, so the only thing a single long
     request buys is a single slow one: the same 52 merge requests took 29s in one call and 9s in four concurrent chunks.
     Hence `detailChunk`/`detailAtOnce` rather than the cursor walk this replaced, which could not overlap at all.
+  - **A detail fetch asks for the rows it names, and the size of the chunk is capped by more than latency.** GitLab
+    prices a query by the page size asked for, not by what comes back, and refuses one above complexity 250: the merge
+    request selection costs ~89 plus ~4.5 a row, so a batch of 13 asked for as `first: 100` was 535 and GitLab declined
+    it outright - the whole sync failing on the first page rather than overreaching. `first` is therefore the batch, and
+    36 rows is the ceiling `detailChunk` can ever have. `workdesk schema-check` probes the detail query's own shape for
+    that reason, so a selection GitLab has come to price above the cap is one command rather than a broken sync.
   - **How far back the inbox reaches is a window, and `w` widens it.** The inbox is the view that asks what you are
     working on now, so it opens on the last week (`inbox_since` in the config, `WORKDESK_WINDOW` overrides it) and `w`
     cycles that stop, then a month, then the whole queue - only ever widening until it wraps, so a configured window a

@@ -18,6 +18,10 @@ import (
 // at a time. Measured on a real queue: 52 merge requests in one call took 29s and the
 // same 52 in four concurrent chunks took 9s. GitLab does the work either way; asking for
 // it down one connection is what made it slow.
+//
+// detailChunk is bounded by GitLab's query complexity cap as well as by latency: an
+// authenticated request may cost 250, and a merge request detail page costs about 89 plus
+// 4.5 per row asked for, so 36 is the most it can ever be.
 const (
 	manifestPage = 100
 	detailChunk  = 13
@@ -138,7 +142,14 @@ func owned(relation, who string) string {
 	return "state: opened, " + relation + ": " + strconv.Quote(who)
 }
 
-func authored(who string) string { return owned("authorUsername", who) }
+// probeIIDs is a full detail batch of iids, for the schema check.
+func probeIIDs(n int) string {
+	quoted := make([]string, n)
+	for i := range quoted {
+		quoted[i] = strconv.Quote(strconv.Itoa(i + 1))
+	}
+	return "iids: [" + strings.Join(quoted, ", ") + "]"
+}
 
 // stamps walks the manifest once per account per relation, all of them in flight
 // together, and concatenates. Duplicates are expected - a row you authored and were
@@ -197,7 +208,11 @@ func (c *Client) chunked(ctx context.Context, field, project, selection string,
 				quoted[j] = strconv.Quote(iid)
 			}
 			filter := "iids: [" + strings.Join(quoted, ", ") + "]"
-			got[i], errs[i] = c.walk(ctx, field, project, selection, filter, manifestPage)
+			// The page is the batch, never manifestPage. A detail fetch names its
+			// rows, so a page of 100 is a size it cannot return - and GitLab prices
+			// the selection by the page asked for, which made it a query GitLab
+			// refused rather than one that overreached.
+			got[i], errs[i] = c.walk(ctx, field, project, selection, filter, len(batch))
 		})
 	}
 	wg.Wait()
@@ -446,12 +461,14 @@ func (c *Client) CurrentIteration(ctx context.Context, project string) (json.Raw
 // error while a valid query returns a null project.
 //
 // This turns a GitLab upgrade that breaks a field into one command rather than a
-// mystery about why a view went blank.
+// mystery about why a view went blank. The query is the detail fetch's own shape, iids
+// and page size included, so a selection GitLab has come to price above the complexity
+// cap is caught here too - complexity is analysed before execution, like validation.
 func (c *Client) SchemaCheck(ctx context.Context) error {
 	const probe = "workdesk/schema-probe-does-not-exist"
 	var p page[json.RawMessage]
 	q := listQuery("mergeRequests", probe, fmt.Sprintf(mrFields, threadsPerMR),
-		authored("workdesk-probe"), manifestPage, "")
+		probeIIDs(detailChunk), detailChunk, "")
 	if err := c.graphQL(ctx, q, &p); err != nil {
 		return err
 	}
