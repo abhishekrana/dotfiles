@@ -316,8 +316,8 @@ func TestClickOnALinkInThePreviewOpensIt(t *testing.T) {
 	}
 	target := m.links[0]
 	lw, _ := paneWidths(m.width)
-	x := lw + 2 + target.start
-	y := bodyTop + target.line - m.preview.YOffset
+	x := lw + previewCol0 + target.start
+	y := previewTop + target.line - m.preview.YOffset
 
 	got := click(m, x, y)
 	if got.Pending == nil {
@@ -329,15 +329,102 @@ func TestClickOnALinkInThePreviewOpensIt(t *testing.T) {
 }
 
 // Only the link is clickable: the rest of the preview is text to read, and a click on it
-// must not tear the UI down.
+// must not tear the UI down. The head line above the sheet is chrome and has its own
+// tests, so this asks about the sheet itself.
 func TestClickOnPlainPreviewTextDoesNothing(t *testing.T) {
 	t.Parallel()
 	m := press(testModel(t), "2")
 	lw, _ := paneWidths(m.width)
-	// The far right of the first line: past the title, and no link is there.
-	got := click(m, lw+2+m.preview.Width-1, bodyTop)
+	// The far right of the sheet's first line: past the value, and no link is there.
+	got := click(m, lw+previewCol0+m.preview.Width-1, previewTop)
 	if got.Pending != nil {
 		t.Errorf("a click on plain preview text recorded %+v", got.Pending)
+	}
+}
+
+// The chip is D for the pointer: same action, same reference, recorded rather than run.
+func TestClickOnTheDiffChipReadsTheDiff(t *testing.T) {
+	t.Parallel()
+	m := press(testModel(t), "3")
+	row, ok := m.current()
+	if !ok {
+		t.Fatal("no merge request row to read")
+	}
+	start, end, drawn := m.diffChipSpan()
+	if !drawn {
+		t.Fatal("no chip on a merge request sheet")
+	}
+	for _, x := range []int{start, (start + end) / 2, end - 1} {
+		got := click(m, x, bodyTop)
+		if got.Pending == nil {
+			t.Fatalf("a click on the chip at column %d did nothing", x)
+		}
+		if got.Pending.Key != "D" || got.Pending.Ref != workdesk.RefFor(row) {
+			t.Errorf("the chip recorded %+v, want D on %s", got.Pending, workdesk.RefFor(row))
+		}
+	}
+}
+
+// Beside the chip is the row's own name, which is text. A head line that acted anywhere
+// along it would make the title a trap.
+func TestClickBesideTheDiffChipDoesNothing(t *testing.T) {
+	t.Parallel()
+	m := press(testModel(t), "3")
+	start, _, drawn := m.diffChipSpan()
+	if !drawn {
+		t.Fatal("no chip on a merge request sheet")
+	}
+	lw, _ := paneWidths(m.width)
+	for _, x := range []int{lw + previewCol0, start - 1} {
+		got := click(m, x, bodyTop)
+		if got.Pending != nil {
+			t.Errorf("a click on the head line at column %d recorded %+v", x, got.Pending)
+		}
+		if got.cursor != m.cursor {
+			t.Errorf("a click on the head line moved the cursor to %d", got.cursor)
+		}
+	}
+}
+
+// The chip belongs to a merge request. On an issue there is nothing to open, so it is not
+// drawn - and a click where it would have been finds nothing, rather than a notice
+// explaining that the button you were shown does not apply.
+func TestNoDiffChipOnAnIssueSheet(t *testing.T) {
+	t.Parallel()
+	mrs := press(testModel(t), "3")
+	start, _, drawn := mrs.diffChipSpan()
+	if !drawn {
+		t.Fatal("no chip on a merge request sheet")
+	}
+	m := press(testModel(t), "2")
+	if _, _, drawn := m.diffChipSpan(); drawn {
+		t.Error("an issue sheet drew a diff chip")
+	}
+	got := click(m, start, bodyTop)
+	if got.Pending != nil || got.notice != "" {
+		t.Errorf("a click where the chip is not recorded %+v / %q", got.Pending, got.notice)
+	}
+}
+
+// A pane too narrow to say which merge request the chip would open draws none, so a click
+// cannot land on text that was never rendered - the rule the tab bar's right-hand group
+// already follows.
+func TestNarrowPaneDrawsNoDiffChip(t *testing.T) {
+	t.Parallel()
+	m := press(testModel(t), "3")
+	wide, _, drawn := m.diffChipSpan()
+	if !drawn {
+		t.Fatal("no chip at the test width")
+	}
+	m.resize(44, 40)
+	if _, _, drawn := m.diffChipSpan(); drawn {
+		t.Error("a 44-column window still drew the chip")
+	}
+	if out := stripANSI(m.View()); strings.Contains(out, "◧ diff") {
+		t.Error("the chip is not clickable at this width but is still on screen")
+	}
+	if got := click(m, wide, bodyTop); got.Pending != nil {
+		t.Errorf("a click where the chip used to be recorded %+v", got.Pending)
 	}
 }
 

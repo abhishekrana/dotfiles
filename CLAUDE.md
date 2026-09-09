@@ -201,6 +201,15 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
     and the `synced` marker are clickable, a band header answers with the first row under it, and everything fires on
     release - terminals eat the press of a click that also focuses their window. `listItems` is the one pass the
     renderer, the scroll window and the hit test share.
+  - **The sheet keeps a head line, and that line carries the `◧ diff` chip.** The row's name is pinned above the
+    scrolling preview, so it still says which merge request you are reading forty lines into a description - and it is
+    where the pointer finds `D`. The chip is the only control in this UI that is not a row or a tab, so it is held to
+    the same rules as one: `diffChipSpan` is the single geometry the renderer and the hit test share, it is drawn only
+    on a merge request sheet (nothing to press in vain, and no notice to explain a dead button), and a pane too narrow
+    to also say which merge request it would open draws none rather than offering a click on text that was never
+    rendered. Reading a diff is looking, which is why this is a click at all. It costs the viewport a line and gives one
+    back: the sheets no longer open with a title and a blank line of their own. The hue is `changes`, the palette's
+    review role, so it comes from `design/palette.toml` like every other colour here.
   - **A link in the preview is clicked, and workdesk is what answers.** tmux has the mouse while the float is up, so the
     terminal never gets the chance to make a URL clickable itself - the click arrives here. `findLinks` indexes the
     rendered preview when its content is set: every `https://`, and every `#1234` and `!1234`, which no terminal could

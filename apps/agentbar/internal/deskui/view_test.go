@@ -180,6 +180,37 @@ func TestStatusAndSprintOnlyApplyToIssues(t *testing.T) {
 	}
 }
 
+// The head line is what the pinned line is for: it names the row from anywhere in the
+// sheet, which a title inside the scroll cannot do, and it carries the chip.
+func TestPreviewHeadLineNamesTheRowFromAnywhere(t *testing.T) {
+	t.Parallel()
+	m := testModel(t)
+	m.setView(workdesk.ViewMRs)
+	row, ok := m.current()
+	if !ok {
+		t.Fatal("no merge request row")
+	}
+	head := func(m Model) string {
+		return stripANSI(strings.Split(m.View(), "\n")[bodyTop])
+	}
+	for _, want := range []string{row.Ref, "◧ diff"} {
+		if !strings.Contains(head(m), want) {
+			t.Errorf("the head line %q does not carry %q", head(m), want)
+		}
+	}
+	// The sheet no longer opens with a title of its own: the line above it is the title.
+	if first := stripANSI(strings.Split(m.preview.View(), "\n")[0]); !strings.HasPrefix(first, "branch") {
+		t.Errorf("the sheet opens with %q, want the first fact about the merge request", first)
+	}
+	// Scrolled to the foot of a long description, the head line still says where you are.
+	for range 30 {
+		m.preview.LineDown(wheelLines)
+	}
+	if !strings.Contains(head(m), row.Ref) {
+		t.Errorf("scrolled, the head line %q no longer names the row", head(m))
+	}
+}
+
 // Nothing may run off the edge: a line wider than the terminal wraps and shears the
 // whole layout.
 func TestViewNeverExceedsItsWidth(t *testing.T) {

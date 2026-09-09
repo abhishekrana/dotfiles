@@ -206,16 +206,25 @@ func matching(rows []workdesk.Row, q string) []workdesk.Row {
 // linkUnder is the link at a point on screen, mapped through the preview's own scroll
 // position and the columns its pane starts at.
 func (m Model) linkUnder(x, y int) (string, bool) {
-	if y < bodyTop || y >= bodyTop+bodyHeight(m.height) {
+	if y < previewTop || y >= bodyTop+bodyHeight(m.height) {
 		return "", false
 	}
 	lw, _ := paneWidths(m.width)
-	// The divider is one column, and the preview pane is padded by one more.
-	col := x - lw - 2
+	col := x - lw - previewCol0
 	if col < 0 {
 		return "", false
 	}
-	return linkAt(m.links, m.preview.YOffset+y-bodyTop, col)
+	return linkAt(m.links, m.preview.YOffset+y-previewTop, col)
+}
+
+// overDiffChip reports whether a point is on the chip - the head line, and only where the
+// chip was actually drawn.
+func (m Model) overDiffChip(x, y int) bool {
+	if y != bodyTop {
+		return false
+	}
+	start, end, ok := m.diffChipSpan()
+	return ok && x >= start && x < end
 }
 
 func (m *Model) clampCursor() {
@@ -299,7 +308,8 @@ func (m *Model) resize(w, h int) {
 	m.help.Width = w
 	_, pw := paneWidths(w)
 	m.preview.Width = previewWidth(pw)
-	m.preview.Height = bodyHeight(h)
+	// One line shorter than the body: the pinned head line above it is the first.
+	m.preview.Height = bodyHeight(h) - 1
 	m.md = newMarkdown(m.theme, m.preview.Width)
 	m.mdIndented = newMarkdown(m.theme, m.preview.Width-commentIndent)
 	m.syncPreview()
@@ -371,6 +381,9 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if m.overPreview(msg.X) {
+		if m.overDiffChip(msg.X, msg.Y) {
+			return m.request("D")
+		}
 		if url, ok := m.linkUnder(msg.X, msg.Y); ok {
 			m.Pending = &Action{Key: "o", Ref: "url:" + url}
 			return m, tea.Quit

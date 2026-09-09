@@ -17,6 +17,14 @@ const (
 	// The close button, in the corner every window puts one. A popup swallows a click
 	// on the tmux chip that opened it, so this is the only pointer that can close it.
 	closeMark = "✕"
+	// The diff chip: what D does, for the pointer. A chip rather than a bare glyph
+	// because it is a control and has to read as one, padded inside like every chip on
+	// the status bar. ◧ is the palette's own mark for a review surface.
+	diffChip = " ◧ diff "
+	// Below this the head line cannot say which merge request the chip would open, and
+	// a chip with no sheet behind it is a button in the dark - so it is not drawn at
+	// all, which is also what keeps a click off text that was never rendered.
+	minHeadWidth = 20
 	// The list gets slightly less than half, because a merge request sheet is the wider
 	// of the two things on screen.
 	listShare = 0.46
@@ -447,12 +455,71 @@ func (m Model) dividerPane() string {
 		Render(strings.Repeat("│\n", bodyHeight(m.height)-1) + "│")
 }
 
+// previewPane is the pinned head line and the scrolling sheet under it.
+//
+// The head line is chrome rather than content: it names the row however far down the
+// sheet you have read, which a title inside the viewport cannot do, and it is what
+// carries the diff chip. It costs the viewport a line and gives one back - the sheets no
+// longer open with a title and a blank line of their own.
 func (m Model) previewPane(w int) string {
 	if w <= 0 {
 		return ""
 	}
-	return lipgloss.NewStyle().Width(w).Height(bodyHeight(m.height)).
-		PaddingLeft(1).Render(m.preview.View())
+	return lipgloss.NewStyle().Width(w).Height(bodyHeight(m.height)).PaddingLeft(1).
+		Render(m.previewHeader(previewWidth(w)) + "\n" + m.preview.View())
+}
+
+// previewHeader is the row's own line: what you are reading, and - on a merge request -
+// the chip that opens its diff.
+func (m Model) previewHeader(inner int) string {
+	row, ok := m.current()
+	if !ok || inner <= 0 {
+		return ""
+	}
+	head := m.styles().head
+	text := headline(row)
+	if _, _, drawn := m.diffChipSpan(); !drawn {
+		return head.Render(truncate(text, inner))
+	}
+	cw := lipgloss.Width(diffChip)
+	left := head.Render(truncate(text, inner-cw-1))
+	chip := lipgloss.NewStyle().Foreground(m.theme.Changes).Background(m.theme.SelBg).Render(diffChip)
+	return left + strings.Repeat(" ", inner-cw-lipgloss.Width(left)) + chip
+}
+
+// headline is how a row names itself: its reference and its title, or for an agent the
+// title alone - the sheet under it already says which pane.
+func headline(r workdesk.Row) string {
+	if r.Ref == "" {
+		return r.Title
+	}
+	if !strings.HasPrefix(r.Ref, "!") && !strings.HasPrefix(r.Ref, "#") {
+		if r.Title == "" {
+			return "untitled"
+		}
+		return r.Title
+	}
+	return r.Ref + "  " + r.Title
+}
+
+// diffChipSpan is where the chip is, in screen columns, and whether it is there at all.
+//
+// One geometry for the renderer and the hit test, as the tab bar has: a chip drawn from
+// one measurement and clicked by another drifts the moment either changes.
+func (m Model) diffChipSpan() (start, end int, ok bool) {
+	row, has := m.current()
+	if !has || !strings.HasPrefix(row.Ref, "!") {
+		return 0, 0, false
+	}
+	lw, pw := paneWidths(m.width)
+	inner := previewWidth(pw)
+	cw := lipgloss.Width(diffChip)
+	if inner < cw+minHeadWidth {
+		return 0, 0, false
+	}
+	// previewCol0 is where the pane's own content starts: the divider, then its padding.
+	start = lw + previewCol0 + inner - cw
+	return start, start + cw, true
 }
 
 // footer is the hint strip, or whatever just happened. Generated from the keymap, so a
@@ -512,8 +579,13 @@ func (m Model) mouseHelp() string {
 	return strings.Join(lines, "\n")
 }
 
-// bodyTop is the first body line: the tab bar and the rule under it sit above.
-const bodyTop = 2
+// bodyTop is the first body line: the tab bar and the rule under it sit above. In the
+// preview pane that line is the pinned head line, and the sheet starts one below it.
+const (
+	bodyTop     = 2
+	previewTop  = bodyTop + 1
+	previewCol0 = 2 // the divider column, then the pane's own padding
+)
 
 // rowAt maps a screen line to the row under it, or -1 for the divider, the footer and
 // anything outside the list.

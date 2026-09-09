@@ -72,8 +72,6 @@ func (m Model) mrPreview(iid string) string {
 	now := m.deps.Now()
 	var b strings.Builder
 
-	fmt.Fprintln(&b, s.head.Render("!"+mr.IID+"  "+mr.Title))
-	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, s.kv("branch", s.accent.Render(mr.SourceBranch)+s.muted.Render(" → "+mr.TargetBranch)))
 	fmt.Fprintln(&b, s.kv("size", s.val.Render(fmt.Sprintf("%d commits, +%d/-%d in %d files",
 		mr.CommitCount, mr.DiffStats.Additions, mr.DiffStats.Deletions, mr.DiffStats.FileCount))))
@@ -237,9 +235,6 @@ func (m Model) issuePreview(iid string) string {
 	}
 	s := m.styles()
 	var b strings.Builder
-	fmt.Fprintln(&b, s.head.Render("#"+is.IID+"  "+is.Title))
-	fmt.Fprintln(&b)
-
 	labels := make([]string, 0, len(is.Labels.Nodes))
 	for _, l := range is.Labels.Nodes {
 		labels = append(labels, l.Title)
@@ -332,12 +327,6 @@ func (m Model) agentPreview(r workdesk.Row) string {
 	}
 
 	var b strings.Builder
-	title := agent.Title
-	if title == "" {
-		title = "untitled"
-	}
-	fmt.Fprintln(&b, s.head.Render(title))
-	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, s.kv("state", m.agentStateStyled(agent.State)))
 	fmt.Fprintln(&b, s.kv("pane", s.val.Render(agent.Pane)))
 	fmt.Fprintln(&b, s.kv("worktree", s.val.Render(orDash(agent.Worktree))))
