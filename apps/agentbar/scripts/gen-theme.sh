@@ -42,6 +42,7 @@ trap 'rm -f "$tmp"' EXIT
         printf '\t\tMuted:    "%s",\n' "$(get "$flavor" muted)"
         printf '\t\tEmphasis: "%s",\n' "$(get "$flavor" emphasis)"
         printf '\t\tAccent:   "%s",\n' "$(get "$flavor" accent)"
+        printf '\t\tChanges:  "%s",\n' "$(get "$flavor" changes)"
         printf '\t\tSelBg:    "%s",\n' "$(get "$flavor" selection)"
         printf '\t\tWorking:  "%s",\n' "$(get "$flavor" working)"
         printf '\t\tAsking:   "%s",\n' "$(get "$flavor" asking)"

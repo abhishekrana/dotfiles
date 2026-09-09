@@ -14,6 +14,7 @@ type Theme struct {
 	Muted    lipgloss.Color // separators, hints, idle
 	Emphasis lipgloss.Color // session names, headlines
 	Accent   lipgloss.Color // selection rail, current marker
+	Changes  lipgloss.Color // review surfaces: the diff chip, the changes chip
 	SelBg    lipgloss.Color // selected row background
 	Working  lipgloss.Color // calm, cool - the common case
 	Asking   lipgloss.Color // amber - a soft question needs you
