@@ -199,7 +199,7 @@ _fzf_color+=" --color=border:$border,gutter:$bg"
 EOF
 }
 
-# Env-driven tools (bat via BAT_THEME, leaf via LEAF_THEME, and anything reading $THEME)
+# Env-driven tools (bat via BAT_THEME, leaf via LEAF_THEME, folio via FOLIO_THEME, and anything reading $THEME)
 # inherit the flavor from a file sourced by ~/.bashrc.d/theme.bash, so new shells follow
 # it. Catppuccin bat themes need installing separately; until then bat falls back
 # harmlessly.
@@ -225,12 +225,14 @@ apply_env() {
 export THEME="$1"
 export BAT_THEME="$bat"
 export LEAF_THEME="$leaf"
+export FOLIO_THEME="$1"
 EOF
     # tmux froze its global environment when the server started, so panes created
     # after a switch still inherit the flavor that was current back then.
     tmux set-environment -g THEME "$1" 2>/dev/null || true
     tmux set-environment -g BAT_THEME "$bat" 2>/dev/null || true
     tmux set-environment -g LEAF_THEME "$leaf" 2>/dev/null || true
+    tmux set-environment -g FOLIO_THEME "$1" 2>/dev/null || true
 }
 
 # delta reads its colors from git config; write the flavor's block to a file git includes
