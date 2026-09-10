@@ -9,7 +9,7 @@ wikilink = { underline = true }
 
 quote = { bar = "▌", bar_fg = "muted", fg = "muted" }
 task = { done = "☒", todo = "☐" }
-table = { lines = "box", zebra = "surface" }
+table = { lines = "box" }
 front_matter = { as = "table" }
 
 [callout]

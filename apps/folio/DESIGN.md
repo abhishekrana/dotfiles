@@ -148,7 +148,7 @@ quote   = { bar = "▌", bar_fg = "muted", fg = "muted" }
 list = { bullet = "•", bullet_fg = "muted", nested = "◦", indent = 2 }
 task = { done = "☒", todo = "☐", done_fg = "done", todo_fg = "muted", done_text = "muted" }
 
-table        = { lines = "box", header_bold = true, header_rule = true, zebra = "surface", line_fg = "border" }
+table        = { lines = "box", header_bold = true, header_rule = true, line_fg = "border" }
 rule         = { glyph = "─", fg = "border", width = "column" }
 front_matter = { as = "table" }
 footnote     = { marker = "superscript", fg = "accent", text_fg = "muted" }
