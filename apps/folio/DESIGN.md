@@ -29,8 +29,8 @@ with what it renders today.
 - Vault syntax: `[[wikilinks]]` (with `|alias` and `#heading`), `#tags`. Both render; a wikilink opens the note if the
   vault holds one file of that name, else says so.
 - Code blocks highlighted with bat's grammars and themes (two-face), language label from the fence.
-- Links: OSC 8 on every link for the mouse; `f` shows hint labels on visible links, a letter follows one. `.md` targets
-  open in folio, `#anchors` scroll, anything else goes to `xdg-open`.
+- Links: OSC 8 on every link in `--inline`; a click follows one in the reader. `.md` targets open in folio, `#anchors`
+  scroll, anything else goes to `xdg-open`.
 - Outline (`t`) as an overlay, heading jumps, in-document search (`/`, `n`, `N`), help (`?`).
 - Watch and reload, `--inline` to stdout for fzf and yazi previews, stdin.
 - One built-in style (`github`), user styles from `~/.config/folio/styles/`, `--style`, `S` cycles at runtime.
@@ -62,7 +62,7 @@ source (rope) -> parse (comrak) -> Document -> layout (measure) -> Lines -> pain
 | Style    | `style`  | Loads TOML into `Style`: one `Rule` per element, resolved against defaults/`extends`. |
 | Layout   | `layout` | `Document` × `Style` × width → `Vec<Line>`; each `Line` has cells, and a `Span`.      |
 | Theme    | `theme`  | Role → colour for a flavor. Generated from `design/palette.toml`.                     |
-| Paint    | `ui`     | ratatui widgets: the page, outline overlay, search bar, hints, help, status line.     |
+| Paint    | `ui`     | ratatui widgets: the page, outline overlay, search bar, help, status line.            |
 | App      | `app`    | Elm loop: `Model`, `Msg`, `update`, `view`. Keys, mouse, watch events, mode.          |
 | CLI      | `main`   | clap: args, `--inline`, stdin, exit codes. Thin.                                      |
 
@@ -190,7 +190,6 @@ vi and less, nothing to learn:
 | `]` `[`               | next, previous heading                                    |
 | `t`                   | outline overlay; `↵` jumps, `Esc` closes                  |
 | `/` `n` `N`           | search, next, previous; `Esc` clears                      |
-| `f`                   | label the links on screen; type a label to follow         |
 | click                 | follow a link                                             |
 | `Backspace`           | back to the note a link was followed from                 |
 | `y`                   | copy the code block at the top of the screen (via `clip`) |
@@ -201,8 +200,8 @@ vi and less, nothing to learn:
 
 Following a link: `#anchor` scrolls to the heading, `[[Note]]` opens the note beside this file or anywhere under the
 vault root (the nearest `.obsidian` or `.git`), a `.md` path opens relative to this file, anything else goes to
-`xdg-open`. The TUI cannot emit OSC 8 (ratatui has no hyperlink cells), so links there are hints and clicks; `--inline`
-on a terminal still wraps links in OSC 8.
+`xdg-open`. The TUI cannot emit OSC 8 (ratatui has no hyperlink cells), so links there are followed by clicking;
+`--inline` on a terminal still wraps links in OSC 8.
 
 The status line is one row on `surface`: file name, current section, percent, and three hints. It is the viewer's,
 inside the pane; tmux keeps its own below.

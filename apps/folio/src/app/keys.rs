@@ -1,4 +1,4 @@
-//! Key bindings per mode: vi and less in the reader, plain text entry in search and hints.
+//! Key bindings per mode: vi and less in the reader, plain text entry in search.
 
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 
@@ -22,7 +22,7 @@ pub(super) fn map(key: KeyEvent, mode: &Mode) -> Option<Msg> {
             KeyCode::Char('q') => Msg::Quit,
             _ => return None,
         }),
-        Mode::Search { .. } | Mode::Hints { .. } => Some(match key.code {
+        Mode::Search { .. } => Some(match key.code {
             KeyCode::Esc => Msg::Cancel,
             KeyCode::Enter => Msg::Select,
             KeyCode::Backspace => Msg::Backspace,
@@ -52,7 +52,6 @@ fn read(code: KeyCode) -> Option<Msg> {
         KeyCode::Char('/') => Msg::StartSearch,
         KeyCode::Char('n') => Msg::SearchNext,
         KeyCode::Char('N') => Msg::SearchPrev,
-        KeyCode::Char('f') => Msg::StartHints,
         KeyCode::Backspace => Msg::Back,
         KeyCode::Char('y') => Msg::Yank,
         KeyCode::Char('e') => Msg::Edit,

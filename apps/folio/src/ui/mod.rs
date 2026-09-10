@@ -7,7 +7,6 @@ use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 use unicode_width::UnicodeWidthStr;
 
-use crate::app::links::Target;
 use crate::app::{App, Mode};
 use crate::render;
 use crate::theme::{Role, Theme};
@@ -19,7 +18,6 @@ const HELP: &[(&str, &str)] = &[
     ("] [", "next, previous heading"),
     ("t", "outline; ↵ jumps, Esc closes"),
     ("/  n N", "search; next, previous match; Esc clears"),
-    ("f", "label the links on screen; type a label to follow"),
     ("click", "follow a link"),
     ("Backspace", "back to the note a link was followed from"),
     ("y", "copy the code block at the top of the screen"),
@@ -34,7 +32,6 @@ pub fn draw(frame: &mut Frame, app: &App) {
     draw_page(frame, body, app);
     match app.mode() {
         Mode::Outline { selected } => draw_outline(frame, body, app, *selected),
-        Mode::Hints { typed, targets, labels } => draw_hints(frame, body, app, typed, targets, labels),
         Mode::Help => draw_help(frame, body, app.theme()),
         Mode::Read | Mode::Search { .. } => {}
     }
@@ -78,30 +75,6 @@ fn draw_page(frame: &mut Frame, area: Rect, app: &App) {
         })
         .collect::<Vec<_>>();
     frame.render_widget(Paragraph::new(Text::from(rows)), area);
-}
-
-/// Hint labels drawn over the first cells of each link still matching what was typed.
-fn draw_hints(frame: &mut Frame, area: Rect, app: &App, typed: &str, targets: &[Target], labels: &[String]) {
-    let theme = app.theme();
-    let style = RStyle::default()
-        .bg(role(theme, Role::Asking))
-        .fg(role(theme, Role::Bg))
-        .add_modifier(Modifier::BOLD);
-    let left = app.page().left;
-    for (t, label) in targets.iter().zip(labels) {
-        if !label.starts_with(typed) {
-            continue;
-        }
-        let Some(y) = t.row.checked_sub(app.scroll()) else {
-            continue;
-        };
-        if y >= usize::from(area.height) {
-            continue;
-        }
-        let x = area.x + left + t.col as u16;
-        let shown: String = label.chars().skip(typed.chars().count()).collect();
-        frame.buffer_mut().set_string(x, area.y + y as u16, &shown, style);
-    }
 }
 
 fn draw_outline(frame: &mut Frame, area: Rect, app: &App, selected: usize) {
@@ -226,7 +199,7 @@ fn status_line(app: &App, width: u16) -> Line<'static> {
         (n, Some(i)) if n > 0 => format!("{}/{n}  n N  ", i + 1),
         _ => String::new(),
     };
-    let right = format!("{theme_label}{search}{:>3}%  t / f ? q ", app.percent());
+    let right = format!("{theme_label}{search}{:>3}%  t / ? q ", app.percent());
     let room = usize::from(width).saturating_sub(left.width() + right.width());
     let middle = crate::layout::clip(&middle, room);
     let gap = " ".repeat(room.saturating_sub(middle.width()));

@@ -17,7 +17,7 @@ use crate::doc::{self, Block, Document};
 use crate::layout::{Layouter, Page};
 use crate::style::Style;
 use crate::theme::{self, Theme};
-use links::{Action, Target};
+use links::Action;
 use search::Match;
 
 /// What a key or mouse event asks for.
@@ -36,8 +36,7 @@ pub enum Msg {
     StartSearch,
     SearchNext,
     SearchPrev,
-    StartHints,
-    /// Typed text for search or a hint label.
+    /// Typed text for the search line.
     Input(char),
     Backspace,
     /// Confirm in an overlay or the search line.
@@ -64,17 +63,8 @@ pub enum Msg {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Mode {
     Read,
-    Outline {
-        selected: usize,
-    },
-    Search {
-        query: String,
-    },
-    Hints {
-        typed: String,
-        targets: Vec<Target>,
-        labels: Vec<String>,
-    },
+    Outline { selected: usize },
+    Search { query: String },
     Help,
 }
 
@@ -183,17 +173,12 @@ impl App {
             }
             Msg::SearchNext => self.step_match(1),
             Msg::SearchPrev => self.step_match(-1),
-            Msg::StartHints => self.start_hints(),
             Msg::Input(c) => self.input(c),
-            Msg::Backspace => match &mut self.mode {
-                Mode::Search { query } => {
+            Msg::Backspace => {
+                if let Mode::Search { query } = &mut self.mode {
                     query.pop();
                 }
-                Mode::Hints { typed, .. } => {
-                    typed.pop();
-                }
-                _ => {}
-            },
+            }
             Msg::Select => self.select(),
             Msg::Up | Msg::Down => self.move_selection(msg == Msg::Down),
             Msg::Cancel => {
@@ -252,20 +237,8 @@ impl App {
     }
 
     fn input(&mut self, c: char) {
-        match &mut self.mode {
-            Mode::Search { query } => query.push(c),
-            Mode::Hints { typed, targets, labels } => {
-                typed.push(c);
-                if let Some(i) = labels.iter().position(|l| l == typed) {
-                    let target = targets[i].link.clone();
-                    self.mode = Mode::Read;
-                    self.follow(&target);
-                } else if !labels.iter().any(|l| l.starts_with(typed.as_str())) {
-                    self.mode = Mode::Read;
-                    self.notice = Some("no such link".to_owned());
-                }
-            }
-            _ => {}
+        if let Mode::Search { query } = &mut self.mode {
+            query.push(c);
         }
     }
 
@@ -327,20 +300,6 @@ impl App {
     fn scroll_to(&mut self, row: usize) {
         self.scroll = row.saturating_sub(self.body_rows / 3);
         self.clamp();
-    }
-
-    fn start_hints(&mut self) {
-        let targets = links::visible(&self.page, self.scroll, self.body_rows);
-        if targets.is_empty() {
-            self.notice = Some("no links on screen".to_owned());
-            return;
-        }
-        let labels = links::labels(targets.len());
-        self.mode = Mode::Hints {
-            typed: String::new(),
-            targets,
-            labels,
-        };
     }
 
     fn click(&mut self, col: u16, row: u16) {
@@ -758,24 +717,18 @@ mod tests {
     }
 
     #[test]
-    fn hints_label_visible_links_and_an_anchor_jumps() {
+    fn a_click_on_a_link_follows_it_and_a_missing_note_says_so() {
         let text = "# Top\n\nSee [below](#end) and [[Missing note]].\n\ntext\n\ntext\n\n## End\n\nhere\n";
         let mut a = app_from(text, 5);
-        a.update(Msg::StartHints);
-        let Mode::Hints { labels, targets, .. } = a.mode().clone() else {
-            panic!("hints mode")
-        };
-        assert_eq!(labels, vec!["a", "s"]);
-        assert_eq!(targets.len(), 2);
-        a.update(Msg::Input('a'));
-        assert_eq!((a.mode(), a.section()), (&Mode::Read, "End"));
+        let left = a.page().left;
+        // Row 2 is the paragraph; "See " is four cells, so the link starts at column 4.
+        a.update(Msg::Click { col: left + 5, row: 2 });
+        assert_eq!(a.section(), "End");
         a.update(Msg::Top);
-        a.update(Msg::StartHints);
-        a.update(Msg::Input('s'));
+        a.update(Msg::Click { col: left + 22, row: 2 });
         assert_eq!(a.notice(), Some("note not found: Missing note"));
-        a.update(Msg::StartHints);
-        a.update(Msg::Input('z'));
-        assert_eq!(a.notice(), Some("no such link"));
+        a.update(Msg::Click { col: left, row: 2 });
+        assert!(a.notice().is_none(), "plain text is not a link");
     }
 
     #[test]

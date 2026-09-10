@@ -1,62 +1,10 @@
-//! Links on screen: where they are, how they are labelled, and what following one means.
+//! Links: what following one means, and how a wikilink finds its note.
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::sync::Arc;
 
-use crate::layout::Page;
-
-/// Letters for hint labels, home row first; two-letter labels follow when one is not enough.
-const HINT_KEYS: &[u8] = b"asdfghjklqwertyuiopzxcvbnm";
 /// How far below a vault root the wikilink search descends.
 const WIKI_DEPTH: usize = 8;
-
-/// A link visible on the page: its row, first column, width in cells, and target.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Target {
-    pub row: usize,
-    pub col: usize,
-    pub width: usize,
-    pub link: Arc<str>,
-}
-
-/// Links on the rows `scroll..scroll + rows`, one per run of cells sharing a target.
-#[must_use]
-pub fn visible(page: &Page, scroll: usize, rows: usize) -> Vec<Target> {
-    let mut out: Vec<Target> = Vec::new();
-    for (row, line) in page.lines.iter().enumerate().skip(scroll).take(rows) {
-        let mut col = 0;
-        for s in &line.segments {
-            let w = s.width();
-            if let Some(link) = &s.link {
-                match out.last_mut() {
-                    Some(t) if t.row == row && t.col + t.width == col && t.link == *link => t.width += w,
-                    _ => out.push(Target {
-                        row,
-                        col,
-                        width: w,
-                        link: link.clone(),
-                    }),
-                }
-            }
-            col += w;
-        }
-    }
-    out
-}
-
-/// `n` distinct labels: single letters, then pairs, in a fixed order.
-#[must_use]
-pub fn labels(n: usize) -> Vec<String> {
-    let keys: Vec<char> = HINT_KEYS.iter().map(|b| char::from(*b)).collect();
-    if n <= keys.len() {
-        return keys.iter().take(n).map(char::to_string).collect();
-    }
-    keys.iter()
-        .flat_map(|a| keys.iter().map(move |b| format!("{a}{b}")))
-        .take(n)
-        .collect()
-}
 
 /// What a link target asks for.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -163,21 +111,6 @@ pub fn open_external(target: &str) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn labels_are_unique_and_short_first() {
-        let l = labels(30);
-        assert_eq!(
-            l[0], "aa",
-            "past the single letters every label is a pair, so none is a prefix"
-        );
-        assert_eq!(l.len(), 30);
-        let mut sorted = l.clone();
-        sorted.sort();
-        sorted.dedup();
-        assert_eq!(sorted.len(), 30);
-        assert!(labels(3).iter().all(|s| s.len() == 1));
-    }
 
     #[test]
     fn links_classify_by_shape() {
