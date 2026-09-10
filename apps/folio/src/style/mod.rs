@@ -14,6 +14,8 @@ pub struct Style {
     pub name: String,
     /// Reading column width in cells; the pane may force it narrower.
     pub measure: u16,
+    /// Where the column sits when the pane is wider than the measure.
+    pub align: Align,
     /// Outline rail on the left (layout switch; drawn from phase 5).
     pub rail: bool,
     pub h1: HeadingRule,
@@ -54,6 +56,13 @@ impl Style {
             _ => &self.h6,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Align {
+    Left,
+    Center,
 }
 
 #[derive(Debug, Clone, Deserialize)]

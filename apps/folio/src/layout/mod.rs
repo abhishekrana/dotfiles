@@ -14,12 +14,12 @@ use tracing::debug;
 use unicode_width::UnicodeWidthStr;
 
 use crate::doc::{Block, Document, Span};
-use crate::style::Style;
+use crate::style::{Align, Style};
 use crate::theme::Role;
 
 /// The smallest measure a pane can force before text stops being readable at all.
 const MIN_MEASURE: u16 = 16;
-/// Cells kept clear on each side of the column when the pane is narrower than the style's measure.
+/// Cells kept clear on the left of the column, and on each side when the pane is narrower than the measure.
 const GUTTER: u16 = 2;
 
 /// Presentation of one run of cells. Colours are roles; the theme resolves them at paint time.
@@ -114,7 +114,10 @@ impl Layouter {
             .measure
             .min(width.saturating_sub(2 * GUTTER))
             .max(MIN_MEASURE.min(width));
-        let left = width.saturating_sub(measure) / 2;
+        let left = match style.align {
+            Align::Left => GUTTER.min(width.saturating_sub(measure)),
+            Align::Center => width.saturating_sub(measure) / 2,
+        };
         let mut lines = Vec::new();
         let mut pending_blank: u8 = 0;
         let mut hits = 0usize;
@@ -171,9 +174,9 @@ mod tests {
     }
 
     #[test]
-    fn measure_is_centred_and_capped_by_the_pane() {
+    fn measure_starts_at_the_gutter_and_is_capped_by_the_pane() {
         let p = page("Hello\n", 100);
-        assert_eq!((p.measure, p.left), (80, 10));
+        assert_eq!((p.measure, p.left), (80, 2));
         let narrow = page("Hello\n", 50);
         assert_eq!((narrow.measure, narrow.left), (46, 2));
     }

@@ -2,6 +2,7 @@
 # Colours are palette roles: bg surface selection border fg emphasis muted accent changes working asking blocked done.
 name = "Base"
 measure = 80
+align = "left"
 rail = false
 
 h1 = { fg = "emphasis", bold = true, italic = false, rule = "none", above = 2, below = 1 }

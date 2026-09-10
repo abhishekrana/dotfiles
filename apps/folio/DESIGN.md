@@ -8,7 +8,7 @@ design language in `../../design/README.md`.
 
 ## What it is
 
-- A viewer for one markdown file, or stdin, rendered to a centred reading column with the typography of a
+- A viewer for one markdown file, or stdin, rendered to a fixed-width reading column with the typography of a
   browser-rendered page: rhythm, rules, tinted code, quiet tables, links in one accent.
 - **Styles are files.** A look is a TOML file of per-element rules. GitHub is the first built-in; adding a look is
   adding a file, and the engine knows nothing about any of them.
@@ -101,8 +101,9 @@ not a comrak extension; a small pass over `Inline::Text` splits `#word` out, ski
 
 ### Layout
 
-- **Measure.** The style sets `measure` (GitHub: 80). The column is centred when the pane is wider, else pane width
-  minus 2 cells each side. The outline rail, when a style turns it on, takes its width from the left first.
+- **Measure.** The style sets `measure` (GitHub: 80) and `align` (`left`, the default: a 2-cell gutter; or `center`). A
+  pane narrower than the measure forces the column to its width minus 2 cells each side. The outline rail, when a style
+  turns it on, takes its width from the left first.
 - **Rhythm.** A style says how many blank rows precede each element; the engine never inserts its own.
 - **Wrapping** is per grapheme cluster using `unicode-width`, greedy, with a `Cell` per column so wide characters and
   emoji occupy two. Code never wraps: long lines are clipped with `→` in the last cell and pan with `h`/`l`.
@@ -123,6 +124,7 @@ workdesk config does, so a typo cannot silently fall back to a default.
 name    = "GitHub"
 extends = "base"  # every built-in inherits base; a user style may extend any built-in
 measure = 80
+align   = "left"  # or "center"
 rail    = false   # the outline rail is a layout switch, not an element
 
 h1 = { fg = "emphasis", bold = true, rule = "column", above = 2, below = 1 }
