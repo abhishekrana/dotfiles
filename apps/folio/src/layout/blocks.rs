@@ -151,7 +151,7 @@ fn list(
         let indent = marker.width() + 1;
         let inner_width = width.saturating_sub(indent).max(1);
         let inner = Ctx {
-            depth: cx.depth + 1,
+            depth: cx.depth.saturating_add(1),
             base: text_base,
             ..cx
         };

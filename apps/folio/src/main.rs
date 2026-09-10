@@ -97,6 +97,9 @@ fn run(args: &Args) -> anyhow::Result<()> {
     info!(path = ?buffer.path(), bytes = buffer.len_bytes(), style = %style.name, theme = %theme.id, "loaded");
 
     if !args.inline {
+        if !io::stdout().is_terminal() {
+            bail!("stdout is not a terminal; use --inline to render into a pipe");
+        }
         return App::new(buffer, style, theme)
             .with_watch(!args.no_watch)
             .run()
