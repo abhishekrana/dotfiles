@@ -56,6 +56,8 @@ LEAF_VERSION="1.27.1"
 NEOVIM_VERSION="0.12.4"
 NERD_FONT_VERSION="3.5.0"
 RUFF_VERSION="0.16.3"
+RUST_VERSION="1.98.1"   # toolchain; apps/folio/rust-toolchain.toml carries the same pin
+RUSTUP_VERSION="1.29.1" # the installer, fetched from the archive so it is pinned too
 SHELLCHECK_VERSION="0.11.0"
 SHFMT_VERSION="3.13.1"
 # Ubuntu 24.04 ships no SPIRV-Headers package, and whisper.cpp's Vulkan backend
@@ -441,6 +443,29 @@ install_ruff() {
     ok "ruff $RUFF_VERSION installed"
 }
 
+install_rust() {
+    if [ -x "$LOCAL_BIN/rustc" ] && "$LOCAL_BIN/rustc" --version 2>/dev/null | grep -q "rustc $RUST_VERSION "; then
+        ok "Rust $RUST_VERSION already installed"
+        return
+    fi
+    log "Installing Rust $RUST_VERSION (rustup $RUSTUP_VERSION)..."
+    # rustup keeps its default homes (~/.rustup, ~/.cargo) so its proxies resolve the toolchain with
+    # no environment; PATH is not touched, the binaries are linked into ~/.local/bin instead.
+    local url="https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/${RUST_GNU}/rustup-init"
+    local tmp
+    tmp=$(mktemp -d)
+    curl -sSL -o "$tmp/rustup-init" "$url"
+    chmod +x "$tmp/rustup-init"
+    "$tmp/rustup-init" -y -q --no-modify-path --profile minimal \
+        --default-toolchain "$RUST_VERSION" -c clippy -c rustfmt
+    rm -rf "$tmp"
+    local bin
+    for bin in cargo cargo-clippy cargo-fmt clippy-driver rustc rustfmt rustup; do
+        ln -sf "$HOME/.cargo/bin/$bin" "$LOCAL_BIN/$bin"
+    done
+    ok "Rust $RUST_VERSION installed"
+}
+
 install_shellcheck() {
     if [ -x "$LOCAL_BIN/shellcheck" ] &&
         "$LOCAL_BIN/shellcheck" --version 2>/dev/null | grep -q "$SHELLCHECK_VERSION"; then
@@ -634,6 +659,7 @@ gate_tools() {
     install_git_cliff
     install_gitleaks
     install_ruff
+    install_rust
     install_shellcheck
     install_shfmt
     install_task
@@ -660,6 +686,7 @@ all_tools() {
     install_neovim
     install_nerd_font
     install_ruff
+    install_rust
     install_shellcheck
     install_shfmt
     install_task
