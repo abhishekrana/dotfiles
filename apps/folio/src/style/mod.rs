@@ -12,8 +12,8 @@ use crate::theme::Role;
 #[serde(deny_unknown_fields)]
 pub struct Style {
     pub name: String,
-    /// Reading column width in cells; the pane may force it narrower.
-    pub measure: u16,
+    /// Reading column width: the whole pane, or a cell count the pane may force narrower.
+    pub measure: Measure,
     /// Where the column sits when the pane is wider than the measure.
     pub align: Align,
     /// Outline rail on the left (layout switch; drawn from phase 5).
@@ -56,6 +56,20 @@ impl Style {
             _ => &self.h6,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(untagged, rename_all = "lowercase")]
+pub enum Measure {
+    Cells(u16),
+    Full(Full),
+}
+
+/// The one word `measure` accepts besides a number.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Full {
+    Full,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]

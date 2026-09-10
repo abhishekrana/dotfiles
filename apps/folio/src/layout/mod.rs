@@ -14,7 +14,7 @@ use tracing::debug;
 use unicode_width::UnicodeWidthStr;
 
 use crate::doc::{Block, Document, Span};
-use crate::style::{Align, Style};
+use crate::style::{Align, Measure, Style};
 use crate::theme::Role;
 
 /// The smallest measure a pane can force before text stops being readable at all.
@@ -110,10 +110,12 @@ impl Layouter {
     }
 
     pub fn layout(&mut self, doc: &Document, style: &Style, width: u16) -> Page {
-        let measure = style
-            .measure
-            .min(width.saturating_sub(2 * GUTTER))
-            .max(MIN_MEASURE.min(width));
+        let fit = width.saturating_sub(2 * GUTTER);
+        let measure = match style.measure {
+            Measure::Full(_) => fit,
+            Measure::Cells(n) => n.min(fit),
+        }
+        .max(MIN_MEASURE.min(width));
         let left = match style.align {
             Align::Left => GUTTER.min(width.saturating_sub(measure)),
             Align::Center => width.saturating_sub(measure) / 2,
@@ -174,9 +176,9 @@ mod tests {
     }
 
     #[test]
-    fn measure_starts_at_the_gutter_and_is_capped_by_the_pane() {
+    fn measure_fills_the_pane_inside_the_gutters() {
         let p = page("Hello\n", 100);
-        assert_eq!((p.measure, p.left), (80, 2));
+        assert_eq!((p.measure, p.left), (96, 2));
         let narrow = page("Hello\n", 50);
         assert_eq!((narrow.measure, narrow.left), (46, 2));
     }

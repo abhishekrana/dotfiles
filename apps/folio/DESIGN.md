@@ -8,8 +8,8 @@ design language in `../../design/README.md`.
 
 ## What it is
 
-- A viewer for one markdown file, or stdin, rendered to a fixed-width reading column with the typography of a
-  browser-rendered page: rhythm, rules, tinted code, quiet tables, links in one accent.
+- A viewer for one markdown file, or stdin, rendered to a reading column with the typography of a browser-rendered page:
+  rhythm, rules, tinted code, quiet tables, links in one accent.
 - **Styles are files.** A look is a TOML file of per-element rules. GitHub is the first built-in; adding a look is
   adding a file, and the engine knows nothing about any of them.
 - **Colours are roles, never hexes.** A style names `accent`, `surface`, `muted`; the flavor from `design/palette.toml`
@@ -123,8 +123,8 @@ workdesk config does, so a typo cannot silently fall back to a default.
 # ~/.config/folio/styles/github.toml (the built-in, verbatim)
 name    = "GitHub"
 extends = "base"  # every built-in inherits base; a user style may extend any built-in
-measure = 80
-align   = "left"  # or "center"
+measure = "full"  # or a cell count, e.g. 80
+align   = "left"  # or "center", for a fixed measure
 rail    = false   # the outline rail is a layout switch, not an element
 
 h1 = { fg = "emphasis", bold = true, rule = "column", above = 2, below = 1 }

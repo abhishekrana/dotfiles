@@ -1,10 +1,12 @@
 .PHONY: build test lint clean
 
 # Release binary into bin/, the uniform apps/ contract bootstrap.sh builds and links.
+# Copy then rename, so a folio that is running keeps its old file and the link picks up the new one.
 build:
 	cargo build --release --quiet
 	mkdir -p bin
-	cp target/release/folio bin/folio
+	cp target/release/folio bin/folio.tmp
+	mv -f bin/folio.tmp bin/folio
 
 test:
 	cargo test --quiet

@@ -11,15 +11,14 @@ expression: "render_plain(\"github\", 100)"
 
 
   Backing up the home server
-  ────────────────────────────────────────────────────────────────────────────────
+  ────────────────────────────────────────────────────────────────────────────────────────────────
 
-  Nightly snapshots go to a local disk first and to off-site storage once a week.
-  The restore path is tested monthly, because a backup nobody has restored is a
-  hope, not a plan. Everything below assumes  restic  0.18 and the layout
-  described in Server layout.
+  Nightly snapshots go to a local disk first and to off-site storage once a week. The restore path
+  is tested monthly, because a backup nobody has restored is a hope, not a plan. Everything below
+  assumes  restic  0.18 and the layout described in Server layout.
 
   What gets backed up
-  ────────────────────────────────────────────────────────────────────────────────
+  ────────────────────────────────────────────────────────────────────────────────────────────────
 
   •  /srv/photos  - the originals, about 400 GB and growing slowly
   •  /srv/docs  - scanned paper, tax records, manuals
@@ -29,11 +28,11 @@ expression: "render_plain(\"github\", 100)"
   • Nothing under  /srv/media  - it is re-downloadable
 
   ▌ ⓘ Note
-  ▌ The photo library is the one thing here that cannot be recreated. Everything
-  ▌ else is a convenience.
+  ▌ The photo library is the one thing here that cannot be recreated. Everything else is a
+  ▌ convenience.
 
   Schedule
-  ────────────────────────────────────────────────────────────────────────────────
+  ────────────────────────────────────────────────────────────────────────────────────────────────
 
   ┌────────────┬───────────────┬────────────────────┬───────────┐
   │ Target     │ When          │ Retention          │ Verified  │
@@ -55,18 +54,18 @@ expression: "render_plain(\"github\", 100)"
 
 
   Restore drill
-  ────────────────────────────────────────────────────────────────────────────────
+  ────────────────────────────────────────────────────────────────────────────────────────────────
 
   ☒ Restore one photo album to  /tmp  and open it
   ☒ Restore the wiki database and start it against a scratch container
   ☐ Time a full restore of  /srv/docs  from off-site
 
-  ▌ The point of the drill is not confidence in the tool. It is confidence in the
-  ▌ procedure, which is the part that rots.
+  ▌ The point of the drill is not confidence in the tool. It is confidence in the procedure, which
+  ▌ is the part that rots.
 
-  ────────────────────────────────────────────────────────────────────────────────
+  ────────────────────────────────────────────────────────────────────────────────────────────────
 
   Related: Disk replacement · Monitoring · #homelab
 
-  ¹ A corrupt local snapshot still cannot reach off-site until the following
-    Sunday, which is the window for noticing.
+  ¹ A corrupt local snapshot still cannot reach off-site until the following Sunday, which is the
+    window for noticing.

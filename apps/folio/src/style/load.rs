@@ -113,7 +113,7 @@ mod tests {
     #[test]
     fn base_loads_in_full() {
         let s = load("base", None).expect("base parses");
-        assert_eq!(s.measure, 80);
+        assert!(matches!(s.measure, crate::style::Measure::Full(_)));
         assert_eq!(s.h1.rule, HeadingLine::None);
     }
 

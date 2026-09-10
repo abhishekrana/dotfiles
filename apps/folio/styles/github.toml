@@ -1,7 +1,6 @@
 # The rendering everyone already reads: rules across the column under H1 and H2, boxed tables, pills for code.
 name = "GitHub"
 extends = "base"
-measure = 80
 
 h1 = { rule = "column" }
 h2 = { rule = "column" }

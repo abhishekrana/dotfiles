@@ -1,7 +1,7 @@
 # Every element in full. Built-in and user styles extend this and override what they change.
 # Colours are palette roles: bg surface selection border fg emphasis muted accent changes working asking blocked done.
 name = "Base"
-measure = 80
+measure = "full" # or a cell count, e.g. 80
 align = "left"
 rail = false
 
