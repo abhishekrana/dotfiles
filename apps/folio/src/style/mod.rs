@@ -160,10 +160,23 @@ pub struct CalloutRule {
     pub bar: String,
     pub bar_fg: Role,
     pub title_fg: Role,
+    /// Draw the kind's icon before the title.
     pub icon: bool,
     #[serde(default)]
     pub bg: Option<Role>,
     pub kinds: CalloutKinds,
+    pub icons: CalloutIcons,
+}
+
+/// Icon per GitHub alert kind.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CalloutIcons {
+    pub note: String,
+    pub tip: String,
+    pub important: String,
+    pub warning: String,
+    pub caution: String,
 }
 
 /// Accent role per GitHub alert kind.

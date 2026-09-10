@@ -30,7 +30,7 @@ table = { lines = "rules", header_bold = true, header_rule = true, line_fg = "bo
 rule = { glyph = "─", fg = "border", width = "column" }
 front_matter = { as = "line" }
 footnote = { marker = "superscript", fg = "accent", text_fg = "muted" }
-image = { placeholder = "▣", fg = "muted" }
+image = { placeholder = "󰥶", fg = "muted" } # nf-md-image_outline
 
 [callout]
 bar = "▎"
@@ -38,3 +38,5 @@ bar_fg = "accent"
 title_fg = "accent"
 icon = false
 kinds = { note = "accent", tip = "done", important = "changes", warning = "asking", caution = "blocked" }
+# Nerd Font: information_outline, lightbulb_outline, message_alert_outline, alert_outline, alert_octagon_outline
+icons = { note = "󰋽", tip = "󰌶", important = "󰨄", warning = "󰀪", caution = "󰳦" }

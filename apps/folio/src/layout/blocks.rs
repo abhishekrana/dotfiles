@@ -262,7 +262,7 @@ fn callout(
     let mut title_segs = vec![bar.clone()];
     if c.icon {
         title_segs.push(Segment::new(
-            format!("{} ", icon(kind)),
+            format!("{} ", icon(kind, &c.icons)),
             CellStyle {
                 fg: Some(accent),
                 bg: c.bg,
@@ -306,13 +306,13 @@ fn callout(
     rows
 }
 
-fn icon(kind: CalloutKind) -> &'static str {
+fn icon(kind: CalloutKind, icons: &crate::style::CalloutIcons) -> &str {
     match kind {
-        CalloutKind::Note => "ⓘ",
-        CalloutKind::Tip => "💡",
-        CalloutKind::Important => "❗",
-        CalloutKind::Warning => "⚠",
-        CalloutKind::Caution => "⛔",
+        CalloutKind::Note => &icons.note,
+        CalloutKind::Tip => &icons.tip,
+        CalloutKind::Important => &icons.important,
+        CalloutKind::Warning => &icons.warning,
+        CalloutKind::Caution => &icons.caution,
     }
 }
 

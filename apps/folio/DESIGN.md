@@ -152,7 +152,7 @@ table        = { lines = "box", header_bold = true, header_rule = true, line_fg 
 rule         = { glyph = "─", fg = "border", width = "column" }
 front_matter = { as = "table" }
 footnote     = { marker = "superscript", fg = "accent", text_fg = "muted" }
-image        = { placeholder = "▣", fg = "muted" }  # v1 draws "▣ alt (640×360)" on one line
+image        = { placeholder = "󰥶", fg = "muted" }  # v1 draws "󰥶 alt (640×360)" on one line
 
 [callout]
 bar = "▌"
@@ -160,6 +160,7 @@ bar_fg = "accent"
 title_fg = "accent"
 icon = true
 kinds = { note = "accent", tip = "done", important = "changes", warning = "asking", caution = "blocked" }
+icons = { note = "󰋽", tip = "󰌶", important = "󰨄", warning = "󰀪", caution = "󰳦" }
 ```
 
 Rule fields are a closed set per element, checked at load. `rule` on headings is `none | words | column`; `lines` on
