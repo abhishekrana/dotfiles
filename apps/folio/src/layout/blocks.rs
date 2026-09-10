@@ -215,23 +215,13 @@ fn quote(blocks: &[Block], width: usize, style: &Style, cx: Ctx) -> Vec<Line> {
     };
     let bar = Segment::new(format!("{} ", q.bar), fg(q.bar_fg));
     let inner_width = width.saturating_sub(bar.width()).max(1);
-    layout_blocks(
-        blocks,
-        inner_width,
-        style,
-        Ctx {
-            depth: cx.depth + 1,
-            base,
-            ..cx
-        },
-        true,
-    )
-    .into_iter()
-    .map(|mut row| {
-        row.segments.insert(0, bar.clone());
-        row
-    })
-    .collect()
+    layout_blocks(blocks, inner_width, style, Ctx { base, ..cx }, true)
+        .into_iter()
+        .map(|mut row| {
+            row.segments.insert(0, bar.clone());
+            row
+        })
+        .collect()
 }
 
 fn callout(
@@ -284,17 +274,7 @@ fn callout(
         bg: c.bg.or(cx.base.bg),
         ..cx.base
     };
-    for mut row in layout_blocks(
-        blocks,
-        inner_width,
-        style,
-        Ctx {
-            depth: cx.depth + 1,
-            base,
-            ..cx
-        },
-        true,
-    ) {
+    for mut row in layout_blocks(blocks, inner_width, style, Ctx { base, ..cx }, true) {
         row.segments.insert(0, bar.clone());
         rows.push(row);
     }
@@ -386,7 +366,7 @@ fn code(lang: Option<&str>, text: &str, width: usize, style: &Style, cx: Ctx, sp
 }
 
 /// Cuts a row of segments to `width` cells, ending it with `→` when something was cut.
-fn clip_segments(segs: Vec<Segment>, width: usize, marker: CellStyle) -> Vec<Segment> {
+pub(super) fn clip_segments(segs: Vec<Segment>, width: usize, marker: CellStyle) -> Vec<Segment> {
     if segs.iter().map(Segment::width).sum::<usize>() <= width {
         return segs;
     }
@@ -475,11 +455,7 @@ fn footnote(label: &str, blocks: &[Block], width: usize, style: &Style, cx: Ctx)
         blocks,
         width.saturating_sub(indent).max(1),
         style,
-        Ctx {
-            depth: cx.depth + 1,
-            base,
-            ..cx
-        },
+        Ctx { base, ..cx },
         true,
     )
     .into_iter()

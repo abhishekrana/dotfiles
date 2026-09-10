@@ -151,8 +151,14 @@ impl Layouter {
                 hits += 1;
                 rows.clone()
             } else {
-                let rows =
+                let mut rows =
                     blocks::layout_block(block, usize::from(measure), style, blocks::Ctx::new(&self.highlighter));
+                for row in &mut rows {
+                    if row.width() > usize::from(measure) {
+                        let segs = std::mem::take(&mut row.segments);
+                        row.segments = blocks::clip_segments(segs, usize::from(measure), blocks::fg(Role::Muted));
+                    }
+                }
                 self.cache.insert(key, rows.clone());
                 rows
             };

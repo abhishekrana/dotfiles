@@ -20,10 +20,11 @@ pub fn parse(buffer: &Buffer) -> Document {
         buffer,
         text_len: text.len(),
         footnotes: Vec::new(),
+        footnote_numbers: HashMap::new(),
         slugs: HashMap::new(),
     };
     let mut blocks = cx.blocks(root);
-    blocks.append(&mut cx.footnotes);
+    blocks.extend(cx.numbered_footnotes());
     let headings = blocks
         .iter()
         .enumerate()
@@ -57,7 +58,10 @@ fn options() -> Options<'static> {
 struct Context<'b> {
     buffer: &'b Buffer,
     text_len: usize,
-    footnotes: Vec<Block>,
+    /// Definitions by name, appended to the document once numbered.
+    footnotes: Vec<(String, Vec<Block>, Span)>,
+    /// Footnote name -> number, in order of first reference.
+    footnote_numbers: HashMap<String, usize>,
     slugs: HashMap<String, usize>,
 }
 
@@ -147,11 +151,7 @@ impl Context<'_> {
             NodeValue::Table(table) => self.table(node, &table.alignments, span),
             NodeValue::FootnoteDefinition(def) => {
                 let blocks = self.blocks(node);
-                self.footnotes.push(Block::Footnote {
-                    label: def.name.clone(),
-                    blocks,
-                    span,
-                });
+                self.footnotes.push((def.name.clone(), blocks, span));
                 return None;
             }
             other => {
@@ -248,7 +248,10 @@ impl Context<'_> {
                     span,
                 });
             }
-            NodeValue::FootnoteReference(fr) => out.push(Inline::FootnoteRef(fr.name.clone(), span)),
+            NodeValue::FootnoteReference(fr) => {
+                let n = self.footnote_number(&fr.name);
+                out.push(Inline::FootnoteRef(n.to_string(), span));
+            }
             NodeValue::SoftBreak => out.push(Inline::SoftBreak),
             NodeValue::LineBreak => out.push(Inline::HardBreak),
             NodeValue::HtmlInline(html) | NodeValue::Raw(html) => out.push(Inline::Text(html.clone(), span)),
@@ -259,6 +262,33 @@ impl Context<'_> {
             }
             other => debug!(node = ?std::mem::discriminant(other), "skipping unsupported inline"),
         }
+    }
+
+    /// The footnote's number, assigned on first reference; an unreferenced definition gets the next one.
+    fn footnote_number(&mut self, name: &str) -> usize {
+        let next = self.footnote_numbers.len() + 1;
+        *self.footnote_numbers.entry(name.to_owned()).or_insert(next)
+    }
+
+    /// Definitions as blocks, labelled with their numbers and in that order.
+    fn numbered_footnotes(&mut self) -> Vec<Block> {
+        let defs = std::mem::take(&mut self.footnotes);
+        let mut out: Vec<(usize, Block)> = defs
+            .into_iter()
+            .map(|(name, blocks, span)| {
+                let n = self.footnote_number(&name);
+                (
+                    n,
+                    Block::Footnote {
+                        label: n.to_string(),
+                        blocks,
+                        span,
+                    },
+                )
+            })
+            .collect();
+        out.sort_by_key(|(n, _)| *n);
+        out.into_iter().map(|(_, b)| b).collect()
     }
 
     /// GitHub-style heading id, unique within the document.
@@ -347,6 +377,19 @@ mod tests {
         ));
         assert!(inlines.iter().any(|i| matches!(i, Inline::Tag(t, _) if t == "tag")));
         assert!(matches!(d.blocks.last(), Some(Block::Footnote { label, .. }) if label == "1"));
+        let d2 = doc("A[^b] and B[^a].\n\n[^a]: second\n[^b]: first\n");
+        let labels: Vec<_> = d2
+            .blocks
+            .iter()
+            .filter_map(|b| {
+                if let Block::Footnote { label, .. } = b {
+                    Some(label.as_str())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(labels, vec!["1", "2"], "numbered by first reference, not by name");
     }
 
     #[test]
