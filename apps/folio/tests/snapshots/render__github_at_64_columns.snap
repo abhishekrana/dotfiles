@@ -12,7 +12,6 @@ expression: "render_plain(\"github\", 64)"
 
   Backing up the home server
   ────────────────────────────────────────────────────────────
-
   Nightly snapshots go to a local disk first and to off-site
   storage once a week. The restore path is tested monthly,
   because a backup nobody has restored is a hope, not a plan.
@@ -21,7 +20,6 @@ expression: "render_plain(\"github\", 64)"
 
   What gets backed up
   ────────────────────────────────────────────────────────────
-
   •  /srv/photos  - the originals, about 400 GB and growing
     slowly
   •  /srv/docs  - scanned paper, tax records, manuals
@@ -36,7 +34,6 @@ expression: "render_plain(\"github\", 64)"
 
   Schedule
   ────────────────────────────────────────────────────────────
-
   ┌────────────┬───────────────┬─────────────────┬───────────┐
   │ Target     │ When          │ Retention       │ Verified  │
   ├────────────┼───────────────┼─────────────────┼───────────┤
@@ -59,7 +56,6 @@ expression: "render_plain(\"github\", 64)"
 
   Restore drill
   ────────────────────────────────────────────────────────────
-
   ☒ Restore one photo album to  /tmp  and open it
   ☒ Restore the wiki database and start it against a scratch
     container

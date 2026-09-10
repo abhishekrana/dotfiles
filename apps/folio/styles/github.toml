@@ -2,8 +2,8 @@
 name = "GitHub"
 extends = "base"
 
-h1 = { rule = "column" }
-h2 = { rule = "column" }
+h1 = { rule = "column", below = 0 }
+h2 = { rule = "column", below = 0 }
 
 wikilink = { underline = true }
 

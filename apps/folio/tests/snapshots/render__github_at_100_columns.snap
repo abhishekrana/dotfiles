@@ -12,14 +12,12 @@ expression: "render_plain(\"github\", 100)"
 
   Backing up the home server
   ────────────────────────────────────────────────────────────────────────────────────────────────
-
   Nightly snapshots go to a local disk first and to off-site storage once a week. The restore path
   is tested monthly, because a backup nobody has restored is a hope, not a plan. Everything below
   assumes  restic  0.18 and the layout described in Server layout.
 
   What gets backed up
   ────────────────────────────────────────────────────────────────────────────────────────────────
-
   •  /srv/photos  - the originals, about 400 GB and growing slowly
   •  /srv/docs  - scanned paper, tax records, manuals
   • Container volumes, but only the ones that hold state:
@@ -33,7 +31,6 @@ expression: "render_plain(\"github\", 100)"
 
   Schedule
   ────────────────────────────────────────────────────────────────────────────────────────────────
-
   ┌────────────┬───────────────┬────────────────────┬───────────┐
   │ Target     │ When          │ Retention          │ Verified  │
   ├────────────┼───────────────┼────────────────────┼───────────┤
@@ -55,7 +52,6 @@ expression: "render_plain(\"github\", 100)"
 
   Restore drill
   ────────────────────────────────────────────────────────────────────────────────────────────────
-
   ☒ Restore one photo album to  /tmp  and open it
   ☒ Restore the wiki database and start it against a scratch container
   ☐ Time a full restore of  /srv/docs  from off-site

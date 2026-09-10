@@ -187,10 +187,10 @@ mod tests {
     fn blank_rows_collapse_between_blocks() {
         let p = page("# A\n\nText.\n\n## B\n", 100);
         let blanks = p.lines.iter().filter(|l| l.is_blank()).count();
-        // A(rule) 1 below · Text 1 below vs B 1 above -> 1 · nothing after B
+        // A's rule 0 below · Text 1 below vs B 1 above -> 1 · nothing after B
         assert_eq!(
             blanks,
-            2,
+            1,
             "{:?}",
             p.lines
                 .iter()
