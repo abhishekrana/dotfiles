@@ -140,7 +140,7 @@ strike    = { fg = "muted", strike = true }
 link      = { fg = "accent", underline = true }
 wikilink  = { fg = "accent", underline = true }
 tag       = { fg = "muted" }
-code_span = { fg = "changes", bg = "surface", pad = 1 }
+code_span = { fg = "changes", pad = 0 }
 
 code    = { bg = "surface", pad = 1, label = "none", above = 0, below = 1 }
 quote   = { bar = "▌", bar_fg = "muted", fg = "muted" }
