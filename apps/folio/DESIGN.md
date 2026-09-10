@@ -230,8 +230,8 @@ Exit codes: 0, 1 on a bad argument or unreadable file, 2 on a style file that fa
   `folio:test`. `task width` adds `*.rs` to its 120-column sweep; rustfmt's `max_width` is set to 120 to match.
 - **Theme switcher** gains a `folio` row: named, `export FOLIO_THEME` in `env.sh`, next launch. `theme-switcher.md` gets
   the line.
-- **Previews.** yazi's opener and the fzf preview for `.md` move to `folio --inline` once it renders the sample note as
-  well as leaf does; not before.
+- **Previews.** fzf's `Ctrl-T` previews `.md` files through `folio --inline --format ansi`, sized by
+  `FZF_PREVIEW_COLUMNS`; other files keep bat. yazi has no previewer configured here, so it is left alone.
 - **Trace.** Edges only (`open`, `style`, `theme`, `follow`), by calling the `dotfiles-trace` CLI. No third writer.
 
 ## Engineering conventions

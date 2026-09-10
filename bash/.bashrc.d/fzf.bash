@@ -27,12 +27,18 @@ export FZF_DEFAULT_OPTS="
 "
 unset _fzf_color
 
-# Ctrl-T: file picker with bat preview; Ctrl-Y copies file contents to the clipboard
+# Ctrl-T: file picker with bat preview, markdown as a folio page; Ctrl-Y copies file contents to the clipboard
 if command -v bat &>/dev/null && command -v clip &>/dev/null; then
+    _fzf_preview='bat --color=always --style=numbers --line-range=:200 {}'
+    # folio reads FZF_PREVIEW_COLUMNS, so the page fits the preview pane without a width flag.
+    if command -v folio &>/dev/null; then
+        _fzf_preview="case {} in *.md) folio --inline --format ansi {} ;; *) $_fzf_preview ;; esac"
+    fi
     export FZF_CTRL_T_OPTS="
-      --preview 'bat --color=always --style=numbers --line-range=:200 {}'
+      --preview '$_fzf_preview'
       --bind 'ctrl-y:execute-silent(clip < {})+abort'
     "
+    unset _fzf_preview
 fi
 
 # Ctrl-R: history search; Ctrl-Y copies the command (fields 2..) without running it
