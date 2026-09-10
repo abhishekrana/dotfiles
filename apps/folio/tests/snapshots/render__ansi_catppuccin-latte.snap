@@ -14,7 +14,7 @@ expression: "render::ansi(&page, theme, false)"
   [38;2;188;192;204m────────────────────────────────────────────────────────────────────────────────────────────────[0m
   [38;2;76;79;105mNightly snapshots go to a local disk first and to off-site storage once a week. The restore path[0m
   [38;2;76;79;105mis tested monthly, because a backup nobody has restored is a [0m[1;38;2;76;79;105mhope[0m[38;2;76;79;105m, not a plan. Everything below[0m
-  [38;2;76;79;105massumes [0m[38;2;136;57;239mrestic[0m[38;2;76;79;105m 0.18 and the layout described in [0m[4;38;2;30;102;245mServer[0m[4;38;2;30;102;245m [0m[4;38;2;30;102;245mlayout[0m[38;2;76;79;105m.[0m
+  [38;2;76;79;105massumes [0m[38;2;136;57;239mrestic[0m[38;2;76;79;105m 0.18 and the layout described in [0m[4;38;2;30;102;245mServer layout[0m[38;2;76;79;105m.[0m
   
   [1;38;2;46;48;71mWhat gets backed up[0m
   [38;2;188;192;204m────────────────────────────────────────────────────────────────────────────────────────────────[0m
@@ -61,7 +61,7 @@ expression: "render::ansi(&page, theme, false)"
   
   [38;2;188;192;204m────────────────────────────────────────────────────────────────────────────────────────────────[0m
   
-  [38;2;76;79;105mRelated: [0m[4;38;2;30;102;245mDisk[0m[4;38;2;30;102;245m [0m[4;38;2;30;102;245mreplacement[0m[38;2;76;79;105m · [0m[4;38;2;30;102;245mMonitoring[0m[38;2;76;79;105m · [0m[38;2;140;143;161m#homelab[0m
+  [38;2;76;79;105mRelated: [0m[4;38;2;30;102;245mDisk replacement[0m[38;2;76;79;105m · [0m[4;38;2;30;102;245mMonitoring[0m[38;2;76;79;105m · [0m[38;2;140;143;161m#homelab[0m
   
   [38;2;30;102;245m¹ [0m[38;2;140;143;161mA corrupt local snapshot still cannot reach off-site until the following Sunday, which is the[0m
     [38;2;140;143;161mwindow for noticing.[0m

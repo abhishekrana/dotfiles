@@ -79,6 +79,18 @@ impl Buffer {
     pub fn line_to_byte(&self, line: usize) -> Option<usize> {
         (line < self.rope.len_lines()).then(|| self.rope.line_to_byte(line))
     }
+
+    /// Zero-based line holding a byte offset; offsets past the end land on the last line.
+    #[must_use]
+    pub fn byte_to_line(&self, byte: usize) -> usize {
+        self.rope.byte_to_line(byte.min(self.rope.len_bytes()))
+    }
+
+    /// Directory of the file this buffer came from.
+    #[must_use]
+    pub fn dir(&self) -> Option<&Path> {
+        self.path.as_deref().and_then(Path::parent)
+    }
 }
 
 #[cfg(test)]

@@ -97,6 +97,44 @@ pub fn to_ratatui(line: &Line, theme: &Theme, left: u16) -> RLine<'static> {
     RLine::from(spans)
 }
 
+/// One page row with `marks` painted over the row's own styles: `(start col, end col, style)`, last wins.
+#[must_use]
+pub fn to_ratatui_marked(line: &Line, theme: &Theme, left: u16, marks: &[(usize, usize, RStyle)]) -> RLine<'static> {
+    if marks.is_empty() {
+        return to_ratatui(line, theme, left);
+    }
+    let mut spans = Vec::new();
+    if left > 0 {
+        spans.push(RSpan::raw(" ".repeat(usize::from(left))));
+    }
+    let mut col = 0;
+    for s in &line.segments {
+        let base = ratatui_style(s.style, theme);
+        for (text, mark) in split_marked(&s.text, col, marks) {
+            spans.push(RSpan::styled(text, mark.map_or(base, |m| base.patch(marks[m].2))));
+        }
+        col += s.width();
+    }
+    RLine::from(spans)
+}
+
+/// Splits text starting at `col` into runs sharing the same winning mark (by index), or none.
+fn split_marked(text: &str, col: usize, marks: &[(usize, usize, RStyle)]) -> Vec<(String, Option<usize>)> {
+    use unicode_segmentation::UnicodeSegmentation;
+    use unicode_width::UnicodeWidthStr;
+    let mut runs: Vec<(String, Option<usize>)> = Vec::new();
+    let mut at = col;
+    for g in text.graphemes(true) {
+        let mark = marks.iter().rposition(|&(s, e, _)| at >= s && at < e);
+        match runs.last_mut() {
+            Some((run, m)) if *m == mark => run.push_str(g),
+            _ => runs.push((g.to_owned(), mark)),
+        }
+        at += g.width();
+    }
+    runs
+}
+
 /// A theme colour as a ratatui colour.
 #[must_use]
 pub fn color(rgb: Rgb) -> Color {

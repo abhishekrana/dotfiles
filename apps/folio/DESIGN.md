@@ -182,21 +182,27 @@ two-face's Solarized and Catppuccin themes, mapped per flavor, so a code block m
 
 vi and less, nothing to learn:
 
-| Key                   | Action                                                      |
-| --------------------- | ----------------------------------------------------------- |
-| `j` `k` `↓` `↑`       | scroll a line; the wheel does the same                      |
-| `d` `u` `PgDn` `PgUp` | half page                                                   |
-| `g` `G`               | top, bottom                                                 |
-| `]` `[`               | next, previous heading                                      |
-| `t`                   | outline overlay; `↵` jumps, `Esc` closes                    |
-| `/` `n` `N`           | search, next, previous                                      |
-| `f`                   | link hints; a letter follows, `Esc` cancels                 |
-| `y`                   | copy the code block under the cursor line (OSC 52 via clip) |
-| `e`                   | open the file at the current line in `$EDITOR`              |
-| `r` `w`               | reload; toggle watch                                        |
-| `T`                   | cycle theme through the palette's flavors                   |
-| `S`                   | cycle style (deferred: one built-in style for now)          |
-| `?` `q`               | help; quit                                                  |
+| Key                   | Action                                                    |
+| --------------------- | --------------------------------------------------------- |
+| `j` `k` `↓` `↑`       | scroll a line; the wheel does the same                    |
+| `d` `u` `PgDn` `PgUp` | half page; `space` a page                                 |
+| `g` `G`               | top, bottom                                               |
+| `]` `[`               | next, previous heading                                    |
+| `t`                   | outline overlay; `↵` jumps, `Esc` closes                  |
+| `/` `n` `N`           | search, next, previous; `Esc` clears                      |
+| `f`                   | label the links on screen; type a label to follow         |
+| click                 | follow a link                                             |
+| `Backspace`           | back to the note a link was followed from                 |
+| `y`                   | copy the code block at the top of the screen (via `clip`) |
+| `e`                   | open the file at the top line in `$VISUAL` or `$EDITOR`   |
+| `T`                   | cycle theme through the palette's flavors                 |
+| `S`                   | cycle style (deferred: one built-in style for now)        |
+| `?` `q`               | help; quit                                                |
+
+Following a link: `#anchor` scrolls to the heading, `[[Note]]` opens the note beside this file or anywhere under the
+vault root (the nearest `.obsidian` or `.git`), a `.md` path opens relative to this file, anything else goes to
+`xdg-open`. The TUI cannot emit OSC 8 (ratatui has no hyperlink cells), so links there are hints and clicks; `--inline`
+on a terminal still wraps links in OSC 8.
 
 The status line is one row on `surface`: file name, current section, percent, and three hints. It is the viewer's,
 inside the pane; tmux keeps its own below.

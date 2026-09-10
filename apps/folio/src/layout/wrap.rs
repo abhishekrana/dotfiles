@@ -135,6 +135,7 @@ fn push_text(text: &str, span: Span, style: CellStyle, link: Option<&Arc<str>>, 
             };
             out.push(Word {
                 src: Some(src),
+                link: link.cloned(),
                 ..space(style)
             });
         }
