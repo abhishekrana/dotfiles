@@ -204,7 +204,8 @@ inside the pane; tmux keeps its own below.
 
 ```
 folio [FILE]                  # a file, or stdin when FILE is absent and stdin is not a TTY
-folio --inline [FILE]         # render to stdout at --width (default 80), no TUI; for fzf and yazi previews
+folio --inline [FILE]         # render to stdout, no TUI; width: --width, else FZF_PREVIEW_COLUMNS, else the
+                              # terminal, else 120 - so fzf and yazi previews fit without flags
 folio --inline --format plain # force plain or ansi; auto (default) is ansi on a terminal, plain in a pipe
 folio --style github --theme solarized-dark --width 88 --watch FILE
 folio --list-styles

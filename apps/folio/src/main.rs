@@ -15,7 +15,10 @@ use folio::style::{self, StyleError};
 use folio::theme::Theme;
 use folio::{doc, render};
 
-const DEFAULT_INLINE_WIDTH: u16 = 80;
+/// Width for --inline when neither a flag, fzf nor a terminal says otherwise.
+const DEFAULT_INLINE_WIDTH: u16 = 120;
+/// fzf exports its preview pane's width here.
+const FZF_WIDTH_ENV: &str = "FZF_PREVIEW_COLUMNS";
 
 /// A markdown reader for the terminal that reads like a page.
 #[derive(Debug, Parser)]
@@ -35,7 +38,7 @@ struct Args {
     /// Theme flavor from the palette.
     #[arg(long, env = "FOLIO_THEME")]
     theme: Option<String>,
-    /// Pane width for --inline.
+    /// Pane width for --inline; defaults to fzf's preview width, else the terminal's, else 120.
     #[arg(long)]
     width: Option<u16>,
     /// List the styles that can be loaded and exit.
@@ -94,9 +97,10 @@ fn run(args: &Args) -> anyhow::Result<()> {
         return App::new(buffer, style, theme).run().context("terminal");
     }
     let document = doc::parse(&buffer);
-    let width = args.width.unwrap_or(DEFAULT_INLINE_WIDTH);
-    let page = Layouter::new(theme).layout(&document, &style, width);
     let tty = io::stdout().is_terminal();
+    let terminal_cols = tty.then(|| crossterm::terminal::size().ok().map(|(w, _)| w)).flatten();
+    let width = inline_width(args.width, std::env::var(FZF_WIDTH_ENV).ok().as_deref(), terminal_cols);
+    let page = Layouter::new(theme).layout(&document, &style, width);
     let ansi = match args.format {
         Format::Ansi => true,
         Format::Plain => false,
@@ -111,6 +115,14 @@ fn run(args: &Args) -> anyhow::Result<()> {
         .lock()
         .write_all(text.as_bytes())
         .context("writing to stdout")
+}
+
+/// The flag wins, then fzf's preview width, then the terminal, then the default.
+fn inline_width(flag: Option<u16>, fzf: Option<&str>, terminal: Option<u16>) -> u16 {
+    flag.or_else(|| fzf.and_then(|v| v.trim().parse().ok()))
+        .or(terminal)
+        .filter(|w| *w > 0)
+        .unwrap_or(DEFAULT_INLINE_WIDTH)
 }
 
 fn list_styles() {
@@ -129,5 +141,19 @@ fn list_styles() {
     }
     for n in names {
         println!("{n}");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn inline_width_prefers_flag_then_fzf_then_terminal() {
+        assert_eq!(inline_width(Some(72), Some("90"), Some(200)), 72);
+        assert_eq!(inline_width(None, Some("90"), Some(200)), 90);
+        assert_eq!(inline_width(None, Some("nope"), Some(200)), 200);
+        assert_eq!(inline_width(None, None, None), DEFAULT_INLINE_WIDTH);
+        assert_eq!(inline_width(None, Some("0"), None), DEFAULT_INLINE_WIDTH);
     }
 }
