@@ -14,8 +14,9 @@ use tracing::debug;
 use unicode_width::UnicodeWidthStr;
 
 use crate::doc::{Block, Document, Span};
+use crate::highlight::Highlighter;
 use crate::style::{Align, Measure, Style};
-use crate::theme::Role;
+use crate::theme::{Rgb, Role, Theme};
 
 /// The smallest measure a pane can force before text stops being readable at all.
 const MIN_MEASURE: u16 = 16;
@@ -26,6 +27,8 @@ const GUTTER: u16 = 2;
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub struct CellStyle {
     pub fg: Option<Role>,
+    /// Direct colour from a syntax theme, for highlighted code; wins over `fg`.
+    pub fg_rgb: Option<Rgb>,
     pub bg: Option<Role>,
     pub bold: bool,
     pub italic: bool,
@@ -93,20 +96,30 @@ pub struct Page {
 }
 
 /// Lays out documents, caching each block's rows per measure.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Layouter {
     cache: HashMap<(u64, u16), Vec<Line>>,
+    highlighter: Highlighter,
 }
 
 impl Layouter {
     #[must_use]
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(theme: &Theme) -> Self {
+        Self {
+            cache: HashMap::new(),
+            highlighter: Highlighter::for_theme(theme),
+        }
     }
 
     /// Drops every cached row; call when the style changes.
     pub fn clear(&mut self) {
         self.cache.clear();
+    }
+
+    /// Switches the code highlighting theme; cached rows carry colours, so they are dropped.
+    pub fn set_theme(&mut self, theme: &Theme) {
+        self.highlighter = Highlighter::for_theme(theme);
+        self.clear();
     }
 
     pub fn layout(&mut self, doc: &Document, style: &Style, width: u16) -> Page {
@@ -138,7 +151,8 @@ impl Layouter {
                 hits += 1;
                 rows.clone()
             } else {
-                let rows = blocks::layout_block(block, usize::from(measure), style, blocks::Ctx::default());
+                let rows =
+                    blocks::layout_block(block, usize::from(measure), style, blocks::Ctx::new(&self.highlighter));
                 self.cache.insert(key, rows.clone());
                 rows
             };
@@ -172,7 +186,8 @@ mod tests {
     fn page(text: &str, width: u16) -> Page {
         let doc = crate::doc::parse(&Buffer::from_text(text));
         let style = crate::style::load("github", None).expect("style");
-        Layouter::new().layout(&doc, &style, width)
+        let theme = Theme::default_theme().expect("theme");
+        Layouter::new(theme).layout(&doc, &style, width)
     }
 
     #[test]

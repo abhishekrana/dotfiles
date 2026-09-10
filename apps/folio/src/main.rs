@@ -95,7 +95,7 @@ fn run(args: &Args) -> anyhow::Result<()> {
     }
     let document = doc::parse(&buffer);
     let width = args.width.unwrap_or(DEFAULT_INLINE_WIDTH);
-    let page = Layouter::new().layout(&document, &style, width);
+    let page = Layouter::new(theme).layout(&document, &style, width);
     let tty = io::stdout().is_terminal();
     let ansi = match args.format {
         Format::Ansi => true,

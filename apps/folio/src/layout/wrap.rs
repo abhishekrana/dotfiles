@@ -108,6 +108,7 @@ pub(super) fn footnote_marker(label: &str, style: &Style) -> String {
 fn apply(base: CellStyle, rule: &InlineRule) -> CellStyle {
     CellStyle {
         fg: rule.fg.or(base.fg),
+        fg_rgb: base.fg_rgb,
         bg: rule.bg.or(base.bg),
         bold: base.bold || rule.bold,
         italic: base.italic || rule.italic,

@@ -20,11 +20,13 @@ crossterm = "=0.29.0"
 ratatui = { version = "=0.30.2", default-features = false, features = ["crossterm_0_29", "layout-cache", "underline-color"] }
 ropey = "=1.6.1"
 serde = { version = "=1.0.229", features = ["derive"] }
+syntect = { version = "=5.3.0", default-features = false, features = ["default-fancy"] }
 thiserror = "=2.0.20"
 toml = "=1.1.6"
 tracing = "=0.1.44"
 tracing-appender = "=0.2.5"
 tracing-subscriber = { version = "=0.3.23", features = ["env-filter"] }
+two-face = { version = "=0.5.2", default-features = false, features = ["syntect-default-fancy"] }
 unicode-segmentation = "=1.13.3"
 unicode-width = "=0.2.2"
 

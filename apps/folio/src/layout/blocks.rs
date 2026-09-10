@@ -6,14 +6,26 @@ use super::table::layout_table;
 use super::wrap::{footnote_marker, words, wrap};
 use super::{CellStyle, Line, Segment};
 use crate::doc::{Block, CalloutKind, Inline, ListItem, Span};
+use crate::highlight::Highlighter;
 use crate::style::{CodeLabel, FrontMatterAs, HeadingLine, HrWidth, Style};
 use crate::theme::Role;
 
-/// What the enclosing blocks pass down: nesting depth and the text style they impose.
-#[derive(Debug, Clone, Copy, Default)]
-pub(super) struct Ctx {
+/// What the enclosing blocks pass down: nesting depth, the text style they impose, and the highlighter.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct Ctx<'a> {
     pub depth: u8,
     pub base: CellStyle,
+    pub hl: &'a Highlighter,
+}
+
+impl<'a> Ctx<'a> {
+    pub(super) fn new(hl: &'a Highlighter) -> Self {
+        Self {
+            depth: 0,
+            base: CellStyle::default(),
+            hl,
+        }
+    }
 }
 
 /// Blank rows the style wants before and after a block.
@@ -28,7 +40,7 @@ pub(super) fn spacing(block: &Block, style: &Style) -> (u8, u8) {
 
 pub(super) fn layout_block(block: &Block, width: usize, style: &Style, cx: Ctx) -> Vec<Line> {
     match block {
-        Block::FrontMatter { fields, span } => front_matter(fields, width, style, *span),
+        Block::FrontMatter { fields, span } => front_matter(fields, width, style, cx, *span),
         Block::Heading {
             level, inlines, span, ..
         } => heading(*level, inlines, width, style, cx, *span),
@@ -44,7 +56,7 @@ pub(super) fn layout_block(block: &Block, width: usize, style: &Style, cx: Ctx) 
         Block::Callout {
             kind, title, blocks, ..
         } => callout(*kind, title.as_deref(), blocks, width, style, cx),
-        Block::Code { lang, text, span } => code(lang.as_deref(), text, width, style, *span),
+        Block::Code { lang, text, span } => code(lang.as_deref(), text, width, style, cx, *span),
         Block::Table {
             align,
             head,
@@ -141,6 +153,7 @@ fn list(
         let inner = Ctx {
             depth: cx.depth + 1,
             base: text_base,
+            ..cx
         };
         if !tight && i > 0 {
             out.push(Line::default());
@@ -209,6 +222,7 @@ fn quote(blocks: &[Block], width: usize, style: &Style, cx: Ctx) -> Vec<Line> {
         Ctx {
             depth: cx.depth + 1,
             base,
+            ..cx
         },
         true,
     )
@@ -277,6 +291,7 @@ fn callout(
         Ctx {
             depth: cx.depth + 1,
             base,
+            ..cx
         },
         true,
     ) {
@@ -301,7 +316,7 @@ fn icon(kind: CalloutKind) -> &'static str {
     }
 }
 
-fn code(lang: Option<&str>, text: &str, width: usize, style: &Style, span: Span) -> Vec<Line> {
+fn code(lang: Option<&str>, text: &str, width: usize, style: &Style, cx: Ctx, span: Span) -> Vec<Line> {
     let c = &style.code;
     let pad = usize::from(c.pad);
     let inner = width.saturating_sub(2 * pad).max(1);
@@ -331,16 +346,36 @@ fn code(lang: Option<&str>, text: &str, width: usize, style: &Style, span: Span)
     }
     fill(&mut top, width, c.bg);
     rows.push(top);
-    for raw in text.lines() {
-        let mut shown = raw.replace('\t', "    ");
-        if shown.width() > inner {
-            shown = clip(&shown, inner.saturating_sub(1));
-            shown.push('→');
-        }
-        let mut row = line(
-            vec![Segment::new(" ".repeat(pad), body), Segment::new(shown, body)],
-            Some(span),
-        );
+    let expanded = text.replace('\t', "    ");
+    let code_rows: Vec<Vec<Segment>> = match lang.and_then(|l| cx.hl.highlight(l, &expanded)) {
+        Some(lines) => lines
+            .into_iter()
+            .map(|tokens| {
+                tokens
+                    .into_iter()
+                    .map(|t| {
+                        Segment::new(
+                            t.text,
+                            CellStyle {
+                                fg_rgb: t.fg,
+                                bold: t.bold,
+                                italic: t.italic,
+                                underline: t.underline,
+                                ..body
+                            },
+                        )
+                    })
+                    .collect()
+            })
+            .collect(),
+        None => expanded
+            .lines()
+            .map(|l| vec![Segment::new(l.to_owned(), body)])
+            .collect(),
+    };
+    for segs in code_rows {
+        let mut row = line(vec![Segment::new(" ".repeat(pad), body)], Some(span));
+        row.segments.extend(clip_segments(segs, inner, body));
         fill(&mut row, width, c.bg);
         rows.push(row);
     }
@@ -348,6 +383,30 @@ fn code(lang: Option<&str>, text: &str, width: usize, style: &Style, span: Span)
     fill(&mut bottom, width, c.bg);
     rows.push(bottom);
     rows
+}
+
+/// Cuts a row of segments to `width` cells, ending it with `→` when something was cut.
+fn clip_segments(segs: Vec<Segment>, width: usize, marker: CellStyle) -> Vec<Segment> {
+    if segs.iter().map(Segment::width).sum::<usize>() <= width {
+        return segs;
+    }
+    let limit = width.saturating_sub(1);
+    let mut out = Vec::new();
+    let mut used = 0;
+    for mut s in segs {
+        let w = s.width();
+        if used + w > limit {
+            s.text = take_cells(&s.text, limit - used);
+            if !s.text.is_empty() {
+                out.push(s);
+            }
+            break;
+        }
+        used += w;
+        out.push(s);
+    }
+    out.push(Segment::new("→", marker));
+    out
 }
 
 fn rule(width: usize, style: &Style, span: Span) -> Vec<Line> {
@@ -368,7 +427,7 @@ fn rule(width: usize, style: &Style, span: Span) -> Vec<Line> {
     vec![line(segs, Some(span))]
 }
 
-fn front_matter(fields: &[(String, String)], width: usize, style: &Style, span: Span) -> Vec<Line> {
+fn front_matter(fields: &[(String, String)], width: usize, style: &Style, cx: Ctx, span: Span) -> Vec<Line> {
     let muted = fg(Role::Muted);
     match style.front_matter.as_ {
         FrontMatterAs::Hidden => Vec::new(),
@@ -400,7 +459,7 @@ fn front_matter(fields: &[(String, String)], width: usize, style: &Style, span: 
                 .iter()
                 .map(|(k, v)| vec![vec![Inline::Text(k.clone(), span)], vec![Inline::Text(v.clone(), span)]])
                 .collect::<Vec<_>>();
-            layout_table(&[], &head, &rows, width, style, Ctx::default(), span)
+            layout_table(&[], &head, &rows, width, style, Ctx::new(cx.hl), span)
         }
     }
 }
@@ -419,6 +478,7 @@ fn footnote(label: &str, blocks: &[Block], width: usize, style: &Style, cx: Ctx)
         Ctx {
             depth: cx.depth + 1,
             base,
+            ..cx
         },
         true,
     )
@@ -464,17 +524,23 @@ pub fn clip(text: &str, width: usize) -> String {
     if text.width() <= width {
         return text.to_owned();
     }
+    let mut out = take_cells(text, width.saturating_sub(1));
+    out.push('…');
+    out
+}
+
+/// The longest prefix that fits in `width` cells.
+fn take_cells(text: &str, width: usize) -> String {
     let mut out = String::new();
     let mut used = 0;
     for ch in text.chars() {
         let w = unicode_width::UnicodeWidthChar::width(ch).unwrap_or(0);
-        if used + w + 1 > width {
+        if used + w > width {
             break;
         }
         out.push(ch);
         used += w;
     }
-    out.push('…');
     out
 }
 

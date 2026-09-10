@@ -6,6 +6,7 @@
 pub mod app;
 pub mod buffer;
 pub mod doc;
+pub mod highlight;
 pub mod layout;
 pub mod log;
 pub mod render;

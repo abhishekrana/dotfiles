@@ -48,9 +48,9 @@ expression: "render_plain(\"github\", 64)"
 
 
    #!/usr/bin/env bash
-   # Snapshot the state directories, then prune to the rete…→
+   # Snapshot the state directories, then prune to the reten→
    export RESTIC_REPOSITORY=/mnt/backup/restic
-   restic backup /srv/photos /srv/docs --exclude-caches --t…→
+   restic backup /srv/photos /srv/docs --exclude-caches --ta→
    restic forget --keep-daily 14 --keep-weekly 8 --prune
 
 

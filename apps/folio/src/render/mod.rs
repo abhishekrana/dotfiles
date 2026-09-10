@@ -63,8 +63,7 @@ fn sgr(cs: CellStyle, theme: &Theme) -> String {
     if cs.strike {
         codes.push("9".into());
     }
-    if let Some(role) = cs.fg {
-        let Rgb(r, g, b) = theme.color(role);
+    if let Some(Rgb(r, g, b)) = cs.fg_rgb.or_else(|| cs.fg.map(|role| theme.color(role))) {
         codes.push(format!("38;2;{r};{g};{b}"));
     }
     if let Some(role) = cs.bg {
@@ -106,8 +105,8 @@ pub fn color(rgb: Rgb) -> Color {
 
 fn ratatui_style(cs: CellStyle, theme: &Theme) -> RStyle {
     let mut st = RStyle::default();
-    if let Some(role) = cs.fg {
-        st = st.fg(color(theme.color(role)));
+    if let Some(rgb) = cs.fg_rgb.or_else(|| cs.fg.map(|role| theme.color(role))) {
+        st = st.fg(color(rgb));
     }
     if let Some(role) = cs.bg {
         st = st.bg(color(theme.color(role)));

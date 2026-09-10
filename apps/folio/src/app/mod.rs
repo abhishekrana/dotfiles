@@ -47,7 +47,7 @@ impl App {
             doc,
             style,
             theme,
-            layouter: Layouter::new(),
+            layouter: Layouter::new(theme),
             page: Page::default(),
             scroll: 0,
             body_rows: 0,
