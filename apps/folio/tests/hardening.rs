@@ -74,7 +74,10 @@ fn oversized_lines_and_tables_are_clipped_to_the_pane() {
 
 #[test]
 fn malformed_and_odd_markdown_renders_something() {
-    let odd = "# H\n\n\u{200b}text\twith\u{1b}[31mansi\u{1b}[0m and RTL: \u{5e9}\u{5dc}\u{5d5}\u{5dd} and combining: e\u{301}\n\n|a|\n|-|\n\n| no | header rule\n| a | b | c | d |\n\n```\nunterminated fence\n";
+    let odd = concat!(
+        "# H\n\n\u{200b}text\twith\u{1b}[31mansi\u{1b}[0m and RTL: \u{5e9}\u{5dc}\u{5d5}\u{5dd} ",
+        "and combining: e\u{301}\n\n|a|\n|-|\n\n| no | header rule\n| a | b | c | d |\n\n```\nunterminated fence\n"
+    );
     assert_fits(odd, 40);
     assert!(!render::plain(&page(odd, 40)).trim().is_empty());
     for text in [
