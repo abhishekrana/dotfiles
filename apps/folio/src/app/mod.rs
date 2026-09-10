@@ -159,3 +159,50 @@ impl App {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn app(lines: usize, height: u16) -> App {
+        let text = (0..lines).map(|i| format!("Line {i}\n")).collect::<Vec<_>>().join("\n");
+        let style = crate::style::load("github", None).expect("style");
+        let theme = Theme::default_theme().expect("theme");
+        let mut app = App::new(Buffer::from_text(&text), style, theme);
+        app.resize(100, height);
+        app
+    }
+
+    #[test]
+    fn a_short_document_has_nothing_to_scroll() {
+        let mut a = app(3, 20);
+        assert_eq!(a.max_scroll(), 0);
+        a.update(Msg::ScrollLines(5));
+        assert_eq!((a.scroll(), a.percent()), (0, 100));
+    }
+
+    #[test]
+    fn scrolling_clamps_at_both_ends_and_pages_by_half_the_body() {
+        let mut a = app(50, 11);
+        assert_eq!(a.body_rows(), 10);
+        a.update(Msg::ScrollLines(-3));
+        assert_eq!(a.scroll(), 0);
+        a.update(Msg::HalfPage(1));
+        assert_eq!(a.scroll(), 5);
+        a.update(Msg::Bottom);
+        assert_eq!((a.scroll(), a.percent()), (a.max_scroll(), 100));
+        a.update(Msg::ScrollLines(1));
+        assert_eq!(a.scroll(), a.max_scroll());
+        a.update(Msg::Top);
+        assert_eq!((a.scroll(), a.percent()), (0, 0));
+    }
+
+    #[test]
+    fn a_resize_relayouts_and_keeps_the_scroll_in_range() {
+        let mut a = app(50, 11);
+        a.update(Msg::Bottom);
+        let at_bottom = a.scroll();
+        a.resize(100, 60);
+        assert!(a.scroll() <= a.max_scroll() && a.scroll() < at_bottom);
+    }
+}

@@ -1,0 +1,103 @@
+---
+source: tests/render.rs
+expression: "render_text(EDGES, \"github\", 100)"
+---
+  Edge cases
+  ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  Lists
+  ────────────────────────────────────────────────────────────────────────────────────────────────
+  3. Ordered lists may start anywhere
+
+  4. And keep counting
+
+     ◦ A bullet nested in a number
+       1. A number nested in a bullet
+
+  5. An item with a code block inside:
+
+
+      fn main() {
+          println!("nested");
+      }
+
+
+  • A loose list
+
+  • keeps a blank row between its items
+
+  Breaks and inline
+  ────────────────────────────────────────────────────────────────────────────────────────────────
+  A hard break follows this line
+  and this one continues after a backslash
+  then the paragraph ends. Struck text, https://example.com/autolink, a titled link, and math left
+  as written: $E = mc^2$. Escaped *asterisks* and an inline <kbd>html</kbd> tag stay readable.
+
+  An inline image 󰥶 alt text sits in a sentence.
+
+  󰥶 A block image (figure.png)
+
+  Averyveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryveryver
+  yveryverylongword breaks by grapheme, and 日本語のテキスト and emoji 🎉 take two cells each.
+
+  Wide table
+  ────────────────────────────────────────────────────────────────────────────────────────────────
+  ┌─────────────────────────┬─────────────────────────┬─────────────────────────┬───────┬────────┐
+  │ Component               │ Purpose                 │ Notes                   │ Owner │ Status │
+  ├─────────────────────────┼─────────────────────────┼─────────────────────────┼───────┼────────┤
+  │ Reverse proxy that ter… │ Routes requests by hos… │ Certificates renew nig… │ infra │ live   │
+  │ Object storage gateway  │ Exposes the local disk… │ Used only by the backu… │ infra │ live   │
+  └─────────────────────────┴─────────────────────────┴─────────────────────────┴───────┴────────┘
+
+  ┌────────┬────────┬───────┐
+  │ Left   │ Center │ Right │
+  ├────────┼────────┼───────┤
+  │ a      │   b    │     c │
+  │ longer │  mid   │     1 │
+  └────────┴────────┴───────┘
+
+  Every callout
+  ────────────────────────────────────────────────────────────────────────────────────────────────
+  ▌ 󰋽 Note
+  ▌ Information the reader should notice.
+
+  ▌ 󰌶 Tip
+  ▌ Something that helps.
+
+  ▌ 󰨄 Important
+  ▌ Something the reader must know.
+
+  ▌ 󰀪 Warning
+  ▌ Something that needs care.
+
+  ▌ 󰳦 Caution
+  ▌ Something with consequences.
+
+  ▌ A quote holding a list:
+  ▌
+  ▌ • one
+  ▌ • two
+  ▌
+  ▌ ▌ and a nested quote.
+
+  Level three
+
+  Level four
+
+  Level five
+
+  Level six
+
+   <div class="note">
+   A raw HTML block is shown as source.
+   </div>
+
+
+
+
+
+  Footnotes can have two paragraphs¹.
+
+  ¹ The first paragraph of the note.
+
+    The second paragraph, indented under it.
