@@ -46,6 +46,17 @@ fn github_ansi_carries_theme_colours_and_links() {
 }
 
 #[test]
+fn every_flavor_paints_the_sample() {
+    let buffer = Buffer::from_text(SAMPLE);
+    let document = doc::parse(&buffer);
+    let style = style::load("github", None).expect("style");
+    for theme in folio::theme::flavors().expect("palette") {
+        let page = Layouter::new(theme).layout(&document, &style, 100);
+        insta::assert_snapshot!(format!("ansi_{}", theme.id), render::ansi(&page, theme, false));
+    }
+}
+
+#[test]
 fn edge_cases_at_100_columns() {
     insta::assert_snapshot!(render_text(EDGES, "github", 100));
 }

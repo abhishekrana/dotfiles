@@ -33,7 +33,12 @@ pub enum StyleError {
 }
 
 fn builtin_names() -> String {
-    BUILTIN.iter().map(|(n, _)| *n).collect::<Vec<_>>().join(", ")
+    builtins().collect::<Vec<_>>().join(", ")
+}
+
+/// Names of the styles compiled into the binary.
+pub fn builtins() -> impl Iterator<Item = &'static str> {
+    BUILTIN.iter().map(|(n, _)| *n)
 }
 
 /// `~/.config/folio/styles`, where a user's own styles live.

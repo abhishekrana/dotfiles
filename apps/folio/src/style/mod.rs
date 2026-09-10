@@ -2,7 +2,7 @@
 
 mod load;
 
-pub use load::{StyleError, load, user_styles_dir};
+pub use load::{StyleError, builtins, load, user_styles_dir};
 
 use serde::Deserialize;
 

@@ -17,6 +17,7 @@ pub(super) fn map(key: KeyEvent) -> Option<Msg> {
         KeyCode::Char(' ') => Msg::HalfPage(2),
         KeyCode::Char('g') | KeyCode::Home => Msg::Top,
         KeyCode::Char('G') | KeyCode::End => Msg::Bottom,
+        KeyCode::Char('T') => Msg::CycleTheme,
         KeyCode::Char('q' | 'Q') => Msg::Quit,
         KeyCode::Char('c') if ctrl => Msg::Quit,
         _ => return None,

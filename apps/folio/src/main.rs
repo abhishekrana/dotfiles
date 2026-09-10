@@ -125,8 +125,9 @@ fn inline_width(flag: Option<u16>, fzf: Option<&str>, terminal: Option<u16>) -> 
         .unwrap_or(DEFAULT_INLINE_WIDTH)
 }
 
+/// Built-ins, then user styles; a user file that shadows a built-in says so.
 fn list_styles() {
-    let mut names: Vec<String> = vec!["base".into(), "github".into()];
+    let mut user: Vec<String> = Vec::new();
     if let Some(dir) = style::user_styles_dir()
         && let Ok(entries) = std::fs::read_dir(dir)
     {
@@ -135,12 +136,17 @@ fn list_styles() {
             if path.extension().is_some_and(|e| e == "toml")
                 && let Some(stem) = path.file_stem().and_then(|s| s.to_str())
             {
-                names.push(format!("{stem} (user)"));
+                user.push(stem.to_owned());
             }
         }
     }
-    for n in names {
-        println!("{n}");
+    user.sort();
+    for name in style::builtins() {
+        let shadowed = user.iter().any(|u| u == name);
+        println!("{name}{}", if shadowed { "  (replaced by the user file)" } else { "" });
+    }
+    for name in user.iter().filter(|u| !style::builtins().any(|b| b == u.as_str())) {
+        println!("{name}  (user)");
     }
 }
 

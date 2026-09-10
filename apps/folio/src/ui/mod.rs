@@ -39,7 +39,8 @@ fn status_line(app: &App, width: u16) -> Line<'static> {
         .map_or_else(|| "stdin".to_owned(), |n| n.to_string_lossy().into_owned());
     let section = current_section(app);
     let left = format!(" {name}  ");
-    let right = format!("{:>3}%  j/k scroll  q quit ", app.percent());
+    let theme_label = app.theme_label().map(|t| format!("{t}  ")).unwrap_or_default();
+    let right = format!("{theme_label}{:>3}%  j/k scroll  T theme  q quit ", app.percent());
     let room = usize::from(width).saturating_sub(left.width() + right.width());
     let section = crate::layout::clip(&section, room);
     let gap = " ".repeat(room.saturating_sub(section.width()));

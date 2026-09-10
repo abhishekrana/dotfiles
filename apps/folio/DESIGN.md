@@ -194,7 +194,8 @@ vi and less, nothing to learn:
 | `y`                   | copy the code block under the cursor line (OSC 52 via clip) |
 | `e`                   | open the file at the current line in `$EDITOR`              |
 | `r` `w`               | reload; toggle watch                                        |
-| `S` `T`               | cycle style; cycle theme                                    |
+| `T`                   | cycle theme through the palette's flavors                   |
+| `S`                   | cycle style (deferred: one built-in style for now)          |
 | `?` `q`               | help; quit                                                  |
 
 The status line is one row on `surface`: file name, current section, percent, and three hints. It is the viewer's,

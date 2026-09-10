@@ -6,8 +6,10 @@ use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::EnvFilter;
 
 const ENV: &str = "FOLIO_LOG";
+/// Daily files kept before the oldest is removed.
+const KEEP_LOG_FILES: usize = 3;
 
-/// Where the log file lives: `$XDG_STATE_HOME/folio` or `~/.local/state/folio`.
+/// Where the log files live: `$XDG_STATE_HOME/folio` or `~/.local/state/folio`, one file a day.
 #[must_use]
 pub fn state_dir() -> Option<PathBuf> {
     std::env::var_os("XDG_STATE_HOME")
@@ -32,7 +34,13 @@ pub fn init(to_stderr: bool) -> std::io::Result<Option<WorkerGuard>> {
         return Ok(None);
     };
     std::fs::create_dir_all(&dir)?;
-    let file = tracing_appender::rolling::never(&dir, "folio.log");
+    let file = tracing_appender::rolling::Builder::new()
+        .rotation(tracing_appender::rolling::Rotation::DAILY)
+        .filename_prefix("folio")
+        .filename_suffix("log")
+        .max_log_files(KEEP_LOG_FILES)
+        .build(&dir)
+        .map_err(std::io::Error::other)?;
     let (writer, guard) = tracing_appender::non_blocking(file);
     let filter = EnvFilter::try_from_env(ENV).unwrap_or_else(|_| EnvFilter::new("info"));
     tracing_subscriber::fmt()

@@ -12,7 +12,7 @@ use crate::buffer::Buffer;
 use crate::doc::{self, Document};
 use crate::layout::{Layouter, Page};
 use crate::style::Style;
-use crate::theme::Theme;
+use crate::theme::{self, Theme};
 
 /// What a key or mouse event asks for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -21,6 +21,8 @@ pub enum Msg {
     HalfPage(i32),
     Top,
     Bottom,
+    /// Next flavor in the palette's order, wrapping.
+    CycleTheme,
     Quit,
 }
 
@@ -71,9 +73,20 @@ impl App {
             }
             Msg::Top => self.scroll = 0,
             Msg::Bottom => self.scroll = usize::MAX,
+            Msg::CycleTheme => self.cycle_theme(),
             Msg::Quit => {}
         }
         self.clamp();
+    }
+
+    fn cycle_theme(&mut self) {
+        let Ok(all) = theme::flavors() else { return };
+        let at = all.iter().position(|t| t.id == self.theme.id).unwrap_or(0);
+        let next = &all[(at + 1) % all.len()];
+        info!(from = %self.theme.id, to = %next.id, "theme");
+        self.theme = next;
+        self.layouter.set_theme(next);
+        self.page = self.layouter.layout(&self.doc, &self.style, self.page.width);
     }
 
     fn clamp(&mut self) {
@@ -103,6 +116,13 @@ impl App {
     #[must_use]
     pub fn theme(&self) -> &Theme {
         self.theme
+    }
+
+    /// The theme's id when it is not the palette's default, for the status line.
+    #[must_use]
+    pub fn theme_label(&self) -> Option<&str> {
+        let default = Theme::default_theme().ok()?;
+        (self.theme.id != default.id).then_some(self.theme.id.as_str())
     }
 
     #[must_use]
@@ -195,6 +215,19 @@ mod tests {
         assert_eq!(a.scroll(), a.max_scroll());
         a.update(Msg::Top);
         assert_eq!((a.scroll(), a.percent()), (0, 0));
+    }
+
+    #[test]
+    fn cycling_the_theme_walks_the_palette_and_wraps() {
+        let mut a = app(3, 20);
+        let n = theme::flavors().expect("palette").len();
+        assert!(a.theme_label().is_none(), "starts on the default");
+        a.update(Msg::CycleTheme);
+        assert_eq!(a.theme_label(), Some("solarized-dark"));
+        for _ in 1..n {
+            a.update(Msg::CycleTheme);
+        }
+        assert!(a.theme_label().is_none(), "wrapped back to the default");
     }
 
     #[test]
