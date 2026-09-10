@@ -22,6 +22,8 @@ const HELP: &[(&str, &str)] = &[
     ("Backspace", "back to the note a link was followed from"),
     ("y", "copy the code block at the top of the screen"),
     ("e", "open the file in $EDITOR at the top line"),
+    ("r", "reload the file"),
+    ("w", "follow the file on disk and reload on change (on by default)"),
     ("T", "cycle the theme"),
     ("?", "this help"),
     ("q", "quit"),

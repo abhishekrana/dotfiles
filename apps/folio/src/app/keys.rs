@@ -55,6 +55,8 @@ fn read(code: KeyCode) -> Option<Msg> {
         KeyCode::Backspace => Msg::Back,
         KeyCode::Char('y') => Msg::Yank,
         KeyCode::Char('e') => Msg::Edit,
+        KeyCode::Char('r') => Msg::Reload,
+        KeyCode::Char('w') => Msg::ToggleWatch,
         KeyCode::Char('T') => Msg::CycleTheme,
         KeyCode::Char('?') => Msg::ToggleHelp,
         KeyCode::Esc => Msg::Cancel,

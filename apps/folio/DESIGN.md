@@ -194,6 +194,7 @@ vi and less, nothing to learn:
 | `Backspace`           | back to the note a link was followed from                 |
 | `y`                   | copy the code block at the top of the screen (via `clip`) |
 | `e`                   | open the file at the top line in `$VISUAL` or `$EDITOR`   |
+| `r` `w`               | reload; toggle following the file on disk (on by default) |
 | `T`                   | cycle theme through the palette's flavors                 |
 | `S`                   | cycle style (deferred: one built-in style for now)        |
 | `?` `q`               | help; quit                                                |
@@ -213,7 +214,7 @@ folio [FILE]                  # a file, or stdin when FILE is absent and stdin i
 folio --inline [FILE]         # render to stdout, no TUI; width: --width, else FZF_PREVIEW_COLUMNS, else the
                               # terminal, else 120 - so fzf and yazi previews fit without flags
 folio --inline --format plain # force plain or ansi; auto (default) is ansi on a terminal, plain in a pipe
-folio --style github --theme solarized-dark --width 88 --watch FILE
+folio --style github --theme solarized-dark --no-watch FILE
 folio --list-styles
 ```
 

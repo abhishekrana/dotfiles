@@ -2,11 +2,19 @@
 
 mod keys;
 pub mod links;
+mod position;
 pub mod search;
+pub mod trace;
+mod watch;
 
 use std::io::{Write as _, stdout};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{self, Receiver, Sender};
+use std::thread;
+use std::time::Duration;
 
 use crossterm::event::{self, DisableMouseCapture, EnableMouseCapture, Event, MouseButton, MouseEventKind};
 use crossterm::execute;
@@ -18,7 +26,20 @@ use crate::layout::{Layouter, Page};
 use crate::style::Style;
 use crate::theme::{self, Theme};
 use links::Action;
+use position::Positions;
 use search::Match;
+use watch::FileWatch;
+
+/// How long the input thread waits for a key before checking whether it should pause.
+const INPUT_POLL: Duration = Duration::from_millis(100);
+
+/// What wakes the event loop: the terminal, or the file on disk.
+#[derive(Debug)]
+pub enum Input {
+    Term(Event),
+    FileChanged,
+    WatchError(String),
+}
 
 /// What a key or mouse event asks for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,6 +73,10 @@ pub enum Msg {
     Yank,
     /// Open the file in the editor at the top line.
     Edit,
+    /// Re-read the file, keeping the top line on screen.
+    Reload,
+    /// Start or stop following the file on disk.
+    ToggleWatch,
     Click {
         col: u16,
         row: u16,
@@ -90,6 +115,16 @@ pub struct App {
     history: Vec<PathBuf>,
     /// One-line message for the status row, cleared by the next key.
     notice: Option<String>,
+    /// Follow the file on disk and reload on change.
+    watching: bool,
+    watch: Option<FileWatch>,
+    /// Where the watcher and the input thread deliver; set by `run`.
+    tx: Option<Sender<Input>>,
+    positions: Option<Positions>,
+    /// Record action edges in the shared trace log; only the running reader does.
+    trace: bool,
+    /// Set while an editor owns the terminal, so the input thread leaves the keys to it.
+    input_paused: Arc<AtomicBool>,
 }
 
 impl App {
@@ -112,7 +147,20 @@ impl App {
             current_match: None,
             history: Vec::new(),
             notice: None,
+            watching: true,
+            watch: None,
+            tx: None,
+            positions: None,
+            trace: false,
+            input_paused: Arc::new(AtomicBool::new(false)),
         }
+    }
+
+    /// Whether to follow the file on disk; on unless asked otherwise.
+    #[must_use]
+    pub fn with_watch(mut self, on: bool) -> Self {
+        self.watching = on;
+        self
     }
 
     pub fn resize(&mut self, width: u16, height: u16) {
@@ -189,6 +237,8 @@ impl App {
             }
             Msg::Back => self.back(),
             Msg::Yank => self.yank(),
+            Msg::Reload => self.reload("reloaded"),
+            Msg::ToggleWatch => self.toggle_watch(),
             Msg::Click { col, row } => self.click(col, row),
             Msg::Edit | Msg::Quit => {}
         }
@@ -213,6 +263,7 @@ impl App {
         let at = all.iter().position(|t| t.id == self.theme.id).unwrap_or(0);
         let next = &all[(at + 1) % all.len()];
         info!(from = %self.theme.id, to = %next.id, "theme");
+        self.trace_edge("theme", &[("to", &next.id)]);
         self.theme = next;
         self.layouter.set_theme(next);
         self.relayout(self.page.width);
@@ -327,6 +378,7 @@ impl App {
 
     fn follow(&mut self, link: &str) {
         info!(link, "follow");
+        self.trace_edge("follow", &[("link", link)]);
         match links::classify(link) {
             Action::Anchor(id) => self.jump_to_anchor(&id),
             Action::Wiki { name, heading } => match links::resolve_wiki(&name, self.buffer.dir()) {
@@ -376,11 +428,91 @@ impl App {
 
     fn load(&mut self, buffer: Buffer) {
         info!(path = ?buffer.path(), bytes = buffer.len_bytes(), "load");
+        self.remember_position();
         self.buffer = buffer;
         self.doc = doc::parse(&self.buffer);
         self.clear_search();
         self.scroll = 0;
         self.relayout(self.page.width);
+        self.restore_position();
+        self.apply_watch();
+        if let Some(p) = self.buffer.path() {
+            let shown = p.display().to_string();
+            self.trace_edge("open", &[("path", &shown)]);
+        }
+    }
+
+    fn toggle_watch(&mut self) {
+        self.watching = !self.watching;
+        self.notice = Some(if self.watching { "watching" } else { "watch off" }.to_owned());
+        self.apply_watch();
+    }
+
+    /// Starts or stops the watcher to match `watching`, for the current file.
+    fn apply_watch(&mut self) {
+        self.watch = None;
+        if !self.watching {
+            return;
+        }
+        let (Some(path), Some(tx)) = (self.buffer.path(), &self.tx) else {
+            return;
+        };
+        match FileWatch::start(path, tx.clone()) {
+            Ok(w) => self.watch = Some(w),
+            Err(e) => {
+                warn!(error = %e, "watch");
+                self.notice = Some(e.to_string());
+                self.watching = false;
+            }
+        }
+    }
+
+    /// Re-reads the file and lays it out again, keeping the top source line on screen.
+    fn reload(&mut self, why: &str) {
+        let line = self.top_line();
+        if let Err(e) = self.buffer.reload() {
+            self.notice = Some(e.to_string());
+            return;
+        }
+        self.doc = doc::parse(&self.buffer);
+        self.relayout(self.page.width);
+        self.scroll_to_line(line);
+        self.notice = Some(why.to_owned());
+        info!(line, why, "reload");
+    }
+
+    /// Scrolls so the first row laid out from source line `line` (1-based) is at the top.
+    fn scroll_to_line(&mut self, line: usize) {
+        let target = line.saturating_sub(1);
+        let row = self
+            .page
+            .lines
+            .iter()
+            .position(|l| l.src.is_some_and(|s| self.buffer.byte_to_line(s.start) >= target));
+        if let Some(row) = row {
+            self.scroll = row;
+        }
+        self.clamp();
+    }
+
+    fn remember_position(&mut self) {
+        let line = self.top_line();
+        if let (Some(p), Some(pos)) = (self.buffer.path(), &mut self.positions) {
+            pos.set(p, line);
+        }
+    }
+
+    fn restore_position(&mut self) {
+        let line = self.buffer.path().and_then(|p| self.positions.as_ref()?.get(p));
+        if let Some(line) = line {
+            self.scroll_to_line(line);
+        }
+    }
+
+    fn trace_edge(&self, evt: &str, fields: &[(&str, &str)]) {
+        if self.trace {
+            trace::edge(evt, fields);
+        }
     }
 
     fn back(&mut self) {
@@ -523,23 +655,45 @@ impl App {
 
     /// Runs the terminal loop until quit.
     pub fn run(mut self) -> std::io::Result<()> {
+        let (tx, rx) = mpsc::channel();
+        self.tx = Some(tx.clone());
+        self.trace = true;
+        if let Some(dir) = crate::log::state_dir() {
+            self.positions = Some(Positions::open(&dir));
+        }
         let mut terminal = ratatui::init();
         execute!(stdout(), EnableMouseCapture)?;
+        spawn_input_thread(tx, Arc::clone(&self.input_paused));
         info!(path = ?self.buffer.path(), "open");
-        let result = self.event_loop(&mut terminal);
+        let size = terminal.size()?;
+        self.resize(size.width, size.height);
+        self.restore_position();
+        self.apply_watch();
+        if let Some(p) = self.buffer.path() {
+            let shown = p.display().to_string();
+            self.trace_edge("open", &[("path", &shown)]);
+        }
+        let result = self.event_loop(&mut terminal, &rx);
+        self.remember_position();
+        if let Some(p) = &mut self.positions
+            && let Err(e) = p.save()
+        {
+            warn!(error = %e, "positions not saved");
+        }
         execute!(stdout(), DisableMouseCapture)?;
         ratatui::restore();
         result
     }
 
-    fn event_loop(&mut self, terminal: &mut ratatui::DefaultTerminal) -> std::io::Result<()> {
+    fn event_loop(&mut self, terminal: &mut ratatui::DefaultTerminal, rx: &Receiver<Input>) -> std::io::Result<()> {
         loop {
             let size = terminal.size()?;
             self.resize(size.width, size.height);
             terminal.draw(|frame| crate::ui::draw(frame, self))?;
-            let msg = match event::read()? {
-                Event::Key(key) => keys::map(key, &self.mode),
-                Event::Mouse(m) => match m.kind {
+            let input = rx.recv().map_err(|_| std::io::Error::other("input thread ended"))?;
+            let msg = match input {
+                Input::Term(Event::Key(key)) => keys::map(key, &self.mode),
+                Input::Term(Event::Mouse(m)) => match m.kind {
                     MouseEventKind::ScrollDown => Some(Msg::ScrollLines(3)),
                     MouseEventKind::ScrollUp => Some(Msg::ScrollLines(-3)),
                     MouseEventKind::Up(MouseButton::Left) => Some(Msg::Click {
@@ -548,11 +702,19 @@ impl App {
                     }),
                     _ => None,
                 },
-                Event::Resize(w, h) => {
+                Input::Term(Event::Resize(w, h)) => {
                     debug!(w, h, "resize");
                     None
                 }
-                _ => None,
+                Input::Term(_) => None,
+                Input::FileChanged => {
+                    self.reload("reloaded");
+                    None
+                }
+                Input::WatchError(e) => {
+                    self.notice = Some(format!("watch: {e}"));
+                    None
+                }
             };
             match msg {
                 Some(Msg::Quit) => return Ok(()),
@@ -575,27 +737,51 @@ impl App {
             .unwrap_or_else(|_| "vi".to_owned());
         let line = self.top_line();
         info!(%editor, line, "edit");
+        self.input_paused.store(true, Ordering::Release);
+        // Let the input thread finish its current poll so the editor gets every key.
+        thread::sleep(INPUT_POLL + Duration::from_millis(20));
         execute!(stdout(), DisableMouseCapture)?;
         ratatui::restore();
         let status = Command::new(&editor).arg(format!("+{line}")).arg(&path).status();
         *terminal = ratatui::init();
         execute!(stdout(), EnableMouseCapture)?;
+        self.input_paused.store(false, Ordering::Release);
         match status {
             Ok(s) if s.success() => {}
             Ok(s) => self.notice = Some(format!("{editor} exited with {s}")),
             Err(e) => self.notice = Some(format!("cannot run {editor}: {e}")),
         }
-        if let Err(e) = self.buffer.reload() {
-            self.notice = Some(e.to_string());
-            return Ok(());
+        let keep = self.notice.take();
+        self.reload("reloaded");
+        if keep.is_some() {
+            self.notice = keep;
         }
-        let scroll = self.scroll;
-        self.doc = doc::parse(&self.buffer);
-        self.relayout(self.page.width);
-        self.scroll = scroll;
-        self.clamp();
         Ok(())
     }
+}
+
+/// Forwards terminal events to the loop, sleeping while an editor owns the terminal.
+fn spawn_input_thread(tx: Sender<Input>, paused: Arc<AtomicBool>) {
+    thread::spawn(move || {
+        loop {
+            if paused.load(Ordering::Acquire) {
+                thread::sleep(Duration::from_millis(20));
+                continue;
+            }
+            match event::poll(INPUT_POLL) {
+                Ok(true) if !paused.load(Ordering::Acquire) => match event::read() {
+                    Ok(ev) => {
+                        if tx.send(Input::Term(ev)).is_err() {
+                            return;
+                        }
+                    }
+                    Err(_) => return,
+                },
+                Ok(_) => {}
+                Err(_) => return,
+            }
+        }
+    });
 }
 
 #[cfg(test)]
@@ -729,6 +915,21 @@ mod tests {
         assert_eq!(a.notice(), Some("note not found: Missing note"));
         a.update(Msg::Click { col: left, row: 2 });
         assert!(a.notice().is_none(), "plain text is not a link");
+    }
+
+    #[test]
+    fn reload_keeps_the_top_source_line_and_watch_toggles() {
+        let mut a = app(60, 11);
+        a.update(Msg::HalfPage(1));
+        a.update(Msg::HalfPage(1));
+        let line = a.top_line();
+        a.update(Msg::Reload);
+        assert_eq!((a.top_line(), a.notice()), (line, Some("reloaded")));
+        a.update(Msg::ToggleWatch);
+        assert_eq!(a.notice(), Some("watch off"));
+        a.update(Msg::ToggleWatch);
+        assert_eq!(a.notice(), Some("watching"));
+        assert!(a.watch.is_none(), "a buffer without a file has nothing to watch");
     }
 
     #[test]

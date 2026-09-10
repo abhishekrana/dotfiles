@@ -8,8 +8,9 @@ build:
 	cp target/release/folio bin/folio.tmp
 	mv -f bin/folio.tmp bin/folio
 
+# Tests never write to the shared trace log.
 test:
-	cargo test --quiet
+	DOTFILES_TRACE=0 cargo test --quiet
 
 # Formatting and clippy at warnings-as-errors; `task check` runs this.
 lint:

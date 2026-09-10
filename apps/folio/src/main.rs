@@ -44,6 +44,9 @@ struct Args {
     /// List the styles that can be loaded and exit.
     #[arg(long)]
     list_styles: bool,
+    /// Do not follow the file on disk (the reader reloads on change by default).
+    #[arg(long)]
+    no_watch: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -94,7 +97,10 @@ fn run(args: &Args) -> anyhow::Result<()> {
     info!(path = ?buffer.path(), bytes = buffer.len_bytes(), style = %style.name, theme = %theme.id, "loaded");
 
     if !args.inline {
-        return App::new(buffer, style, theme).run().context("terminal");
+        return App::new(buffer, style, theme)
+            .with_watch(!args.no_watch)
+            .run()
+            .context("terminal");
     }
     let document = doc::parse(&buffer);
     let tty = io::stdout().is_terminal();
