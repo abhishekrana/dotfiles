@@ -146,7 +146,7 @@ code    = { bg = "surface", pad = 1, label = "none", above = 0, below = 1 }
 quote   = { bar = "▌", bar_fg = "muted", fg = "muted" }
 
 list = { bullet = "•", bullet_fg = "muted", nested = "◦", indent = 2 }
-task = { done = "☒", todo = "☐", done_fg = "done", todo_fg = "muted", done_text = "muted" }
+task = { done = "󰄲", todo = "󰄱", done_fg = "done", todo_fg = "muted", done_text = "muted" }
 
 table        = { lines = "box", header_bold = true, header_rule = true, line_fg = "border" }
 rule         = { glyph = "─", fg = "border", width = "column" }

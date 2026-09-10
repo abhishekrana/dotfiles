@@ -8,7 +8,7 @@ h2 = { rule = "column", below = 0 }
 wikilink = { underline = true }
 
 quote = { bar = "▌", bar_fg = "muted", fg = "muted" }
-task = { done = "☒", todo = "☐" }
+task = { done = "󰄲", todo = "󰄱" } # Nerd Font checkboxes (nf-md-checkbox_marked / _blank_outline)
 table = { lines = "box" }
 front_matter = { as = "table" }
 

@@ -56,10 +56,10 @@ expression: "render_plain(\"github\", 64)"
 
   Restore drill
   ────────────────────────────────────────────────────────────
-  ☒ Restore one photo album to /tmp and open it
-  ☒ Restore the wiki database and start it against a scratch
+  󰄲 Restore one photo album to /tmp and open it
+  󰄲 Restore the wiki database and start it against a scratch
     container
-  ☐ Time a full restore of /srv/docs from off-site
+  󰄱 Time a full restore of /srv/docs from off-site
 
   ▌ The point of the drill is not confidence in the tool. It
   ▌ is confidence in the procedure, which is the part that

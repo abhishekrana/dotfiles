@@ -52,9 +52,9 @@ expression: out
   
   [1;38;2;88;110;117mRestore drill[0m
   [38;2;202;191;158m────────────────────────────────────────────────────────────────────────────────────────────────[0m
-  [38;2;133;153;0m☒ [0m[38;2;147;161;161mRestore one photo album to [0m[38;2;108;113;196m/tmp[0m[38;2;147;161;161m and open it[0m
-  [38;2;133;153;0m☒ [0m[38;2;147;161;161mRestore the wiki database and start it against a scratch container[0m
-  [38;2;147;161;161m☐ [0m[38;2;101;123;131mTime a full restore of [0m[38;2;108;113;196m/srv/docs[0m[38;2;101;123;131m from off-site[0m
+  [38;2;133;153;0m󰄲 [0m[38;2;147;161;161mRestore one photo album to [0m[38;2;108;113;196m/tmp[0m[38;2;147;161;161m and open it[0m
+  [38;2;133;153;0m󰄲 [0m[38;2;147;161;161mRestore the wiki database and start it against a scratch container[0m
+  [38;2;147;161;161m󰄱 [0m[38;2;101;123;131mTime a full restore of [0m[38;2;108;113;196m/srv/docs[0m[38;2;101;123;131m from off-site[0m
   
   [38;2;147;161;161m▌ [0m[38;2;147;161;161mThe point of the drill is not confidence in the tool. It is confidence in the [0m[3;38;2;147;161;161mprocedure[0m[38;2;147;161;161m, which[0m
   [38;2;147;161;161m▌ [0m[38;2;147;161;161mis the part that rots.[0m
