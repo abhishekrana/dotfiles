@@ -392,6 +392,12 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
     instead, for an agent); `i` reads the row's `◆` and goes the other way. **A refused mutation is a 200**: GitLab puts
     its complaint in the payload's own `errors` array, which glab does not read, so `Do` reads it - without that a move
     GitLab declined printed as one that worked.
+- `apps/folio/` → **a markdown reader that reads like a page**, in Rust (ratatui, comrak). One binary, `bin/folio`,
+  linked into `~/.local/bin` by `bootstrap.sh`. The look is a TOML style file (`styles/github.toml` first) naming
+  palette roles, so every flavor in `design/palette.toml` works and the `theme` switcher drives it via `FOLIO_THEME`.
+  `--inline` renders to stdout for previews. Rust is pinned twice by necessity - `RUST_VERSION` in `install.sh` and
+  `rust-toolchain.toml` - and `task conf` checks they agree. It has its own nested `CLAUDE.md` and `DESIGN.md` - read
+  both before touching it. leaf stays the previewer until folio reaches parity.
 - `apps/agentbar/` (the sidebar itself) is loaded by a `run-shell` line at the end of `tmux/.tmux.conf`, so it builds
   and runs straight from the repo. The Claude lifecycle hooks in `claude/.claude/settings.json` invoke its binary at
   `$HOME/dotfiles/apps/agentbar/bin/agentbar`. It has its own nested `CLAUDE.md` - read that before touching the code.
@@ -551,8 +557,9 @@ notes are generated from these, so the type and scope are the machine-readable p
 
 - **Types**: `feat` · `fix` · `docs` · `refactor` · `perf` · `test` · `build` · `ci` · `chore`
 - **Scope** is the area, matching a stow package, an app, or a repo concern: `agentbar`, `bash`, `bat`, `bootstrap`,
-  `claude`, `clip`, `design`, `dictate`, `ghostty`, `git`, `hunk`, `install`, `leaf`, `lint`, `nvim`, `release`, `task`,
-  `theme`, `tmux`, `trace`, `vault`, `workdesk`, `yazi`. Omit it only when a change genuinely spans everything.
+  `claude`, `clip`, `design`, `dictate`, `folio`, `ghostty`, `git`, `hunk`, `install`, `leaf`, `lint`, `nvim`,
+  `release`, `task`, `theme`, `tmux`, `trace`, `vault`, `workdesk`, `yazi`. Omit it only when a change genuinely spans
+  everything.
 - **Breaking = needs manual steps on the machine.** A `!` after the scope (`feat(tmux)!:`) or a `BREAKING CHANGE:`
   footer marks a release that can't just be pulled - a re-login, a re-stow, a GNOME shortcut, a systemd unit. It renders
   as "needs manual steps" in the changelog and, pre-1.0, drives the MINOR bump.

@@ -1,0 +1,18 @@
+# The rendering everyone already reads: rules across the column under H1 and H2, boxed tables, pills for code.
+name = "GitHub"
+extends = "base"
+measure = 80
+
+h1 = { rule = "column" }
+h2 = { rule = "column" }
+
+wikilink = { underline = true }
+
+quote = { bar = "▌", bar_fg = "muted", fg = "muted" }
+task = { done = "☒", todo = "☐" }
+table = { lines = "box", zebra = "surface" }
+front_matter = { as = "table" }
+
+[callout]
+bar = "▌"
+icon = true

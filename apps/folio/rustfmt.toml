@@ -1,0 +1,2 @@
+# The repo's line limit; everything else is rustfmt's default.
+max_width = 120

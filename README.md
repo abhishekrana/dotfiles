@@ -45,10 +45,12 @@ Binaries built from source under `apps/` (not stow packages). Each has a `Makefi
 | App        | Description                                                            | Language |
 | ---------- | ---------------------------------------------------------------------- | -------- |
 | `agentbar` | tmux sidebar showing every Claude Code agent's state across sessions   | Go       |
+| `folio`    | markdown reader that reads like a page; swappable TOML styles          | Rust     |
 | `workdesk` | GitLab work inbox: merge requests, issues, todos and agents in a float | Go       |
 
-Both binaries build from the one module under `apps/agentbar/`. `workdesk` is linked into `~/.local/bin`; `agentbar` is
-invoked by absolute path from tmux and the Claude hooks.
+`agentbar` and `workdesk` build from the one Go module under `apps/agentbar/`; `folio` is its own Cargo crate under
+`apps/folio/`. `workdesk` and `folio` are linked into `~/.local/bin`; `agentbar` is invoked by absolute path from tmux
+and the Claude hooks.
 
 The sidebar loads from here via a `run-shell` line in `tmux/.tmux.conf`. `prefix + R` picks up changes: it reloads the
 config, rebuilds the binary if the source moved, and restarts that session's sidebar.
@@ -68,6 +70,7 @@ pinned versions:
 - [gitleaks](https://github.com/gitleaks/gitleaks) - secret scanning over the tree and history
 - [GNU Stow](https://www.gnu.org/software/stow/) - symlink manager
 - [Go](https://go.dev/) - toolchain for building `apps/` (agentbar)
+- [Rust](https://www.rust-lang.org/) - toolchain for building `apps/` (folio), via a pinned rustup
 - [hunk](https://github.com/modem-dev/hunk) - interactive diff viewer (via `gd`/`gds` aliases)
 - [JetBrainsMono Nerd Font](https://www.nerdfonts.com/) - terminal/editor font
 - [jq](https://github.com/jqlang/jq) - JSON processor

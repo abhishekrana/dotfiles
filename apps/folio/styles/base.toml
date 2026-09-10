@@ -1,0 +1,39 @@
+# Every element in full. Built-in and user styles extend this and override what they change.
+# Colours are palette roles: bg surface selection border fg emphasis muted accent changes working asking blocked done.
+name = "Base"
+measure = 80
+rail = false
+
+h1 = { fg = "emphasis", bold = true, italic = false, rule = "none", above = 2, below = 1 }
+h2 = { fg = "emphasis", bold = true, italic = false, rule = "none", above = 1, below = 1 }
+h3 = { fg = "emphasis", bold = true, italic = false, rule = "none", above = 1, below = 1 }
+h4 = { fg = "emphasis", bold = true, italic = false, rule = "none", above = 1, below = 0 }
+h5 = { fg = "emphasis", bold = false, italic = false, rule = "none", above = 1, below = 0 }
+h6 = { fg = "muted", bold = false, italic = false, rule = "none", above = 1, below = 0 }
+
+paragraph = { fg = "fg", below = 1 }
+strong = { bold = true }
+emph = { italic = true }
+strike = { fg = "muted", strike = true }
+
+link = { fg = "accent", underline = true }
+wikilink = { fg = "accent", underline = false }
+tag = { fg = "muted" }
+code_span = { fg = "changes", bg = "surface", pad = 1 }
+
+code = { bg = "surface", pad = 1, label = "none", above = 0, below = 1 }
+quote = { bar = "│", bar_fg = "border", fg = "fg", italic = false }
+list = { bullet = "•", bullet_fg = "muted", nested = "◦", indent = 2 }
+task = { done = "✓", todo = "○", done_fg = "done", todo_fg = "muted", done_text = "muted" }
+table = { lines = "rules", header_bold = true, header_rule = true, line_fg = "border" }
+rule = { glyph = "─", fg = "border", width = "column" }
+front_matter = { as = "line" }
+footnote = { marker = "superscript", fg = "accent", text_fg = "muted" }
+image = { placeholder = "▣", fg = "muted" }
+
+[callout]
+bar = "▎"
+bar_fg = "accent"
+title_fg = "accent"
+icon = false
+kinds = { note = "accent", tip = "done", important = "changes", warning = "asking", caution = "blocked" }

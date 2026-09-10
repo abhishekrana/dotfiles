@@ -4,6 +4,7 @@ version: "3"
 
 vars:
   AGENTBAR: apps/agentbar
+  FOLIO: apps/folio
   # Tracked shell files, found by shebang: covers extensionless ones, skips dictate.
   SHELL_FILES:
     sh: git ls-files -z | xargs -0 shfmt -f | sort | tr '\n' ' '
@@ -12,6 +13,8 @@ vars:
     sh: git ls-files -z | xargs -0 awk 'FNR==1 && /^#!.*(python|uv run)/ {print FILENAME}' | tr '\n' ' '
   GO_FILES:
     sh: git ls-files '*.go' | tr '\n' ' '
+  RS_FILES:
+    sh: git ls-files '*.rs' | tr '\n' ' '
   PRETTIER_FILES:
     sh: git ls-files '*.md' '*.yml' '*.yaml' '*.json' | tr '\n' ' '
   # Pinned so the gate behaves the same in CI and here.
@@ -30,6 +33,7 @@ tasks:
     desc: The release gate - lint, python, formatting, secrets, tests
     cmds:
       - task: lint
+      - task: folio:lint
       - task: width
       - task: py
       - task: fmt-sh
@@ -55,9 +59,10 @@ tasks:
       - shellcheck -S warning -x {{.SHELL_FILES}}
 
   width:
-    desc: No shell or Go line over 120 columns (prettier and ruff cover the rest)
+    desc: No shell, Go or Rust line over 120 columns (prettier and ruff cover the rest)
     cmds:
       - awk 'length>120 {print FILENAME":"FNR" ("length" cols)"; n++} END {exit n>0}' {{.SHELL_FILES}} {{.GO_FILES}}
+        {{.RS_FILES}}
 
   py:
     desc: Lint the Python scripts (rules and 120-column limit in ruff.toml)
@@ -100,6 +105,12 @@ tasks:
           echo "@workdesk_open needs -X/-Y, or tmux cascades the float down the screen" >&2
           exit 1
         }
+      # The Rust pin lives in install.sh (what a machine installs) and in the crate's
+      # rust-toolchain.toml (what cargo runs); a bump that misses one builds on two versions.
+      - |
+        a=$(sed -n 's/^RUST_VERSION="\(.*\)".*/\1/p' install.sh)
+        b=$(sed -n 's/^channel = "\(.*\)"/\1/p' apps/folio/rust-toolchain.toml)
+        [ "$a" = "$b" ] || { echo "Rust pin differs: install.sh=$a rust-toolchain.toml=$b" >&2; exit 1; }
 
   perms:
     desc: Every script under a .local/bin must be executable (tmux runs them directly)
@@ -173,14 +184,16 @@ tasks:
       - npx --yes {{.PRETTIER}} --write {{.PRETTIER_FILES}}
 
   test:
-    desc: Run the agentbar test suite
+    desc: Run the agentbar and folio test suites
     cmds:
       - task: agentbar:test
+      - task: folio:test
 
   build:
     desc: Build everything under apps/
     cmds:
       - task: agentbar:build
+      - task: folio:build
 
   stow:
     desc: Restow every package (safe to re-run)
@@ -322,3 +335,26 @@ tasks:
     dir: "{{.AGENTBAR}}"
     cmds:
       - bin/agentbar doctor
+
+  folio:build:
+    desc: Build the folio binary
+    dir: "{{.FOLIO}}"
+    cmds:
+      - make build
+    sources:
+      - "**/*.rs"
+      - "**/*.toml"
+    generates:
+      - bin/folio
+
+  folio:lint:
+    desc: folio formatting and clippy at warnings-as-errors
+    dir: "{{.FOLIO}}"
+    cmds:
+      - make lint
+
+  folio:test:
+    desc: folio unit and snapshot tests
+    dir: "{{.FOLIO}}"
+    cmds:
+      - make test

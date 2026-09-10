@@ -260,16 +260,18 @@ build_apps() {
     link_app_clis
 }
 
-# The one exception to "the built binary lives in the app's own bin/": workdesk is a
-# CLI you and your agents type (`workdesk board`, `workdesk mr <iid>`), and a command
+# The exceptions to "the built binary lives in the app's own bin/": workdesk and folio
+# are CLIs you and your agents type (`workdesk board`, `folio README.md`), and a command
 # you cannot type is a worse tool. agentbar is never typed - tmux and the Claude hooks
 # invoke it by absolute path - so it gets no link.
 link_app_clis() {
-    local bin="$DOTFILES_DIR/apps/agentbar/bin/workdesk"
-    [ -x "$bin" ] || return 0
     mkdir -p "$HOME/.local/bin"
-    ln -sfn "$bin" "$HOME/.local/bin/workdesk"
-    ok "workdesk linked into ~/.local/bin"
+    local bin
+    for bin in "$DOTFILES_DIR/apps/agentbar/bin/workdesk" "$DOTFILES_DIR/apps/folio/bin/folio"; do
+        [ -x "$bin" ] || continue
+        ln -sfn "$bin" "$HOME/.local/bin/$(basename "$bin")"
+        ok "$(basename "$bin") linked into ~/.local/bin"
+    done
 }
 
 # =============================================================================

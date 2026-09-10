@@ -25,6 +25,10 @@ jobs:
         env:
           DEBIAN_FRONTEND: noninteractive
 
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/folio
+
       - name: Read the pinned Go version
         run: grep -E '^GO_VERSION=' install.sh | tr -d '"' >> "$GITHUB_ENV"
 

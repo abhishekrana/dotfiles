@@ -1,0 +1,5 @@
+# Same pin as RUST_VERSION in install.sh; `task conf` checks they agree.
+[toolchain]
+channel = "1.98.1"
+components = ["clippy", "rustfmt"]
+profile = "minimal"

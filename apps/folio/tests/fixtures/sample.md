@@ -1,0 +1,53 @@
+---
+type: guide
+tags: [backup, restic, homelab]
+---
+
+# Backing up the home server
+
+Nightly snapshots go to a local disk first and to off-site storage once a week. The restore path is tested monthly, because a backup nobody has restored is a **hope**, not a plan. Everything below assumes `restic` 0.18 and the layout described in [[Server layout]].
+
+## What gets backed up
+
+- `/srv/photos` - the originals, about 400 GB and growing slowly
+- `/srv/docs` - scanned paper, tax records, manuals
+- Container volumes, but only the ones that hold state:
+  - the wiki database
+  - the RSS reader
+- Nothing under `/srv/media` - it is re-downloadable
+
+> [!NOTE]
+> The photo library is the one thing here that cannot be recreated. Everything else is a convenience.
+
+## Schedule
+
+| Target      | When            | Retention           | Verified |
+| ----------- | --------------- | ------------------- | -------- |
+| Local disk  | nightly 02:00   | 14 daily, 8 weekly  | monthly  |
+| Off-site    | Sunday 03:00    | 12 monthly          | quarterly |
+
+The off-site job runs after the local one so a corrupt night never propagates[^1].
+
+### The nightly job
+
+```bash
+#!/usr/bin/env bash
+# Snapshot the state directories, then prune to the retention policy.
+export RESTIC_REPOSITORY=/mnt/backup/restic
+restic backup /srv/photos /srv/docs --exclude-caches --tag nightly
+restic forget --keep-daily 14 --keep-weekly 8 --prune
+```
+
+## Restore drill
+
+- [x] Restore one photo album to `/tmp` and open it
+- [x] Restore the wiki database and start it against a scratch container
+- [ ] Time a full restore of `/srv/docs` from off-site
+
+> The point of the drill is not confidence in the tool. It is confidence in the *procedure*, which is the part that rots.
+
+---
+
+Related: [[Disk replacement]] · [[Monitoring]] · #homelab
+
+[^1]: A corrupt local snapshot still cannot reach off-site until the following Sunday, which is the window for noticing.
