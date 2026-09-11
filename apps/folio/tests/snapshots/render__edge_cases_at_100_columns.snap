@@ -45,8 +45,12 @@ expression: "render_text(EDGES, \"github\", 100)"
   ┌─────────────────────────┬─────────────────────────┬─────────────────────────┬───────┬────────┐
   │ Component               │ Purpose                 │ Notes                   │ Owner │ Status │
   ├─────────────────────────┼─────────────────────────┼─────────────────────────┼───────┼────────┤
-  │ Reverse proxy that ter… │ Routes requests by hos… │ Certificates renew nig… │ infra │ live   │
-  │ Object storage gateway  │ Exposes the local disk… │ Used only by the backu… │ infra │ live   │
+  │ Reverse proxy that      │ Routes requests by host │ Certificates renew      │ infra │ live   │
+  │ terminates TLS for      │ name to the right       │ nightly through the     │       │        │
+  │ every service           │ container               │ ACME client             │       │        │
+  │ Object storage gateway  │ Exposes the local disk  │ Used only by the backup │ infra │ live   │
+  │                         │ as an S3-compatible     │ jobs                    │       │        │
+  │                         │ endpoint                │                         │       │        │
   └─────────────────────────┴─────────────────────────┴─────────────────────────┴───────┴────────┘
 
   ┌────────┬────────┬───────┐

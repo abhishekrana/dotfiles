@@ -143,6 +143,17 @@ fn push_text(text: &str, span: Span, style: CellStyle, link: Option<&Arc<str>>, 
     }
 }
 
+#[cfg(test)]
+impl Word {
+    pub(super) fn plain(text: &str, style: CellStyle) -> Self {
+        word(text.to_owned(), style, None, None)
+    }
+
+    pub(super) fn gap(style: CellStyle) -> Self {
+        space(style)
+    }
+}
+
 fn word(text: String, style: CellStyle, src: Option<Span>, link: Option<Arc<str>>) -> Word {
     Word {
         width: text.width(),

@@ -37,7 +37,8 @@ expression: "render_plain(\"github\", 64)"
   ┌────────────┬───────────────┬─────────────────┬───────────┐
   │ Target     │ When          │ Retention       │ Verified  │
   ├────────────┼───────────────┼─────────────────┼───────────┤
-  │ Local disk │ nightly 02:00 │ 14 daily, 8 we… │ monthly   │
+  │ Local disk │ nightly 02:00 │ 14 daily, 8     │ monthly   │
+  │            │               │ weekly          │           │
   │ Off-site   │ Sunday 03:00  │ 12 monthly      │ quarterly │
   └────────────┴───────────────┴─────────────────┴───────────┘
 

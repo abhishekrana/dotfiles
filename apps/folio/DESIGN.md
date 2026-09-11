@@ -107,8 +107,8 @@ not a comrak extension; a small pass over `Inline::Text` splits `#word` out, ski
 - **Rhythm.** A style says how many blank rows precede each element; the engine never inserts its own.
 - **Wrapping** is per grapheme cluster using `unicode-width`, greedy, with a `Cell` per column so wide characters and
   emoji occupy two. Code never wraps: long lines are clipped with `→` in the last cell and pan with `h`/`l`.
-- **Tables** get fair-share column widths. A table wider than the measure shrinks its widest column with an ellipsis
-  first, then scrolls horizontally as a unit. No modal in v1.
+- **Tables** get fair-share column widths. A table wider than the measure shrinks its widest column first, and a cell
+  wraps inside its column, so a row grows taller rather than losing text. No modal in v1.
 - **Inline styling is per span**, so a link, a code span or an emphasis is styled on exactly its cells, and every cell
   keeps the id of the inline it came from.
 - **Relayout** happens on resize and on reload only, all blocks, cached by `(block hash, width)`. At document scale this
