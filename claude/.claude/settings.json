@@ -95,6 +95,10 @@
           {
             "type": "command",
             "command": "[ -x \"$HOME/dotfiles/apps/agentbar/bin/agentbar\" ] && \"$HOME/dotfiles/apps/agentbar/bin/agentbar\" hook || true"
+          },
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/statusline-workdir.sh\""
           }
         ]
       }

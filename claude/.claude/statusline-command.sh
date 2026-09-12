@@ -4,8 +4,8 @@
 #
 #     Opus | ctx: 12% used | repo ⎇ main | ⚠ other ⎇ feature
 #
-# @agent_workdir is the pane option the agentbar hook stamps on every write; an
-# Edit by absolute path moves neither the cwd nor this row. No tmux, no warning.
+# The second place is recorded by statusline-workdir.sh, this package's own
+# PostToolUse hook: an Edit by absolute path moves neither the cwd nor this row.
 set -u
 
 here=${BASH_SOURCE[0]%/*}
@@ -47,24 +47,19 @@ parts=()
 [ -n "$used" ] && parts+=("ctx: ${used}% used")
 [ -n "$dir" ] && parts+=("$(place "$dir")")
 
-if command -v tmux >/dev/null 2>&1; then
-    # A session hosted outside tmux - herdr, a resumed one, `claude daemon run` -
-    # has no $TMUX_PANE, so fall back to the pane the hook stamped with this
-    # session id, the way the hook itself recovers one.
-    pane=${TMUX_PANE:-}
-    [ -n "$pane" ] || [ -z "$sid" ] || pane=$(tmux list-panes -a \
-        -F '#{pane_id} #{@agent_session_id}' 2>/dev/null |
-        awk -v s="$sid" '!f && $2 == s { print $1; f = 1 }')
-    agent_dir=
-    [ -n "$pane" ] && agent_dir=$(tmux show-options -pqv -t "$pane" @agent_workdir 2>/dev/null)
-    session_root=
-    git_place "$dir" && session_root=$place_root
-    agent_root=
-    # Roots, not paths: a subdirectory of the session's own checkout is not a move.
-    [ -n "$agent_dir" ] && git_place "$agent_dir" && agent_root=$place_root
-    if [ -n "$agent_root" ] && [ "$agent_root" != "$session_root" ]; then
-        parts+=("${warn}⚠ $(place "$agent_root")${reset}")
-    fi
+# The worktree Claude last wrote in, recorded by statusline-workdir.sh - not the
+# cwd, which an Edit by absolute path never moves.
+agent_dir=
+state=${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/claude-workdir/$sid
+[ -n "$sid" ] && [ -r "$state" ] && agent_dir=$(<"$state")
+
+session_root=
+git_place "$dir" && session_root=$place_root
+agent_root=
+# Roots, not paths: a subdirectory of the session's own checkout is not a move.
+[ -n "$agent_dir" ] && git_place "$agent_dir" && agent_root=$place_root
+if [ -n "$agent_root" ] && [ "$agent_root" != "$session_root" ]; then
+    parts+=("${warn}⚠ $(place "$agent_root")${reset}")
 fi
 
 printf '%s' "$(

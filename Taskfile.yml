@@ -49,6 +49,7 @@ tasks:
       - task: theme
       - task: settings
       - task: claude-hooks
+      - task: statusline
       - task: workdesk-toggle
       - task: test
 
@@ -226,6 +227,11 @@ tasks:
     desc: The stowed settings.json keeps one $HOME-relative herdr hook, on every machine
     cmds:
       - bash test/claude-hooks.sh
+
+  statusline:
+    desc: The status line names the session's place, and the worktree Claude writes in when it differs
+    cmds:
+      - bash test/statusline.sh
 
   workdesk-toggle:
     desc: One command opens the ≡ workdesk float and closes it - the chip is a toggle
