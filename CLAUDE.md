@@ -8,7 +8,15 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
 
 - `bash/` → `~/.bashrc.d/` (shell customizations)
 - `bat/` → `~/.config/bat/`
-- `claude/` → `~/.claude/settings.json`, `~/.claude/statusline-command.sh`. `settings.json` wires the agentbar hook on
+- `claude/` → `~/.claude/settings.json`, `~/.claude/statusline-command.sh`, `~/.claude/subagent-statusline.sh`,
+  `~/.claude/statusline-git.bash`. **The status line names the place, and the `⚠` names the other place.** The place is
+  the payload's `workspace.current_dir`; the warning is `@agent_workdir`, the pane option the agentbar hook stamps on
+  every write, shown only while its checkout root differs - an Edit by absolute path moves neither the cwd nor the row.
+  Roots are compared, never paths, so a subdirectory is not a move. `refreshInterval` is 3s, since the event triggers
+  are assistant messages and a mid-turn move would otherwise wait for the turn to end. `subagentStatusLine` gives each
+  agent-panel row its own worktree: `isolation: worktree` runs in a checkout neither the cwd nor `@agent_workdir` names.
+  `statusline-git.bash` is sourced by both - pure bash reading `.git` (a linked worktree's is a file naming its gitdir)
+  rather than forking git, on a timer and again per row. No tmux, no warning. `settings.json` wires the agentbar hook on
   every Claude lifecycle event plus the statusLine; agent state comes from that plugin's `@agent_*` pane options, not
   local hook scripts. Claude Code does not load a user-level `~/.claude/settings.local.json`, so anything that must take
   effect goes in `settings.json`. **Its TUI theme is deliberately not switched by `theme`** - Claude owns that setting
