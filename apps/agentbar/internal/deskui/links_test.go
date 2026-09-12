@@ -33,12 +33,12 @@ func TestFindLinks(t *testing.T) {
 	}, {
 		// A reference is not a URL, so only the mirror can make it one.
 		name:  "a merge request reference",
-		line:  "in flight !5408  4825-dexman-numpy-pin",
-		want:  "https://gitlab.example.com/acme/platform/-/merge_requests/5408",
+		line:  "in flight !2091  2091-refund-idempotency-keys",
+		want:  "https://gitlab.example.com/acme/platform/-/merge_requests/2091",
 		click: 11,
 	}, {
 		name:  "an issue reference inside a sentence",
-		line:  "This is the opposite direction to #128 (station behind cloud).",
+		line:  "This is the opposite direction to #128 (see the linked issue).",
 		want:  "https://gitlab.example.com/acme/platform/-/issues/128",
 		click: 35,
 	}, {

@@ -173,10 +173,10 @@ Resolution order: `base` (compiled in), then the named style's `extends` chain, 
 
 ### Theme
 
-`theme.rs` is generated from `design/palette.toml` by `make gen`, exactly as agentbar's `theme_gen.go` is, so a flavor
-is defined once. Roles available to styles:
-`bg surface selection border fg emphasis muted accent changes working asking blocked done`. Syntax highlighting uses
-two-face's Solarized and Catppuccin themes, mapped per flavor, so a code block matches bat in the pane beside it.
+`src/theme/mod.rs` reads `design/palette.toml` with `include_str!`, so a flavor is defined once and compiled in - no
+codegen step, unlike agentbar's generated `theme_gen.go`. Roles available to styles:
+`bg surface selection border fg emphasis muted accent changes float working asking blocked done`. Syntax highlighting
+uses two-face's Solarized and Catppuccin themes, mapped per flavor, so a code block matches bat in the pane beside it.
 
 ## Keys
 

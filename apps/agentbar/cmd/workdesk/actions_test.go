@@ -121,23 +121,23 @@ func TestSyncProjectFallsBackToTheMirror(t *testing.T) {
 // 0, so `d` on a merge request row did nothing and said nothing about why.
 func TestWorktreeIn(t *testing.T) {
 	t.Parallel()
-	const porcelain = `worktree /home/you/alpha
+	const porcelain = `worktree /home/you/platform
 HEAD 1111111111111111111111111111111111111111
 branch refs/heads/main
 
-worktree /home/you/alpha-5407
+worktree /home/you/platform-2091
 HEAD 2222222222222222222222222222222222222222
-branch refs/heads/4802-jetson-base-native-arm
+branch refs/heads/2091-refund-idempotency-keys
 
-worktree /home/you/alpha-detached
+worktree /home/you/platform-detached
 HEAD 3333333333333333333333333333333333333333
 detached
 `
 	cases := []struct{ branch, want string }{
-		{"4802-jetson-base-native-arm", "/home/you/alpha-5407"},
-		{"main", "/home/you/alpha"},
+		{"2091-refund-idempotency-keys", "/home/you/platform-2091"},
+		{"main", "/home/you/platform"},
 		{"never-checked-out", ""},
-		{"4802", ""}, // a prefix of a real branch is not that branch
+		{"2091", ""}, // a prefix of a real branch is not that branch
 		{"", ""},
 	}
 	for _, c := range cases {
