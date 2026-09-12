@@ -318,6 +318,16 @@ install_herdr() {
     # Writes ~/.claude/hooks/herdr-agent-state.sh and the SessionStart entry in
     # the stowed settings.json, so the agent state the sidebar reads is wired up.
     herdr integration install claude >/dev/null 2>&1 || warn "herdr: claude integration not installed"
+    # The skill ships inside the binary, so generating it pins it to the version
+    # above. Gitignored in the claude repo, like hunk-review: never vendored.
+    mkdir -p "$HOME/.claude/skills/herdr"
+    if herdr --skill >"$HOME/.claude/skills/herdr/SKILL.md.part" 2>/dev/null; then
+        mv "$HOME/.claude/skills/herdr/SKILL.md.part" "$HOME/.claude/skills/herdr/SKILL.md"
+        ok "herdr Claude skill written"
+    else
+        rm -f "$HOME/.claude/skills/herdr/SKILL.md.part"
+        warn "herdr: skill not written"
+    fi
 }
 
 install_herdr_dictate() {

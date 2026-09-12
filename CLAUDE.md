@@ -420,9 +420,10 @@ so CI installs with the same code a machine does:
 **herdr brings two things beyond its binary.** `install_herdr` also runs `herdr integration install claude`, which
 writes `~/.claude/hooks/herdr-agent-state.sh` **and a `SessionStart` entry into the stowed
 `claude/.claude/settings.json`** - so herdr is a second writer to that tracked file, and an integration update shows up
-as a diff there. The hook script itself is herdr-managed and deliberately not tracked. `install_herdr_dictate` then
-installs the dictation plugin, and returns early when one is already installed, so a linked working tree is never
-replaced by the published release.
+as a diff there. It also writes the herdr skill to `~/.claude/skills/herdr/`, generated from the binary so it matches
+the pinned version. Hook and skill are both herdr-managed and deliberately not tracked; the claude repo gitignores the
+skill, as it does `hunk-review`. `install_herdr_dictate` then installs the dictation plugin, and returns early when one
+is already installed, so a linked working tree is never replaced by the published release.
 
 `bootstrap.sh` sources it and adds the machine wiring: stow, the `.bashrc` patch, the vaults, the resurrect timer and
 `apps/` builds. It takes no arguments - run a single step through `install.sh`. Steps that need the stowed configs in
