@@ -49,7 +49,7 @@ GIT_CLIFF_VERSION="2.13.1"
 GITLEAKS_VERSION="8.30.1"
 GLAB_VERSION="1.115.0"
 GO_VERSION="1.26.6"
-HERDR_DICTATE_VERSION="0.1.1"
+HERDR_DICTATE_VERSION="0.2.0"
 HERDR_VERSION="0.9.0"
 HUNK_VERSION="0.19.0"
 LAZYDOCKER_VERSION="0.25.2"
@@ -368,11 +368,34 @@ install_herdr() {
 
 install_herdr_dictate() {
     command -v herdr >/dev/null 2>&1 || return 0
-    if herdr plugin list 2>/dev/null | grep -q abhishekrana.dictate; then
-        ok "herdr-dictate already installed"
-        return 0
-    fi
-    log "Installing herdr-dictate $HERDR_DICTATE_VERSION (compiles when no release matches)..."
+
+    # A plugin linked from a working tree is somebody developing it; installing
+    # the release over the top would replace their checkout with a download.
+    local installed kind ref
+    installed=$(herdr plugin list --json 2>/dev/null |
+        jq -r '.result.plugins[]? | select(.plugin_id == "abhishekrana.dictate")
+               | "\(.source.kind // "") \(.source.requested_ref // "")"' 2>/dev/null)
+    kind=${installed%% *}
+    ref=${installed##* }
+
+    case "$kind" in
+        "")
+            log "Installing herdr-dictate $HERDR_DICTATE_VERSION (compiles when no release matches)..."
+            ;;
+        github)
+            if [ "$ref" = "v${HERDR_DICTATE_VERSION}" ]; then
+                ok "herdr-dictate $HERDR_DICTATE_VERSION already installed"
+                return 0
+            fi
+            # The pin moved, so this machine is behind: upgrade it.
+            log "Updating herdr-dictate $ref -> v${HERDR_DICTATE_VERSION}..."
+            ;;
+        *)
+            ok "herdr-dictate linked from a working tree; leaving it alone"
+            return 0
+            ;;
+    esac
+
     herdr plugin install abhishekrana/herdr-dictate --ref "v${HERDR_DICTATE_VERSION}" --yes \
         >/dev/null 2>&1 ||
         warn "herdr-dictate: install failed - run 'herdr plugin install abhishekrana/herdr-dictate'"
