@@ -17,9 +17,10 @@ paths:
   `$XDG_STATE_HOME/dotfiles/claude-workdir/<session id>` and the row reads that. `refreshInterval` is 3s because no
   event fires when a hook writes that file. `test/statusline.sh` is the guard, tmux off PATH.
 - **`claude/` has three writers**: this repo, `herdr integration install claude`, and Claude's own `/theme`. Its TUI
-  theme is therefore **deliberately not switched by `theme`** - pick `light-ansi`/`dark-ansi`, which paint from the
-  terminal's own 16 colours. Claude Code does not load a user-level `settings.local.json`, so anything that must take
-  effect goes in `settings.json`.
+  theme is therefore **deliberately not switched by `theme`**. Prefer `light-ansi`/`dark-ansi`, which paint from the
+  terminal's own 16 colours and so follow this palette; the tracked value drifts to whatever `/theme` last wrote, which
+  is the open question in `TODO.md`. Claude Code does not load a user-level `settings.local.json`, so anything that must
+  take effect goes in `settings.json`.
 - **`clip/`** - every copy path (tmux `copy-command`, `tmux-yank.sh`, fzf's Ctrl-Y, nvim) goes through it, so the
   backend is chosen in one place.
 - **`dictate/`** - has its own nested `CLAUDE.md`; read it first. Backends are named for the hardware and picked by what

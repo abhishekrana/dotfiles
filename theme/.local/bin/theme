@@ -8,8 +8,8 @@
 #
 # Flavors: solarized-light (default) · solarized-dark · catppuccin-latte · catppuccin-mocha
 #
-# Adapters, one apply_* each: the sidebar, ghostty, the tmux frame, fzf, delta, the
-# env-driven tools (bat, leaf, folio) and the session popup. See design/theme-switcher.md.
+# One apply_* per tool; design/theme-switcher.md is the table of what each one
+# writes and what has to restart to see it.
 set -euo pipefail
 
 PALETTE="${THEME_PALETTE:-$HOME/dotfiles/design/palette.toml}"
