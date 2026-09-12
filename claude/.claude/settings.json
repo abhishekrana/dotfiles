@@ -219,7 +219,7 @@
   "env": {
     "CLAUDE_CODE_SUBAGENT_MODEL": "opus"
   },
-  "effortLevel": "xhigh",
+  "effortLevel": "high",
   "tui": "fullscreen",
   "theme": "light",
   "skipAutoPermissionPrompt": true
