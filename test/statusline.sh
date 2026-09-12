@@ -46,11 +46,13 @@ git -C "$MAIN" commit -qm init
 WT=$TMP/side
 git -C "$MAIN" worktree add -q -b side "$WT"
 
-# tmux off PATH: the row must not reach for one.
+# tmux off PATH: the row must not reach for one. The payload is built by jq, not
+# printf, so an absent field cannot leave the JSON malformed.
 row() {
     local dir=${1:-$MAIN} used=${2-12}
-    printf '{"model":{"display_name":"Opus"},"session_id":"%s","workspace":{"current_dir":"%s"}%s}' \
-        "$SID" "$dir" "${used:+,\"context_window\":{\"used_percentage\":$used}}" |
+    jq -nc --arg sid "$SID" --arg dir "$dir" --arg used "$used" \
+        '{model: {display_name: "Opus"}, session_id: $sid, workspace: {current_dir: $dir}}
+         + (if $used == "" then {} else {context_window: {used_percentage: ($used | tonumber)}} end)' |
         env XDG_STATE_HOME="$TMP/state" PATH=/usr/bin:/bin \
             bash "$REPO/claude/.claude/statusline-command.sh" | sed 's/\x1b\[[0-9;]*m//g'
 }
@@ -121,11 +123,13 @@ eq "a notebook is a write" "$WT" "$(recorded)"
 
 echo "subagent rows"
 
-eq "names the agent and its worktree" "refactorer ⎇ side  running  8%" \
-    "$(rows "{\"id\":\"t\",\"name\":\"refactorer\",\"status\":\"running\",\"cwd\":\"$WT\",\"tokenCount\":16000,\"contextWindowSize\":200000}")"
+task="{\"id\":\"t\",\"name\":\"refactorer\",\"status\":\"running\",\"cwd\":\"$WT\","
+task="$task\"tokenCount\":16000,\"contextWindowSize\":200000}"
+eq "names the agent and its worktree" "refactorer ⎇ side  running  8%" "$(rows "$task")"
 # An inline Agent call leaves .name empty and names itself in label.
-eq "falls back to the label" "Idle sleeper ⎇ main  running  1%" \
-    "$(rows "{\"id\":\"t\",\"label\":\"Idle sleeper\",\"type\":\"general-purpose\",\"status\":\"running\",\"cwd\":\"$MAIN\",\"tokenCount\":2000,\"contextWindowSize\":200000}")"
+task="{\"id\":\"t\",\"label\":\"Idle sleeper\",\"type\":\"general-purpose\",\"status\":\"running\","
+task="$task\"cwd\":\"$MAIN\",\"tokenCount\":2000,\"contextWindowSize\":200000}"
+eq "falls back to the label" "Idle sleeper ⎇ main  running  1%" "$(rows "$task")"
 eq "a task with no cwd keeps its name" "solo  running" \
     "$(rows '{"id":"t","name":"solo","status":"running"}')"
 eq "no context window, no percentage" "solo ⎇ main  done" \

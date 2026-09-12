@@ -40,6 +40,7 @@ git_place "$dir" || exit 0
 
 state=${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/claude-workdir
 mkdir -p "$state" 2>/dev/null || exit 0
+# shellcheck disable=SC2154  # set by git_place
 printf '%s' "$place_root" >"$state/$sid" 2>/dev/null
 
 find "$state" -maxdepth 1 -type f -mtime +7 -delete 2>/dev/null
