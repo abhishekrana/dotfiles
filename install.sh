@@ -293,6 +293,41 @@ install_go() {
     ok "Go $GO_VERSION installed"
 }
 
+# The herdr integration writes its SessionStart hook with this machine's
+# absolute home, and settings.json is stowed and tracked - so a second machine
+# adds a second entry and every machine then runs one path that does not exist.
+# Rewriting them $HOME-relative makes the tracked file the same on every
+# machine, and idempotent however many times install.sh runs.
+normalise_claude_hooks() {
+    local settings="${1:-$HOME/.claude/settings.json}"
+    [ -f "$settings" ] || return 0
+
+    # Writing through the symlink would replace it with a regular file.
+    local target tmp program
+    target=$(readlink -f "$settings")
+    tmp="$target.part"
+    program=$(
+        cat <<'JQ'
+def canonical:
+  gsub("'?/home/[^/'\"]+/\\.claude/hooks/herdr-agent-state\\.sh'?";
+       "\"$HOME/.claude/hooks/herdr-agent-state.sh\"");
+
+(.hooks // {}) |= with_entries(
+  .value |= (
+    map(.hooks = ((.hooks // []) | map(.command |= canonical)))
+    | reduce .[] as $m ([]; if any(.[]; . == $m) then . else . + [$m] end)
+  )
+)
+JQ
+    )
+    if jq "$program" "$target" >"$tmp"; then
+        mv "$tmp" "$target"
+    else
+        rm -f "$tmp"
+        warn "claude hooks: not normalised"
+    fi
+}
+
 install_herdr() {
     if command -v herdr >/dev/null 2>&1 && herdr --version 2>/dev/null | grep -q "$HERDR_VERSION"; then
         ok "herdr $HERDR_VERSION already installed"
@@ -318,6 +353,7 @@ install_herdr() {
     # Writes ~/.claude/hooks/herdr-agent-state.sh and the SessionStart entry in
     # the stowed settings.json, so the agent state the sidebar reads is wired up.
     herdr integration install claude >/dev/null 2>&1 || warn "herdr: claude integration not installed"
+    normalise_claude_hooks
     # The skill ships inside the binary, so generating it pins it to the version
     # above. Gitignored in the claude repo, like hunk-review: never vendored.
     mkdir -p "$HOME/.claude/skills/herdr"
