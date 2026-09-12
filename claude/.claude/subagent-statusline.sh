@@ -37,7 +37,9 @@ while IFS=$'\x1f' read -r id name status cwd tokens window; do
         '{id: $id, content: $content}'
 done < <(jq -r '.tasks[]? | [
     .id // "",
-    .name // "",
+    # Whichever of these the task carries: an inline Agent call names itself in
+    # label or description, leaving .name empty.
+    (first((.name, .label, .description, .type) | select(. != null and . != "")) // "agent"),
     .status // "",
     .cwd // "",
     .tokenCount // 0,

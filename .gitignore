@@ -3,6 +3,9 @@
 .DS_Store
 Thumbs.db
 .task/
+
+# Worktrees Claude Code creates for isolated sessions and subagents.
+.claude/worktrees/
 bash/.bashrc.d/local.bash
 hunk/.config/hunk/state.json
 bat/.config/bat/themes/
