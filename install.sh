@@ -49,6 +49,7 @@ GIT_CLIFF_VERSION="2.13.1"
 GITLEAKS_VERSION="8.30.1"
 GLAB_VERSION="1.115.0"
 GO_VERSION="1.26.6"
+HERDR_DICTATE_VERSION="0.1.1"
 HERDR_VERSION="0.9.0"
 HUNK_VERSION="0.19.0"
 LAZYDOCKER_VERSION="0.25.2"
@@ -325,8 +326,9 @@ install_herdr_dictate() {
         ok "herdr-dictate already installed"
         return 0
     fi
-    log "Installing herdr-dictate (compiles when no release matches)..."
-    herdr plugin install abhishekrana/herdr-dictate --yes >/dev/null 2>&1 ||
+    log "Installing herdr-dictate $HERDR_DICTATE_VERSION (compiles when no release matches)..."
+    herdr plugin install abhishekrana/herdr-dictate --ref "v${HERDR_DICTATE_VERSION}" --yes \
+        >/dev/null 2>&1 ||
         warn "herdr-dictate: install failed - run 'herdr plugin install abhishekrana/herdr-dictate'"
 }
 
