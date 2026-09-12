@@ -12,6 +12,7 @@ Development environment for Ubuntu 24.04 - shell, tmux, Neovim, terminal, and CL
 - [Platform support](#platform-support)
 - [Setup on a new machine](#setup-on-a-new-machine)
 - [Usage](#usage)
+- [Development](#development)
 - [Managing configs](#managing-configs)
 - [Notes](#notes)
 - [License](#license)
@@ -68,9 +69,12 @@ pinned versions:
 - [Ghostty](https://ghostty.org/) - terminal emulator
 - [git-cliff](https://git-cliff.org/) - changelog and release notes from conventional commits
 - [gitleaks](https://github.com/gitleaks/gitleaks) - secret scanning over the tree and history
+- [glab](https://gitlab.com/gitlab-org/cli) - GitLab CLI; workdesk and the status bar's MR segment authenticate through
+  it
 - [GNU Stow](https://www.gnu.org/software/stow/) - symlink manager
 - [Go](https://go.dev/) - toolchain for building `apps/` (agentbar)
-- [Rust](https://www.rust-lang.org/) - toolchain for building `apps/` (folio), via a pinned rustup
+- [herdr](https://github.com/herdrdev/herdr) - terminal multiplexer for coding agents; installs its own Claude
+  integration and the dictate plugin
 - [hunk](https://github.com/modem-dev/hunk) - interactive diff viewer (via `gd`/`gds` aliases)
 - [JetBrainsMono Nerd Font](https://www.nerdfonts.com/) - terminal/editor font
 - [jq](https://github.com/jqlang/jq) - JSON processor
@@ -78,13 +82,16 @@ pinned versions:
 - [lazygit](https://github.com/jesseduffield/lazygit) - terminal git UI
 - [leaf](https://github.com/rivolink/leaf) - terminal markdown previewer
 - [Neovim](https://neovim.io/) - editor
+- [Node.js](https://nodejs.org/) - npm and npx: installs hunk, runs the pinned prettier
 - [ripgrep](https://github.com/BurntSushi/ripgrep) - fast recursive search
 - [ruff](https://docs.astral.sh/ruff/) - Python linter (gates the `dictate` script)
+- [Rust](https://www.rust-lang.org/) - toolchain for building `apps/` (folio), via a pinned rustup
 - [shellcheck](https://www.shellcheck.net/) - shell linter (gates every script here)
-- [shfmt](https://github.com/mvdan/sh) - finds shell files by shebang for the lint gate
+- [shfmt](https://github.com/mvdan/sh) - shell formatter, and what finds every shell file by shebang for the gates
 - [Task](https://taskfile.dev/) - task runner for this repo's `Taskfile.yml`
 - [tmux](https://github.com/tmux/tmux) - terminal multiplexer (pinned, built from source: 24.04 ships 3.4)
 - [tree](https://gitlab.com/OldManProgrammer/unix-tree) - directory listing utility
+- [uv](https://docs.astral.sh/uv/) - runs the PEP 723 `dictate` script
 - [yazi](https://github.com/sxyazi/yazi) - terminal file manager
 - [zoxide](https://github.com/ajeetdsouza/zoxide) - smarter cd
 
@@ -150,7 +157,7 @@ stack with the ⛭ chip at the far right of the status bar, or `theme <flavor>` 
 ## Development
 
 `task` lists everything this repo can do. `task check` is the gate CI runs on every push - shellcheck, ruff, prettier,
-gitleaks and the agentbar test suite - and `task check-ci` reruns that suite in a container mirroring the runner (older
+gitleaks and the app test suites - and `task check-ci` reruns that suite in a container mirroring the runner (older
 tmux, no `LANG`, `CI` set). Commits follow [Conventional Commits](https://www.conventionalcommits.org/), and releases
 are cut by pushing an annotated `v*` tag: `.github/workflows/release.yml` re-runs the gate, runs the container
 fresh-install test, and publishes a GitHub Release with notes generated from the commit history. See

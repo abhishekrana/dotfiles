@@ -116,6 +116,7 @@ whether from the key or the `dictate+send` chip.
 | `DICTATE_TMUX_CMD`    | `claude`       | pane command treated as the target app                      |
 | `DICTATE_TMUX_TARGET` | _(unset)_      | force a pane (pane id or `session:win.pane`)                |
 | `DICTATE_REMOTE`      | _(unset)_      | force a host, skipping the focus probe (ssh destination)    |
+| `DICTATE_PROBE_WAIT`  | `2.5`          | seconds the no-focus fallback waits on the remote probes    |
 | `DICTATE_TEST_SECS`   | `5`            | seconds recorded by `--test`                                |
 
 Put per-machine overrides in `~/.bashrc.d/local.bash` (untracked), e.g. `export DICTATE_SOURCE=...`.

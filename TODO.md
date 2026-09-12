@@ -17,8 +17,9 @@ What we know:
 
 - `settings.json` beats `~/.claude.json`; the value pinned there is what Claude uses.
 - Valid values are `light` · `dark` · `light-ansi` · `dark-ansi` · `light-daltonized` · `dark-daltonized`. The `-ansi`
-  pair paints from the terminal's 16 ANSI colours, so it already follows this palette - which is why `light-ansi` is
-  pinned and why the fade is gone.
+  pair paints from the terminal's 16 ANSI colours, so it follows this palette; plain `light`/`dark` are Claude's own
+  hexes no palette can reach, which is what leaves every accent faded on Solarized cream. The tracked value is `light`
+  today - the two-writer problem below, arriving in practice.
 - Because `-ansi` inherits the terminal palette, a same-mode flavor switch (solarized-light → catppuccin-latte) needs no
   Claude change at all. Only a light↔dark switch actually does.
 - Claude Code reads the theme at startup, so any mechanism needs `/theme` or a restart to show up in running sessions.

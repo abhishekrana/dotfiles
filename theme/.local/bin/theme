@@ -7,8 +7,9 @@
 #   theme <flavor>        switch everything to <flavor>
 #
 # Flavors: solarized-light (default) · solarized-dark · catppuccin-latte · catppuccin-mocha
-# v1 drives the sidebar (@agentbar-theme) and ghostty (built-in themes); the tmux
-# frame, fzf and the port-dependent tools land in later increments.
+#
+# Adapters, one apply_* each: the sidebar, ghostty, the tmux frame, fzf, delta, the
+# env-driven tools (bat, leaf, folio) and the session popup. See design/theme-switcher.md.
 set -euo pipefail
 
 PALETTE="${THEME_PALETTE:-$HOME/dotfiles/design/palette.toml}"

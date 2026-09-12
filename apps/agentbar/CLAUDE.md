@@ -39,7 +39,7 @@ title mode's branch fallback shows), and all three bands (pinned/active/dormant)
 
 ## Layout
 
-- `cmd/agentbar` - subcommands: `run`, `mockup`, `status`, `order`, `next`/`prev`, `pin`, `hook`, `doctor`
+- `cmd/agentbar` - subcommands: `run`, `mockup`, `status`, `order`, `next`/`prev`, `band`, `hook`, `doctor`
 - `internal/hook` - event JSON → `@agent_*` pane options; `Decide()` is pure; `ResolvePane()` finds the pane by the
   event `cwd` when `$TMUX_PANE` is absent; `workdir.go` stamps `@agent_workdir` (the worktree the agent is _writing_ in,
   which its pane's cwd never follows) at pane and window scope, from the `file_path` of an Edit/Write tool event - a

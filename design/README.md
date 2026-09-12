@@ -140,13 +140,13 @@ Motion means _liveness_, never decoration.
 The heart of the system. Every agent is in exactly one of five states, and each state is expressed the same way in the
 sidebar, the session picker, and the tmux frame.
 
-| State       | Glyph | Color     | Means                                         | Behavior                                       |
-| ----------- | ----- | --------- | --------------------------------------------- | ---------------------------------------------- |
-| **Working** | `⠋`   | `working` | Actively processing - the common case.        | Calm and cool. Animates. Never shouts.         |
-| **Asking**  | `?`   | `asking`  | A soft question is waiting on you.            | Warm amber. Counts as _needs you_.             |
-| **Blocked** | `◔`   | `blocked` | A hard stop - waiting on permission/approval. | Red, the loudest state. Counts as _needs you_. |
-| **Done**    | `✓`   | `done`    | Finished, ready to review.                    | Green. Mutes to grey once you've seen it.      |
-| **Idle**    | `·`   | `muted`   | A live agent at rest.                         | Quiet grey. Present, not competing.            |
+| State       | Glyph | Color     | Means                                                                             | Behavior                                       |
+| ----------- | ----- | --------- | --------------------------------------------------------------------------------- | ---------------------------------------------- |
+| **Working** | `⠋`   | `working` | Actively processing - the common case.                                            | Calm and cool. Animates. Never shouts.         |
+| **Asking**  | `?`   | `asking`  | A soft question is waiting on you.                                                | Warm amber. Counts as _needs you_.             |
+| **Blocked** | `◔`   | `blocked` | A hard stop - waiting on permission/approval; the sidebar labels it `permission`. | Red, the loudest state. Counts as _needs you_. |
+| **Done**    | `✓`   | `done`    | Finished, ready to review.                                                        | Green. Mutes to grey once you've seen it.      |
+| **Idle**    | `·`   | `muted`   | A live agent at rest.                                                             | Quiet grey. Present, not competing.            |
 
 **Needs you = asking + blocked.** These two states, and only these two, drive every "needs attention" affordance: the
 sidebar's footer tally, and a tmux window that glows to flag the agent inside it. Working and done never demand you.
@@ -205,19 +205,22 @@ Solarized ships a light and a dark flavor that share the same eight accent hues 
 `accent` and the four state colors are identical across the two, and the mood change lives entirely in `bg` / `surface`
 / text.
 
-| Token      | Solarized Light · _default_ | Solarized Dark · _dark_ | Catppuccin Latte · _light_ | Catppuccin Mocha · _dark_ |
-| ---------- | --------------------------- | ----------------------- | -------------------------- | ------------------------- |
-| `bg`       | `#fdf6e3`                   | `#002b36`               | `#eff1f5`                  | `#1e1e2e`                 |
-| `surface`  | `#eee8d5`                   | `#073642`               | `#e6e9ef`                  | `#181825`                 |
-| `border`   | `#cabf9e`                   | `#0c3a46`               | `#bcc0cc`                  | `#45475a`                 |
-| `fg`       | `#657b83`                   | `#839496`               | `#4c4f69`                  | `#cdd6f4`                 |
-| `emphasis` | `#586e75`                   | `#93a1a1`               | `#2e3047`                  | `#eef1fb`                 |
-| `muted`    | `#93a1a1`                   | `#586e75`               | `#8c8fa1`                  | `#6c7086`                 |
-| `accent`   | `#268bd2`                   | `#268bd2`               | `#1e66f5`                  | `#89b4fa`                 |
-| `working`  | `#2aa198`                   | `#2aa198`               | `#179299`                  | `#94e2d5`                 |
-| `asking`   | `#b58900`                   | `#b58900`               | `#df8e1d`                  | `#fab387`                 |
-| `blocked`  | `#dc322f`                   | `#dc322f`               | `#d20f39`                  | `#f38ba8`                 |
-| `done`     | `#859900`                   | `#859900`               | `#40a02b`                  | `#a6e3a1`                 |
+| Token       | Solarized Light · _default_ | Solarized Dark · _dark_ | Catppuccin Latte · _light_ | Catppuccin Mocha · _dark_ |
+| ----------- | --------------------------- | ----------------------- | -------------------------- | ------------------------- |
+| `bg`        | `#fdf6e3`                   | `#002b36`               | `#eff1f5`                  | `#1e1e2e`                 |
+| `surface`   | `#eee8d5`                   | `#073642`               | `#e6e9ef`                  | `#181825`                 |
+| `selection` | `#eee8d5`                   | `#073642`               | `#ccd0da`                  | `#313244`                 |
+| `border`    | `#cabf9e`                   | `#0c3a46`               | `#bcc0cc`                  | `#45475a`                 |
+| `fg`        | `#657b83`                   | `#839496`               | `#4c4f69`                  | `#cdd6f4`                 |
+| `emphasis`  | `#586e75`                   | `#93a1a1`               | `#2e3047`                  | `#eef1fb`                 |
+| `muted`     | `#93a1a1`                   | `#586e75`               | `#8c8fa1`                  | `#6c7086`                 |
+| `accent`    | `#268bd2`                   | `#268bd2`               | `#1e66f5`                  | `#89b4fa`                 |
+| `changes`   | `#6c71c4`                   | `#6c71c4`               | `#8839ef`                  | `#cba6f7`                 |
+| `float`     | `#d33682`                   | `#d33682`               | `#ea76cb`                  | `#f5c2e7`                 |
+| `working`   | `#2aa198`                   | `#2aa198`               | `#179299`                  | `#94e2d5`                 |
+| `asking`    | `#b58900`                   | `#b58900`               | `#df8e1d`                  | `#fab387`                 |
+| `blocked`   | `#dc322f`                   | `#dc322f`               | `#d20f39`                  | `#f38ba8`                 |
+| `done`      | `#859900`                   | `#859900`               | `#40a02b`                  | `#a6e3a1`                 |
 
 ### Diff tints
 

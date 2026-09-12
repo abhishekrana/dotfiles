@@ -202,7 +202,7 @@ It renders like `⚠2 ●3` (attention / working) and disappears entirely when n
 ```tmux
 set -g @agentbar-key 'e'                # toggle key (after prefix)
 set -g @agentbar-width '30'             # sidebar width in columns
-set -g @agentbar-theme 'solarized-light' # or 'dark'
+set -g @agentbar-theme 'solarized-light' # or solarized-dark, catppuccin-latte, catppuccin-mocha
 set -g @agentbar-focus 'off'            # 'on' focuses sidebar on open
 set -g @agentbar-autostart 'on'         # 'off' starts with the sidebar closed
 set -g @agentbar-active-for '1h'        # how long a quiet session stays in the active band
@@ -281,7 +281,7 @@ Notes for hacking:
 - The sidebar TUI (Go, Bubble Tea) snapshots `list-panes -a` once a second and renders sessions in three bands - pinned,
   active, dormant - alphabetical within each. Jumping runs `switch-client` + `select-window` + `select-pane`, publishes
   the selection, and signals a `wait-for` channel every sidebar blocks on.
-- `agentbar order` / `next` / `prev` / `pin` expose that same grouping (`model.Arrange`) to the keys and the picker
+- `agentbar order` / `next` / `prev` / `band` expose that same grouping (`model.Arrange`) to the keys and the picker
   popup, so nothing outside the TUI has to reimplement the bands. They skip the per-pane git lookups the sidebar does
   for branch names - order needs none, and they run on a keypress.
 - A `session-window-changed` hook moves the sidebar pane into whichever window becomes active (`join-pane -d`), with a

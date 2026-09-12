@@ -10,22 +10,22 @@ Personal dotfiles managed with GNU Stow on Ubuntu 24.04.
 defaults. Per-package pitfalls load from `.claude/rules/` when you touch those files; read the nested `CLAUDE.md` in
 `dictate/` before changing it.
 
-| Package    | Links to                                         |
-| ---------- | ------------------------------------------------ |
-| `bash/`    | `~/.bashrc.d/`                                   |
-| `bat/`     | `~/.config/bat/`                                 |
-| `claude/`  | `~/.claude/` settings, status line and its hook  |
-| `clip/`    | `~/.local/bin/clip` - the one clipboard path     |
-| `dictate/` | `~/.local/bin/dictate` - local Whisper dictation |
-| `ghostty/` | `~/.config/ghostty/`                             |
-| `git/`     | `~/.config/git/config`                           |
-| `hunk/`    | `~/.config/hunk/` - diff viewer                  |
-| `leaf/`    | `~/.config/leaf/` - markdown previewer           |
-| `nvim/`    | `~/.config/nvim/` - LazyVim                      |
-| `theme/`   | `~/.local/bin/theme` - re-skins the whole stack  |
-| `tmux/`    | `~/.tmux.conf` and `~/.local/bin/` scripts       |
-| `trace/`   | `~/.local/bin/dotfiles-trace`                    |
-| `yazi/`    | `~/.config/yazi/`                                |
+| Package    | Links to                                               |
+| ---------- | ------------------------------------------------------ |
+| `bash/`    | `~/.bashrc.d/`                                         |
+| `bat/`     | `~/.config/bat/`                                       |
+| `claude/`  | `~/.claude/` settings, the status lines and their hook |
+| `clip/`    | `~/.local/bin/clip` - the one clipboard path           |
+| `dictate/` | `~/.local/bin/dictate` - local Whisper dictation       |
+| `ghostty/` | `~/.config/ghostty/`                                   |
+| `git/`     | `~/.config/git/config`                                 |
+| `hunk/`    | `~/.config/hunk/` - diff viewer                        |
+| `leaf/`    | `~/.config/leaf/` - markdown previewer                 |
+| `nvim/`    | `~/.config/nvim/` - LazyVim                            |
+| `theme/`   | `~/.local/bin/theme` - re-skins the whole stack        |
+| `tmux/`    | `~/.tmux.conf` and `~/.local/bin/` scripts             |
+| `trace/`   | `~/.local/bin/dotfiles-trace`                          |
+| `yazi/`    | `~/.config/yazi/`                                      |
 
 The terminal stack is one design: every flavor comes from `design/palette.toml` via the `theme` switcher, so no tool
 here carries its own colours.
@@ -41,8 +41,8 @@ a pinned `install_*` step. Add one by dropping a project with a `Makefile` under
   `tmux/.tmux.conf` and invoked by the Claude lifecycle hooks in `claude/.claude/settings.json` at
   `$HOME/dotfiles/apps/agentbar/bin/agentbar`. `bin/workdesk` is the GitLab work inbox (`cmd/workdesk/CLAUDE.md`),
   toggled by `Alt+n` and the `≡ workdesk` chip - both through `tmux-workdesk.sh` so the two cannot drift, by absolute
-  path since `apps/` binaries are not stow packages. Separate commands, not subcommands: agentbar runs on every
-  lifecycle event and must not carry a forge client, so a GitLab failure can never be a sidebar failure.
+  path so the binding never depends on tmux's PATH. Separate commands, not subcommands: agentbar runs on every lifecycle
+  event and must not carry a forge client, so a GitLab failure can never be a sidebar failure.
 - `apps/folio/` → **a markdown reader that reads like a page**, in Rust (ratatui, comrak). One binary, `bin/folio`,
   linked into `~/.local/bin` by `bootstrap.sh`. The look is a TOML style file (`styles/github.toml` first) naming
   palette roles, so every flavor in `design/palette.toml` works and the `theme` switcher drives it via `FOLIO_THEME`.
@@ -70,8 +70,8 @@ place run after `stow_packages`.
 - **herdr is a second writer to the stowed `claude/.claude/settings.json`**: `install_herdr` runs
   `herdr integration install claude`, which adds a `SessionStart` entry there and writes a hook and a generated skill
   under `~/.claude/`. Both are herdr-managed and deliberately untracked, so an integration update shows up as a diff in
-  that tracked file. `install_herdr_dictate` returns early when a plugin is already installed, so a linked working tree
-  is never replaced by the published release.
+  that tracked file. `install_herdr_dictate` follows the pinned ref, upgrading a plugin installed from a different one,
+  but leaves a plugin linked from a working tree alone - a checkout is never replaced by the release.
 
 ## Release furniture
 
@@ -199,7 +199,7 @@ one line and quits dies on CI and passes here. Match a first row with a flag, ne
   column, which mangles the file.
 - Lint gates on bugs, not style: `shellcheck -S warning` for shell, `ruff --select E9,F` for the Python in `dictate`.
   Deliberate idioms that a linter misreads carry a directive rather than being rewritten.
-- **120 columns**, enforced per language: `task width` (shell, Go), `ruff` E501 (Python), prettier `printWidth`
+- **120 columns**, enforced per language: `task width` (shell, Go, Rust), `ruff` E501 (Python), prettier `printWidth`
   (markdown, yaml, json). Markdown table rows and long inline-code spans can exceed it - prettier will not break an
   unbreakable token.
 - Always use a plain hyphen (`-`), never em or en dashes

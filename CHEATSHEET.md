@@ -26,6 +26,7 @@ Commands and keys to internalize for this setup. Sorted by frequency of use.
 | `gwts`              | fzf-switch worktree (cd into pick)                                     |
 | `gwtm`              | worktree's branch onto latest origin/main (ff · merge, never a rebase) |
 | `gwtls`             | list worktrees                                                         |
+| `gwtmv`             | move a worktree                                                        |
 | `gwtrm`             | remove a worktree (not rm -rf)                                         |
 | `gwt`               | git worktree (raw passthrough)                                         |
 | `lazygit`           | terminal git UI                                                        |
@@ -80,18 +81,21 @@ one closes it again, as do `q` and the `✕` in its corner.
 
 Inside the popup:
 
-| Key             | Action                                                                                        |
-| --------------- | --------------------------------------------------------------------------------------------- |
-| `1`-`4`, `tab`  | inbox · issues · merge requests · agents                                                      |
-| `↵`             | full detail; on an agent row, jump to that pane                                               |
-| `/`             | filter                                                                                        |
-| `o` / `y`       | open in the browser / copy the URL                                                            |
-| `c` / `d`       | add a worktree for the branch / open a diff pane                                              |
-| `m`             | the gate matrix                                                                               |
-| `a` / `e` / `M` | assign a reviewer / set auto-merge / merge (each confirms)                                    |
-| `P` / `r` / `q` | promote to a pane / re-sync / close                                                           |
-| `?`             | every binding, mouse included                                                                 |
-| mouse           | click a row to select, again to open; click tabs; `✕` closes; wheel scrolls the pane under it |
+| Key              | Action                                                                                                                              |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `1`-`4`, `tab`   | inbox · issues · merge requests · agents                                                                                            |
+| `j`/`k`, `g`/`G` | move a row / first / last                                                                                                           |
+| `^u` / `^d`      | scroll the preview up / down                                                                                                        |
+| `/` / `w`        | filter / how far back the inbox reaches                                                                                             |
+| `↵`              | on an agent row, jump to its pane                                                                                                   |
+| `o` / `y`        | open in the browser / copy the URL                                                                                                  |
+| `D` / `m`        | read the merge request's diff / the gate matrix                                                                                     |
+| `c` / `d`        | add a worktree for the branch / open a diff pane                                                                                    |
+| `a` / `e` / `M`  | assign a reviewer / set auto-merge / merge (each confirms)                                                                          |
+| `s` / `i`        | move an issue to a status / in or out of the sprint (each confirms)                                                                 |
+| `P` / `r` / `q`  | promote to a pane / re-sync / close                                                                                                 |
+| `?`              | every binding, mouse included                                                                                                       |
+| mouse            | click a row to select (an agent row again jumps to its pane); click a link, a tab, `◧ diff` or `✕`; wheel scrolls the pane under it |
 
 ---
 

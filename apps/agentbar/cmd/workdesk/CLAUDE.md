@@ -10,13 +10,13 @@ but is a separate product: separate command, separate UI, nothing of the sidebar
 It mirrors the GitLab work you own into `~/.local/state/dotfiles/workdesk/`. `sync` fetches, `open` is the Bubble Tea UI
 (inbox · issues · merge requests · agents, `1`-`4` and tab, `?` for help), `board` is the whole queue, `mr <iid>` one
 merge request end to end, `matrix` one row per MR and one column per gate, `ready` the actionable rows for an agent.
-`bootstrap.sh` links it into `~/.local/bin` - the one app binary that does, because it is a CLI you type.
+`bootstrap.sh` links it into `~/.local/bin`, as it does folio: both are CLIs you type, and agentbar is not.
 
 Separate commands, not subcommands: the sidebar runs on every Claude lifecycle event and must not carry a forge client,
 so a GitLab failure can never be a sidebar failure.
 
 **`Alt+n` and the `≡ workdesk` chip** toggle the float, both through the dotfiles' `tmux-workdesk.sh` so the two cannot
-drift, by absolute path since `apps/` binaries get no `~/.local/bin` symlink. Bare `workdesk` opens it too.
+drift, by absolute path so the binding never depends on tmux's PATH. Bare `workdesk` opens it too.
 
 ### The UI
 

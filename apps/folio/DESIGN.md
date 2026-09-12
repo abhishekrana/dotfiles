@@ -3,8 +3,8 @@
 _A markdown reader for the terminal that reads like a page in a browser, not like a terminal tool._
 
 This is the spec for the first version. It says what folio is, how it is built, and what a style file looks like.
-Everything in it was decided against the mockups in `terminal-page-looks.html` (the GitHub look was chosen) and the
-design language in `../../design/README.md`.
+Everything in it was decided against four look mockups - the GitHub one was chosen - and the design language in
+`../../design/README.md`.
 
 ## What it is
 
@@ -222,10 +222,11 @@ Exit codes: 0, 1 on a bad argument or unreadable file, 2 on a style file that fa
 
 ## In this repo
 
-- `apps/folio/` with a `Makefile` (`gen`, `build`, `test`, `lint`, `clean`) so `bootstrap.sh`'s `build_apps` picks it up
+- `apps/folio/` with a `Makefile` (`build`, `test`, `lint`, `clean`) so `bootstrap.sh`'s `build_apps` picks it up
   unchanged. `link_app_clis` links `bin/folio` into `~/.local/bin` alongside workdesk: it is a CLI you type.
-- **Toolchain.** `install.sh` gains `install_rust`: rustup into `~/.local`, the toolchain pinned by
-  `rust-toolchain.toml` in the crate. The pin is the version; `install.sh` holds no second copy.
+- **Toolchain.** `install.sh` gains `install_rust`: rustup into `~/.local`. The version is pinned twice by necessity -
+  `RUST_VERSION` in `install.sh` is what a machine installs, `rust-toolchain.toml` is what cargo runs - and `task conf`
+  fails when they disagree.
 - **Gate.** `task check` runs `folio:lint` (`cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`) and
   `folio:test`. `task width` adds `*.rs` to its 120-column sweep; rustfmt's `max_width` is set to 120 to match.
 - **Theme switcher** gains a `folio` row: named, `export FOLIO_THEME` in `env.sh`, next launch. `theme-switcher.md` gets

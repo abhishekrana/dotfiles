@@ -10,7 +10,7 @@ paths:
 # Reading the trace log
 
 Always on, action _edges_ only, across the whole interactive stack.
-`dotfiles-trace show --since 5m --src <tmux|agentbar|clip|hook|sidebar|picker|dictate|resurrect|yank> --grep <pat>`;
+`dotfiles-trace show --since 5m --src <tmux|agentbar|workdesk|clip|hook|sidebar|picker|dictate|folio|resurrect|yank> --grep <pat>`;
 `tail -f` follows. logfmt, `ts=<iso ms> src= evt= pid= k=v`; the status clock is `%H:%M:%S`, so a screenshot anchors to
 a log window.
 
