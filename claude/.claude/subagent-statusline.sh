@@ -23,7 +23,7 @@ while IFS=$'\x1f' read -r id name status cwd tokens window; do
 
     branch=
     if git_place "$cwd" && [ -n "$place_branch" ]; then
-        branch=" ${dim}⎇ ${place_branch}${reset}"
+        branch=" ⎇ ${place_branch}"
     fi
 
     pct=

@@ -22,7 +22,6 @@ IFS=$'\x1f' read -r model used dir <<<"$(jq -r '[
     (.workspace.current_dir // .cwd // "")
 ] | map(tostring) | join("\u001f")' <<<"$input")"
 
-dim=$'\033[2m'
 warn=$'\033[33m'
 reset=$'\033[0m'
 
@@ -39,7 +38,7 @@ place() {
         printf '%s' "$name"
         return
     }
-    printf '%s %s⎇ %s%s' "$name" "$dim" "$place_branch" "$reset"
+    printf '%s ⎇ %s' "$name" "$place_branch"
 }
 
 parts=()
