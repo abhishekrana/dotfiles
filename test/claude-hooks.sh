@@ -44,13 +44,58 @@ fixture() {
 {
   "hooks": {
     "SessionStart": [
-      { "matcher": "*", "hooks": [ { "type": "command", "command": "agentbar hook", "timeout": 10 } ] },
-      { "matcher": "*", "hooks": [ { "type": "command", "command": "bash \"$HOME/.claude/hooks/herdr-agent-state.sh\" session", "timeout": 10 } ] },
-      { "matcher": "*", "hooks": [ { "type": "command", "command": "bash '/home/one/.claude/hooks/herdr-agent-state.sh' session", "timeout": 10 } ] },
-      { "matcher": "*", "hooks": [ { "type": "command", "command": "bash '/home/two/.claude/hooks/herdr-agent-state.sh' session", "timeout": 10 } ] }
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "agentbar hook",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/herdr-agent-state.sh\" session",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash '/home/one/.claude/hooks/herdr-agent-state.sh' session",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash '/home/two/.claude/hooks/herdr-agent-state.sh' session",
+            "timeout": 10
+          }
+        ]
+      }
     ],
     "Stop": [
-      { "matcher": "*", "hooks": [ { "type": "command", "command": "agentbar hook", "timeout": 10 } ] }
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "agentbar hook",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }
