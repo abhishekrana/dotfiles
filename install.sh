@@ -49,6 +49,7 @@ GIT_CLIFF_VERSION="2.13.1"
 GITLEAKS_VERSION="8.30.1"
 GLAB_VERSION="1.115.0"
 GO_VERSION="1.26.6"
+HERDR_VERSION="0.9.0"
 HUNK_VERSION="0.19.0"
 LAZYDOCKER_VERSION="0.25.2"
 LAZYGIT_VERSION="0.64.1"
@@ -289,6 +290,44 @@ install_go() {
     ln -sf "$HOME/.local/go/bin/gofmt" "$LOCAL_BIN/gofmt"
     rm -rf "$tmp"
     ok "Go $GO_VERSION installed"
+}
+
+install_herdr() {
+    if command -v herdr >/dev/null 2>&1 && herdr --version 2>/dev/null | grep -q "$HERDR_VERSION"; then
+        ok "herdr $HERDR_VERSION already installed"
+    else
+        log "Installing herdr $HERDR_VERSION..."
+        local arch
+        case "$(uname -m)" in
+            x86_64) arch=x86_64 ;;
+            aarch64 | arm64) arch=aarch64 ;;
+            *)
+                warn "herdr: no binary for $(uname -m)"
+                return 0
+                ;;
+        esac
+        mkdir -p "$HOME/.local/bin"
+        local url
+        url=$(gh_url herdrdev/herdr "v${HERDR_VERSION}" "herdr-linux-${arch}")
+        curl -sSL "$url" -o "$HOME/.local/bin/herdr.part"
+        chmod +x "$HOME/.local/bin/herdr.part"
+        mv "$HOME/.local/bin/herdr.part" "$HOME/.local/bin/herdr"
+        ok "herdr $HERDR_VERSION installed"
+    fi
+    # Writes ~/.claude/hooks/herdr-agent-state.sh and the SessionStart entry in
+    # the stowed settings.json, so the agent state the sidebar reads is wired up.
+    herdr integration install claude >/dev/null 2>&1 || warn "herdr: claude integration not installed"
+}
+
+install_herdr_dictate() {
+    command -v herdr >/dev/null 2>&1 || return 0
+    if herdr plugin list 2>/dev/null | grep -q abhishekrana.dictate; then
+        ok "herdr-dictate already installed"
+        return 0
+    fi
+    log "Installing herdr-dictate (compiles when no release matches)..."
+    herdr plugin install abhishekrana/herdr-dictate --yes >/dev/null 2>&1 ||
+        warn "herdr-dictate: install failed - run 'herdr plugin install abhishekrana/herdr-dictate'"
 }
 
 install_hunk() {
@@ -679,6 +718,9 @@ all_tools() {
     install_gitleaks
     install_glab
     install_go
+    install_herdr
+    # Needs herdr; compiles whisper.cpp when no release binary matches.
+    install_herdr_dictate
     install_hunk
     install_lazydocker
     install_lazygit

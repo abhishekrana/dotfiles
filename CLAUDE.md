@@ -413,8 +413,16 @@ so CI installs with the same code a machine does:
 ./install.sh gate-tools      # just what `task check` needs (CI calls this)
 ./install.sh install_tmux    # one step by name
 ./install.sh dictate-deps    # uv + pulseaudio-utils (also part of `all`)
+./install.sh install_herdr   # the terminal workspace manager, pinned, plus its Claude integration
 ./install.sh whisper-vulkan  # whisper.cpp built against Vulkan for dictate's GPU backend (also part of `all`)
 ```
+
+**herdr brings two things beyond its binary.** `install_herdr` also runs `herdr integration install claude`, which
+writes `~/.claude/hooks/herdr-agent-state.sh` **and a `SessionStart` entry into the stowed
+`claude/.claude/settings.json`** - so herdr is a second writer to that tracked file, and an integration update shows up
+as a diff there. The hook script itself is herdr-managed and deliberately not tracked. `install_herdr_dictate` then
+installs the dictation plugin, and returns early when one is already installed, so a linked working tree is never
+replaced by the published release.
 
 `bootstrap.sh` sources it and adds the machine wiring: stow, the `.bashrc` patch, the vaults, the resurrect timer and
 `apps/` builds. It takes no arguments - run a single step through `install.sh`. Steps that need the stowed configs in
