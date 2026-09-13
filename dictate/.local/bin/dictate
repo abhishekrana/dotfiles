@@ -868,16 +868,11 @@ def toggle(autosend=False):
 
 
 # ---- GNOME custom shortcut (user-level, no sudo) -------------------------
-# The Copilot key emits LeftMeta+LeftShift+F23 as one press, and F23's keycode
-# resolves to the XF86TouchpadOff keysym - binding "F23" never fires. GNOME's
-# bare-XF86TouchpadOff grab (disable touchpad) cannot match the held modifiers.
-#
-# Pause is the second key on the same action, and is bare on purpose: GNOME
-# claims no shortcut on that keysym, unlike the media pair (play-static holds
-# XF86AudioPlay, pause-static XF86AudioPause), whose static grabs a custom
-# binding cannot outrank. A key that types "Pause" but does nothing here is the
-# media keysym, not this one - `dictate --check` prints what is actually bound.
-DEFAULT_BINDINGS = ["<Shift><Super>XF86TouchpadOff", "Pause"]
+# Alt_R is bare: GNOME claims no shortcut on that keysym. Other keys pass as
+# arguments - README.md carries the spellings that are not the obvious ones.
+# install_shortcut() clears every dictate*-prefixed dconf path it is not
+# installing, so a shortcut belonging to another tool must not use that prefix.
+DEFAULT_BINDINGS = ["Alt_R"]
 
 
 def install_shortcut(bindings):
