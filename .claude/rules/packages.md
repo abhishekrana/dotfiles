@@ -15,7 +15,9 @@ paths:
   **Nothing in the row depends on tmux** - the payload never says which file was written, so `statusline-workdir.sh`
   (this package's `PostToolUse` hook) records the edited file's repo root in
   `$XDG_STATE_HOME/dotfiles/claude-workdir/<session id>` and the row reads that. `refreshInterval` is 3s because no
-  event fires when a hook writes that file. `test/statusline.sh` is the guard, tmux off PATH.
+  event fires when a hook writes that file. `test/statusline.sh` is the guard, tmux off PATH. The second row's rate
+  limits ride the same stdin payload, so they cost no process and no network; each window is absent before the session's
+  first API response and after its own reset, and an absent window shows nothing.
 - **`claude/` has three writers**: this repo, `herdr integration install claude`, and Claude's own `/theme`. Its TUI
   theme is therefore **deliberately not switched by `theme`**. Prefer `light-ansi`/`dark-ansi`, which paint from the
   terminal's own 16 colours and so follow this palette; the tracked value drifts to whatever `/theme` last wrote, which

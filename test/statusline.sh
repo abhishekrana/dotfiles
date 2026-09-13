@@ -49,12 +49,26 @@ git -C "$MAIN" worktree add -q -b side "$WT"
 # tmux off PATH: the row must not reach for one. The payload is built by jq, not
 # printf, so an absent field cannot leave the JSON malformed.
 row() {
-    local dir=${1:-$MAIN} used=${2-12}
-    jq -nc --arg sid "$SID" --arg dir "$dir" --arg used "$used" \
+    local dir=${1:-$MAIN} used=${2-12} limits=${3-}
+    jq -nc --arg sid "$SID" --arg dir "$dir" --arg used "$used" --argjson lim "${limits:-null}" \
         '{model: {display_name: "Opus"}, session_id: $sid, workspace: {current_dir: $dir}}
-         + (if $used == "" then {} else {context_window: {used_percentage: ($used | tonumber)}} end)' |
+         + (if $used == "" then {} else {context_window: {used_percentage: ($used | tonumber)}} end)
+         + (if $lim == null then {} else {rate_limits: $lim} end)' |
         env XDG_STATE_HOME="$TMP/state" PATH=/usr/bin:/bin \
             bash "$REPO/claude/.claude/statusline-command.sh" | sed 's/\x1b\[[0-9;]*m//g'
+}
+
+# Row one is where you are; row two is how you are doing.
+place_row() { row "$@" | sed -n 1p; }
+meter_row() { row "$@" | sed -n 2p; }
+
+# A rate_limits object whose windows reset $3 and $4 seconds from now.
+limits() {
+    jq -nc --argjson five "${1:-null}" --argjson seven "${2:-null}" \
+        --argjson fa "$(($(date +%s) + ${3:-$((3 * 86400 + 3600))}))" \
+        --argjson sa "$(($(date +%s) + ${4:-$((5 * 86400))}))" \
+        '(if $five == null then {} else {five_hour: {used_percentage: $five, resets_at: $fa}} end)
+         + (if $seven == null then {} else {seven_day: {used_percentage: $seven, resets_at: $sa}} end)'
 }
 
 # One PostToolUse event, as Claude Code sends it.
@@ -72,40 +86,58 @@ rows() {
 
 echo "status line: place"
 
-eq "names the checkout and its branch" "Opus | ctx: 12% used | main ⎇ main" "$(row)"
-eq "a linked worktree reads its own branch" "Opus | ctx: 12% used | side ⎇ side" "$(row "$WT")"
-eq "a directory in no repo is just its name" "Opus | ctx: 12% used | state" "$(row "$TMP/state")"
+eq "names the checkout and its branch" "main ⎇ main" "$(place_row)"
+eq "a linked worktree reads its own branch" "side ⎇ side" "$(place_row "$WT")"
+eq "a directory in no repo is just its name" "state" "$(place_row "$TMP/state")"
 # An absent percentage used to collapse into the next field and carry the path
 # into the context segment.
-eq "an absent field shifts nothing" "Opus | main ⎇ main" "$(row "$MAIN" "")"
+eq "an absent field shifts nothing" "Opus" "$(meter_row "$MAIN" "")"
 
 echo "status line: the second place"
 
-eq "silent before anything is written" "Opus | ctx: 12% used | main ⎇ main" "$(row)"
+eq "silent before anything is written" "main ⎇ main" "$(place_row)"
 
 wrote "$WT/f"
-eq "names the worktree Claude wrote in" \
-    "Opus | ctx: 12% used | main ⎇ main | ⚠ side ⎇ side" "$(row)"
+eq "names the worktree Claude wrote in" "main ⎇ main · ⚠ side ⎇ side" "$(place_row)"
 
 mkdir -p "$MAIN/sub"
 : >"$MAIN/sub/f"
 wrote "$MAIN/sub/f"
 # Roots are compared, never paths.
-eq "a subdirectory is not a move" "Opus | ctx: 12% used | main ⎇ main" "$(row)"
+eq "a subdirectory is not a move" "main ⎇ main" "$(place_row)"
 
 wrote "$WT/f"
-eq "coming home clears the warning" "Opus | ctx: 12% used | main ⎇ main" "$(
+eq "coming home clears the warning" "main ⎇ main" "$(
     wrote "$MAIN/f"
-    row
+    place_row
 )"
 
 wrote "$WT/f"
-eq "the session's own view never warns" "Opus | ctx: 12% used | side ⎇ side" "$(row "$WT")"
+eq "the session's own view never warns" "side ⎇ side" "$(place_row "$WT")"
 
 wrote "$WT/f"
 git -C "$MAIN" worktree remove --force "$WT"
-eq "a worktree deleted underneath goes quiet" "Opus | ctx: 12% used | main ⎇ main" "$(row)"
+eq "a worktree deleted underneath goes quiet" "main ⎇ main" "$(place_row)"
 git -C "$MAIN" worktree add -q "$WT" side
+
+echo "status line: meters"
+
+eq "context reads as a percentage" "Opus · ctx 12%" "$(meter_row)"
+eq "an absent window shows nothing" "Opus · ctx 12%" "$(meter_row "$MAIN" 12 "$(limits)")"
+eq "both windows read their fill" "Opus · ctx 12% · 5h 23% ↻3d · 7d 41%" \
+    "$(meter_row "$MAIN" 12 "$(limits 23 41)")"
+# Under the threshold the countdown stays off: a window with room does not need one.
+eq "a quiet window hides its countdown" "Opus · ctx 12% · 7d 41%" \
+    "$(meter_row "$MAIN" 12 "$(limits null 41)")"
+eq "past 80 the reset joins the number" "Opus · ctx 12% · 7d 84% ↻3d" \
+    "$(meter_row "$MAIN" 12 "$(limits null 84 3600 $((3 * 86400 + 3600)))")"
+eq "past 95 reads the same way" "Opus · ctx 12% · 5h 96% ↻3d" \
+    "$(meter_row "$MAIN" 12 "$(limits 96 null)")"
+# The 5h window turns over inside a session, so its countdown never waits for a threshold.
+eq "the five-hour window always counts down" "Opus · ctx 12% · 5h 23% ↻3d" \
+    "$(meter_row "$MAIN" 12 "$(limits 23 null)")"
+eq "a window past its reset counts nothing" "Opus · ctx 12% · 5h 23%" \
+    "$(meter_row "$MAIN" 12 "$(limits 23 null -60)")"
 
 echo "status line: what the hook records"
 
