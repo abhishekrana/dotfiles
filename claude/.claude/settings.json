@@ -4,6 +4,7 @@
   },
   "permissions": {
     "allow": [
+      "Bash(slack api auth.test:*)",
       "mcp__plugin_Notion_notion__notion-search",
       "mcp__plugin_Notion_notion__notion-fetch",
       "mcp__plugin_Notion_notion__notion-download-attachment",
