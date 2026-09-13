@@ -4,6 +4,7 @@ mod keys;
 pub mod links;
 mod position;
 pub mod search;
+pub mod selection;
 pub mod trace;
 mod watch;
 
@@ -28,6 +29,7 @@ use crate::theme::{self, Theme};
 use links::Action;
 use position::Positions;
 use search::Match;
+use selection::{Range, Spot};
 use watch::FileWatch;
 
 /// How long the input thread waits for a key before checking whether it should pause.
@@ -77,10 +79,12 @@ pub enum Msg {
     Reload,
     /// Start or stop following the file on disk.
     ToggleWatch,
-    Click {
-        col: u16,
-        row: u16,
-    },
+    /// Mouse press: anchor a selection at this screen cell.
+    Press { col: u16, row: u16 },
+    /// Mouse drag: extend the selection to this screen cell.
+    DragTo { col: u16, row: u16 },
+    /// Mouse release: copy the selection, or follow a link when the drag never moved.
+    Release { col: u16, row: u16 },
     Quit,
 }
 
@@ -125,6 +129,8 @@ pub struct App {
     trace: bool,
     /// Set while an editor owns the terminal, so the input thread leaves the keys to it.
     input_paused: Arc<AtomicBool>,
+    /// The mouse selection, while dragging and until the next press or Esc.
+    selection: Option<Range>,
 }
 
 impl App {
@@ -153,6 +159,7 @@ impl App {
             positions: None,
             trace: false,
             input_paused: Arc::new(AtomicBool::new(false)),
+            selection: None,
         }
     }
 
@@ -173,6 +180,7 @@ impl App {
 
     fn relayout(&mut self, width: u16) {
         self.page = self.layouter.layout(&self.doc, &self.style, width);
+        self.selection = None;
         self.heading_rows = self
             .doc
             .headings
@@ -232,6 +240,7 @@ impl App {
             Msg::Cancel => {
                 if self.mode == Mode::Read {
                     self.clear_search();
+                    self.selection = None;
                 }
                 self.mode = Mode::Read;
             }
@@ -239,7 +248,9 @@ impl App {
             Msg::Yank => self.yank(),
             Msg::Reload => self.reload("reloaded"),
             Msg::ToggleWatch => self.toggle_watch(),
-            Msg::Click { col, row } => self.click(col, row),
+            Msg::Press { col, row } => self.press(col, row),
+            Msg::DragTo { col, row } => self.drag_to(col, row),
+            Msg::Release { col, row } => self.release(col, row),
             Msg::Edit | Msg::Quit => {}
         }
         self.clamp();
@@ -353,16 +364,45 @@ impl App {
         self.clamp();
     }
 
-    fn click(&mut self, col: u16, row: u16) {
-        if self.mode != Mode::Read || usize::from(row) >= self.body_rows {
-            return;
+    /// The page cell under a pointer at a screen cell, clamped to the row's text.
+    fn spot(&self, col: u16, row: u16) -> Option<Spot> {
+        (self.mode == Mode::Read && usize::from(row) < self.body_rows).then(|| {
+            let row = (self.scroll + usize::from(row)).min(self.page.lines.len().saturating_sub(1));
+            let col = selection::column(&self.page, col).min(selection::row_width(&self.page, row));
+            Spot { row, col }
+        })
+    }
+
+    fn press(&mut self, col: u16, row: u16) {
+        self.selection = self.spot(col, row).map(Range::new);
+    }
+
+    fn drag_to(&mut self, col: u16, row: u16) {
+        if let (Some(cursor), Some(sel)) = (self.spot(col, row), self.selection.as_mut()) {
+            sel.cursor = cursor;
         }
-        let Some(line) = self.page.lines.get(self.scroll + usize::from(row)) else {
+    }
+
+    /// A drag copies what it covered; a press that never moved follows the link under it.
+    fn release(&mut self, col: u16, row: u16) {
+        self.drag_to(col, row);
+        match self.selection {
+            Some(sel) if !sel.is_empty() => self.copy_selection(sel),
+            _ => {
+                self.selection = None;
+                self.follow_at(col, row);
+            }
+        }
+    }
+
+    fn follow_at(&mut self, col: u16, row: u16) {
+        let Some(spot) = self.spot(col, row) else {
             return;
         };
-        let Some(mut at) = usize::from(col).checked_sub(usize::from(self.page.left)) else {
+        let Some(line) = self.page.lines.get(spot.row) else {
             return;
         };
+        let mut at = spot.col;
         for s in &line.segments {
             let w = s.width();
             if at < w {
@@ -374,6 +414,25 @@ impl App {
             }
             at -= w;
         }
+    }
+
+    fn copy_selection(&mut self, sel: Range) {
+        let text = sel.text(&self.page);
+        if text.is_empty() {
+            return;
+        }
+        let chars = text.chars().count();
+        self.notice = Some(match copy(&text) {
+            Ok(status) if status.success() => format!("copied {chars} characters"),
+            Ok(status) => format!("clip exited with {status}"),
+            Err(e) => format!("clip failed: {e}"),
+        });
+        info!(chars, notice = ?self.notice, "copy selection");
+    }
+
+    #[must_use]
+    pub fn selection(&self) -> Option<Range> {
+        self.selection
     }
 
     fn follow(&mut self, link: &str) {
@@ -528,6 +587,10 @@ impl App {
 
     /// Copies the first code block on screen through `clip`.
     fn yank(&mut self) {
+        if let Some(sel) = self.selection.filter(|s| !s.is_empty()) {
+            self.copy_selection(sel);
+            return;
+        }
         let code = self
             .page
             .lines
@@ -544,18 +607,7 @@ impl App {
             return;
         };
         let lines = code.lines().count();
-        let result = Command::new("clip")
-            .stdin(Stdio::piped())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .and_then(|mut child| {
-                if let Some(mut stdin) = child.stdin.take() {
-                    stdin.write_all(code.as_bytes())?;
-                }
-                child.wait()
-            });
-        self.notice = Some(match result {
+        self.notice = Some(match copy(&code) {
             Ok(status) if status.success() => format!("copied {lines} lines"),
             Ok(status) => format!("clip exited with {status}"),
             Err(e) => format!("clip failed: {e}"),
@@ -696,7 +748,15 @@ impl App {
                 Input::Term(Event::Mouse(m)) => match m.kind {
                     MouseEventKind::ScrollDown => Some(Msg::ScrollLines(3)),
                     MouseEventKind::ScrollUp => Some(Msg::ScrollLines(-3)),
-                    MouseEventKind::Up(MouseButton::Left) => Some(Msg::Click {
+                    MouseEventKind::Down(MouseButton::Left) => Some(Msg::Press {
+                        col: m.column,
+                        row: m.row,
+                    }),
+                    MouseEventKind::Drag(MouseButton::Left) => Some(Msg::DragTo {
+                        col: m.column,
+                        row: m.row,
+                    }),
+                    MouseEventKind::Up(MouseButton::Left) => Some(Msg::Release {
                         col: m.column,
                         row: m.row,
                     }),
@@ -782,6 +842,19 @@ fn spawn_input_thread(tx: Sender<Input>, paused: Arc<AtomicBool>) {
             }
         }
     });
+}
+
+/// Puts `text` on the clipboard through `clip`, the one clipboard path.
+fn copy(text: &str) -> std::io::Result<std::process::ExitStatus> {
+    let mut child = Command::new("clip")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()?;
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin.write_all(text.as_bytes())?;
+    }
+    child.wait()
 }
 
 #[cfg(test)]
@@ -902,19 +975,54 @@ mod tests {
         assert_eq!(a.notice(), Some("no match for \"z\""));
     }
 
+    /// A press and release on one cell: what a click is once drags are selections.
+    fn click(a: &mut App, col: u16, row: u16) {
+        a.update(Msg::Press { col, row });
+        a.update(Msg::Release { col, row });
+    }
+
     #[test]
     fn a_click_on_a_link_follows_it_and_a_missing_note_says_so() {
         let text = "# Top\n\nSee [below](#end) and [[Missing note]].\n\ntext\n\ntext\n\n## End\n\nhere\n";
         let mut a = app_from(text, 5);
         let left = a.page().left;
         // Row 2 is the paragraph; "See " is four cells, so the link starts at column 4.
-        a.update(Msg::Click { col: left + 5, row: 2 });
+        click(&mut a, left + 5, 2);
         assert_eq!(a.section(), "End");
         a.update(Msg::Top);
-        a.update(Msg::Click { col: left + 22, row: 2 });
+        click(&mut a, left + 22, 2);
         assert_eq!(a.notice(), Some("note not found: Missing note"));
-        a.update(Msg::Click { col: left, row: 2 });
+        click(&mut a, left, 2);
         assert!(a.notice().is_none(), "plain text is not a link");
+    }
+
+    #[test]
+    fn a_drag_selects_the_cells_it_covered_instead_of_following_a_link() {
+        let text = "# Top\n\nSee [below](#end) and more.\n\n## End\n\nhere\n";
+        let mut a = app_from(text, 5);
+        let left = a.page().left;
+        a.update(Msg::Press { col: left, row: 2 });
+        a.update(Msg::DragTo { col: left + 7, row: 2 });
+        a.update(Msg::Release { col: left + 7, row: 2 });
+        let sel = a.selection().expect("selection");
+        assert_eq!(sel.row_span(2), Some((0, 7)));
+        assert_eq!(sel.text(a.page()), "See bel");
+        assert_eq!(a.section(), "Top", "a drag over a link does not follow it");
+    }
+
+    #[test]
+    fn escape_and_a_relayout_drop_the_selection() {
+        let mut a = app_from("# Top\n\nsome words here\n", 5);
+        let left = a.page().left;
+        a.update(Msg::Press { col: left, row: 2 });
+        a.update(Msg::DragTo { col: left + 4, row: 2 });
+        assert!(a.selection().is_some());
+        a.update(Msg::Cancel);
+        assert!(a.selection().is_none());
+        a.update(Msg::Press { col: left, row: 2 });
+        a.update(Msg::DragTo { col: left + 4, row: 2 });
+        a.resize(40, 10);
+        assert!(a.selection().is_none(), "rows move under a relayout");
     }
 
     #[test]

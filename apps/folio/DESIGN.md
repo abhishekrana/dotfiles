@@ -191,8 +191,9 @@ vi and less, nothing to learn:
 | `t`                   | outline overlay; `↵` jumps, `Esc` closes                  |
 | `/` `n` `N`           | search, next, previous; `Esc` clears                      |
 | click                 | follow a link                                             |
+| drag                  | select text; the release copies it (via `clip`)           |
 | `Backspace`           | back to the note a link was followed from                 |
-| `y`                   | copy the code block at the top of the screen (via `clip`) |
+| `y`                   | copy the selection, else the code block at the top screen |
 | `e`                   | open the file at the top line in `$VISUAL` or `$EDITOR`   |
 | `r` `w`               | reload; toggle following the file on disk (on by default) |
 | `T`                   | cycle theme through the palette's flavors                 |
@@ -203,6 +204,11 @@ Following a link: `#anchor` scrolls to the heading, `[[Note]]` opens the note be
 vault root (the nearest `.obsidian` or `.git`), a `.md` path opens relative to this file, anything else goes to
 `xdg-open`. The TUI cannot emit OSC 8 (ratatui has no hyperlink cells), so links there are followed by clicking;
 `--inline` on a terminal still wraps links in OSC 8.
+
+Selection is folio's own, not the terminal's: mouse capture is on for the wheel and for click-to-follow, so the terminal
+never sees the drag. A press anchors, a drag paints the range in `selection`, and a release copies through `clip` -
+matching Ghostty's `copy-on-select`. A press that never moves is a click, so following a link is unchanged. What is
+copied is the rendered page, not the source: wrapped lines are wrapped and trailing padding is trimmed per row.
 
 The status line is one row on `surface`: file name, current section, percent, and three hints. It is the viewer's,
 inside the pane; tmux keeps its own below.

@@ -19,8 +19,9 @@ const HELP: &[(&str, &str)] = &[
     ("t", "outline; ↵ jumps, Esc closes"),
     ("/  n N", "search; next, previous match; Esc clears"),
     ("click", "follow a link"),
+    ("drag", "select text; it goes to the clipboard on release"),
     ("Backspace", "back to the note a link was followed from"),
-    ("y", "copy the code block at the top of the screen"),
+    ("y", "copy the selection, or the code block at the top of the screen"),
     ("e", "open the file in $EDITOR at the top line"),
     ("r", "reload the file"),
     ("w", "follow the file on disk and reload on change (on by default)"),
@@ -48,7 +49,7 @@ fn role(theme: &Theme, r: Role) -> Color {
     render::color(theme.color(r))
 }
 
-/// The page rows on screen, with search matches marked and the current one marked stronger.
+/// The page rows on screen, with the selection and search matches marked, the current match strongest.
 fn draw_page(frame: &mut Frame, area: Rect, app: &App) {
     let page = app.page();
     let theme = app.theme();
@@ -70,6 +71,9 @@ fn draw_page(frame: &mut Frame, area: Rect, app: &App) {
                 .filter(|m| m.row == i)
                 .map(|m| (m.start, m.end, mark))
                 .collect();
+            if let Some((start, end)) = app.selection().and_then(|s| s.row_span(i)) {
+                marks.push((start, end, mark));
+            }
             if let Some(c) = current.filter(|c| c.row == i) {
                 marks.push((c.start, c.end, current_mark));
             }

@@ -112,11 +112,17 @@ fn the_reader_survives_a_tiny_or_empty_terminal() {
         ] {
             app.update(msg);
         }
-        app.update(Msg::Click {
+        app.update(Msg::Press {
             col: u16::MAX,
             row: u16::MAX,
         });
-        app.update(Msg::Click { col: 0, row: 0 });
+        app.update(Msg::DragTo { col: 0, row: 0 });
+        app.update(Msg::Release {
+            col: u16::MAX,
+            row: u16::MAX,
+        });
+        app.update(Msg::Press { col: 0, row: 0 });
+        app.update(Msg::Release { col: 0, row: 0 });
         assert!(app.scroll() <= app.max_scroll());
     }
 }
