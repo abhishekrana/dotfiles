@@ -231,6 +231,7 @@
   "env": {
     "CLAUDE_CODE_SUBAGENT_MODEL": "opus"
   },
+  "autoCompactEnabled": true,
   "tui": "fullscreen",
   "theme": "light",
   "skipAutoPermissionPrompt": true
