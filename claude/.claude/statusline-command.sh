@@ -127,11 +127,13 @@ IFS=$'\x1f' read -r model used dir sid five five_at seven seven_at <<<"$(jq -r '
     (.rate_limits.seven_day.resets_at // "")
 ] | map(tostring) | join("")' <<<"$input")"
 
+# The terminal's own 16, so every flavor of the palette follows. 96 is base1,
+# the muted tone; 90 is base03, which is near-black in a light flavor.
 warn=$'\033[33m'
 hot=$'\033[31m'
 good=$'\033[32m'
 live=$'\033[34m'
-grey=$'\033[90m'
+muted=$'\033[96m'
 reset=$'\033[0m'
 
 # <name> ⎇ <branch>, the pane rail's words; the bare directory when not a checkout.
@@ -239,7 +241,7 @@ gl_row() {
     fi
 
     [ -n "$ci" ] && parts+=("$(gl_ci "$ci")")
-    [ -n "$url" ] && parts+=("$grey$url$reset")
+    [ -n "$url" ] && parts+=("$muted$url$reset")
     ((${#parts[@]})) || return 0
     out=${parts[0]}
     for ((i = 1; i < ${#parts[@]}; i++)); do out+=" · ${parts[i]}"; done
