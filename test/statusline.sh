@@ -54,9 +54,28 @@ row() {
         '{model: {display_name: "Opus"}, session_id: $sid, workspace: {current_dir: $dir}}
          + (if $used == "" then {} else {context_window: {used_percentage: ($used | tonumber)}} end)
          + (if $lim == null then {} else {rate_limits: $lim} end)' |
-        env XDG_STATE_HOME="$TMP/state" PATH=/usr/bin:/bin \
+        env XDG_STATE_HOME="$TMP/state" XDG_CACHE_HOME="$TMP/cache" PATH=/usr/bin:/bin \
             bash "$REPO/claude/.claude/statusline-command.sh" | sed 's/\x1b\[[0-9;]*m//g'
 }
+
+# What a refresh would have written, fresh. glab is off PATH, so none runs.
+gl_cache() {
+    local key=$MAIN::main now
+    now=$(date +%s)
+    key=${key//[^A-Za-z0-9]/_}
+    mkdir -p "$TMP/cache/claude-statusline"
+    printf 'url=%s\nurl_at=%s\nci=%s\nci_at=%s\n' "${1-}" "$now" "${2-}" "$now" \
+        >"$TMP/cache/claude-statusline/$key"
+}
+
+# The per-checkout verdict: 1 is GitLab, 0 is not.
+gl_repo() {
+    local key=$MAIN::
+    key=${key//[^A-Za-z0-9]/_}
+    mkdir -p "$TMP/cache/claude-statusline"
+    printf 'repo=%s\nrepo_at=%s\n' "$1" "$(date +%s)" >"$TMP/cache/claude-statusline/repo-$key"
+}
+link_row() { row | sed -n 3p; }
 
 # Row one is where you are; row two is how you are doing.
 place_row() { row "$@" | sed -n 1p; }
@@ -126,7 +145,7 @@ eq "context reads as a percentage" "Opus · ctx 12%" "$(meter_row)"
 eq "an absent window shows nothing" "Opus · ctx 12%" "$(meter_row "$MAIN" 12 "$(limits)")"
 eq "both windows read their fill" "Opus · ctx 12% · 5h 23% ↻3d · 7d 41%" \
     "$(meter_row "$MAIN" 12 "$(limits 23 41)")"
-# Under the threshold the countdown stays off: a window with room does not need one.
+# Under the threshold the countdown stays off.
 eq "a quiet window hides its countdown" "Opus · ctx 12% · 7d 41%" \
     "$(meter_row "$MAIN" 12 "$(limits null 41)")"
 eq "past 80 the reset joins the number" "Opus · ctx 12% · 7d 84% ↻3d" \
@@ -138,6 +157,26 @@ eq "the five-hour window always counts down" "Opus · ctx 12% · 5h 23% ↻3d" \
     "$(meter_row "$MAIN" 12 "$(limits 23 null)")"
 eq "a window past its reset counts nothing" "Opus · ctx 12% · 5h 23%" \
     "$(meter_row "$MAIN" 12 "$(limits 23 null -60)")"
+
+echo "status line: the issue row"
+
+# The row follows the worktree Claude last wrote in: pin it to the main one.
+wrote "$MAIN/f"
+gl_repo 1
+gl_cache "https://gitlab.example.com/group/project/-/issues/4997" success
+eq "the pipeline and the issue share the row" \
+    "CI ✓ · https://gitlab.example.com/group/project/-/issues/4997" "$(link_row)"
+gl_cache "" failed
+eq "a pipeline with no issue is the whole row" "CI ✗" "$(link_row)"
+gl_cache "https://gitlab.example.com/group/project/-/issues/4997" ""
+eq "an issue with no pipeline is the whole row" \
+    "https://gitlab.example.com/group/project/-/issues/4997" "$(link_row)"
+# A checkout glab cannot resolve is marked, not asked again every render.
+gl_repo 0
+gl_cache "" ""
+eq "a checkout that is not GitLab has no row" "" "$(link_row)"
+rm -rf "$TMP/cache"
+eq "nothing cached yet, no row" "" "$(link_row)"
 
 echo "status line: what the hook records"
 

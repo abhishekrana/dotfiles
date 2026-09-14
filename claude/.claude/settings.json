@@ -194,6 +194,18 @@
     "type": "command",
     "command": "bash $HOME/.claude/subagent-statusline.sh"
   },
+  "footerLinksRegexes": [
+    {
+      "pattern": "https://gitlab\\.com/(?<path>[A-Za-z0-9._/-]+)/-/issues/(?<iid>\\d+)",
+      "url": "https://gitlab.com/{path}/-/issues/{iid}",
+      "label": "#{iid}"
+    },
+    {
+      "pattern": "https://gitlab\\.com/(?<path>[A-Za-z0-9._/-]+)/-/merge_requests/(?<iid>\\d+)",
+      "url": "https://gitlab.com/{path}/-/merge_requests/{iid}",
+      "label": "!{iid}"
+    }
+  ],
   "enabledPlugins": {
     "gopls-lsp@claude-plugins-official": true,
     "pyright-lsp@claude-plugins-official": true,
