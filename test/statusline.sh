@@ -55,8 +55,11 @@ row() {
          + (if $used == "" then {} else {context_window: {used_percentage: ($used | tonumber)}} end)
          + (if $lim == null then {} else {rate_limits: $lim} end)' |
         env XDG_STATE_HOME="$TMP/state" XDG_CACHE_HOME="$TMP/cache" PATH=/usr/bin:/bin \
-            bash "$REPO/claude/.claude/statusline-command.sh" | sed 's/\x1b\[[0-9;]*m//g'
+            bash "$REPO/claude/.claude/statusline-command.sh"
 }
+
+# A row without its colours.
+plain() { sed 's/\x1b\[[0-9;]*m//g'; }
 
 # What a refresh would have written, fresh. glab is off PATH, so none runs.
 gl_cache() {
@@ -75,11 +78,25 @@ gl_repo() {
     mkdir -p "$TMP/cache/claude-statusline"
     printf 'repo=%s\nrepo_at=%s\n' "$1" "$(date +%s)" >"$TMP/cache/claude-statusline/repo-$key"
 }
-link_row() { row | sed -n 3p; }
+link_row() { row | sed -n 3p | plain; }
+
+# What the herdr dictate plugin leaves behind while a dictation is live. No
+# argument clears it, as the plugin does when the transcript lands.
+DICTATE=$TMP/state/herdr/plugins/abhishekrana.dictate
+CHIP="● dictate · "
+recording() {
+    mkdir -p "$DICTATE"
+    [ -n "${1-}" ] || {
+        rm -f "$DICTATE/recording.json"
+        return
+    }
+    printf '{"pid":%s,"pane":"w1:p3","submit":true%s}' \
+        "$1" "${2:+,\"phase\":\"$2\"}" >"$DICTATE/recording.json"
+}
 
 # Row one is where you are; row two is how you are doing.
-place_row() { row "$@" | sed -n 1p; }
-meter_row() { row "$@" | sed -n 2p; }
+place_row() { row "$@" | sed -n 1p | plain; }
+meter_row() { row "$@" | sed -n 2p | plain; }
 
 # A rate_limits object whose windows reset $3 and $4 seconds from now.
 limits() {
@@ -110,7 +127,7 @@ eq "a linked worktree reads its own branch" "side ⎇ side" "$(place_row "$WT")"
 eq "a directory in no repo is just its name" "state" "$(place_row "$TMP/state")"
 # An absent percentage used to collapse into the next field and carry the path
 # into the context segment.
-eq "an absent field shifts nothing" "Opus" "$(meter_row "$MAIN" "")"
+eq "an absent field shifts nothing" "${CHIP}Opus" "$(meter_row "$MAIN" "")"
 
 echo "status line: the second place"
 
@@ -141,22 +158,54 @@ git -C "$MAIN" worktree add -q "$WT" side
 
 echo "status line: meters"
 
-eq "context reads as a percentage" "Opus · ctx 12%" "$(meter_row)"
-eq "an absent window shows nothing" "Opus · ctx 12%" "$(meter_row "$MAIN" 12 "$(limits)")"
-eq "both windows read their fill" "Opus · ctx 12% · 5h 23% ↻3d · 7d 41%" \
+eq "context reads as a percentage" "${CHIP}Opus · ctx 12%" "$(meter_row)"
+eq "an absent window shows nothing" "${CHIP}Opus · ctx 12%" "$(meter_row "$MAIN" 12 "$(limits)")"
+eq "both windows read their fill" "${CHIP}Opus · ctx 12% · 5h 23% ↻3d · 7d 41%" \
     "$(meter_row "$MAIN" 12 "$(limits 23 41)")"
 # Under the threshold the countdown stays off.
-eq "a quiet window hides its countdown" "Opus · ctx 12% · 7d 41%" \
+eq "a quiet window hides its countdown" "${CHIP}Opus · ctx 12% · 7d 41%" \
     "$(meter_row "$MAIN" 12 "$(limits null 41)")"
-eq "past 80 the reset joins the number" "Opus · ctx 12% · 7d 84% ↻3d" \
+eq "past 80 the reset joins the number" "${CHIP}Opus · ctx 12% · 7d 84% ↻3d" \
     "$(meter_row "$MAIN" 12 "$(limits null 84 3600 $((3 * 86400 + 3600)))")"
-eq "past 95 reads the same way" "Opus · ctx 12% · 5h 96% ↻3d" \
+eq "past 95 reads the same way" "${CHIP}Opus · ctx 12% · 5h 96% ↻3d" \
     "$(meter_row "$MAIN" 12 "$(limits 96 null)")"
 # The 5h window turns over inside a session, so its countdown never waits for a threshold.
-eq "the five-hour window always counts down" "Opus · ctx 12% · 5h 23% ↻3d" \
+eq "the five-hour window always counts down" "${CHIP}Opus · ctx 12% · 5h 23% ↻3d" \
     "$(meter_row "$MAIN" 12 "$(limits 23 null)")"
-eq "a window past its reset counts nothing" "Opus · ctx 12% · 5h 23%" \
+eq "a window past its reset counts nothing" "${CHIP}Opus · ctx 12% · 5h 23%" \
     "$(meter_row "$MAIN" 12 "$(limits 23 null -60)")"
+
+echo "status line: dictation"
+
+# Colour carries the phase, so the colour is what gets asserted. The label is
+# checked separately, and must never change: the meters sit beside it.
+GREY=96 RED=31 AMBER=33
+chip() { row | sed -n 2p | sed -n 's/^\x1b\[\([0-9;]*\)m● dictate.*/\1/p'; }
+
+eq "nothing recording, the chip is grey" "$GREY" "$(chip)"
+recording $$
+eq "a live recorder turns it red" "$RED" "$(chip)"
+recording $$ transcribing
+eq "the dictation outlives the microphone" "$AMBER" "$(chip)"
+# The plugin omits the field while recording, so absent must read as recording.
+recording $$ recording
+eq "an explicit phase reads as the absent one" "$RED" "$(chip)"
+# A recorder that died must not leave the chip red until the next press.
+sleep 0 &
+dead=$!
+wait $dead
+recording $dead
+eq "a state file with no process is no recording" "$GREY" "$(chip)"
+recording
+eq "a cleared file rests again" "$GREY" "$(chip)"
+
+# Nothing beside the chip may move as the phase changes.
+recording $$
+eq "recording shifts no text" "${CHIP}Opus · ctx 12%" "$(meter_row)"
+recording $$ transcribing
+eq "transcribing shifts no text" "${CHIP}Opus · ctx 12%" "$(meter_row)"
+recording
+eq "idle shifts no text" "${CHIP}Opus · ctx 12%" "$(meter_row)"
 
 echo "status line: the issue row"
 

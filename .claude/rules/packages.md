@@ -14,10 +14,17 @@ paths:
   wrote in, shown only while its root differs. Roots are compared, never paths, so a subdirectory is not a move.
   **Nothing in the row depends on tmux** - the payload never says which file was written, so `statusline-workdir.sh`
   (this package's `PostToolUse` hook) records the edited file's repo root in
-  `$XDG_STATE_HOME/dotfiles/claude-workdir/<session id>` and the row reads that. `refreshInterval` is 3s because no
-  event fires when a hook writes that file. `test/statusline.sh` is the guard, tmux off PATH. The second row's rate
-  limits ride the same stdin payload, so they cost no process and no network; each window is absent before the session's
-  first API response and after its own reset, and an absent window shows nothing.
+  `$XDG_STATE_HOME/dotfiles/claude-workdir/<session id>` and the row reads that. `refreshInterval` is 1s: no event fires
+  when a hook writes that file, and the dictation chip has to light while you are still talking. That cadence is only
+  affordable because the script forks nothing - helpers write a named global instead of printing into a `$( )` subshell,
+  and jq reading the payload is the one process a run starts (5ms; a subshell per segment cost 14ms). Anything needing a
+  command sits behind a TTL and refreshes detached. `test/statusline.sh` is the guard, tmux off PATH. The second row's
+  rate limits ride the same stdin payload, so they cost no process and no network; each window is absent before the
+  session's first API response and after its own reset, and an absent window shows nothing. The dictation chip reads the
+  herdr plugin's state file (`$XDG_STATE_HOME/herdr/plugins/abhishekrana.dictate/recording.json`) and never writes it,
+  so polling cannot disturb a recording; a pid with no process is a recorder that died, not a recording. Its label never
+  changes, only its colour - grey idle, red recording, amber transcribing, the tmux footer chip's rule - because the
+  meters sit beside it and must not shift as you speak.
 - **`claude/` has three writers**: this repo, `herdr integration install claude`, and Claude's own `/theme`. Its TUI
   theme is therefore **deliberately not switched by `theme`**. Prefer `light-ansi`/`dark-ansi`, which paint from the
   terminal's own 16 colours and so follow this palette; the tracked value drifts to whatever `/theme` last wrote, which

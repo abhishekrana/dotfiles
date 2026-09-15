@@ -188,7 +188,7 @@
   "statusLine": {
     "type": "command",
     "command": "bash $HOME/.claude/statusline-command.sh",
-    "refreshInterval": 3
+    "refreshInterval": 1
   },
   "subagentStatusLine": {
     "type": "command",
