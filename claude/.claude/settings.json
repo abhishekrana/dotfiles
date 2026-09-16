@@ -118,7 +118,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$HOME/workspaces/claude/hooks/slack-post-gate.sh\""
+            "command": "[ -x \"$HOME/.claude/slack-post-gate.sh\" ] && bash \"$HOME/.claude/slack-post-gate.sh\" || exit 0"
           }
         ]
       }
