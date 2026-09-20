@@ -84,21 +84,26 @@ for f in "${notes[@]}"; do
     done < <(sed 's/`[^`]*`//g' "$f" | grep -oE '\[\[[^]]+\]\]' | sed -E 's/^\[\[|\]\]$//g; s/\|.*$//; s/#.*$//')
 done
 
-# HARD: a filed note must declare a `type:` from the vocabulary in CLAUDE.md. The
-# field says which plane a note belongs to, so an undeclared value means the schema
-# and the vault disagree - and a status or kind query then silently misses notes.
-valid_types="work knowledge log design"
+# HARD: a filed note declares a `type:`, and which values are allowed depends on the
+# directory holding it. A work note names what sort of work it is; every other
+# directory names itself. Validating against the directory also catches a misfiled
+# note, which one flat vocabulary cannot.
+work_types="ticket adhoc spike review incident"
 for f in "${notes[@]}"; do
     case "$f" in
-        work/* | knowledge/* | log/* | design/* | archive/*) ;;
+        work/* | archive/work/*) allowed="$work_types" ;;
+        knowledge/*) allowed="knowledge" ;;
+        log/*) allowed="log" ;;
+        design/*) allowed="design" ;;
+        archive/*) allowed="$work_types knowledge log design" ;;
         *) continue ;;
     esac
     t=$(head -20 "$f" | sed -n 's/^type:[[:space:]]*//p' | head -1)
     if [ -z "$t" ]; then
         echo "ERROR filed note missing type: $f" >&2
         hard=1
-    elif ! printf '%s\n' $valid_types | grep -qx "$t"; then
-        echo "ERROR undeclared type '$t' (expected one of: $valid_types): $f" >&2
+    elif ! printf '%s\n' $allowed | grep -qx "$t"; then
+        echo "ERROR type '$t' not allowed in $(dirname "$f")/ (expected: $allowed): $f" >&2
         hard=1
     fi
 done

@@ -1,7 +1,6 @@
 ---
-type: work
+type: # ticket | adhoc | spike | review | incident
 id:
-kind: # ticket | adhoc | spike | review | incident
 status: queued
 parent:
 repo:
