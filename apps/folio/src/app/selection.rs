@@ -102,9 +102,9 @@ pub fn column(page: &Page, col: u16) -> usize {
 /// Cells in the widest row, used to clamp a pointer past the end of a line.
 #[must_use]
 pub fn row_width(page: &Page, row: usize) -> usize {
-    page.lines.get(row).map_or(0, |l| {
-        l.segments.iter().map(|s| s.text.width()).sum::<usize>()
-    })
+    page.lines
+        .get(row)
+        .map_or(0, |l| l.segments.iter().map(|s| s.text.width()).sum::<usize>())
 }
 
 #[cfg(test)]

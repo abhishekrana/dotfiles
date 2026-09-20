@@ -80,11 +80,20 @@ pub enum Msg {
     /// Start or stop following the file on disk.
     ToggleWatch,
     /// Mouse press: anchor a selection at this screen cell.
-    Press { col: u16, row: u16 },
+    Press {
+        col: u16,
+        row: u16,
+    },
     /// Mouse drag: extend the selection to this screen cell.
-    DragTo { col: u16, row: u16 },
+    DragTo {
+        col: u16,
+        row: u16,
+    },
     /// Mouse release: copy the selection, or follow a link when the drag never moved.
-    Release { col: u16, row: u16 },
+    Release {
+        col: u16,
+        row: u16,
+    },
     Quit,
 }
 
