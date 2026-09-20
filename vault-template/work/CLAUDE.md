@@ -5,9 +5,6 @@
 Work knowledge vault - plain-markdown notes edited with Neovim (obsidian.nvim) and Obsidian-compatible. Synced to a
 **private** GitLab repo.
 
-**Work and company content only.** Anything personal belongs in the separate personal vault (`~/vaults/personal`,
-private GitHub), never here.
-
 ## Structure (PARA + capture)
 
 - `inbox/` - new notes land here first (frictionless capture); file into PARA during the weekly review
@@ -77,8 +74,6 @@ secrets, and a `.claude/` hook blocks file access outside this vault root.
 
 ## Rules
 
-- **No personal content**: personal notes, journaling, and non-work material live in the personal vault
-  (`~/vaults/personal`), never here
 - **Private**: this vault holds internal work information. The GitLab repo must stay **private** at all times - never
   make it public, never push to a public remote, never share its contents externally
 - **No secrets or credentials**: never store passwords, API keys, tokens, private keys, or sensitive identifiers in

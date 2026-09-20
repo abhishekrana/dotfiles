@@ -136,12 +136,12 @@ seed_vault() {
     # Seed one notes vault from vault-template/ as REAL files (not stow symlinks): the
     # scaffolding is committed into the vault's own private repo, so it stays portable
     # and self-contained on any machine. obsidian.nvim errors on startup if the
-    # workspace path is missing, so the PARA + capture folders are always ensured;
+    # workspace path is missing, so the memory-plane folders are always ensured;
     # everything else is copy-if-absent - idempotent, never overwriting live edits.
     # Never commits (that stays the user's call, same as the sync hints below).
     local vault="$1" type="$2"
     local tpl="$DOTFILES_DIR/vault-template" d f
-    for d in archive areas assets dailies inbox projects resources templates; do
+    for d in archive assets design knowledge log meta templates work; do
         mkdir -p "$vault/$d"
     done
     copy_if_absent "$tpl/common/.gitignore" "$vault/.gitignore"
@@ -163,7 +163,7 @@ seed_vault() {
         "$vault/.githooks/pre-commit" 2>/dev/null || true
     # git ignores empty dirs, so a fresh skeleton has nothing to commit and the first
     # push fails. Keep each still-empty capture dir trackable with a .gitkeep.
-    for d in archive areas assets dailies inbox projects resources templates; do
+    for d in archive assets design knowledge log meta templates work; do
         [ -n "$(ls -A "$vault/$d" 2>/dev/null)" ] || touch "$vault/$d/.gitkeep"
     done
     # Route git hooks at the tracked .githooks/ dir (the secrets pre-commit guard).
@@ -174,67 +174,38 @@ seed_vault() {
     fi
 }
 
-create_personal_vault() {
-    # Personal knowledge vault (private GitHub). If it isn't a git repo yet, just flag
-    # it - the wiring steps are shown together at the very end (print_vault_sync_hints)
-    # so they aren't buried mid-run. Idempotent.
-    local vault="$HOME/vaults/personal"
-    seed_vault "$vault" personal
-    if [ -d "$vault/.git" ]; then
-        ok "personal vault ready at $vault"
-    else
-        ok "personal vault skeleton ready at $vault (not synced to a remote)"
-        PERSONAL_VAULT_UNWIRED=1
-    fi
-}
-
-create_work_vault() {
-    # Work knowledge vault, an independent sibling on its own separate remote (private
-    # GitLab). Same skeleton; if it isn't a git repo yet, flag it for the end-of-run
-    # hints rather than printing steps mid-run. Idempotent.
+create_vault() {
+    # The notes vault, on its own private remote. If it isn't a git repo yet, flag it
+    # for the end-of-run hints rather than printing steps mid-run. Idempotent.
     local vault="$HOME/vaults/work"
     seed_vault "$vault" work
     if [ -d "$vault/.git" ]; then
-        ok "work vault ready at $vault"
+        ok "vault ready at $vault"
     else
-        ok "work vault skeleton ready at $vault (not synced to a remote)"
-        WORK_VAULT_UNWIRED=1
+        ok "vault skeleton ready at $vault (not synced to a remote)"
+        VAULT_UNWIRED=1
     fi
 }
 
 print_vault_sync_hints() {
     # Printed at the very end so it isn't buried in the build logs. Optional: a vault
-    # works locally without a remote; this only shows how to back one up / sync it.
+    # works locally without a remote; this only shows how to back it up / sync it.
     # We never create the remote or store identity here (these dotfiles are public),
-    # so the user runs the steps himself. One independent block per vault by design.
-    [ -n "${PERSONAL_VAULT_UNWIRED:-}" ] || [ -n "${WORK_VAULT_UNWIRED:-}" ] || return 0
+    # so the user runs the steps himself.
+    [ -n "${VAULT_UNWIRED:-}" ] || return 0
     echo ""
-    warn "Optional - notes vault(s) not yet synced to a git remote."
-    warn "Set up only the ones you want backed up / synced (run these yourself):"
-    if [ -n "${PERSONAL_VAULT_UNWIRED:-}" ]; then
-        cat <<'EOF'
+    warn "Optional - the notes vault is not synced to a git remote."
+    warn "Run these yourself if you want it backed up:"
+    cat <<'EOF'
 
-  personal vault -> your PRIVATE personal remote:
-    cd ~/vaults/personal
-    git init -b main
-    git remote add origin <private-remote-url>   # e.g. a private <user>/vaults-personal
-    git add -A
-    git commit -m "Initialize personal vault"
-    git push -u origin main
-EOF
-    fi
-    if [ -n "${WORK_VAULT_UNWIRED:-}" ]; then
-        cat <<'EOF'
-
-  work vault -> your PRIVATE work remote:
+  vault -> your PRIVATE remote:
     cd ~/vaults/work
     git init -b main
     git remote add origin <private-remote-url>   # e.g. a private <user>/vaults-work
     git add -A
-    git commit -m "Initialize work vault"
+    git commit -m "Initialize the vault"
     git push -u origin main
 EOF
-    fi
 }
 
 # =============================================================================
@@ -330,8 +301,7 @@ stow_packages
 install_bat_themes
 enable_tmux_resurrect_timer
 patch_bashrc
-create_personal_vault
-create_work_vault
+create_vault
 install_nvim_plugins
 build_apps
 

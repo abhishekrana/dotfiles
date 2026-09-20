@@ -3,12 +3,17 @@
 Map of Content - the hand-curated front door to this vault. Humans own this file; link to the notes that matter and let
 the folders hold the rest (find things with ripgrep and `[[backlinks]]`).
 
-## Areas
+## Design
 
-## Projects
+## Work
 
-## Resources
+_The board is a query, not a list:_ `rg '^status: queued' work/` waiting, `rg '^status: blocked' work/` needs me.
+
+## Knowledge
+
+## Log
 
 ---
 
-_Capture lands in `inbox/` and `dailies/`; the `managing-vault` skill files and maintains notes from there._
+_Notes are created in their final place. `vault-check` runs on every commit; the `managing-vault` skill maintains what
+agents do not write themselves._

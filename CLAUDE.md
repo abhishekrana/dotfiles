@@ -87,12 +87,11 @@ rotation). `.claude/rules/trace.md` has the per-symptom guide and the rules for 
 
 ## Vault template
 
-`vault-template/` holds the boilerplate for the two notes vaults (`~/vaults/personal`, `~/vaults/work`). Like `apps/`,
-it is **not** a stow package - `bootstrap.sh` copies it into each vault as **real files**, so the scaffolding is
-committed into that vault's own private repo. `common/` is shared by both vaults (skeleton, templates, `.claude/`
-guardrail hooks + `vault-check`, `.githooks/` pre-commit guard); `personal/` and `work/` carry their own `CLAUDE.md` +
-`README.md`. Copies are seed-if-missing, so re-running bootstrap never clobbers live edits. Vault _content_ never lives
-here - this repo is public.
+`vault-template/` holds the boilerplate for the notes vault (`~/vaults/work`). Like `apps/`, it is **not** a stow
+package - `bootstrap.sh` copies it into the vault as **real files**, so the scaffolding is committed into that vault's
+own private repo. `common/` carries the skeleton, templates, `.claude/` guardrail hooks + `vault-check` and the
+`.githooks/` pre-commit guard; `work/` carries its `CLAUDE.md` + `README.md`. Copies are seed-if-missing, so re-running
+bootstrap never clobbers live edits. Vault _content_ never lives here - this repo is public.
 
 ## Rules
 
@@ -118,8 +117,8 @@ here - this repo is public.
   missing `+x` makes a rail or a status segment silently vanish)
 - Private/work-specific config goes in `~/.bashrc.d/local.bash` (not tracked)
 - `bootstrap.sh` must be idempotent (safe to re-run)
-- `bootstrap.sh` scaffolds the two notes vaults (see "Vault template"); a vault with no git remote is reported once at
-  the end, and the remote/identity are never created or stored here
+- `bootstrap.sh` scaffolds the notes vault (see "Vault template"); a vault with no git remote is reported once at the
+  end, and the remote/identity are never created or stored here
 - Keep lists alphabetically sorted (stow packages, apt packages, pinned versions, bootstrap calls, docs)
 
 ## Deploy

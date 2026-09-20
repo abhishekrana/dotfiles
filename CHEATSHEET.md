@@ -278,12 +278,10 @@ Sessions are scoped per cwd and saved on quit. Use `vimr` to restore buffers and
 | ----------- | --------------------------------- |
 | `<leader>p` | send last yank to right tmux pane |
 
-### Notes (Obsidian vaults: `~/vaults/personal` and `~/vaults/work`)
+### Notes (Obsidian vault: `~/vaults/work`)
 
-Two markdown vaults with `[[wiki-links]]`, daily notes and tags (obsidian.nvim): `~/vaults/personal` and `~/vaults/work`
-are separate workspaces - the one that owns the open file activates automatically (work is the default), and
-`<leader>ow` switches between them. Images render inline in the buffer (image.nvim) and paste from the clipboard
-(img-clip.nvim). Keys below work in markdown buffers.
+A markdown vault with `[[wiki-links]]`, daily notes and tags (obsidian.nvim). Images render inline in the buffer
+(image.nvim) and paste from the clipboard (img-clip.nvim). Keys below work in markdown buffers.
 
 | Key          | Action                                       |
 | ------------ | -------------------------------------------- |

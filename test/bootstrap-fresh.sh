@@ -132,7 +132,7 @@ echo \"--- post-stow steps (skipped entirely if bootstrap aborted early) ---\"
 grep -q \"Load dotfiles shell customizations\" ~/.bashrc \\
   && printf \"OK   %s\n\" \".bashrc patched\" \\
   || { printf \"MISS %s\n\" \".bashrc patch\"; fail=1; }
-for d in ~/vaults/personal ~/vaults/work ~/.local/share/nvim/lazy; do
+for d in ~/vaults/work ~/.local/share/nvim/lazy; do
   if [ -d \"\$d\" ]; then printf \"OK   %s\n\" \"\$d\"; else printf \"MISS %s\n\" \"\$d\"; fail=1; fi
 done
 if [ -x ~/dotfiles/apps/agentbar/bin/agentbar ]; then printf \"OK   %s\n\" \"agentbar built\"

@@ -215,11 +215,11 @@ stow -R <package>    # Re-link (unlink + link)
 - **System `.bashrc` is never overwritten** - customizations live in `~/.bashrc.d/*.bash`, sourced by a loop
   `bootstrap.sh` appends (with a backup).
 - **Private/work aliases** go in `~/.bashrc.d/local.bash` (not tracked).
-- **Notes vaults**: `bootstrap.sh` seeds two plain-markdown PARA vault skeletons (`~/vaults/personal`, `~/vaults/work`)
-  from `vault-template/`, each with an agent layer - the global `managing-vault` skill adds and maintains notes, and a
-  deterministic `.claude/vault-check.sh` integrity gate runs in the git pre-commit hook (which also blocks secrets). It
-  prints optional git-remote wiring steps for any not yet synced; each vault's contents live in its own private repo,
-  never here.
+- **Notes vault**: `bootstrap.sh` seeds a plain-markdown vault skeleton (`~/vaults/work`) from `vault-template/`, with
+  an agent layer - the global `managing-vault` skill adds and maintains notes, and a deterministic
+  `.claude/vault-check.sh` integrity gate runs in the git pre-commit hook (which also blocks secrets). It prints
+  optional git-remote wiring steps for any not yet synced; each vault's contents live in its own private repo, never
+  here.
 - **Neovim plugins**: `lazy-lock.json` pins versions - commit it to keep installs reproducible.
 - **Python venvs**: direnv auto-activates `.venv` per directory.
 - **Idempotent**: `bootstrap.sh` is safe to re-run (skips what's installed).

@@ -52,5 +52,4 @@ the git pre-commit hook, which also blocks secrets. See [`CLAUDE.md`](CLAUDE.md)
 
 ## Privacy
 
-Work and company material only. The repo stays **private**; no personal content (that belongs in the separate personal
-vault, `~/vaults/personal`) and no secrets or credentials.
+The repo stays **private**, and holds no secrets or credentials.

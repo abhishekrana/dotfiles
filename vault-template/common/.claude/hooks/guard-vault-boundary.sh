@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # PreToolUse guard: deny file access that escapes this vault's root.
 #
-# The hard wall between the personal and work vaults. An agent running in one vault
-# must never read or write the other (or anywhere else on disk). Claude Code passes the
-# tool input as JSON on stdin; exit 2 blocks the call and returns stderr to the agent.
+# An agent running in the vault must never read or write anywhere else on disk. Claude
+# Code passes the tool input as JSON on stdin; exit 2 blocks the call and returns
+# stderr to the agent.
 set -euo pipefail
 
 input="$(cat)"
