@@ -1,7 +1,9 @@
 ---
 type: work
 id:
+kind: # ticket | adhoc | spike | review | incident
 status: queued
+parent:
 repo:
 branch:
 forge:
