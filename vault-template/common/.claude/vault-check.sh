@@ -87,7 +87,7 @@ done
 # HARD: a filed note must declare a `type:` from the vocabulary in CLAUDE.md. The
 # field says which plane a note belongs to, so an undeclared value means the schema
 # and the vault disagree - and a status or kind query then silently misses notes.
-valid_types="work knowledge log design note"
+valid_types="work knowledge log design"
 for f in "${notes[@]}"; do
     case "$f" in
         work/* | knowledge/* | log/* | design/* | archive/*) ;;
