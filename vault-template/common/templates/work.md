@@ -17,6 +17,7 @@ delegated:
 mr_opened:
 merged:
 decisions: 0
+due:
 ---
 
 # {{title}}

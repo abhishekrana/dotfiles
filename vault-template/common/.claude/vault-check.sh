@@ -28,6 +28,36 @@ for f in "${notes[@]}"; do
         }
 done
 
+# HARD: frontmatter that does not parse as YAML. Agents write these fields, and a bare
+# GitLab reference (mr: !6087) is a YAML tag, not a string - it must be quoted.
+if command -v python3 >/dev/null 2>&1; then
+    for f in "${notes[@]}"; do
+        [ "$(head -1 "$f")" = "---" ] || continue
+        python3 - "$f" <<'PYCHECK' || {
+import sys
+
+try:
+    import yaml
+except ImportError:
+    sys.exit(0)
+lines = open(sys.argv[1], encoding="utf-8").read().split("\n")
+if not lines or lines[0].strip() != "---":
+    sys.exit(0)
+try:
+    end = lines.index("---", 1)
+except ValueError:
+    sys.exit(0)
+try:
+    yaml.safe_load("\n".join(lines[1:end]))
+except Exception:
+    sys.exit(1)
+PYCHECK
+            echo "ERROR frontmatter is not valid YAML: $f" >&2
+            hard=1
+        }
+    done
+fi
+
 # HARD: empty notes (no non-whitespace content).
 for f in "${notes[@]}"; do
     grep -q '[^[:space:]]' "$f" || {
@@ -54,13 +84,23 @@ for f in "${notes[@]}"; do
     done < <(sed 's/`[^`]*`//g' "$f" | grep -oE '\[\[[^]]+\]\]' | sed -E 's/^\[\[|\]\]$//g; s/\|.*$//; s/#.*$//')
 done
 
-# WARN: filed notes (not inbox/dailies) missing a `type:` frontmatter field.
+# HARD: a filed note must declare a `type:` from the vocabulary in CLAUDE.md. The
+# field says which plane a note belongs to, so an undeclared value means the schema
+# and the vault disagree - and a status or kind query then silently misses notes.
+valid_types="work knowledge log design note"
 for f in "${notes[@]}"; do
     case "$f" in
-        projects/* | areas/* | resources/* | archive/*)
-            head -20 "$f" | grep -qE '^type:[[:space:]]' || echo "warn filed note missing type: $f"
-            ;;
+        work/* | knowledge/* | log/* | design/* | archive/*) ;;
+        *) continue ;;
     esac
+    t=$(head -20 "$f" | sed -n 's/^type:[[:space:]]*//p' | head -1)
+    if [ -z "$t" ]; then
+        echo "ERROR filed note missing type: $f" >&2
+        hard=1
+    elif ! printf '%s\n' $valid_types | grep -qx "$t"; then
+        echo "ERROR undeclared type '$t' (expected one of: $valid_types): $f" >&2
+        hard=1
+    fi
 done
 
 if [ "$hard" -ne 0 ]; then
