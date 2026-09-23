@@ -2,7 +2,7 @@
 # Claude Code status line: where you are, and how you are doing.
 #
 #     ● dictate   repo ⎇ feature   ⚠ other ⎇ main
-#     Opus 5 1M    context ▰▰▱▱▱▱▱▱  24%    5h ▰▰▱▱▱▱▱▱  23% ↻2h14 ...
+#     Opus 5 1M    context ▰▰▱▱▱▱▱▱  24%    5h ▰▰▱▱▱▱▱▱  23% ↻2h14    week ... ↻3d
 #
 # Every meter keeps one width - a word, an 8-cell bar, a padded number - so nothing shifts as the numbers move, and
 # the whole second row fits a 99-column pane.
@@ -72,10 +72,9 @@ until_reset() {
 }
 
 # <label> <bar> <pct>% into $window_out: yellow past 80 and red past 95, bar and number together; the rest in the
-# terminal's own colours. The countdown follows when the window is hot, or always with a fourth argument - the 5h
-# window turns over inside a session, where days until the weekly reset change no decision.
+# terminal's own colours. A window with a reset time counts down to it.
 window() {
-    local label=$1 pct=$2 at=$3 always=${4-} n k color='' tail='' fill empty
+    local label=$1 pct=$2 at=$3 n k color='' tail='' fill empty
     window_out=
     [ -n "$pct" ] || return 0
     printf -v n '%.0f' "$pct"
@@ -84,7 +83,7 @@ window() {
     elif ((n >= 80)); then
         color=$warn
     fi
-    if [ -n "$at" ] && { [ -n "$color" ] || [ -n "$always" ]; }; then
+    if [ -n "$at" ]; then
         until_reset "$at"
         [ -n "$until_out" ] && tail=" $muted↻$until_out$reset"
     fi
@@ -153,7 +152,7 @@ if [ -n "$used" ]; then
     meters+=("$window_out")
 fi
 if [ -n "$five" ]; then
-    window 5h "$five" "$five_at" always
+    window 5h "$five" "$five_at"
     meters+=("$window_out")
 fi
 if [ -n "$seven" ]; then

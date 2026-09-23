@@ -83,7 +83,7 @@ meter_row() { row "$@" | sed -n 2p | plain; }
 limits() {
     jq -nc --argjson five "${1:-null}" --argjson seven "${2:-null}" \
         --argjson fa "$(($(date +%s) + ${3:-$((3 * 86400 + 3600))}))" \
-        --argjson sa "$(($(date +%s) + ${4:-$((5 * 86400))}))" \
+        --argjson sa "$(($(date +%s) + ${4:-$((5 * 86400 + 3600))}))" \
         '(if $five == null then {} else {five_hour: {used_percentage: $five, resets_at: $fa}} end)
          + (if $seven == null then {} else {seven_day: {used_percentage: $seven, resets_at: $sa}} end)'
 }
@@ -143,11 +143,11 @@ echo "status line: meters"
 CTX12="Opus    context ▰▱▱▱▱▱▱▱  12%"
 eq "context reads as a meter" "$CTX12" "$(meter_row)"
 eq "an absent window shows nothing" "$CTX12" "$(meter_row "$MAIN" 12 "$(limits)")"
-FIVE23="5h ▰▰▱▱▱▱▱▱  23% ↻3d" WEEK41="week ▰▰▰▱▱▱▱▱  41%"
+FIVE23="5h ▰▰▱▱▱▱▱▱  23% ↻3d" WEEK41="week ▰▰▰▱▱▱▱▱  41% ↻5d"
 eq "both windows read their fill" "$CTX12    $FIVE23    $WEEK41" \
     "$(meter_row "$MAIN" 12 "$(limits 23 41)")"
-# Under the threshold the countdown stays off.
-eq "a quiet week hides its countdown" "$CTX12    week ▰▰▰▱▱▱▱▱  41%" \
+# The week counts down too, hot or not: how many days are left is what the meter is for.
+eq "a quiet week still counts down" "$CTX12    $WEEK41" \
     "$(meter_row "$MAIN" 12 "$(limits null 41)")"
 eq "past 80 the reset joins the meter" "$CTX12    week ▰▰▰▰▰▰▰▱  84% ↻3d" \
     "$(meter_row "$MAIN" 12 "$(limits null 84 3600 $((3 * 86400 + 3600)))")"
