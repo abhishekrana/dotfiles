@@ -49,13 +49,12 @@ esac
 cat "$TMP/\$f"
 EOF
 chmod +x "$TMP/bin/glab"
-# The stub herdr writes down every call, answers a split or a new tab with a new pane, and lists the tabs in
+# The stub herdr writes down every call, answers a new tab with a new pane, and lists the tabs in
 # tabs.json.
 cat >"$TMP/bin/herdr" <<EOF
 #!/usr/bin/env bash
 printf '%s\n' "\$*" >>"$TMP/herdr.log"
 case "\$1 \$2" in
-    "pane split") echo '{"result":{"pane":{"pane_id":"w1:p9"}}}' ;;
     "tab create") echo '{"result":{"type":"tab_created","tab":{"tab_id":"w1:t5"},"root_pane":{"pane_id":"w1:p20"}}}' ;;
     "tab list") cat "$TMP/tabs.json" 2>/dev/null || echo '{"result":{"tabs":[]}}' ;;
     "pane list") cat "$TMP/panes.json" 2>/dev/null || echo '{"result":{"panes":[]}}' ;;
@@ -244,12 +243,11 @@ order=$(awk '/TICKET/ {t = index($0, "TICKET"); m = index($0, "MERGE REQUEST"); 
     print (t < m && m < p)}' "$TMP/frame")
 [ "$order" = 1 ] && ok "the columns read ticket, MR, pipeline" ||
     no "the columns read ticket, MR, pipeline" "$(grep TICKET "$TMP/frame")"
-eq "the toolbar's chips, then every section's three buttons" "r a close t T tab-t m M tab-m p P tab-p" \
+eq "the toolbar's chips, then every section's two buttons" "r a close t T m M p P" \
     "$(awk '$1 == "region" {print $5}' "$TMP/frame" | awk '!seen[$0]++' | tr '\n' ' ' | sed 's/ $//')"
 [ "$(region m | cut -d- -f2)" -le "$(region M | cut -d- -f1)" ] &&
-    [ "$(region M | cut -d- -f2)" -le "$(region tab-m | cut -d- -f1)" ] &&
-    ok "the buttons read Browser, Split, New tab" ||
-    no "the buttons read Browser, Split, New tab" "m $(region m), M $(region M), tab-m $(region tab-m)"
+    ok "the buttons read Browser, New tab" ||
+    no "the buttons read Browser, New tab" "m $(region m), M $(region M)"
 [ "$(awk '$1 == "region" && $5 == "close" {print $2; exit}' "$TMP/frame")" = 1 ] &&
     [ "$(region r | cut -d- -f2)" -le "$(region a | cut -d- -f1)" ] &&
     [ "$(region a | cut -d- -f2)" -le "$(region close | cut -d- -f1)" ] &&
@@ -306,10 +304,10 @@ case $places in "r:"*"a:"*"close:"*" | r:"*) ok "the toolbar test compares Refre
 esac
 eq "the toolbar's chips keep their places when the answer arrives" "${places% |*}" "${places#*| }"
 
-frame 150
+frame 140
 [ "$(grep -c -E '^ +(TICKET|MERGE REQUEST|PIPELINE)$' "$TMP/frame")" = 3 ] && ok "a narrow popup stacks the three" ||
     no "a narrow popup stacks the three" "$(grep -E 'TICKET|MERGE|PIPELINE' "$TMP/frame")"
-eq "stacked, the toolbar and every section's three buttons" 12 \
+eq "stacked, the toolbar and every section's two buttons" 9 \
     "$(awk '$1 == "region" {print $5}' "$TMP/frame" | sort -u | wc -l)"
 
 mr '{mergeTrainCar: {index: 1}, mergeTrainsCount: 4, autoMergeStrategy: "merge_train"}'
@@ -367,35 +365,24 @@ eq "p opens the pipeline, on the project's host" "$WEB/-/pipelines/900" "$(opene
 act t
 eq "t opens the ticket" "$WEB/-/issues/123" "$(opened)"
 act M
-grep -qF "pane split --pane w1:p1 --direction right --cwd $CO" "$TMP/herdr.log" &&
-    ok "M splits the focused pane to the right" || no "M splits the focused pane to the right" "$(cat "$TMP/herdr.log")"
-grep -F "pane run w1:p9 " "$TMP/herdr.log" | grep -F "run-tab m" | grep -qv -- "--sidebar" &&
-    ok "the split runs the diff's supervisor, without the file list" ||
-    no "the split runs the diff's supervisor, without the file list" "$(cat "$TMP/herdr.log")"
-act P
-grep -qF "run-tab p" "$TMP/herdr.log" && ok "P runs the pipeline's supervisor" ||
-    no "P runs the pipeline's supervisor" "$(cat "$TMP/herdr.log")"
-act T
-grep -qF "run-tab t" "$TMP/herdr.log" && ok "T runs the ticket's supervisor" ||
-    no "T runs the ticket's supervisor" "$(cat "$TMP/herdr.log")"
-
-act tab-m
 grep -qF "tab create --workspace w1 --cwd $CO --label diff !45 --focus" "$TMP/herdr.log" &&
-    ok "New tab opens a tab named for what it shows" ||
-    no "New tab opens a tab named for what it shows" "$(cat "$TMP/herdr.log")"
-grep -F "pane run w1:p20 " "$TMP/herdr.log" | grep -qF "run-tab m --sidebar" &&
-    ok "the diff's tab asks for the file list" || no "the diff's tab asks for the file list" "$(cat "$TMP/herdr.log")"
+    ok "M opens a tab named for what it shows" ||
+    no "M opens a tab named for what it shows" "$(cat "$TMP/herdr.log")"
+grep -F "pane run w1:p20 " "$TMP/herdr.log" | grep -qF "run-tab m" && ! grep -qF "pane split" "$TMP/herdr.log" &&
+    ok "the tab runs the diff's supervisor, and nothing splits" ||
+    no "the tab runs the diff's supervisor, and nothing splits" "$(cat "$TMP/herdr.log")"
 echo '{"result":{"tabs":[{"tab_id":"w1:t3","label":"diff !45"}]}}' >"$TMP/tabs.json"
-act tab-m
+act M
 grep -qF "tab focus w1:t3" "$TMP/herdr.log" && ! grep -qF "tab create" "$TMP/herdr.log" &&
     ok "New tab again focuses that tab, and opens no second one" ||
     no "New tab again focuses that tab, and opens no second one" "$(cat "$TMP/herdr.log")"
 rm -f "$TMP/tabs.json"
-act tab-t
+act T
 grep -qF -- "--label ticket #123" "$TMP/herdr.log" && ok "the ticket's tab is named for it" ||
     no "the ticket's tab is named for it" "$(cat "$TMP/herdr.log")"
-act tab-p
-grep -qF -- "--label jobs !45" "$TMP/herdr.log" && ok "the pipeline's tab is named for it" ||
+act P
+grep -qF -- "--label jobs !45" "$TMP/herdr.log" && grep -qF "run-tab p" "$TMP/herdr.log" &&
+    ok "the pipeline's tab is named for it" ||
     no "the pipeline's tab is named for it" "$(cat "$TMP/herdr.log")"
 
 jq -nc '{title: "Save-as-failed", state: "opened", labels: ["type::bug"], assignees: [{username: "you"}],
@@ -417,7 +404,7 @@ echo "herdr-forge: the tab supervisor and Alt+Shift+U"
 TABS=$XDG_CACHE_HOME/herdr-forge/tabs
 tab() { (cd "$CO" && HERDR_PANE_ID=$1 "$POPUP" run-tab "${@:2}" </dev/null >/dev/null 2>&1); }
 : >"$TMP/tools.log"
-tab w1:p31 m --sidebar
+tab w1:p31 m
 grep -qF "hunk diff origin/main --watch --sidebar" "$TMP/tools.log" &&
     ok "the diff is live, from the target when there is no merge base" ||
     no "the diff is live, from the target when there is no merge base" "$(cat "$TMP/tools.log")"
