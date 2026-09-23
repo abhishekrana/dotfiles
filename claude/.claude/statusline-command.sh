@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # Claude Code status line: where you are, and how you are doing.
 #
-#     repo ⎇ feature · ⚠ other ⎇ main
-#     ● dictate · Opus 5 1M · ctx 24% · 5h 23% ↻2h14 · 7d 41%
+#     ● dictate   repo ⎇ feature   ⚠ other ⎇ main
+#     Opus 5 1M    context ▰▰▱▱▱▱▱▱  24%    5h ▰▰▱▱▱▱▱▱  23% ↻2h14 ...
+#
+# Every meter keeps one width - a word, an 8-cell bar, a padded number - so nothing shifts as the numbers move, and
+# the whole second row fits a 99-column pane.
 #
 # The ⚠ place is the worktree Claude last wrote in, recorded by this package's
 # statusline-workdir.sh: an Edit by absolute path moves neither the cwd nor row
@@ -39,16 +42,6 @@ hot=$'\033[31m'
 muted=$'\033[96m'
 reset=$'\033[0m'
 
-# Parts joined with the row separator, into $join_out.
-join_row() {
-    local part
-    join_out=
-    for part in "$@"; do
-        [ -n "$part" ] || continue
-        join_out+="${join_out:+ · }$part"
-    done
-}
-
 # <name> ⎇ <branch> into $place_out, the pane rail's words; the bare directory
 # when not a checkout.
 place() {
@@ -78,11 +71,11 @@ until_reset() {
     fi
 }
 
-# <label> <pct>% into $window_out, amber past 80 and red past 95. The countdown
-# shows once the window is hot, or always with a fourth argument - the 5h window
-# turns over inside a session, where days until the weekly reset change no decision.
+# <label> <bar> <pct>% into $window_out: yellow past 80 and red past 95, bar and number together; the rest in the
+# terminal's own colours. The countdown follows when the window is hot, or always with a fourth argument - the 5h
+# window turns over inside a session, where days until the weekly reset change no decision.
 window() {
-    local label=$1 pct=$2 at=$3 always=${4-} n color='' tail=''
+    local label=$1 pct=$2 at=$3 always=${4-} n k color='' tail='' fill empty
     window_out=
     [ -n "$pct" ] || return 0
     printf -v n '%.0f' "$pct"
@@ -93,9 +86,16 @@ window() {
     fi
     if [ -n "$at" ] && { [ -n "$color" ] || [ -n "$always" ]; }; then
         until_reset "$at"
-        [ -n "$until_out" ] && tail=" ↻$until_out"
+        [ -n "$until_out" ] && tail=" $muted↻$until_out$reset"
     fi
-    printf -v window_out '%s%s %s%%%s%s' "$color" "$label" "$n" "$tail" "${color:+$reset}"
+    k=$(((n * 8 + 50) / 100))
+    ((k > 8)) && k=8
+    printf -v fill '%*s' "$k" ''
+    printf -v empty '%*s' "$((8 - k))" ''
+    fill=${fill// /▰}
+    empty=${empty// /▱}
+    printf -v window_out '%s%s%s %s%s%s%s%s%s %s%3d%%%s%s' "$muted" "$label" "$reset" \
+        "$color" "$fill" "${color:+$reset}" "$muted" "$empty" "$reset" "$color" "$n" "${color:+$reset}" "$tail"
 }
 
 # Whether the microphone is live, into $dictate_out: the herdr plugin's own state
@@ -117,12 +117,13 @@ dictate() {
     dictate_out="${color}● dictate${reset}"
 }
 
-# Where you are, and the worktree Claude last wrote in when it is a different
-# checkout - not the cwd, which an Edit by absolute path never moves.
-row=()
+# Where you are, after the dictation chip, and the worktree Claude last wrote in when it is a different checkout - not
+# the cwd, which an Edit by absolute path never moves.
+dictate
+first=$dictate_out
 if [ -n "$dir" ]; then
     place "$dir"
-    row+=("$place_out")
+    first+="   $place_out"
 fi
 
 agent_dir=
@@ -136,34 +137,33 @@ agent_root=
 [ -n "$agent_dir" ] && git_place "$agent_dir" && agent_root=$place_root
 if [ -n "$agent_root" ] && [ "$agent_root" != "$session_root" ]; then
     place "$agent_root"
-    row+=("${warn}⚠ $place_out${reset}")
+    first+="   ${warn}⚠ $place_out${reset}"
 fi
 
-# How you are doing. The model keeps its size but not the word around it.
-dictate
-meters=("$dictate_out")
+# How you are doing: the model, then a meter each for the context and the two usage windows. The model keeps its size
+# but not the word around it.
+meters=()
 if [ -n "$model" ]; then
     [[ $model =~ ^(.*)\ \(([0-9]+[kM])\ context\)(.*)$ ]] &&
         model="${BASH_REMATCH[1]} ${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
     meters+=("$model")
 fi
 if [ -n "$used" ]; then
-    printf -v ctx '%.0f' "$used"
-    meters+=("ctx $ctx%")
+    window context "$used" ""
+    meters+=("$window_out")
 fi
 if [ -n "$five" ]; then
     window 5h "$five" "$five_at" always
     meters+=("$window_out")
 fi
 if [ -n "$seven" ]; then
-    window 7d "$seven" "$seven_at"
+    window week "$seven" "$seven_at"
     meters+=("$window_out")
 fi
-
-join_row "${row[@]}"
-first=$join_out
-join_row "${meters[@]}"
-second=$join_out
+second=
+for part in "${meters[@]}"; do
+    second+="${second:+    }$part"
+done
 
 # A row with nothing in it is skipped rather than printed blank.
 rows=()
