@@ -260,6 +260,27 @@ too_wide=$(grep -v '^region' "$TMP/frame" | python3 -c 'import sys; print(max(le
 [ "$too_wide" -le 200 ] && ok "no line is wider than the popup" ||
     no "no line is wider than the popup" "$too_wide columns"
 
+# The finish: every button the same neutral outline, in the theme's own colours.
+mkdir -p "$TMP/config/theme"
+printf '_theme_surface="#010203"\n_theme_fg="#040506"\n_theme_emphasis="#070809"\n_theme_muted="#0a0b0c"\n' \
+    >"$TMP/config/theme/colors.sh"
+raw=$(cd "$CO" && XDG_CONFIG_HOME=$TMP/config HERDR_ACTIVE_PANE_CWD=$CO "$POPUP" --dump 200)
+buttons=$(printf '%s\n' "$raw" | grep -F 'Browser')
+case $buttons in *$'\e[34m'* | *$'\e[35m'*)
+    no "buttons carry no colour of their own" "blue or magenta in the button row"
+    ;;
+*) ok "buttons carry no colour of their own" ;; esac
+case $buttons in *$'\e[38;2;10;11;12m'*$'\e[38;2;4;5;6m'*)
+    ok "outlines take secondary content, labels primary content"
+    ;;
+*) no "outlines take secondary content, labels primary content" "$(printf '%q' "$buttons" | head -c 300)" ;;
+esac
+case $raw in *$'\e[38;2;7;8;9m'*) no "no chrome in emphasized content" "base01 used for chrome" ;;
+*) ok "no chrome in emphasized content" ;;
+esac
+case $raw in *$'\e[48;2;1;2;3m'*) ok "chips sit on the theme's surface colour" ;;
+*) no "chips sit on the theme's surface colour" "no surface background in the frame" ;; esac
+
 frame 150
 [ "$(grep -c -E '^ +(TICKET|MERGE REQUEST|PIPELINE)$' "$TMP/frame")" = 3 ] && ok "a narrow popup stacks the three" ||
     no "a narrow popup stacks the three" "$(grep -E 'TICKET|MERGE|PIPELINE' "$TMP/frame")"

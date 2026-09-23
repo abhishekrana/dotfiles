@@ -57,7 +57,11 @@ paths:
   The popup's top line is a toolbar: the branch, the "updated" stamp, and All in tabs, Refresh (`r`) and Close chips.
   All in tabs (key `a`, popup only) opens the focused workspace's ticket, diff and jobs tabs without focus, signals the
   supervisors of the ones already open, replaces a tab that has none, and names in its toast what does not exist; there
-  is deliberately no global key for it.
+  is deliberately no global key for it. The popup uses only Solarized's colours, each in Solarized's own role, read from
+  the theme switcher's `colors.sh` as truecolor (terminal slot 7 renders a dark grey): primary content (`fg`, base00)
+  for values and button labels, secondary content (`muted`, base1) for names, outlines and rules, background highlights
+  (`surface`, base2) behind chips; accents only on marks and state words. The palette's `border` is not a Solarized
+  colour, so it is not used.
 - **`hunk/`** - `mode = "stack"` is deliberate: full width per line for the diff pane beside your work. Workdesk's `D`
   overrides it to `split` at the call, because an MR diff gets a window of its own. hunk reads the file at startup, so
   an open pane keeps its layout until respawned.

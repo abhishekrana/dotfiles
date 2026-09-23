@@ -40,8 +40,34 @@ CACHE = os.path.join(os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.
 # The terminal's own 16 colours, so every flavour of the palette follows. 96 is base1, the muted tone.
 RESET, BOLD = "\033[0m", "\033[1m"
 MUTED, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN = (f"\033[{n}m" for n in (96, 31, 32, 33, 34, 35, 36))
-CHIP_KEY, CHIP_VAL = "\033[44;97m", "\033[47;30m"
-TOOL, TOOL_TAB = "\033[47;30m", "\033[47;35m"  # the toolbar's chips; All in tabs in the New tab colour
+
+
+def theme():
+    """The theme switcher's palette roles, from its colors.sh; Solarized Light when there is none."""
+    roles = {"surface": "#eee8d5", "fg": "#657b83", "emphasis": "#586e75", "muted": "#93a1a1"}
+    file = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "theme", "colors.sh")
+    try:
+        with open(file) as f:
+            for m in re.finditer(r'^_theme_(\w+)="(#[0-9A-Fa-f]{6})"', f.read(), re.M):
+                roles[m.group(1)] = m.group(2)
+    except OSError:
+        pass
+    return roles
+
+
+def rgb(hex_colour, ground=38):
+    r, g, b = (int(hex_colour[i : i + 2], 16) for i in (1, 3, 5))
+    return f"\033[{ground};2;{r};{g};{b}m"
+
+
+# Solarized's own roles, and only its colours: primary content (base00) for values and labels, secondary content
+# (base1) for names, outlines and rules, background highlights (base2) behind chips. Accents are left to the marks
+# that mean something.
+PALETTE = theme()
+INK, EDGE = rgb(PALETTE["fg"]), rgb(PALETTE["muted"])
+SOFT = rgb(PALETTE["surface"], 48)
+CHIP_KEY, CHIP_VAL = SOFT + EDGE, SOFT + INK
+TOOL = INK
 
 # Two queries, asked in parallel: one alone exceeds GitLab's complexity limit of 250.
 QUERY = """
@@ -447,8 +473,8 @@ def bar(c, w):
     total = c["ok"] + c["bad"] + c["busy"] + c["wait"] + c["todo"]
     if not total:
         return [("no jobs have run", MUTED)]
-    parts, used, out = [("ok", "█", GREEN), ("bad", "█", RED), ("busy", "▓", BLUE), ("wait", "▒", YELLOW),
-                        ("todo", "░", MUTED)], 0, []
+    parts, used, out = [("ok", "█", INK), ("bad", "█", RED), ("busy", "▓", INK), ("wait", "▒", INK),
+                        ("todo", "░", EDGE)], 0, []
     for i, (k, ch, col) in enumerate(parts):
         n = w - used if i == len(parts) - 1 else max(1 if c[k] else 0, round(c[k] / total * w))
         n = max(0, min(n, w - used))
@@ -834,16 +860,18 @@ def boxes(w):
     """Browser, Split and New tab buttons, three rows tall, side by side in w columns; also their column spans."""
     bw = max(13, min(16, (w - 6) // 3))
     rows, spans = [[], [], []], []
-    for i, (glyph, text, col) in enumerate((("↗", "Browser", BLUE), ("◧", "Split", ""), ("▭", "New tab", MAGENTA))):
+    for i, (glyph, text) in enumerate((("↗", "Browser"), ("◧", "Split"), ("▭", "New tab"))):
         inner = cut(f" {glyph}  {text}", bw - 2)
         edge = "─" * (bw - 2)
-        box = ["┌" + edge + "┐", "│" + inner + " " * (bw - 2 - width(inner)) + "│", "└" + edge + "┘"]
+        box = [[("┌" + edge + "┐", EDGE)],
+               [("│", EDGE), (inner + " " * (bw - 2 - width(inner)), INK), ("│", EDGE)],
+               [("└" + edge + "┘", EDGE)]]
         x = i * (bw + 3)
         spans.append((x, x + bw))
         for r in range(3):
             if i:
                 rows[r].append((" " * 3, ""))
-            rows[r].append((box[r], col))
+            rows[r] += box[r]
     return rows, spans
 
 
@@ -867,7 +895,7 @@ def frame(state, W, now):
     if not state.get("fetching"):
         chips.insert(0, ("↻  Refresh", TOOL, "r"))
     if d and any(available(d).values()):
-        chips.insert(0, ("▭  All in tabs", TOOL_TAB, "a"))
+        chips.insert(0, ("▭  All in tabs", TOOL, "a"))
     bar = [(stamp, MUTED)] if stamp else []
     for label, colour, action in chips:
         bar += [("   ", ""), (f" {label} ", colour)]
