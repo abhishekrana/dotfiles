@@ -35,6 +35,10 @@ mkdir -p "$TMP/bin"
 cat >"$TMP/bin/glab" <<EOF
 #!/usr/bin/env bash
 case "\$*" in
+    "ci view"*)
+        printf 'glab %s\n' "\$*" >>"$TMP/tools.log"
+        exit 0
+        ;;
     *"fragment jobs"*) f=jobs.json ;;
     *graphql*) f=answer.json ;;
     *closes_issues*) f=closes.json ;;
@@ -54,6 +58,7 @@ case "\$1 \$2" in
     "pane split") echo '{"result":{"pane":{"pane_id":"w1:p9"}}}' ;;
     "tab create") echo '{"result":{"type":"tab_created","tab":{"tab_id":"w1:t5"},"root_pane":{"pane_id":"w1:p20"}}}' ;;
     "tab list") cat "$TMP/tabs.json" 2>/dev/null || echo '{"result":{"tabs":[]}}' ;;
+    "pane list") cat "$TMP/panes.json" 2>/dev/null || echo '{"result":{"panes":[]}}' ;;
 esac
 exit 0
 EOF
@@ -64,6 +69,19 @@ cat >"$TMP/bin/xdg-open" <<EOF
 printf '%s\n' "\$1" >>"$TMP/opened"
 EOF
 chmod +x "$TMP/bin/xdg-open"
+# The stub tools write down what they were given; while hold exists, folio stays open.
+cat >"$TMP/bin/folio" <<EOF
+#!/usr/bin/env bash
+printf 'folio %s\n' "\$*" >>"$TMP/tools.log"
+cp "\$1" "$TMP/page.seen" 2>/dev/null
+while [ -e "$TMP/hold" ]; do sleep 0.05; done
+EOF
+cat >"$TMP/bin/hunk" <<EOF
+#!/usr/bin/env bash
+printf 'hunk %s\n' "\$*" >>"$TMP/tools.log"
+EOF
+chmod +x "$TMP/bin/folio" "$TMP/bin/hunk"
+export GIT_SSH_COMMAND=false
 export PATH=$TMP/bin:$PATH
 
 CO=$TMP/co
@@ -225,7 +243,7 @@ order=$(awk '/TICKET/ {t = index($0, "TICKET"); m = index($0, "MERGE REQUEST"); 
     print (t < m && m < p)}' "$TMP/frame")
 [ "$order" = 1 ] && ok "the columns read ticket, MR, pipeline" ||
     no "the columns read ticket, MR, pipeline" "$(grep TICKET "$TMP/frame")"
-eq "every section has Browser, Split and New tab buttons" "t T tab-t m M tab-m p P tab-p" \
+eq "every section's three buttons, then All in tabs" "t T tab-t m M tab-m p P tab-p a" \
     "$(awk '$1 == "region" {print $5}' "$TMP/frame" | awk '!seen[$0]++' | tr '\n' ' ' | sed 's/ $//')"
 [ "$(region m | cut -d- -f2)" -le "$(region M | cut -d- -f1)" ] &&
     [ "$(region M | cut -d- -f2)" -le "$(region tab-m | cut -d- -f1)" ] &&
@@ -238,7 +256,7 @@ too_wide=$(grep -v '^region' "$TMP/frame" | python3 -c 'import sys; print(max(le
 frame 150
 [ "$(grep -c -E '^ +(TICKET|MERGE REQUEST|PIPELINE)$' "$TMP/frame")" = 3 ] && ok "a narrow popup stacks the three" ||
     no "a narrow popup stacks the three" "$(grep -E 'TICKET|MERGE|PIPELINE' "$TMP/frame")"
-eq "stacked, every section still has all three buttons" 9 \
+eq "stacked, every section still has all three buttons, and All in tabs" 10 \
     "$(awk '$1 == "region" {print $5}' "$TMP/frame" | sort -u | wc -l)"
 
 mr '{mergeTrainCar: {index: 1}, mergeTrainsCount: 4, autoMergeStrategy: "merge_train"}'
@@ -298,24 +316,22 @@ eq "t opens the ticket" "$WEB/-/issues/123" "$(opened)"
 act M
 grep -qF "pane split --pane w1:p1 --direction right --cwd $CO" "$TMP/herdr.log" &&
     ok "M splits the focused pane to the right" || no "M splits the focused pane to the right" "$(cat "$TMP/herdr.log")"
-grep -F "git merge-base origin/" "$TMP/herdr.log" | grep -qF "main" &&
-    grep -qF 'hunk diff "$base" --watch' "$TMP/herdr.log" && ! grep -qF -- "--sidebar" "$TMP/herdr.log" &&
-    ok "M shows the MR's live diff in hunk" || no "M shows the MR's live diff in hunk" "$(cat "$TMP/herdr.log")"
+grep -F "pane run w1:p9 " "$TMP/herdr.log" | grep -F "run-tab m" | grep -qv -- "--sidebar" &&
+    ok "the split runs the diff's supervisor, without the file list" ||
+    no "the split runs the diff's supervisor, without the file list" "$(cat "$TMP/herdr.log")"
 act P
-grep -qF "glab ci view -p 900" "$TMP/herdr.log" && ok "P opens the pipeline in glab ci view" ||
-    no "P opens the pipeline in glab ci view" "$(cat "$TMP/herdr.log")"
+grep -qF "run-tab p" "$TMP/herdr.log" && ok "P runs the pipeline's supervisor" ||
+    no "P runs the pipeline's supervisor" "$(cat "$TMP/herdr.log")"
 act T
-grep -F "ticket-md " "$TMP/herdr.log" | grep -qF "group/project" && grep -qF " 123 | folio" "$TMP/herdr.log" &&
-    ok "T reads the ticket in folio" ||
-    no "T reads the ticket in folio" "$(cat "$TMP/herdr.log")"
+grep -qF "run-tab t" "$TMP/herdr.log" && ok "T runs the ticket's supervisor" ||
+    no "T runs the ticket's supervisor" "$(cat "$TMP/herdr.log")"
 
 act tab-m
 grep -qF "tab create --workspace w1 --cwd $CO --label diff !45 --focus" "$TMP/herdr.log" &&
     ok "New tab opens a tab named for what it shows" ||
     no "New tab opens a tab named for what it shows" "$(cat "$TMP/herdr.log")"
-grep -F "pane run w1:p20 " "$TMP/herdr.log" | grep -qF 'hunk diff "$base" --watch --sidebar' &&
-    ok "the diff's tab is live, with the file list" ||
-    no "the diff's tab is live, with the file list" "$(cat "$TMP/herdr.log")"
+grep -F "pane run w1:p20 " "$TMP/herdr.log" | grep -qF "run-tab m --sidebar" &&
+    ok "the diff's tab asks for the file list" || no "the diff's tab asks for the file list" "$(cat "$TMP/herdr.log")"
 echo '{"result":{"tabs":[{"tab_id":"w1:t3","label":"diff !45"}]}}' >"$TMP/tabs.json"
 act tab-m
 grep -qF "tab focus w1:t3" "$TMP/herdr.log" && ! grep -qF "tab create" "$TMP/herdr.log" &&
@@ -326,8 +342,8 @@ act tab-t
 grep -qF -- "--label ticket #123" "$TMP/herdr.log" && ok "the ticket's tab is named for it" ||
     no "the ticket's tab is named for it" "$(cat "$TMP/herdr.log")"
 act tab-p
-grep -qF -- "--label jobs !45" "$TMP/herdr.log" && grep -qF "glab ci view -p 900" "$TMP/herdr.log" &&
-    ok "the pipeline's tab runs glab ci view" || no "the pipeline's tab runs glab ci view" "$(cat "$TMP/herdr.log")"
+grep -qF -- "--label jobs !45" "$TMP/herdr.log" && ok "the pipeline's tab is named for it" ||
+    no "the pipeline's tab is named for it" "$(cat "$TMP/herdr.log")"
 
 jq -nc '{title: "Save-as-failed", state: "opened", labels: ["type::bug"], assignees: [{username: "you"}],
     description: "Episodes are skipped."}' >"$TMP/issue.json"
@@ -342,6 +358,107 @@ case $md in *"# #123 Save-as-failed"*"Episodes are skipped."*"**@rev-a** · 2026
 *) no "the ticket reads as markdown, with its comments" "$md" ;;
 esac
 case $md in *"changed the status"*) no "system notes are left out" "$md" ;; *) ok "system notes are left out" ;; esac
+
+echo "herdr-forge: the tab supervisor and Alt+Shift+U"
+
+TABS=$XDG_CACHE_HOME/herdr-forge/tabs
+tab() { (cd "$CO" && HERDR_PANE_ID=$1 "$POPUP" run-tab "${@:2}" </dev/null >/dev/null 2>&1); }
+: >"$TMP/tools.log"
+tab w1:p31 m --sidebar
+grep -qF "hunk diff origin/main --watch --sidebar" "$TMP/tools.log" &&
+    ok "the diff is live, from the target when there is no merge base" ||
+    no "the diff is live, from the target when there is no merge base" "$(cat "$TMP/tools.log")"
+tab w1:p32 p
+grep -qF "glab ci view -p 900" "$TMP/tools.log" && ok "the jobs tab opens the MR's current pipeline" ||
+    no "the jobs tab opens the MR's current pipeline" "$(cat "$TMP/tools.log")"
+tab w1:p33 t
+grep -qF "folio $TABS/w1_p33.md" "$TMP/tools.log" && grep -qF "# #123 Save-as-failed" "$TMP/page.seen" &&
+    ok "the ticket tab reads a page written from GitLab" ||
+    no "the ticket tab reads a page written from GitLab" "$(cat "$TMP/tools.log")"
+[ ! -e "$TABS/w1_p33.md" ] && [ ! -e "$TABS/w1_p33.pid" ] && ok "a supervisor that ends leaves nothing behind" ||
+    no "a supervisor that ends leaves nothing behind" "$(ls "$TABS")"
+
+# SIGUSR1 restarts the tool with fresh data; quitting the tool ends the supervisor.
+: >"$TMP/tools.log"
+touch "$TMP/hold"
+(cd "$CO" && HERDR_PANE_ID=w1:p34 exec "$POPUP" run-tab t </dev/null >/dev/null 2>&1) &
+for _ in $(seq 100); do
+    grep -q folio "$TMP/tools.log" && break
+    sleep 0.05
+done
+kill -USR1 "$(cat "$TABS/w1_p34.pid")"
+for _ in $(seq 100); do
+    [ "$(grep -c folio "$TMP/tools.log")" -ge 2 ] && break
+    sleep 0.05
+done
+eq "a refresh restarts the tool" 2 "$(grep -c folio "$TMP/tools.log")"
+rm -f "$TMP/hold"
+wait
+left=$(find "$TABS" -name 'w1_p34*' 2>/dev/null)
+eq "quitting the tool after a refresh ends the tab" "" "$left"
+
+# Alt+Shift+U in a workspace with none of the three: all three open, none focused.
+tabs() { : >"$TMP/herdr.log" &&
+    HERDR_ACTIVE_PANE_CWD=$CO HERDR_ACTIVE_WORKSPACE_ID=w1 HERDR_BIN_PATH=$TMP/bin/herdr "$POPUP" --tabs; }
+tabs
+eq "all three open, in reading order" "ticket #123|diff !45|jobs !45" \
+    "$(grep -o -- '--label [^-]*' "$TMP/herdr.log" | sed 's/--label //; s/ $//' | paste -sd'|')"
+eq "none of them takes focus" 3 "$(grep -c -- '--no-focus' "$TMP/herdr.log")"
+grep -qE -- '--focus( |$)' "$TMP/herdr.log" && no "no tab is focused" "a tab was created with --focus" ||
+    ok "no tab is focused"
+grep -qF "notification show forge --body opened ticket #123, diff !45, jobs !45" "$TMP/herdr.log" &&
+    ok "a toast says what opened" || no "a toast says what opened" "$(grep notification "$TMP/herdr.log")"
+
+# Again, with the diff's supervisor running and a jobs tab from before supervisors.
+# A stand-in supervisor: its command line names run-tab, and SIGUSR1 ends it cleanly.
+python3 -c 'import signal, sys, time; signal.signal(signal.SIGUSR1, lambda *_: sys.exit(0)); time.sleep(30)' \
+    run-tab m &
+fake=$!
+mkdir -p "$TABS" && echo "$fake" >"$TABS/w1_p50.pid"
+echo '{"result":{"tabs":[{"tab_id":"w1:t8","label":"diff !45"},{"tab_id":"w1:t9","label":"jobs !45"}]}}' \
+    >"$TMP/tabs.json"
+echo '{"result":{"panes":[{"pane_id":"w1:p50","tab_id":"w1:t8"},{"pane_id":"w1:p60","tab_id":"w1:t9"}]}}' \
+    >"$TMP/panes.json"
+tabs
+wait "$fake" 2>/dev/null
+eq "an open tab is refreshed in place, not reopened" "" "$(grep -F -- '--label diff !45' "$TMP/herdr.log")"
+kill -0 "$fake" 2>/dev/null && no "its supervisor was signalled" "still running" || ok "its supervisor was signalled"
+grep -qF "tab close w1:t9" "$TMP/herdr.log" && grep -qF -- "--label jobs !45" "$TMP/herdr.log" &&
+    ok "a tab with no supervisor is replaced" || no "a tab with no supervisor is replaced" "$(cat "$TMP/herdr.log")"
+grep -qF "refreshed diff !45" "$TMP/herdr.log" && ok "the toast says what was refreshed" ||
+    no "the toast says what was refreshed" "$(grep notification "$TMP/herdr.log")"
+rm -f "$TMP/tabs.json" "$TMP/panes.json" "$TABS/w1_p50.pid"
+
+# All in tabs from the popup is the same thing, with the popup's own answer.
+act a
+eq "All in tabs opens all three" 3 "$(grep -c -- '--no-focus' "$TMP/herdr.log")"
+
+# Not all three always exist: only what does is opened, and the toast names what does not.
+mr '{headPipeline: null}'
+tabs
+eq "no pipeline: the ticket and the diff open" "ticket #123|diff !45" \
+    "$(grep -o -- '--label [^-]*' "$TMP/herdr.log" | sed 's/--label //; s/ $//' | paste -sd'|')"
+grep -qF "no pipeline yet" "$TMP/herdr.log" && ok "the toast says there is no pipeline" ||
+    no "the toast says there is no pipeline" "$(grep notification "$TMP/herdr.log")"
+jq '.data.project.mergeRequests.nodes = []' "$TMP/answer.json" >"$TMP/a" && mv "$TMP/a" "$TMP/answer.json"
+tabs
+eq "no MR: only the ticket opens" "ticket #123" \
+    "$(grep -o -- '--label [^-]*' "$TMP/herdr.log" | sed 's/--label //; s/ $//')"
+grep -qF "no merge request yet" "$TMP/herdr.log" && ! grep -qF "no pipeline yet" "$TMP/herdr.log" &&
+    ok "the toast says there is no MR, and no more" || no "the toast says there is no MR, and no more" \
+    "$(grep notification "$TMP/herdr.log")"
+jq '.data.project.workItems.nodes = []' "$TMP/answer.json" >"$TMP/a" && mv "$TMP/a" "$TMP/answer.json"
+on plain
+jq '.data.project.workItems.nodes = []' "$TMP/answer.json" >"$TMP/a" && mv "$TMP/a" "$TMP/answer.json"
+tabs
+eq "nothing at all: no tab opens" "" "$(grep -- '--label' "$TMP/herdr.log")"
+grep -qF "no linked ticket · no merge request yet" "$TMP/herdr.log" && ok "the toast says what does not exist" ||
+    no "the toast says what does not exist" "$(grep notification "$TMP/herdr.log")"
+frame
+eq "nothing to open: no All in tabs button" "" "$(region a)"
+on 123-feature
+mr
+jobs
 
 printf '\n%d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

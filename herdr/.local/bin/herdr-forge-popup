@@ -2,13 +2,16 @@
 """herdr-forge-popup - the focused branch's ticket, merge request and pipeline, in a herdr popup.
 
 Three columns, in the order the work happens: ticket, merge request, pipeline. Each has three buttons on one
-shared row: Browser, Split (beside the focused pane) and New tab (a herdr tab of its own, reused by name). Keys
-open the first two: t m p in the browser, T M P in a split. Below WIDE columns the three stack. It draws the last
+shared row: Browser, Split (beside the focused pane) and New tab (a herdr tab of its own, reused by name); under
+them, All in tabs opens every tab that exists and refreshes the ones already open. Keys: t m p in the browser,
+T M P in a split, a for all in tabs. Below WIDE columns the three stack. It draws the last
 answer at once, asks GitLab, and draws again.
 
     herdr-forge-popup                      the popup, for $HERDR_ACTIVE_PANE_CWD (else the cwd)
     herdr-forge-popup --dump WIDTH         print one frame and its click regions, for tests
     herdr-forge-popup --act ACTION         run one action (t, T, tab-t, ...) without drawing, for tests
+    herdr-forge-popup --tabs               what the All in tabs button does, without drawing, for tests
+    herdr-forge-popup run-tab t|m|p        a tab's supervisor: runs the tool, restarts it on SIGUSR1
     herdr-forge-popup ticket-md PROJECT N  the ticket as markdown, for folio
 
 A herdr popup hands every mouse event to its program, so clicks are read as SGR mouse reports. Quitting the tool
@@ -547,7 +550,7 @@ def available(d):
     return {"t": bool(d.get("ticket")), "m": bool(mr), "p": bool(mr and mr.get("headPipeline"))}
 
 
-ACTIONS = {"t", "m", "p", "T", "M", "P", "tab-t", "tab-m", "tab-p"}
+ACTIONS = {"t", "m", "p", "T", "M", "P", "tab-t", "tab-m", "tab-p", "a"}
 
 
 def herdr(*args):
@@ -588,10 +591,30 @@ def sh_quote(s):
     return "'" + s.replace("'", "'\\''") + "'"
 
 
+TABS = os.path.join(CACHE, "tabs")  # each tab's supervisor pid and ticket page, by pane id
+PAGE_EVERY = 60  # seconds between refreshes of a ticket's page
+
+
+def tab_name(k, d):
+    mr = d.get("mr") or {}
+    return {"t": f"ticket #{(d.get('ticket') or {}).get('iid')}", "m": f"diff !{mr.get('iid')}",
+            "p": f"jobs !{mr.get('iid')}"}[k]
+
+
+def supervised(k, sidebar):
+    """The shell command a split or tab runs: this script's supervisor for kind k."""
+    return f"{sh_quote(os.path.abspath(sys.argv[0]))} run-tab {k}" + (" --sidebar" if sidebar else "")
+
+
 def act(action, d, root, path):
     """Run one action: t m p open in the browser, T M P in a split, tab-t tab-m tab-p in a tab of their own."""
     k = action.removeprefix("tab-").lower()
     mr = d.get("mr") or {}
+    if action == "a":
+        if not any(available(d).values()):
+            return False
+        open_tabs(d, (root, d.get("branch"), path))
+        return True
     if action not in ACTIONS or not available(d).get(k):
         return False
     if action in ("t", "m", "p"):
@@ -599,23 +622,208 @@ def act(action, d, root, path):
         subprocess.Popen(["setsid", "-f", "xdg-open", url], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                          stderr=subprocess.DEVNULL)
         return True
-    me = os.path.abspath(sys.argv[0])
-    if k == "t":
-        cmd = f"{sh_quote(me)} ticket-md {sh_quote(path)} {d['ticket']['iid']} | folio"
-    elif k == "m":
-        t = sh_quote(mr.get("targetBranch") or "main")
-        # Live: the working tree against where the branch left its target, so commits and uncommitted edits
-        # appear as the agent makes them. A tab has the room for hunk's file list.
-        files = " --sidebar" if action.startswith("tab-") else ""
-        cmd = (f"git fetch --quiet origin {t}; base=$(git merge-base origin/{t} HEAD) || base=origin/{t}; "
-               f'exec hunk diff "$base" --watch{files}')
-    else:
-        cmd = f"glab ci view -p {pipeline_id(d)}"
     if action.startswith("tab-"):
-        name = {"t": f"ticket #{(d.get('ticket') or {}).get('iid')}", "m": f"diff !{mr.get('iid')}",
-                "p": f"jobs !{mr.get('iid')}"}[k]
-        return tab(root, name, cmd)
-    return split(root, cmd)
+        return tab(root, tab_name(k, d), supervised(k, True))
+    return split(root, supervised(k, False))
+
+
+# ---- a tab's supervisor ------------------------------------------------------------------------------------------
+
+
+def tool(k, d, page, sidebar):
+    """The command for kind k, from fresh data; the ticket reads its page, which is kept fresh beside it."""
+    if k == "t":
+        return ["folio", page]
+    if k == "p":
+        return ["glab", "ci", "view", "-p", pipeline_id(d)]
+    # Live: the working tree against where the branch left its target, so commits and uncommitted edits appear
+    # as the agent makes them. A piped patch would be hunk's pager mode, which neither watches nor shows files.
+    t = sh_quote((d.get("mr") or {}).get("targetBranch") or "main")
+    files = " --sidebar" if sidebar else ""
+    return ["sh", "-c", f"git fetch --quiet origin {t}; base=$(git merge-base origin/{t} HEAD) || base=origin/{t}; "
+            f'exec hunk diff "$base" --watch{files}']
+
+
+def write_page(root, path, iid, page):
+    text = ticket_markdown(root, path, iid)
+    with open(page + ".tmp", "w") as f:
+        f.write(text)
+    os.replace(page + ".tmp", page)
+
+
+def descendants(pid):
+    """Every process below pid, children first."""
+    kids = {}
+    for entry in os.listdir("/proc"):
+        if entry.isdigit():
+            try:
+                with open(f"/proc/{entry}/stat") as f:
+                    ppid = int(f.read().rsplit(")", 1)[1].split()[1])
+                kids.setdefault(ppid, []).append(int(entry))
+            except (OSError, ValueError, IndexError):
+                pass
+    out, todo = [], [pid]
+    while todo:
+        for c in kids.get(todo.pop(), []):
+            out.append(c)
+            todo.append(c)
+    return out
+
+
+def stop_tree(pid):
+    """Stop pid and everything below it: hunk's launcher leaves its real process behind otherwise."""
+    tree = [pid, *descendants(pid)]
+    for p in reversed(tree):
+        try:
+            os.kill(p, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+    deadline = time.time() + 2
+    while time.time() < deadline and any(os.path.exists(f"/proc/{p}") for p in tree):
+        time.sleep(0.05)
+    for p in tree:
+        try:
+            os.kill(p, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+
+
+def wait_key(text):
+    print(f"\n  {text}\n\n  any key closes", end="", flush=True)
+    if sys.stdin.isatty():
+        with raw(sys.stdin.fileno()):
+            os.read(sys.stdin.fileno(), 64)
+
+
+def run_tab(k, sidebar):
+    """Run kind k's tool until it quits; SIGUSR1 restarts it with fresh data. The ticket's page refreshes itself."""
+    where = place()
+    if not where:
+        return wait_key("Not a checkout on a branch.")
+    root, branch, path = where
+    os.makedirs(TABS, exist_ok=True)
+    me = re.sub(r"[^A-Za-z0-9]", "_", os.environ.get("HERDR_PANE_ID") or str(os.getpid()))
+    pidfile, page = os.path.join(TABS, me + ".pid"), os.path.join(TABS, me + ".md")
+    with open(pidfile, "w") as f:
+        f.write(f"{os.getpid()}\n")
+    state = {"restart": False, "child": None}
+
+    def restart(*_):
+        state["restart"] = True
+        if state["child"]:
+            stop_tree(state["child"].pid)
+
+    signal.signal(signal.SIGUSR1, restart)
+    signal.signal(signal.SIGINT, signal.SIG_IGN)  # Ctrl+C belongs to the tool
+    tty_state = termios.tcgetattr(sys.stdin.fileno()) if sys.stdin.isatty() else None
+    try:
+        while True:
+            state["restart"] = False
+            print("\033[2J\033[H\n  Asking GitLab…", flush=True)
+            try:
+                d = fetch(root, branch, path)
+                save(cache_file(root, branch), d)
+            except Exception as e:  # noqa: BLE001 - shown, and the last answer used when there is one
+                d = load(cache_file(root, branch))
+                if not d:
+                    return wait_key(f"GitLab unreachable: {e}")
+            if not available(d)[k]:
+                return wait_key({x: text for x, _, text in SECTIONS}[k])
+            stop = threading.Event()
+            if k == "t":
+                iid = d["ticket"]["iid"]
+                write_page(root, path, iid, page)
+
+                def fresh():
+                    while not stop.wait(PAGE_EVERY):
+                        try:
+                            write_page(root, path, iid, page)
+                        except Exception:  # noqa: BLE001 - the next minute tries again
+                            pass
+
+                threading.Thread(target=fresh, daemon=True).start()
+            state["child"] = subprocess.Popen(tool(k, d, page, sidebar), cwd=root,
+                                              preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_DFL))
+            if state["restart"]:
+                stop_tree(state["child"].pid)
+            state["child"].wait()
+            state["child"] = None
+            stop.set()
+            if not state["restart"]:
+                return
+            # A tool stopped mid-draw leaves the terminal in its modes; start the next one from a clean slate.
+            if tty_state:
+                termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, tty_state)
+            print("\033c", end="", flush=True)
+    finally:
+        for f in (pidfile, page):
+            try:
+                os.remove(f)
+            except OSError:
+                pass
+
+
+def supervisor(pane):
+    """The pid of the supervisor running in pane, or None."""
+    me = re.sub(r"[^A-Za-z0-9]", "_", pane)
+    try:
+        with open(os.path.join(TABS, me + ".pid")) as f:
+            pid = int(f.read().strip())
+        with open(f"/proc/{pid}/cmdline", "rb") as f:
+            return pid if b"run-tab" in f.read() else None
+    except (OSError, ValueError):
+        return None
+
+
+MISSING = {"t": "no linked ticket", "m": "no merge request yet", "p": "no pipeline yet"}
+
+
+def open_tabs(d=None, where=None):
+    """The focused workspace's ticket, diff and jobs tabs: open the missing ones, restart the rest, keep focus.
+    Only what exists is opened; a toast says what was opened, refreshed, and does not exist."""
+    where = where or place()
+    if not where:
+        return herdr("notification", "show", "forge", "--body", "Not a checkout on a branch.")
+    root, branch, path = where
+    if d is None:
+        try:
+            d = fetch(root, branch, path)
+            save(cache_file(root, branch), d)
+        except Exception as e:  # noqa: BLE001 - the last answer, when there is one
+            d = load(cache_file(root, branch))
+            if not d:
+                return herdr("notification", "show", "forge", "--body", f"GitLab unreachable: {e}")
+    ws = os.environ.get("HERDR_ACTIVE_WORKSPACE_ID")
+    here = ["--workspace", ws] if ws else []
+    avail = available(d)
+    tabs = herdr("tab", "list", *here).get("tabs") or [] if any(avail.values()) else []
+    panes = herdr("pane", "list", *here).get("panes") or [] if tabs else []
+    opened, refreshed, absent = [], [], []
+    for k in "tmp":
+        if not avail[k]:
+            # A pipeline is only missing when there is an MR to have one.
+            if k != "p" or avail["m"]:
+                absent.append(MISSING[k])
+            continue
+        name = tab_name(k, d)
+        found = next((t for t in tabs if t.get("label") == name), None)
+        if found:
+            pids = [supervisor(p["pane_id"]) for p in panes if p.get("tab_id") == found["tab_id"]]
+            live = [pid for pid in pids if pid]
+            if live:
+                for pid in live:
+                    os.kill(pid, signal.SIGUSR1)
+                refreshed.append(name)
+                continue
+            # A tab from before the supervisor, or one whose tool has quit: replace it.
+            herdr("tab", "close", found["tab_id"])
+        new = herdr("tab", "create", *here, "--cwd", root, "--label", name, "--no-focus")
+        pane = (new.get("root_pane") or {}).get("pane_id")
+        if pane:
+            run_in(pane, supervised(k, True))
+            opened.append(name)
+    parts = [opened and "opened " + ", ".join(opened), refreshed and "refreshed " + ", ".join(refreshed), *absent]
+    herdr("notification", "show", "forge", "--body", " · ".join(x for x in parts if x) or "nothing to open")
 
 
 # ---- the frame ------------------------------------------------------------------------------------------------------
@@ -636,6 +844,14 @@ def boxes(w):
                 rows[r].append((" " * 3, ""))
             rows[r].append((box[r], col))
     return rows, spans
+
+
+def all_button():
+    """The one button that opens or refreshes every tab, three rows tall; also its width."""
+    inner = " ▭  All in tabs  ·  opens what is missing, refreshes what is open "
+    edge = "─" * width(inner)
+    rows = [[("┌" + edge + "┐", MAGENTA)], [("│" + inner + "│", MAGENTA)], [("└" + edge + "┘", MAGENTA)]]
+    return rows, width(inner) + 2
 
 
 def button_actions(k):
@@ -714,8 +930,15 @@ def frame(state, W, now):
                 for (x0, x1), a in zip(spans, button_actions(k)):
                     regions += [(brow + r, PAD + x0, PAD + x1, a) for r in range(3)]
             lines.append([])
+    if any(avail.values()):
+        lines.append([])
+        top = len(lines)
+        rows, bw = all_button()
+        lines += [[(" " * PAD, "")] + row for row in rows]
+        regions += [(top + r, PAD, PAD + bw, "a") for r in range(3)]
     lines.append([])
-    lines.append([(" " * PAD, ""), ("click a button  ·  t m p browser  ·  T M P split  ·  esc closes", MUTED)])
+    keys = "t m p browser  ·  T M P split  ·  a all in tabs  ·  esc closes"
+    lines.append([(" " * PAD, ""), ("click a button  ·  " + keys, MUTED)])
     return lines, regions
 
 
@@ -826,6 +1049,12 @@ class raw:
 
 
 def main(argv):
+    if len(argv) >= 3 and argv[1] == "run-tab" and argv[2] in ("t", "m", "p"):
+        run_tab(argv[2], "--sidebar" in argv[3:])
+        return 0
+    if len(argv) == 2 and argv[1] == "--tabs":
+        open_tabs()
+        return 0
     if len(argv) >= 4 and argv[1] == "ticket-md":
         print(ticket_markdown(os.getcwd(), argv[2], argv[3]))
         return 0

@@ -51,7 +51,12 @@ paths:
   is live: `hunk diff <merge-base> --watch`, the working tree against where the branch left its target, with `--sidebar`
   added only in its own tab (hunk's config keeps the file list off). Never pipe a patch into hunk there: piped input is
   pager mode, which drops the file list and cannot watch. `test/herdr-forge.sh` stubs glab, herdr and xdg-open, and
-  drives the popup through `--dump` and `--act`.
+  drives the popup through `--dump` and `--act`. Every herdr view runs under `herdr-forge-popup run-tab`, a supervisor
+  that restarts its tool on SIGUSR1 with fresh data and stops the tool's whole process tree (hunk's node launcher leaves
+  its real process behind otherwise); the ticket reads a page file it rewrites every 60s, which folio reloads by itself.
+  The popup's All in tabs button (key `a`, popup only) opens the focused workspace's ticket, diff and jobs tabs without
+  focus, signals the supervisors of the ones already open, replaces a tab that has none, and names in its toast what
+  does not exist; there is deliberately no global key for it.
 - **`hunk/`** - `mode = "stack"` is deliberate: full width per line for the diff pane beside your work. Workdesk's `D`
   overrides it to `split` at the call, because an MR diff gets a window of its own. hunk reads the file at startup, so
   an open pane keeps its layout until respawned.
