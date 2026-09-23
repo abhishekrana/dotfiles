@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 """herdr-forge-popup - the focused branch's ticket, merge request and pipeline, in a herdr popup.
 
-Three columns, in the order the work happens: ticket, merge request, pipeline. Each has a Browser and a herdr
-button on one shared row; a click or a key opens it (t m p in the browser, T M P in herdr). Below WIDE columns
-the three stack. It draws the last answer at once, asks GitLab, and draws again.
+Three columns, in the order the work happens: ticket, merge request, pipeline. Each has three buttons on one
+shared row: Browser, Split (beside the focused pane) and New tab (a herdr tab of its own, reused by name). Keys
+open the first two: t m p in the browser, T M P in a split. Below WIDE columns the three stack. It draws the last
+answer at once, asks GitLab, and draws again.
 
     herdr-forge-popup                      the popup, for $HERDR_ACTIVE_PANE_CWD (else the cwd)
     herdr-forge-popup --dump WIDTH         print one frame and its click regions, for tests
-    herdr-forge-popup --act ACTION         run one action without drawing, for tests
+    herdr-forge-popup --act ACTION         run one action (t, T, tab-t, ...) without drawing, for tests
     herdr-forge-popup ticket-md PROJECT N  the ticket as markdown, for folio
 
-A herdr popup hands every mouse event to its program, so clicks are read as SGR mouse reports. The herdr buttons
-split the focused pane to the right; quitting the tool there closes the split.
+A herdr popup hands every mouse event to its program, so clicks are read as SGR mouse reports. Quitting the tool
+a Split or New tab runs closes that split or tab.
 """
 
 import json
@@ -29,7 +30,7 @@ import unicodedata
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
-WIDE = 150  # narrower than this, the columns stack
+WIDE = 156  # narrower than this, the columns stack: three buttons need 45 columns
 PAD, GAP, KEY_W = 4, 6, 11
 CACHE = os.path.join(os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache"), "herdr-forge")
 
@@ -533,10 +534,10 @@ def pipeline_id(d):
 
 # ---- actions --------------------------------------------------------------------------------------------------------
 
-SECTIONS = [  # key, label, herdr button, what a missing item says
-    ("t", "TICKET", "Read in herdr", "No linked ticket: the branch has no number, and its MR closes nothing."),
-    ("m", "MERGE REQUEST", "Diff in herdr", "No merge request for this branch yet."),
-    ("p", "PIPELINE", "Jobs in herdr", "No pipeline yet."),
+SECTIONS = [  # key, label, what a missing item says
+    ("t", "TICKET", "No linked ticket: the branch has no number, and its MR closes nothing."),
+    ("m", "MERGE REQUEST", "No merge request for this branch yet."),
+    ("p", "PIPELINE", "No pipeline yet."),
 ]
 
 
@@ -546,16 +547,40 @@ def available(d):
     return {"t": bool(d.get("ticket")), "m": bool(mr), "p": bool(mr and mr.get("headPipeline"))}
 
 
+ACTIONS = {"t", "m", "p", "T", "M", "P", "tab-t", "tab-m", "tab-p"}
+
+
+def herdr(*args):
+    r = subprocess.run([os.environ.get("HERDR_BIN_PATH") or "herdr", *args], capture_output=True, text=True)
+    return json.loads(r.stdout or "{}").get("result", {}) if r.returncode == 0 else {}
+
+
+def run_in(pane, command):
+    """Run command in pane; exec, so quitting the tool closes the pane."""
+    herdr("pane", "run", pane, f"exec sh -c {sh_quote(command)}")
+
+
 def split(root, command):
-    """Split the focused pane to the right and run command there; exec, so quitting the tool closes the split."""
-    herdr = os.environ.get("HERDR_BIN_PATH") or "herdr"
+    """Split the focused pane to the right and run command there."""
     pane = os.environ.get("HERDR_ACTIVE_PANE_ID")
-    target = ["--pane", pane] if pane else ["--current"]
-    r = subprocess.run([herdr, "pane", "split", *target, "--direction", "right", "--cwd", root],
-                       capture_output=True, text=True)
-    new = json.loads(r.stdout or "{}").get("result", {}).get("pane", {}).get("pane_id") if r.returncode == 0 else None
+    new = herdr("pane", "split", *(["--pane", pane] if pane else ["--current"]), "--direction", "right",
+                "--cwd", root).get("pane", {}).get("pane_id")
     if new:
-        subprocess.run([herdr, "pane", "run", new, f"exec sh -c {sh_quote(command)}"], capture_output=True)
+        run_in(new, command)
+    return bool(new)
+
+
+def tab(root, label, command):
+    """Focus this workspace's tab named label, or open it and run command there."""
+    ws = os.environ.get("HERDR_ACTIVE_WORKSPACE_ID")
+    where = ["--workspace", ws] if ws else []
+    for t in herdr("tab", "list", *where).get("tabs") or []:
+        if t.get("label") == label:
+            herdr("tab", "focus", t["tab_id"])
+            return True
+    new = herdr("tab", "create", *where, "--cwd", root, "--label", label, "--focus").get("root_pane", {}).get("pane_id")
+    if new:
+        run_in(new, command)
     return bool(new)
 
 
@@ -564,12 +589,12 @@ def sh_quote(s):
 
 
 def act(action, d, root, path):
-    """Run one action: t m p open in the browser, T M P open in herdr."""
-    k, herdr = action.lower(), action.isupper()
+    """Run one action: t m p open in the browser, T M P in a split, tab-t tab-m tab-p in a tab of their own."""
+    k = action.removeprefix("tab-").lower()
     mr = d.get("mr") or {}
-    if not available(d).get(k):
+    if action not in ACTIONS or not available(d).get(k):
         return False
-    if not herdr:
+    if action in ("t", "m", "p"):
         url = {"t": (d.get("ticket") or {}).get("webUrl"), "m": mr.get("webUrl"), "p": pipeline_url(d)}[k]
         subprocess.Popen(["setsid", "-f", "xdg-open", url], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                          stderr=subprocess.DEVNULL)
@@ -579,31 +604,40 @@ def act(action, d, root, path):
         cmd = f"{sh_quote(me)} ticket-md {sh_quote(path)} {d['ticket']['iid']} | folio"
     elif k == "m":
         t = sh_quote(mr.get("targetBranch") or "main")
-        cmd = f"git fetch --quiet origin {t}; git diff --no-color origin/{t}...HEAD | hunk patch -"
+        # A tab has the room for hunk's file list; a split beside the agent does not.
+        files = " --sidebar" if action.startswith("tab-") else ""
+        cmd = f"git fetch --quiet origin {t}; git diff --no-color origin/{t}...HEAD | hunk patch{files} -"
     else:
         cmd = f"glab ci view -p {pipeline_id(d)}"
+    if action.startswith("tab-"):
+        name = {"t": f"ticket #{(d.get('ticket') or {}).get('iid')}", "m": f"diff !{mr.get('iid')}",
+                "p": f"jobs !{mr.get('iid')}"}[k]
+        return tab(root, name, cmd)
     return split(root, cmd)
 
 
 # ---- the frame ------------------------------------------------------------------------------------------------------
 
 
-def boxes(label, w):
-    """Browser and herdr buttons, three rows tall, side by side in w columns; also their column spans."""
-    bw = max(14, min(24, (w - 4) // 2))
-    rows = [[], [], []]
-    spans = []
-    for i, (glyph, text, col) in enumerate((("↗", "Browser", BLUE), ("▶", label, ""))):
+def boxes(w):
+    """Browser, Split and New tab buttons, three rows tall, side by side in w columns; also their column spans."""
+    bw = max(13, min(16, (w - 6) // 3))
+    rows, spans = [[], [], []], []
+    for i, (glyph, text, col) in enumerate((("↗", "Browser", BLUE), ("◧", "Split", ""), ("▭", "New tab", MAGENTA))):
         inner = cut(f" {glyph}  {text}", bw - 2)
         edge = "─" * (bw - 2)
         box = ["┌" + edge + "┐", "│" + inner + " " * (bw - 2 - width(inner)) + "│", "└" + edge + "┘"]
-        x = i * (bw + 4)
+        x = i * (bw + 3)
         spans.append((x, x + bw))
         for r in range(3):
             if i:
-                rows[r].append((" " * 4, ""))
+                rows[r].append((" " * 3, ""))
             rows[r].append((box[r], col))
     return rows, spans
+
+
+def button_actions(k):
+    return (k, k.upper(), "tab-" + k)
 
 
 def frame(state, W, now):
@@ -630,13 +664,13 @@ def frame(state, W, now):
     wide = W >= WIDE
     cw = min(60, (W - 2 * PAD - 2 * GAP) // 3) if wide else W - 2 * PAD
 
-    missing = {k: text for k, _, _, text in SECTIONS}
+    missing = {k: text for k, _, text in SECTIONS}
 
     def body(k, w):
         return builders[k](d, w) if avail[k] else [[(x, MUTED)] for x in wrap(missing[k], w)]
 
     if wide:
-        cols = [[[(label, BOLD)], []] + body(k, cw) for k, label, _, _ in SECTIONS]
+        cols = [[[(label, BOLD)], []] + body(k, cw) for k, label, _ in SECTIONS]
         depth = max(len(c) for c in cols)
         for r in range(depth):
             row = [(" " * PAD, "")]
@@ -650,13 +684,13 @@ def frame(state, W, now):
         lines.append([])
         brow = len(lines)
         button_rows = [[(" " * PAD, "")] for _ in range(3)]
-        for i, (k, _, label, _) in enumerate(SECTIONS):
+        for i, (k, _, _) in enumerate(SECTIONS):
             x = PAD + i * (cw + GAP)
             if avail[k]:
-                rows, spans = boxes(label, cw)
+                rows, spans = boxes(cw)
                 for r in range(3):
                     button_rows[r] += rows[r]
-                for (x0, x1), a in zip(spans, (k, k.upper())):
+                for (x0, x1), a in zip(spans, button_actions(k)):
                     regions += [(brow + r, x + x0, x + x1, a) for r in range(3)]
                 used = sum(width(t) for t, _ in rows[0])
             else:
@@ -666,20 +700,20 @@ def frame(state, W, now):
                 button_rows[r].append((" " * pad, ""))
         lines += button_rows
     else:
-        for k, label, blabel, _ in SECTIONS:
+        for k, label, _ in SECTIONS:
             lines.append([(" " * PAD, ""), (label, BOLD)])
             lines.append([])
             lines += [[(" " * PAD, "")] + line for line in body(k, cw)]
             if avail[k]:
                 lines.append([])
                 brow = len(lines)
-                rows, spans = boxes(blabel, cw)
+                rows, spans = boxes(cw)
                 lines += [[(" " * PAD, "")] + row for row in rows]
-                for (x0, x1), a in zip(spans, (k, k.upper())):
+                for (x0, x1), a in zip(spans, button_actions(k)):
                     regions += [(brow + r, PAD + x0, PAD + x1, a) for r in range(3)]
             lines.append([])
     lines.append([])
-    lines.append([(" " * PAD, ""), ("click a button  ·  t m p open in the browser  ·  T M P open in herdr", MUTED)])
+    lines.append([(" " * PAD, ""), ("click a button  ·  t m p browser  ·  T M P split  ·  esc closes", MUTED)])
     return lines, regions
 
 
@@ -766,9 +800,9 @@ def popup():
                 if ev[0] == "click":
                     hit = [a for (r, x0, x1, a) in regions if r == ev[1] and x0 <= ev[2] < x1]
                     ev = ("key", hit[0]) if hit else None
-                if ev and state.get("data") and ev[1] in "tmpTMP" and act(ev[1], state["data"], root, path):
+                if ev and state.get("data") and ev[1] in ACTIONS and act(ev[1], state["data"], root, path):
                     return
-                if ev and ev[1] not in "tmpTMP":
+                if ev and ev[1] not in ACTIONS:
                     return
     finally:
         out.write("\033[?1006l\033[?1000l\033[?25h")

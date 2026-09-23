@@ -42,13 +42,15 @@ paths:
   Pass the branch as `-f b=<name>`: glab's `-F 'b[]=…'` form drops the filter and returns the project's newest MR. Herdr
   cannot make tab bar text clickable, so `herdr-forge open` hands off to `herdr-forge-popup` (stdlib Python), an `alt+u`
   popup with `prefix+u` as a fallback (`[[keys.command]]`, same file): ticket, MR and pipeline in three columns, stacked
-  below 150 columns, each with a browser and a herdr button. A popup hands every click to its program and never to
-  herdr's Ctrl+click link handling (v0.9.1), so it reads SGR mouse reports and maps the clicked row and column itself.
-  Its GraphQL is two queries asked in parallel, because one exceeds GitLab's complexity limit of 250. Most branches
-  carry no ticket number, so the ticket falls back to what the MR closes. MR pipelines run on
-  `refs/merge-requests/N/merge`, so the pipeline opens with `glab ci view -p <id>`, never `-b <branch>`; the MR diff is
-  `git diff origin/<target>...HEAD | hunk patch -`. `test/herdr-forge.sh` stubs glab, herdr and xdg-open, and drives the
-  popup through `--dump` and `--act`.
+  below 156 columns, each with Browser, Split and New tab buttons. New tab names the herdr tab for what it shows
+  (`diff !45`) and focuses it rather than opening a second; only Browser and Split have keys. A popup hands every click
+  to its program and never to herdr's Ctrl+click link handling (v0.9.1), so it reads SGR mouse reports and maps the
+  clicked row and column itself. Its GraphQL is two queries asked in parallel, because one exceeds GitLab's complexity
+  limit of 250. Most branches carry no ticket number, so the ticket falls back to what the MR closes. MR pipelines run
+  on `refs/merge-requests/N/merge`, so the pipeline opens with `glab ci view -p <id>`, never `-b <branch>`; the MR diff
+  is `git diff origin/<target>...HEAD | hunk patch -`, with `--sidebar` added only in its own tab (hunk's config keeps
+  the file list off). `test/herdr-forge.sh` stubs glab, herdr and xdg-open, and drives the popup through `--dump` and
+  `--act`.
 - **`hunk/`** - `mode = "stack"` is deliberate: full width per line for the diff pane beside your work. Workdesk's `D`
   overrides it to `split` at the call, because an MR diff gets a window of its own. hunk reads the file at startup, so
   an open pane keeps its layout until respawned.

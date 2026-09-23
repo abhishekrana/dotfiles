@@ -45,11 +45,16 @@ esac
 cat "$TMP/\$f"
 EOF
 chmod +x "$TMP/bin/glab"
-# The stub herdr writes down every call and answers a split with a new pane.
+# The stub herdr writes down every call, answers a split or a new tab with a new pane, and lists the tabs in
+# tabs.json.
 cat >"$TMP/bin/herdr" <<EOF
 #!/usr/bin/env bash
 printf '%s\n' "\$*" >>"$TMP/herdr.log"
-[ "\$1 \$2" = "pane split" ] && echo '{"result":{"pane":{"pane_id":"w1:p9"}}}'
+case "\$1 \$2" in
+    "pane split") echo '{"result":{"pane":{"pane_id":"w1:p9"}}}' ;;
+    "tab create") echo '{"result":{"type":"tab_created","tab":{"tab_id":"w1:t5"},"root_pane":{"pane_id":"w1:p20"}}}' ;;
+    "tab list") cat "$TMP/tabs.json" 2>/dev/null || echo '{"result":{"tabs":[]}}' ;;
+esac
 exit 0
 EOF
 chmod +x "$TMP/bin/herdr"
@@ -220,19 +225,21 @@ order=$(awk '/TICKET/ {t = index($0, "TICKET"); m = index($0, "MERGE REQUEST"); 
     print (t < m && m < p)}' "$TMP/frame")
 [ "$order" = 1 ] && ok "the columns read ticket, MR, pipeline" ||
     no "the columns read ticket, MR, pipeline" "$(grep TICKET "$TMP/frame")"
-eq "every section has a browser and a herdr button" "t T m M p P" \
+eq "every section has Browser, Split and New tab buttons" "t T tab-t m M tab-m p P tab-p" \
     "$(awk '$1 == "region" {print $5}' "$TMP/frame" | awk '!seen[$0]++' | tr '\n' ' ' | sed 's/ $//')"
 [ "$(region m | cut -d- -f2)" -le "$(region M | cut -d- -f1)" ] &&
-    ok "the herdr button sits right of the browser one" ||
-    no "the herdr button sits right of the browser one" "m $(region m), M $(region M)"
+    [ "$(region M | cut -d- -f2)" -le "$(region tab-m | cut -d- -f1)" ] &&
+    ok "the buttons read Browser, Split, New tab" ||
+    no "the buttons read Browser, Split, New tab" "m $(region m), M $(region M), tab-m $(region tab-m)"
 too_wide=$(grep -v '^region' "$TMP/frame" | python3 -c 'import sys; print(max(len(l.rstrip("\n")) for l in sys.stdin))')
 [ "$too_wide" -le 200 ] && ok "no line is wider than the popup" ||
     no "no line is wider than the popup" "$too_wide columns"
 
-frame 120
+frame 150
 [ "$(grep -c -E '^ +(TICKET|MERGE REQUEST|PIPELINE)$' "$TMP/frame")" = 3 ] && ok "a narrow popup stacks the three" ||
     no "a narrow popup stacks the three" "$(grep -E 'TICKET|MERGE|PIPELINE' "$TMP/frame")"
-eq "stacked, every section still has both buttons" 6 "$(awk '$1 == "region" {print $5}' "$TMP/frame" | sort -u | wc -l)"
+eq "stacked, every section still has all three buttons" 9 \
+    "$(awk '$1 == "region" {print $5}' "$TMP/frame" | sort -u | wc -l)"
 
 mr '{mergeTrainCar: {index: 1}, mergeTrainsCount: 4, autoMergeStrategy: "merge_train"}'
 frame
@@ -273,7 +280,8 @@ on 123-feature
 mr
 jobs
 act() { : >"$TMP/herdr.log" && rm -f "$TMP/opened" &&
-    HERDR_ACTIVE_PANE_CWD=$CO HERDR_ACTIVE_PANE_ID=w1:p1 HERDR_BIN_PATH=$TMP/bin/herdr "$POPUP" --act "$1"; }
+    HERDR_ACTIVE_PANE_CWD=$CO HERDR_ACTIVE_PANE_ID=w1:p1 HERDR_ACTIVE_WORKSPACE_ID=w1 HERDR_BIN_PATH=$TMP/bin/herdr \
+        "$POPUP" --act "$1"; }
 opened() {
     for _ in $(seq 20); do
         [ -s "$TMP/opened" ] && break
@@ -291,7 +299,7 @@ act M
 grep -qF "pane split --pane w1:p1 --direction right --cwd $CO" "$TMP/herdr.log" &&
     ok "M splits the focused pane to the right" || no "M splits the focused pane to the right" "$(cat "$TMP/herdr.log")"
 grep -F "git diff --no-color origin/" "$TMP/herdr.log" | grep -qF "main" &&
-    grep -qF "...HEAD | hunk patch -" "$TMP/herdr.log" &&
+    grep -qF "...HEAD | hunk patch -" "$TMP/herdr.log" && ! grep -qF -- "--sidebar" "$TMP/herdr.log" &&
     ok "M shows the MR's diff in hunk" || no "M shows the MR's diff in hunk" "$(cat "$TMP/herdr.log")"
 act P
 grep -qF "glab ci view -p 900" "$TMP/herdr.log" && ok "P opens the pipeline in glab ci view" ||
@@ -300,6 +308,26 @@ act T
 grep -F "ticket-md " "$TMP/herdr.log" | grep -qF "group/project" && grep -qF " 123 | folio" "$TMP/herdr.log" &&
     ok "T reads the ticket in folio" ||
     no "T reads the ticket in folio" "$(cat "$TMP/herdr.log")"
+
+act tab-m
+grep -qF "tab create --workspace w1 --cwd $CO --label diff !45 --focus" "$TMP/herdr.log" &&
+    ok "New tab opens a tab named for what it shows" ||
+    no "New tab opens a tab named for what it shows" "$(cat "$TMP/herdr.log")"
+grep -F "pane run w1:p20 " "$TMP/herdr.log" | grep -qF "hunk patch --sidebar -" &&
+    ok "the diff's tab shows hunk with its file list" ||
+    no "the diff's tab shows hunk with its file list" "$(cat "$TMP/herdr.log")"
+echo '{"result":{"tabs":[{"tab_id":"w1:t3","label":"diff !45"}]}}' >"$TMP/tabs.json"
+act tab-m
+grep -qF "tab focus w1:t3" "$TMP/herdr.log" && ! grep -qF "tab create" "$TMP/herdr.log" &&
+    ok "New tab again focuses that tab, and opens no second one" ||
+    no "New tab again focuses that tab, and opens no second one" "$(cat "$TMP/herdr.log")"
+rm -f "$TMP/tabs.json"
+act tab-t
+grep -qF -- "--label ticket #123" "$TMP/herdr.log" && ok "the ticket's tab is named for it" ||
+    no "the ticket's tab is named for it" "$(cat "$TMP/herdr.log")"
+act tab-p
+grep -qF -- "--label jobs !45" "$TMP/herdr.log" && grep -qF "glab ci view -p 900" "$TMP/herdr.log" &&
+    ok "the pipeline's tab runs glab ci view" || no "the pipeline's tab runs glab ci view" "$(cat "$TMP/herdr.log")"
 
 jq -nc '{title: "Save-as-failed", state: "opened", labels: ["type::bug"], assignees: [{username: "you"}],
     description: "Episodes are skipped."}' >"$TMP/issue.json"
