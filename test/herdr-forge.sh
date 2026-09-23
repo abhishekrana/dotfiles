@@ -71,7 +71,8 @@ node() {
 echo "herdr-forge"
 
 answer 123-feature "$(node 45 opened false NOT_APPROVED 1 '{"status":"SUCCESS"}')"
-eq "an open MR names what it waits on, and its pipeline" "#123 · !45 · needs 1 approval · CI ✓" "$(line 123-feature)"
+eq "an open MR names what it waits on, and its pipeline" \
+    "#123 · !45 · needs 1 approval · CI ✓" "$(line 123-feature)"
 
 answer 123-feature "$(node 45 opened false NOT_APPROVED 2 '{"status":"FAILED"}')"
 eq "approvals are plural past one" "#123 · !45 · needs 2 approvals · CI ✗" "$(line 123-feature)"
