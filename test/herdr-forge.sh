@@ -298,9 +298,9 @@ eq "t opens the ticket" "$WEB/-/issues/123" "$(opened)"
 act M
 grep -qF "pane split --pane w1:p1 --direction right --cwd $CO" "$TMP/herdr.log" &&
     ok "M splits the focused pane to the right" || no "M splits the focused pane to the right" "$(cat "$TMP/herdr.log")"
-grep -F "git diff --no-color origin/" "$TMP/herdr.log" | grep -qF "main" &&
-    grep -qF "...HEAD | hunk patch -" "$TMP/herdr.log" && ! grep -qF -- "--sidebar" "$TMP/herdr.log" &&
-    ok "M shows the MR's diff in hunk" || no "M shows the MR's diff in hunk" "$(cat "$TMP/herdr.log")"
+grep -F "git merge-base origin/" "$TMP/herdr.log" | grep -qF "main" &&
+    grep -qF 'hunk diff "$base" --watch' "$TMP/herdr.log" && ! grep -qF -- "--sidebar" "$TMP/herdr.log" &&
+    ok "M shows the MR's live diff in hunk" || no "M shows the MR's live diff in hunk" "$(cat "$TMP/herdr.log")"
 act P
 grep -qF "glab ci view -p 900" "$TMP/herdr.log" && ok "P opens the pipeline in glab ci view" ||
     no "P opens the pipeline in glab ci view" "$(cat "$TMP/herdr.log")"
@@ -313,9 +313,9 @@ act tab-m
 grep -qF "tab create --workspace w1 --cwd $CO --label diff !45 --focus" "$TMP/herdr.log" &&
     ok "New tab opens a tab named for what it shows" ||
     no "New tab opens a tab named for what it shows" "$(cat "$TMP/herdr.log")"
-grep -F "pane run w1:p20 " "$TMP/herdr.log" | grep -qF "hunk patch --sidebar -" &&
-    ok "the diff's tab shows hunk with its file list" ||
-    no "the diff's tab shows hunk with its file list" "$(cat "$TMP/herdr.log")"
+grep -F "pane run w1:p20 " "$TMP/herdr.log" | grep -qF 'hunk diff "$base" --watch --sidebar' &&
+    ok "the diff's tab is live, with the file list" ||
+    no "the diff's tab is live, with the file list" "$(cat "$TMP/herdr.log")"
 echo '{"result":{"tabs":[{"tab_id":"w1:t3","label":"diff !45"}]}}' >"$TMP/tabs.json"
 act tab-m
 grep -qF "tab focus w1:t3" "$TMP/herdr.log" && ! grep -qF "tab create" "$TMP/herdr.log" &&

@@ -48,9 +48,10 @@ paths:
   clicked row and column itself. Its GraphQL is two queries asked in parallel, because one exceeds GitLab's complexity
   limit of 250. Most branches carry no ticket number, so the ticket falls back to what the MR closes. MR pipelines run
   on `refs/merge-requests/N/merge`, so the pipeline opens with `glab ci view -p <id>`, never `-b <branch>`; the MR diff
-  is `git diff origin/<target>...HEAD | hunk patch -`, with `--sidebar` added only in its own tab (hunk's config keeps
-  the file list off). `test/herdr-forge.sh` stubs glab, herdr and xdg-open, and drives the popup through `--dump` and
-  `--act`.
+  is live: `hunk diff <merge-base> --watch`, the working tree against where the branch left its target, with `--sidebar`
+  added only in its own tab (hunk's config keeps the file list off). Never pipe a patch into hunk there: piped input is
+  pager mode, which drops the file list and cannot watch. `test/herdr-forge.sh` stubs glab, herdr and xdg-open, and
+  drives the popup through `--dump` and `--act`.
 - **`hunk/`** - `mode = "stack"` is deliberate: full width per line for the diff pane beside your work. Workdesk's `D`
   overrides it to `split` at the call, because an MR diff gets a window of its own. hunk reads the file at startup, so
   an open pane keeps its layout until respawned.

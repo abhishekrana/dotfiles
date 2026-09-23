@@ -604,9 +604,11 @@ def act(action, d, root, path):
         cmd = f"{sh_quote(me)} ticket-md {sh_quote(path)} {d['ticket']['iid']} | folio"
     elif k == "m":
         t = sh_quote(mr.get("targetBranch") or "main")
-        # A tab has the room for hunk's file list; a split beside the agent does not.
+        # Live: the working tree against where the branch left its target, so commits and uncommitted edits
+        # appear as the agent makes them. A tab has the room for hunk's file list.
         files = " --sidebar" if action.startswith("tab-") else ""
-        cmd = f"git fetch --quiet origin {t}; git diff --no-color origin/{t}...HEAD | hunk patch{files} -"
+        cmd = (f"git fetch --quiet origin {t}; base=$(git merge-base origin/{t} HEAD) || base=origin/{t}; "
+               f'exec hunk diff "$base" --watch{files}')
     else:
         cmd = f"glab ci view -p {pipeline_id(d)}"
     if action.startswith("tab-"):
