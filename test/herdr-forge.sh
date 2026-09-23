@@ -235,7 +235,8 @@ check "each reviewer has a state" "✓ @rev-a approved"
 check "threads are counted" "Threads    3 of 5 resolved"
 check "a big diff is shown in thousands" "+1.4k −37 · 9 files → main"
 check "a scoped label is a chip in two halves" " area  queue "
-check "the pipeline runs against its last run" "running · 6m 12s of ~11m"
+check "the pipeline says how long it has run" "running · 6m 1"
+check "the pipeline runs against its last run" "s of ~11m"
 check "the bar counts the jobs that run, children included" "50 of 66 jobs"
 check "manual jobs are one count" "manual     47 jobs, not run"
 check "a child pipeline has a line" "● images"
@@ -243,12 +244,18 @@ order=$(awk '/TICKET/ {t = index($0, "TICKET"); m = index($0, "MERGE REQUEST"); 
     print (t < m && m < p)}' "$TMP/frame")
 [ "$order" = 1 ] && ok "the columns read ticket, MR, pipeline" ||
     no "the columns read ticket, MR, pipeline" "$(grep TICKET "$TMP/frame")"
-eq "every section's three buttons, then All in tabs" "t T tab-t m M tab-m p P tab-p a" \
+eq "the toolbar's chips, then every section's three buttons" "a r close t T tab-t m M tab-m p P tab-p" \
     "$(awk '$1 == "region" {print $5}' "$TMP/frame" | awk '!seen[$0]++' | tr '\n' ' ' | sed 's/ $//')"
 [ "$(region m | cut -d- -f2)" -le "$(region M | cut -d- -f1)" ] &&
     [ "$(region M | cut -d- -f2)" -le "$(region tab-m | cut -d- -f1)" ] &&
     ok "the buttons read Browser, Split, New tab" ||
     no "the buttons read Browser, Split, New tab" "m $(region m), M $(region M), tab-m $(region tab-m)"
+[ "$(awk '$1 == "region" && $5 == "close" {print $2; exit}' "$TMP/frame")" = 1 ] &&
+    [ "$(region a | cut -d- -f2)" -le "$(region r | cut -d- -f1)" ] &&
+    [ "$(region r | cut -d- -f2)" -le "$(region close | cut -d- -f1)" ] &&
+    ok "the top line reads All in tabs, Refresh, Close" ||
+    no "the top line reads All in tabs, Refresh, Close" "a $(region a), r $(region r), close $(region close)"
+check "the stamp sits in the toolbar, before its chips" "ago    ▭  All in tabs"
 too_wide=$(grep -v '^region' "$TMP/frame" | python3 -c 'import sys; print(max(len(l.rstrip("\n")) for l in sys.stdin))')
 [ "$too_wide" -le 200 ] && ok "no line is wider than the popup" ||
     no "no line is wider than the popup" "$too_wide columns"
@@ -256,7 +263,7 @@ too_wide=$(grep -v '^region' "$TMP/frame" | python3 -c 'import sys; print(max(le
 frame 150
 [ "$(grep -c -E '^ +(TICKET|MERGE REQUEST|PIPELINE)$' "$TMP/frame")" = 3 ] && ok "a narrow popup stacks the three" ||
     no "a narrow popup stacks the three" "$(grep -E 'TICKET|MERGE|PIPELINE' "$TMP/frame")"
-eq "stacked, every section still has all three buttons, and All in tabs" 10 \
+eq "stacked, the toolbar and every section's three buttons" 12 \
     "$(awk '$1 == "region" {print $5}' "$TMP/frame" | sort -u | wc -l)"
 
 mr '{mergeTrainCar: {index: 1}, mergeTrainsCount: 4, autoMergeStrategy: "merge_train"}'
@@ -455,7 +462,9 @@ eq "nothing at all: no tab opens" "" "$(grep -- '--label' "$TMP/herdr.log")"
 grep -qF "no linked ticket · no merge request yet" "$TMP/herdr.log" && ok "the toast says what does not exist" ||
     no "the toast says what does not exist" "$(grep notification "$TMP/herdr.log")"
 frame
-eq "nothing to open: no All in tabs button" "" "$(region a)"
+eq "nothing to open: no All in tabs chip" "" "$(region a)"
+[ -n "$(region r)" ] && [ -n "$(region close)" ] && ok "Refresh and Close stay" ||
+    no "Refresh and Close stay" "r $(region r), close $(region close)"
 on 123-feature
 mr
 jobs

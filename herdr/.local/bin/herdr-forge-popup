@@ -41,6 +41,7 @@ CACHE = os.path.join(os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.
 RESET, BOLD = "\033[0m", "\033[1m"
 MUTED, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN = (f"\033[{n}m" for n in (96, 31, 32, 33, 34, 35, 36))
 CHIP_KEY, CHIP_VAL = "\033[44;97m", "\033[47;30m"
+TOOL, TOOL_TAB = "\033[47;30m", "\033[47;35m"  # the toolbar's chips; All in tabs in the New tab colour
 
 # Two queries, asked in parallel: one alone exceeds GitLab's complexity limit of 250.
 QUERY = """
@@ -846,14 +847,6 @@ def boxes(w):
     return rows, spans
 
 
-def all_button():
-    """The one button that opens or refreshes every tab, three rows tall; also its width."""
-    inner = " ▭  All in tabs  ·  opens what is missing, refreshes what is open "
-    edge = "─" * width(inner)
-    rows = [[("┌" + edge + "┐", MAGENTA)], [("│" + inner + "│", MAGENTA)], [("└" + edge + "┘", MAGENTA)]]
-    return rows, width(inner) + 2
-
-
 def button_actions(k):
     return (k, k.upper(), "tab-" + k)
 
@@ -863,16 +856,30 @@ def frame(state, W, now):
     d, err = state.get("data"), state.get("error")
     lines, regions = [[]], []
     branch = state.get("branch", "")
-    if state.get("fetching") and not d:
-        right = "asking GitLab…"
+    if state.get("fetching"):
+        stamp = "asking GitLab…"
     elif err:
-        right = f"GitLab unreachable · showing {ago(now - d['at'])} old" if d else "GitLab unreachable"
+        stamp = f"GitLab unreachable · showing {ago(now - d['at'])} old" if d else "GitLab unreachable"
     else:
-        right = f"updated {ago(now - d['at'])} ago" if d else ""
-    right += "   esc closes"
-    left = cut(branch, W - 2 * PAD - width(right) - 4)
-    lines.append([(" " * PAD, ""), (left, MAGENTA), (" " * (W - 2 * PAD - width(left) - width(right)), ""),
-                  (right, MUTED)])
+        stamp = f"updated {ago(now - d['at'])} ago" if d else ""
+    # The top line is a title bar: the branch, then the popup's own actions on the right.
+    chips = [("✕  Close", TOOL, "close")]
+    if not state.get("fetching"):
+        chips.insert(0, ("↻  Refresh", TOOL, "r"))
+    if d and any(available(d).values()):
+        chips.insert(0, ("▭  All in tabs", TOOL_TAB, "a"))
+    bar = [(stamp, MUTED)] if stamp else []
+    for label, colour, action in chips:
+        bar += [("   ", ""), (f" {label} ", colour)]
+    used = sum(width(t) for t, _ in bar)
+    left = cut(branch, max(8, W - 2 * PAD - used - 4))
+    x = W - PAD - used
+    lines.append([(" " * PAD, ""), (left, MAGENTA), (" " * max(1, x - PAD - width(left)), "")] + bar)
+    for t, _ in bar:
+        if t.strip() and t.strip() != stamp:
+            action = next(a for label, _, a in chips if label in t)
+            regions.append((1, x, x + width(t), action))
+        x += width(t)
     lines.append([])
     if not d:
         lines.append([(" " * PAD, ""), (err or "Asking GitLab…", RED if err else MUTED)])
@@ -930,14 +937,8 @@ def frame(state, W, now):
                 for (x0, x1), a in zip(spans, button_actions(k)):
                     regions += [(brow + r, PAD + x0, PAD + x1, a) for r in range(3)]
             lines.append([])
-    if any(avail.values()):
-        lines.append([])
-        top = len(lines)
-        rows, bw = all_button()
-        lines += [[(" " * PAD, "")] + row for row in rows]
-        regions += [(top + r, PAD, PAD + bw, "a") for r in range(3)]
     lines.append([])
-    keys = "t m p browser  ·  T M P split  ·  a all in tabs  ·  esc closes"
+    keys = "t m p browser  ·  T M P split  ·  a all in tabs  ·  r refresh  ·  esc closes"
     lines.append([(" " * PAD, ""), ("click a button  ·  " + keys, MUTED)])
     return lines, regions
 
@@ -1001,7 +1002,11 @@ def popup():
         state["fetching"] = False
         os.write(wake_w, b"x")
 
-    threading.Thread(target=worker, daemon=True).start()
+    def ask():
+        state["fetching"] = True
+        threading.Thread(target=worker, daemon=True).start()
+
+    ask()
     signal.signal(signal.SIGWINCH, lambda *_: os.write(wake_w, b"x"))
     fd = sys.stdin.fileno()
     out.write("\033[?25l\033[?1000h\033[?1006h")
@@ -1025,6 +1030,12 @@ def popup():
                 if ev[0] == "click":
                     hit = [a for (r, x0, x1, a) in regions if r == ev[1] and x0 <= ev[2] < x1]
                     ev = ("key", hit[0]) if hit else None
+                if ev and ev[1] == "close":
+                    return
+                if ev and ev[1] == "r":
+                    if not state["fetching"]:
+                        ask()
+                    continue
                 if ev and state.get("data") and ev[1] in ACTIONS and act(ev[1], state["data"], root, path):
                     return
                 if ev and ev[1] not in ACTIONS:
