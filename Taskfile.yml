@@ -50,6 +50,7 @@ tasks:
       - task: settings
       - task: claude-hooks
       - task: statusline
+      - task: herdr-forge
       - task: workdesk-toggle
       - task: test
 
@@ -232,6 +233,11 @@ tasks:
     desc: The status line names the session's place, and the worktree Claude writes in when it differs
     cmds:
       - bash test/statusline.sh
+
+  herdr-forge:
+    desc: The herdr tab bar line names the focused branch's ticket, MR and pipeline, and goes blank when unsure
+    cmds:
+      - bash test/herdr-forge.sh
 
   workdesk-toggle:
     desc: One command opens the ≡ workdesk float and closes it - the chip is a toggle

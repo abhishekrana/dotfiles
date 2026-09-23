@@ -3,6 +3,7 @@ paths:
   - "claude/**"
   - "clip/**"
   - "dictate/**"
+  - "herdr/**"
   - "hunk/**"
   - "leaf/**"
   - "yazi/**"
@@ -34,6 +35,11 @@ paths:
   backend is chosen in one place.
 - **`dictate/`** - has its own nested `CLAUDE.md`; read it first. Backends are named for the hardware and picked by what
   is installed, never an env var. The model is not prefetched, so the first dictation downloads it.
+- **`herdr/`** - `herdr-forge line` is a `tab_bar_right` command entry in `~/.config/herdr/config.toml`, which stays
+  untracked because `herdr-dictate setup` appends to it. Herdr strips colour from that entry, so state is words and
+  glyphs. `line` runs every 2s and forks only git; GitLab is one GraphQL call per branch per TTL, detached. Pass the
+  branch as `-f b=<name>`: glab's `-F 'b[]=…'` form drops the filter and returns the project's newest MR.
+  `test/herdr-forge.sh` stubs glab.
 - **`hunk/`** - `mode = "stack"` is deliberate: full width per line for the diff pane beside your work. Workdesk's `D`
   overrides it to `split` at the call, because an MR diff gets a window of its own. hunk reads the file at startup, so
   an open pane keeps its layout until respawned.

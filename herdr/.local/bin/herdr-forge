@@ -1,0 +1,175 @@
+#!/usr/bin/env bash
+# herdr-forge - the focused pane's ticket, merge request and pipeline, for herdr's tab bar.
+#
+#     #123 · !45 · needs 1 approval · CI ✓
+#
+# Subcommands:
+#   line                     Print that line for $HERDR_ACTIVE_PANE_CWD, else $PWD. Reads the cache and
+#                            starts a detached refresh when it is due; never waits on the network.
+#   refresh <root> <branch>  Ask GitLab and rewrite that checkout and branch's cache entry. One at a time
+#                            per entry (flock).
+#
+# Herdr runs `line` from a tab_bar_right command entry and strips colour there, so state is words and
+# glyphs. An entry older than STALE prints nothing rather than a line that may be wrong.
+set -u
+
+TTL=${HERDR_FORGE_TTL:-60}      # seconds between GitLab asks, per checkout and branch
+STALE=${HERDR_FORGE_STALE:-600} # an answer this old is dropped, not shown
+CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/herdr-forge"
+
+# The newest merge request from one branch. $b is a plain string: glab's `-F 'b[]=…'` form drops the filter
+# and returns the project's newest merge request instead.
+QUERY='query($p: ID!, $b: [String!]) {
+  project(fullPath: $p) {
+    mergeRequests(sourceBranches: $b, sort: CREATED_DESC, first: 1) {
+      nodes { iid state draft detailedMergeStatus approvalsLeft sourceBranch headPipeline { status } }
+    }
+  }
+}'
+
+# Cache file for a checkout and branch, into $key_out.
+key() {
+    local s=$1::$2
+    s=${s//[^A-Za-z0-9]/_}
+    [ ${#s} -gt 180 ] && s=${s: -180}
+    key_out=$CACHE/$s
+}
+
+# The entry's three lines - answered at, asked at, text - into $at, $asked and $text.
+read_entry() {
+    at=0 asked=0 text=
+    [ -r "$1" ] || return 0
+    { read -r at && read -r asked && IFS= read -r text; } <"$1"
+    [[ $at =~ ^[0-9]+$ ]] || at=0
+    [[ $asked =~ ^[0-9]+$ ]] || asked=0
+}
+
+write_entry() {
+    printf '%s\n%s\n%s\n' "$2" "$3" "$4" >"$1.tmp" && mv -f "$1.tmp" "$1"
+}
+
+# group/project from the origin remote, into $path_out; empty when there is none.
+project_path() {
+    local url
+    path_out=
+    url=$(git -C "$1" remote get-url origin 2>/dev/null) || return 0
+    url=${url%.git}
+    url=${url#*://}
+    url=${url#*@}
+    case $url in
+        *:*) path_out=${url#*:} ;; # scp form, host:group/project
+        */*) path_out=${url#*/} ;; # URL form, host/group/project
+    esac
+}
+
+pipeline_glyph() {
+    case $1 in
+        SUCCESS) glyph_out='CI ✓' ;;
+        FAILED) glyph_out='CI ✗' ;;
+        RUNNING | PREPARING) glyph_out='CI ●' ;;
+        PENDING | CREATED | SCHEDULED | MANUAL | WAITING_FOR_RESOURCE | WAITING_FOR_CALLBACK) glyph_out='CI ○' ;;
+        CANCELED | CANCELING | SKIPPED) glyph_out='CI ◌' ;;
+        *) glyph_out= ;;
+    esac
+}
+
+# Why an open merge request is not merging, in words; empty when CI is the reason or nothing is.
+merge_words() {
+    local status=$1 left=$2
+    case $status in
+        NOT_APPROVED)
+            words_out="needs $left approval"
+            [ "$left" = 1 ] || words_out+=s
+            ;;
+        MERGEABLE) words_out=ready ;;
+        DISCUSSIONS_NOT_RESOLVED) words_out='open threads' ;;
+        CONFLICT) words_out=conflict ;;
+        NEED_REBASE) words_out='needs rebase' ;;
+        DRAFT_STATUS) words_out=draft ;;
+        BLOCKED_STATUS) words_out=blocked ;;
+        *) words_out= ;;
+    esac
+}
+
+# The line from a GraphQL answer on stdin, into $line_out.
+compose() {
+    local branch=$1 iid state draft status left pipeline parts=() part
+    line_out=
+    IFS=$'\x1f' read -r iid state draft status left pipeline < <(jq -r --arg b "$branch" '
+        [.data.project.mergeRequests.nodes[]? | select(.sourceBranch == $b)][0] // {} |
+        [.iid // "", .state // "", (.draft // false | tostring), .detailedMergeStatus // "",
+         (.approvalsLeft // 0 | tostring), .headPipeline.status // ""] | join("\u001f")')
+
+    [[ $branch =~ ^([0-9]+)([-_/]|$) ]] && parts+=("#${BASH_REMATCH[1]}")
+    if [ -z "$iid" ]; then
+        [ ${#parts[@]} -gt 0 ] && parts+=("no MR")
+    else
+        parts+=("!$iid")
+        case $state in
+            merged | closed) parts+=("$state") ;;
+            *)
+                if [ "$draft" = true ]; then
+                    parts+=(draft)
+                else
+                    merge_words "$status" "$left"
+                    [ -n "$words_out" ] && parts+=("$words_out")
+                fi
+                pipeline_glyph "$pipeline"
+                [ -n "$glyph_out" ] && parts+=("$glyph_out")
+                ;;
+        esac
+    fi
+
+    for part in "${parts[@]}"; do
+        line_out+="${line_out:+ · }$part"
+    done
+}
+
+cmd_refresh() {
+    local root=$1 branch=$2 json at asked text
+    mkdir -p "$CACHE" || return 0
+    key "$root" "$branch"
+    exec 9>"$key_out.lock"
+    flock -n 9 || return 0
+    read_entry "$key_out"
+
+    project_path "$root"
+    if [ -z "$path_out" ]; then
+        write_entry "$key_out" "$EPOCHSECONDS" "$EPOCHSECONDS" ''
+        return 0
+    fi
+    # A failed ask keeps the last answer, which ages out at STALE, and waits TTL before asking again.
+    if ! json=$(cd "$root" && glab api graphql -f query="$QUERY" -f p="$path_out" -f b="$branch" 2>/dev/null); then
+        write_entry "$key_out" "$at" "$EPOCHSECONDS" "$text"
+        return 0
+    fi
+    compose "$branch" <<<"$json"
+    write_entry "$key_out" "$EPOCHSECONDS" "$EPOCHSECONDS" "$line_out"
+}
+
+cmd_line() {
+    local dir=${HERDR_ACTIVE_PANE_CWD:-$PWD} root branch at asked text last
+    root=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null) || return 0
+    # Detached HEAD has no merge request to find.
+    branch=$(git -C "$root" symbolic-ref --quiet --short HEAD 2>/dev/null) || return 0
+    key "$root" "$branch"
+    read_entry "$key_out"
+
+    last=$((at > asked ? at : asked))
+    if ((EPOCHSECONDS - last >= TTL)) && command -v glab >/dev/null; then
+        setsid -f "$0" refresh "$root" "$branch" </dev/null >/dev/null 2>&1
+    fi
+    if [ -n "$text" ] && ((EPOCHSECONDS - at < STALE)); then
+        printf '%s\n' "$text"
+    fi
+    return 0
+}
+
+case ${1-} in
+    line) cmd_line ;;
+    refresh) [ $# -eq 3 ] && cmd_refresh "$2" "$3" ;;
+    *)
+        echo "usage: herdr-forge line | refresh <root> <branch>" >&2
+        exit 2
+        ;;
+esac

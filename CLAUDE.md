@@ -19,6 +19,7 @@ defaults. Per-package pitfalls load from `.claude/rules/` when you touch those f
 | `dictate/` | `~/.local/bin/dictate` - local Whisper dictation       |
 | `ghostty/` | `~/.config/ghostty/`                                   |
 | `git/`     | `~/.config/git/config`                                 |
+| `herdr/`   | `~/.local/bin/herdr-forge` - the tab bar's forge line  |
 | `hunk/`    | `~/.config/hunk/` - diff viewer                        |
 | `leaf/`    | `~/.config/leaf/` - markdown previewer                 |
 | `nvim/`    | `~/.config/nvim/` - LazyVim                            |
@@ -146,7 +147,7 @@ notes are generated from these, so the type and scope are the machine-readable p
 
 - **Types**: `feat` · `fix` · `docs` · `refactor` · `perf` · `test` · `build` · `ci` · `chore`
 - **Scope** is the area, matching a stow package, an app, or a repo concern: `agentbar`, `bash`, `bat`, `bootstrap`,
-  `claude`, `clip`, `design`, `dictate`, `folio`, `ghostty`, `git`, `hunk`, `install`, `leaf`, `lint`, `nvim`,
+  `claude`, `clip`, `design`, `dictate`, `folio`, `ghostty`, `git`, `herdr`, `hunk`, `install`, `leaf`, `lint`, `nvim`,
   `release`, `task`, `theme`, `tmux`, `trace`, `vault`, `workdesk`, `yazi`. Omit it only when a change genuinely spans
   everything.
 - **Breaking = needs manual steps on the machine.** A `!` after the scope (`feat(tmux)!:`) or a `BREAKING CHANGE:`
