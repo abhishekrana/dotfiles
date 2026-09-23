@@ -40,9 +40,10 @@ paths:
   untracked because `herdr-dictate setup` appends to it. Herdr strips colour from that entry, so state is words and
   glyphs. `line` runs every 2s and forks only git; GitLab is one GraphQL call per branch per TTL, detached. Pass the
   branch as `-f b=<name>`: glab's `-F 'b[]=…'` form drops the filter and returns the project's newest MR. Herdr cannot
-  make tab bar text clickable, so `herdr-forge open` is a `prefix+u` popup (`[[keys.command]]`, same file): one key
-  opens the MR, ticket or pipeline, and each row is an OSC 8 link for Ctrl+click. `test/herdr-forge.sh` stubs glab and
-  xdg-open.
+  make tab bar text clickable, so `herdr-forge open` is a `prefix+u` popup (`[[keys.command]]`, same file): a key or a
+  click opens the MR, ticket or pipeline. A popup hands every click to its program and never to herdr's Ctrl+click link
+  handling (v0.9.1), so the chooser turns on SGR mouse reporting and maps the clicked row itself. `test/herdr-forge.sh`
+  stubs glab and xdg-open.
 - **`hunk/`** - `mode = "stack"` is deliberate: full width per line for the diff pane beside your work. Workdesk's `D`
   overrides it to `split` at the call, because an MR diff gets a window of its own. hunk reads the file at startup, so
   an open pane keeps its layout until respawned.

@@ -152,8 +152,23 @@ eq "m opens the merge request" "$WEB/-/merge_requests/45" "$(opens 123-feature m
 eq "t opens the ticket" "$WEB/-/issues/123" "$(opens 123-feature t)"
 eq "p opens the pipeline, on the project's host" "$WEB/-/pipelines/900" "$(opens 123-feature p)"
 eq "any other key opens nothing" "" "$(opens 123-feature q)"
-menu_has $'\e]8;;'"$WEB/-/merge_requests/45"$'\e\\' && ok "each row is a Ctrl+clickable link" ||
-    no "each row is a Ctrl+clickable link" "no OSC 8 link to the MR in the chooser"
+menu_has $'\e]8;;'"$WEB/-/merge_requests/45"$'\e\\' && ok "each URL is an OSC 8 link" ||
+    no "each URL is an OSC 8 link" "no OSC 8 link to the MR in the chooser"
+
+# SGR mouse reports as a herdr popup passes them on: ESC [ < button ; col ; row, M pressed and m released.
+# The screen is cleared first, so the MR is rows 4-5, the ticket 7-8 and the pipeline 10-11.
+click() { printf '\e[<%s;%s;%sM' "$1" 10 "$2"; }
+eq "a click on the MR line opens it" "$WEB/-/merge_requests/45" "$(opens 123-feature "$(click 0 4)")"
+eq "a click on its URL line opens it too" "$WEB/-/merge_requests/45" "$(opens 123-feature "$(click 0 5)")"
+eq "a click on the ticket opens the ticket" "$WEB/-/issues/123" "$(opens 123-feature "$(click 0 7)")"
+eq "Ctrl+click counts as a click" "$WEB/-/pipelines/900" "$(opens 123-feature "$(click 16 10)")"
+eq "a release, the wheel and a gap between entries are not answers" "$WEB/-/issues/123" \
+    "$(opens 123-feature $'\e[<0;10;4m'"$(click 64 4)$(click 0 6)t")"
+eq "a bare Escape closes" "" "$(opens 123-feature $'\e')"
+menu_has "click an entry or press its key" && ok "the footer says a click works" ||
+    no "the footer says a click works" "$(cat "$TMP/menu")"
+menu_has $'\e[?1000h\e[?1006h' && menu_has $'\e[?1006l\e[?1000l' && ok "mouse reporting is switched off again" ||
+    no "mouse reporting is switched off again" "no matching enable and disable"
 menu_has "!45 · needs 1 approval" && ok "the MR row says what it waits on" ||
     no "the MR row says what it waits on" "$(cat "$TMP/menu")"
 
