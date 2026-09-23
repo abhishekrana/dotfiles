@@ -1,4 +1,7 @@
 {
+  "env": {
+    "CLAUDE_CODE_SUBAGENT_MODEL": "opus"
+  },
   "attribution": {
     "commit": ""
   },
@@ -199,22 +202,11 @@
     "command": "bash $HOME/.claude/statusline-command.sh",
     "refreshInterval": 1
   },
+  "footerLinksRegexes": [],
   "subagentStatusLine": {
     "type": "command",
     "command": "bash $HOME/.claude/subagent-statusline.sh"
   },
-  "footerLinksRegexes": [
-    {
-      "pattern": "https://gitlab\\.com/(?<path>[A-Za-z0-9._/-]+)/-/issues/(?<iid>\\d+)",
-      "url": "https://gitlab.com/{path}/-/issues/{iid}",
-      "label": "#{iid}"
-    },
-    {
-      "pattern": "https://gitlab\\.com/(?<path>[A-Za-z0-9._/-]+)/-/merge_requests/(?<iid>\\d+)",
-      "url": "https://gitlab.com/{path}/-/merge_requests/{iid}",
-      "label": "!{iid}"
-    }
-  ],
   "enabledPlugins": {
     "gopls-lsp@claude-plugins-official": true,
     "pyright-lsp@claude-plugins-official": true,
@@ -235,13 +227,13 @@
     },
     "claude-fable-5-1": {
       "effortLevel": "high"
+    },
+    "claude-opus-5-5": {
+      "effortLevel": "high"
     }
   },
-  "env": {
-    "CLAUDE_CODE_SUBAGENT_MODEL": "opus"
-  },
-  "autoCompactEnabled": true,
   "tui": "fullscreen",
   "theme": "light",
+  "autoCompactEnabled": true,
   "skipAutoPermissionPrompt": true
 }
