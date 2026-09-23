@@ -19,7 +19,7 @@ defaults. Per-package pitfalls load from `.claude/rules/` when you touch those f
 | `dictate/` | `~/.local/bin/dictate` - local Whisper dictation       |
 | `ghostty/` | `~/.config/ghostty/`                                   |
 | `git/`     | `~/.config/git/config`                                 |
-| `herdr/`   | `~/.local/bin/herdr-forge` - the tab bar's forge line  |
+| `herdr/`   | `~/.local/bin/herdr-forge` - forge line, link chooser  |
 | `hunk/`    | `~/.config/hunk/` - diff viewer                        |
 | `leaf/`    | `~/.config/leaf/` - markdown previewer                 |
 | `nvim/`    | `~/.config/nvim/` - LazyVim                            |

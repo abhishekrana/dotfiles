@@ -36,6 +36,12 @@ cat >"$TMP/bin/glab" <<EOF
 cat "$TMP/answer.json"
 EOF
 chmod +x "$TMP/bin/glab"
+# The stub browser writes down what it was asked to open.
+cat >"$TMP/bin/xdg-open" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$1" >>"$TMP/opened"
+EOF
+chmod +x "$TMP/bin/xdg-open"
 export PATH=$TMP/bin:$PATH
 
 CO=$TMP/co
@@ -50,9 +56,10 @@ git -C "$CO" commit -qm init
 # answer <branch> <node json|""> writes the stub's answer.
 answer() {
     if [ -n "$2" ]; then
-        jq -nc --arg b "$1" --argjson n "$2" '{data: {project: {mergeRequests: {nodes: [$n + {sourceBranch: $b}]}}}}'
+        jq -nc --arg b "$1" --argjson n "$2" '{data: {project: {webUrl: "https://gitlab.example/group/project",
+            mergeRequests: {nodes: [$n + {sourceBranch: $b}]}}}}'
     else
-        echo '{"data":{"project":{"mergeRequests":{"nodes":[]}}}}'
+        echo '{"data":{"project":{"webUrl":"https://gitlab.example/group/project","mergeRequests":{"nodes":[]}}}}'
     fi >"$TMP/answer.json"
 }
 
@@ -120,6 +127,52 @@ for _ in $(seq 50); do
     sleep 0.1
 done
 eq "a due entry refreshes in the background" "#31 · !31 · ready" "$got"
+
+echo "herdr-forge: the open chooser"
+
+WEB=https://gitlab.example/group/project
+# opens <branch> <key>: the chooser for that branch with one key pressed, and what the browser was given.
+opens() {
+    git -C "$CO" checkout -q -B "$1"
+    rm -f "$TMP/opened"
+    printf '%s' "$2" | HERDR_ACTIVE_PANE_CWD=$CO "$FORGE" open >"$TMP/menu"
+    for _ in $(seq 20); do
+        [ -s "$TMP/opened" ] && break
+        sleep 0.05
+    done
+    cat "$TMP/opened" 2>/dev/null
+}
+menu_has() { grep -qF -- "$1" "$TMP/menu"; }
+
+answer 123-feature "$(jq -nc --arg w "$WEB" '{iid: "45", state: "opened", draft: false,
+    detailedMergeStatus: "NOT_APPROVED", approvalsLeft: 1, webUrl: ($w + "/-/merge_requests/45"),
+    headPipeline: {status: "SUCCESS", path: "/group/project/-/pipelines/900"}}')"
+line 123-feature >/dev/null
+eq "m opens the merge request" "$WEB/-/merge_requests/45" "$(opens 123-feature m)"
+eq "t opens the ticket" "$WEB/-/issues/123" "$(opens 123-feature t)"
+eq "p opens the pipeline, on the project's host" "$WEB/-/pipelines/900" "$(opens 123-feature p)"
+eq "any other key opens nothing" "" "$(opens 123-feature q)"
+menu_has $'\e]8;;'"$WEB/-/merge_requests/45"$'\e\\' && ok "each row is a Ctrl+clickable link" ||
+    no "each row is a Ctrl+clickable link" "no OSC 8 link to the MR in the chooser"
+menu_has "!45 · needs 1 approval" && ok "the MR row says what it waits on" ||
+    no "the MR row says what it waits on" "$(cat "$TMP/menu")"
+
+answer 124-idea ""
+line 124-idea >/dev/null
+eq "a ticket with no MR still opens" "$WEB/-/issues/124" "$(opens 124-idea t)"
+menu_has "merge request" && no "no MR, no MR row" "the chooser offers an MR" || ok "no MR, no MR row"
+
+# An entry written before the links existed is asked again when the chooser opens.
+git -C "$CO" checkout -q -B 125-old
+answer 125-old "$(jq -nc --arg w "$WEB" '{iid: "46", state: "opened", webUrl: ($w + "/-/merge_requests/46")}')"
+entry=$(find "$XDG_CACHE_HOME/herdr-forge" -maxdepth 1 -name '*123_feature' -type f)
+[ -n "$entry" ] && printf '%s\n%s\n%s\n' "$EPOCHSECONDS" "$EPOCHSECONDS" "#125 · !46" >"${entry%123_feature}125_old"
+eq "an entry with no links is refreshed before choosing" "$WEB/-/merge_requests/46" "$(opens 125-old m)"
+
+answer plain ""
+opens plain m >/dev/null
+menu_has "Nothing to open" && ok "a branch with nothing says so" ||
+    no "a branch with nothing says so" "$(cat "$TMP/menu")"
 
 printf '\n%d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

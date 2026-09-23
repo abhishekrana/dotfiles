@@ -6,11 +6,14 @@
 # Subcommands:
 #   line                     Print that line for $HERDR_ACTIVE_PANE_CWD, else $PWD. Reads the cache and
 #                            starts a detached refresh when it is due; never waits on the network.
+#   open                     A chooser for a herdr popup: one key opens the MR, the ticket or the pipeline
+#                            in the browser, and each row is an OSC 8 link for Ctrl+click.
 #   refresh <root> <branch>  Ask GitLab and rewrite that checkout and branch's cache entry. One at a time
 #                            per entry (flock).
 #
 # Herdr runs `line` from a tab_bar_right command entry and strips colour there, so state is words and
-# glyphs. An entry older than STALE prints nothing rather than a line that may be wrong.
+# glyphs. An entry older than STALE prints nothing rather than a line that may be wrong. Herdr cannot make
+# tab bar text clickable, so `open` is bound to a key instead.
 set -u
 
 TTL=${HERDR_FORGE_TTL:-60}      # seconds between GitLab asks, per checkout and branch
@@ -21,11 +24,18 @@ CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/herdr-forge"
 # and returns the project's newest merge request instead.
 QUERY='query($p: ID!, $b: [String!]) {
   project(fullPath: $p) {
+    webUrl
     mergeRequests(sourceBranches: $b, sort: CREATED_DESC, first: 1) {
-      nodes { iid state draft detailedMergeStatus approvalsLeft sourceBranch headPipeline { status } }
+      nodes {
+        iid state draft detailedMergeStatus approvalsLeft sourceBranch webUrl
+        headPipeline { status path }
+      }
     }
   }
 }'
+
+# The entry's fields, one per line, in this order. A field missing from an older entry reads as empty.
+FIELDS=(at asked text tk_ref tk_url mr_ref mr_url ci_ref ci_url)
 
 # Cache file for a checkout and branch, into $key_out.
 key() {
@@ -35,17 +45,20 @@ key() {
     key_out=$CACHE/$s
 }
 
-# The entry's three lines - answered at, asked at, text - into $at, $asked and $text.
+# Every field of an entry into the variable of the same name.
 read_entry() {
-    at=0 asked=0 text=
-    [ -r "$1" ] || return 0
-    { read -r at && read -r asked && IFS= read -r text; } <"$1"
+    local f
+    for f in "${FIELDS[@]}"; do printf -v "$f" '%s' ''; done
+    if [ -r "$1" ]; then
+        for f in "${FIELDS[@]}"; do IFS= read -r "${f?}" || break; done <"$1"
+    fi
     [[ $at =~ ^[0-9]+$ ]] || at=0
     [[ $asked =~ ^[0-9]+$ ]] || asked=0
 }
 
 write_entry() {
-    printf '%s\n%s\n%s\n' "$2" "$3" "$4" >"$1.tmp" && mv -f "$1.tmp" "$1"
+    local f
+    for f in "${FIELDS[@]}"; do printf '%s\n' "${!f}"; done >"$1.tmp" && mv -f "$1.tmp" "$1"
 }
 
 # group/project from the origin remote, into $path_out; empty when there is none.
@@ -91,67 +104,98 @@ merge_words() {
     esac
 }
 
-# The line from a GraphQL answer on stdin, into $line_out.
+# Every field but the timestamps, from a GraphQL answer on stdin.
 compose() {
-    local branch=$1 iid state draft status left pipeline parts=() part
-    line_out=
-    IFS=$'\x1f' read -r iid state draft status left pipeline < <(jq -r --arg b "$branch" '
+    local branch=$1 web iid state draft status left pipeline mr_web ci_path words='' parts=() part
+    text='' tk_ref='' tk_url='' mr_ref='' mr_url='' ci_ref='' ci_url=''
+    IFS=$'\x1f' read -r web iid state draft status left pipeline mr_web ci_path < <(jq -r --arg b "$branch" '
+        .data.project.webUrl // "" as $web |
         [.data.project.mergeRequests.nodes[]? | select(.sourceBranch == $b)][0] // {} |
-        [.iid // "", .state // "", (.draft // false | tostring), .detailedMergeStatus // "",
-         (.approvalsLeft // 0 | tostring), .headPipeline.status // ""] | join("\u001f")')
+        [$web, .iid // "", .state // "", (.draft // false | tostring), .detailedMergeStatus // "",
+         (.approvalsLeft // 0 | tostring), .headPipeline.status // "", .webUrl // "",
+         .headPipeline.path // ""] | join("\u001f")')
 
-    [[ $branch =~ ^([0-9]+)([-_/]|$) ]] && parts+=("#${BASH_REMATCH[1]}")
-    if [ -z "$iid" ]; then
-        [ ${#parts[@]} -gt 0 ] && parts+=("no MR")
-    else
-        parts+=("!$iid")
+    if [[ $branch =~ ^([0-9]+)([-_/]|$) ]]; then
+        tk_ref="#${BASH_REMATCH[1]}"
+        [ -n "$web" ] && tk_url="$web/-/issues/${BASH_REMATCH[1]}"
+    fi
+    if [ -n "$iid" ]; then
+        mr_ref="!$iid"
+        mr_url=$mr_web
         case $state in
-            merged | closed) parts+=("$state") ;;
+            merged | closed) words=$state ;;
             *)
                 if [ "$draft" = true ]; then
-                    parts+=(draft)
+                    words=draft
                 else
                     merge_words "$status" "$left"
-                    [ -n "$words_out" ] && parts+=("$words_out")
+                    words=$words_out
                 fi
-                pipeline_glyph "$pipeline"
-                [ -n "$glyph_out" ] && parts+=("$glyph_out")
                 ;;
         esac
+        pipeline_glyph "$pipeline"
+        ci_ref=$glyph_out
+        # The pipeline path is host-relative; the project URL carries the scheme and host.
+        [ -n "$ci_path" ] && [[ $web =~ ^(https?://[^/]+) ]] && ci_url="${BASH_REMATCH[1]}$ci_path"
     fi
 
+    [ -n "$tk_ref" ] && parts+=("$tk_ref")
+    if [ -z "$mr_ref" ]; then
+        [ -n "$tk_ref" ] && parts+=("no MR")
+    else
+        parts+=("$mr_ref")
+        [ -n "$words" ] && parts+=("$words")
+        # A finished MR's pipeline is history, not state.
+        case $state in merged | closed) ;; *) [ -n "$ci_ref" ] && parts+=("$ci_ref") ;; esac
+    fi
     for part in "${parts[@]}"; do
-        line_out+="${line_out:+ · }$part"
+        text+="${text:+ · }$part"
     done
+    [ -n "$words" ] && mr_ref+=" · $words"
+    return 0
 }
 
+# refresh <root> <branch> [wait]: with a third argument, wait up to 10s for a refresh already running.
 cmd_refresh() {
-    local root=$1 branch=$2 json at asked text
+    local root=$1 branch=$2 json
     mkdir -p "$CACHE" || return 0
     key "$root" "$branch"
     exec 9>"$key_out.lock"
-    flock -n 9 || return 0
+    if [ -n "${3-}" ]; then
+        flock -w 10 9 || return 0
+    else
+        flock -n 9 || return 0
+    fi
     read_entry "$key_out"
 
     project_path "$root"
     if [ -z "$path_out" ]; then
-        write_entry "$key_out" "$EPOCHSECONDS" "$EPOCHSECONDS" ''
+        text='' tk_ref='' tk_url='' mr_ref='' mr_url='' ci_ref='' ci_url=''
+        at=$EPOCHSECONDS asked=$EPOCHSECONDS
+        write_entry "$key_out"
         return 0
     fi
     # A failed ask keeps the last answer, which ages out at STALE, and waits TTL before asking again.
     if ! json=$(cd "$root" && glab api graphql -f query="$QUERY" -f p="$path_out" -f b="$branch" 2>/dev/null); then
-        write_entry "$key_out" "$at" "$EPOCHSECONDS" "$text"
+        asked=$EPOCHSECONDS
+        write_entry "$key_out"
         return 0
     fi
     compose "$branch" <<<"$json"
-    write_entry "$key_out" "$EPOCHSECONDS" "$EPOCHSECONDS" "$line_out"
+    at=$EPOCHSECONDS asked=$EPOCHSECONDS
+    write_entry "$key_out"
+}
+
+# The focused pane's checkout and branch into $root and $branch; fails outside one or on a detached HEAD.
+focused() {
+    local dir=${HERDR_ACTIVE_PANE_CWD:-$PWD}
+    root=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null) || return 1
+    branch=$(git -C "$root" symbolic-ref --quiet --short HEAD 2>/dev/null)
 }
 
 cmd_line() {
-    local dir=${HERDR_ACTIVE_PANE_CWD:-$PWD} root branch at asked text last
-    root=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null) || return 0
-    # Detached HEAD has no merge request to find.
-    branch=$(git -C "$root" symbolic-ref --quiet --short HEAD 2>/dev/null) || return 0
+    local root branch last
+    focused || return 0
     key "$root" "$branch"
     read_entry "$key_out"
 
@@ -165,11 +209,52 @@ cmd_line() {
     return 0
 }
 
+# One chooser entry: key, kind and label, then the URL beneath as an OSC 8 link. The label comes last
+# because printf pads by bytes, and it carries multibyte glyphs.
+row() {
+    printf '  \033[1m%s\033[0m  %-14s %s\n     \033]8;;%s\033\\\033[34m%s\033[0m\033]8;;\033\\\n\n' \
+        "$1" "$3" "$2" "$4" "$4"
+}
+
+cmd_open() {
+    local root branch k url
+    local -A urls=()
+    if ! focused; then
+        printf '\n  Not a checkout on a branch.\n'
+    else
+        key "$root" "$branch"
+        read_entry "$key_out"
+        # Ask now when the entry is too old to trust or predates the links.
+        if ((EPOCHSECONDS - at >= STALE)) || { [ -z "$tk_url" ] && [ -z "$mr_url" ]; }; then
+            printf '\n  Asking GitLab…'
+            cmd_refresh "$root" "$branch" wait
+            read_entry "$key_out"
+            printf '\r\033[K'
+        fi
+        printf '\n  \033[96m%s\033[0m\n\n' "$branch"
+        [ -n "$mr_url" ] && urls[m]=$mr_url && row m "$mr_ref" "merge request" "$mr_url"
+        [ -n "$tk_url" ] && urls[t]=$tk_url && row t "$tk_ref" ticket "$tk_url"
+        [ -n "$ci_url" ] && urls[p]=$ci_url && row p "$ci_ref" pipeline "$ci_url"
+        [ ${#urls[@]} -gt 0 ] || printf '  Nothing to open: no ticket number and no merge request.\n'
+    fi
+
+    if [ ${#urls[@]} -gt 0 ]; then
+        printf '  \033[96ma key opens it · Ctrl+click a link · any other key closes\033[0m'
+    else
+        printf '\n  \033[96many key closes\033[0m'
+    fi
+    IFS= read -rsn1 k || return 0
+    url=${urls[$k]-}
+    [ -n "$url" ] && setsid -f xdg-open "$url" </dev/null >/dev/null 2>&1
+    return 0
+}
+
 case ${1-} in
     line) cmd_line ;;
+    open) cmd_open ;;
     refresh) [ $# -eq 3 ] && cmd_refresh "$2" "$3" ;;
     *)
-        echo "usage: herdr-forge line | refresh <root> <branch>" >&2
+        echo "usage: herdr-forge line | open | refresh <root> <branch>" >&2
         exit 2
         ;;
 esac
