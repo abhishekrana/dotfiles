@@ -97,22 +97,24 @@ window() {
         "$color" "$fill" "${color:+$reset}" "$muted" "$empty" "$reset" "$color" "$n" "${color:+$reset}" "$tail"
 }
 
-# Whether the microphone is live, into $dictate_out: the herdr plugin's own state
-# file, read and never written, so polling cannot disturb a recording. A pid with
-# no process is a recorder that died, not a recording.
+# Whether the microphone is live, into $dictate_out, from the herdr plugin's state files, read and never written, so
+# polling cannot disturb a recording. recording.json is a recorder on this machine: a pid with no process is one that
+# died, not a recording. remote.json is one on another machine delivering here: live until its expiry, in this clock.
 #
-# Colour is the whole signal - grey idle, red recording, amber transcribing - and
-# the label never changes, so the meters beside it never shift. Same rule as the
-# tmux footer chip.
-DICTATE_STATE=${XDG_STATE_HOME:-$HOME/.local/state}/herdr/plugins/abhishekrana.dictate/recording.json
+# Colour is the whole signal - grey idle, red recording, amber transcribing - and the label never changes, so the meters
+# beside it never shift. Same rule as the tmux footer chip.
+DICTATE_DIR=${XDG_STATE_HOME:-$HOME/.local/state}/herdr/plugins/abhishekrana.dictate
 dictate() {
-    local state='' pid='' color=$muted
-    [ -r "$DICTATE_STATE" ] && state=$(<"$DICTATE_STATE")
-    [[ $state =~ \"pid\":([0-9]+) ]] && pid=${BASH_REMATCH[1]}
-    if [ -n "$pid" ] && [ -d "/proc/$pid" ]; then
+    local state='' color=$muted
+    [ -r "$DICTATE_DIR/recording.json" ] && state=$(<"$DICTATE_DIR/recording.json")
+    if [[ $state =~ \"pid\":([0-9]+) ]] && [ -d "/proc/${BASH_REMATCH[1]}" ]; then
         color=$hot
-        [[ $state == *'"phase":"transcribing"'* ]] && color=$warn
+    else
+        state=''
+        [ -r "$DICTATE_DIR/remote.json" ] && state=$(<"$DICTATE_DIR/remote.json")
+        [[ $state =~ \"until\":([0-9]+) ]] && ((BASH_REMATCH[1] > EPOCHSECONDS)) && color=$hot
     fi
+    [ "$color" = "$hot" ] && [[ $state == *'"phase":"transcribing"'* ]] && color=$warn
     dictate_out="${color}● dictate${reset}"
 }
 

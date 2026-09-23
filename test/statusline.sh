@@ -196,6 +196,27 @@ eq "a state file with no process is no recording" "$GREY" "$(chip)"
 recording
 eq "a cleared file rests again" "$GREY" "$(chip)"
 
+# A dictation on another machine delivering here leaves a phase and an expiry, not a pid.
+remote() {
+    mkdir -p "$DICTATE"
+    printf '{"phase":"%s","until":%d}\n' "$1" "$(($(date +%s) + $2))" >"$DICTATE/remote.json"
+}
+remote recording 10
+eq "a remote dictation turns it red" "$RED" "$(chip)"
+remote transcribing 10
+eq "a remote dictation outlives the microphone too" "$AMBER" "$(chip)"
+remote recording -1
+eq "an expired remote dictation is none" "$GREY" "$(chip)"
+remote recording 10
+sleep 0 &
+dead=$!
+wait $dead
+recording $dead
+eq "a dead local recorder does not hide a remote dictation" "$RED" "$(chip)"
+recording
+rm -f "$DICTATE/remote.json"
+eq "a cleared remote file rests again" "$GREY" "$(chip)"
+
 # Nothing beside the chip may move as the phase changes.
 resting=$(place_row)
 recording $$

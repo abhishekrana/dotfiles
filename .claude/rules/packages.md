@@ -24,10 +24,12 @@ paths:
   number, yellow past 80 and red past 95 - which fit a 99-column pane, the narrowest Claude pane measured. The rate
   limits ride the same stdin payload, so they cost no process and no network; each window is absent before the session's
   first API response and after its own reset, and an absent window shows nothing. The dictation chip reads the herdr
-  plugin's state file (`$XDG_STATE_HOME/herdr/plugins/abhishekrana.dictate/recording.json`) and never writes it, so
-  polling cannot disturb a recording; a pid with no process is a recorder that died, not a recording. Its label never
-  changes, only its colour - grey idle, red recording, amber transcribing, the tmux footer chip's rule - because it
-  opens row one and the place beside it must not shift as you speak.
+  plugin's state files in `$XDG_STATE_HOME/herdr/plugins/abhishekrana.dictate/` and never writes them, so polling cannot
+  disturb a recording. `recording.json` is a recorder on this machine, and a pid with no process is one that died, not a
+  recording. `remote.json` is a dictation from another machine delivering here: the plugin writes it over ssh with the
+  pane label, carrying an expiry in this machine's clock rather than a pid, so a lost connection goes grey within the
+  label's TTL. Its label never changes, only its colour - grey idle, red recording, amber transcribing, the tmux footer
+  chip's rule - because it opens row one and the place beside it must not shift as you speak.
 - **`claude/` has three writers**: this repo, `herdr integration install claude`, and Claude's own `/theme`. Its TUI
   theme is therefore **deliberately not switched by `theme`**. Prefer `light-ansi`/`dark-ansi`, which paint from the
   terminal's own 16 colours and so follow this palette; the tracked value drifts to whatever `/theme` last wrote, which
