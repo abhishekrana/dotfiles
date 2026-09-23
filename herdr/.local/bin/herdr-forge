@@ -6,8 +6,8 @@
 # Subcommands:
 #   line                     Print that line for $HERDR_ACTIVE_PANE_CWD, else $PWD. Reads the cache and
 #                            starts a detached refresh when it is due; never waits on the network.
-#   open                     A chooser for a herdr popup: a key or a click opens the MR, the ticket or the
-#                            pipeline in the browser.
+#   open                     The popup: ticket, merge request and pipeline in three columns, each opened in
+#                            the browser or in herdr by a click or a key. It is herdr-forge-popup, beside this.
 #   refresh <root> <branch>  Ask GitLab and rewrite that checkout and branch's cache entry. One at a time
 #                            per entry (flock).
 #
@@ -24,18 +24,17 @@ CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/herdr-forge"
 # and returns the project's newest merge request instead.
 QUERY='query($p: ID!, $b: [String!]) {
   project(fullPath: $p) {
-    webUrl
     mergeRequests(sourceBranches: $b, sort: CREATED_DESC, first: 1) {
       nodes {
-        iid state draft detailedMergeStatus approvalsLeft sourceBranch webUrl
-        headPipeline { status path }
+        iid state draft detailedMergeStatus approvalsLeft sourceBranch
+        headPipeline { status }
       }
     }
   }
 }'
 
 # The entry's fields, one per line, in this order. A field missing from an older entry reads as empty.
-FIELDS=(at asked text tk_ref tk_url mr_ref mr_url ci_ref ci_url)
+FIELDS=(at asked text)
 
 # Cache file for a checkout and branch, into $key_out.
 key() {
@@ -104,24 +103,18 @@ merge_words() {
     esac
 }
 
-# Every field but the timestamps, from a GraphQL answer on stdin.
+# The line, from a GraphQL answer on stdin, into $text.
 compose() {
-    local branch=$1 web iid state draft status left pipeline mr_web ci_path words='' parts=() part
-    text='' tk_ref='' tk_url='' mr_ref='' mr_url='' ci_ref='' ci_url=''
-    IFS=$'\x1f' read -r web iid state draft status left pipeline mr_web ci_path < <(jq -r --arg b "$branch" '
-        .data.project.webUrl // "" as $web |
+    local branch=$1 iid state draft status left pipeline words='' tk_ref='' mr_ref='' ci_ref='' parts=() part
+    text=''
+    IFS=$'\x1f' read -r iid state draft status left pipeline < <(jq -r --arg b "$branch" '
         [.data.project.mergeRequests.nodes[]? | select(.sourceBranch == $b)][0] // {} |
-        [$web, .iid // "", .state // "", (.draft // false | tostring), .detailedMergeStatus // "",
-         (.approvalsLeft // 0 | tostring), .headPipeline.status // "", .webUrl // "",
-         .headPipeline.path // ""] | join("\u001f")')
+        [.iid // "", .state // "", (.draft // false | tostring), .detailedMergeStatus // "",
+         (.approvalsLeft // 0 | tostring), .headPipeline.status // ""] | join("\u001f")')
 
-    if [[ $branch =~ ^([0-9]+)([-_/]|$) ]]; then
-        tk_ref="#${BASH_REMATCH[1]}"
-        [ -n "$web" ] && tk_url="$web/-/issues/${BASH_REMATCH[1]}"
-    fi
+    [[ $branch =~ ^([0-9]+)([-_/]|$) ]] && tk_ref="#${BASH_REMATCH[1]}"
     if [ -n "$iid" ]; then
         mr_ref="!$iid"
-        mr_url=$mr_web
         case $state in
             merged | closed) words=$state ;;
             *)
@@ -135,8 +128,6 @@ compose() {
         esac
         pipeline_glyph "$pipeline"
         ci_ref=$glyph_out
-        # The pipeline path is host-relative; the project URL carries the scheme and host.
-        [ -n "$ci_path" ] && [[ $web =~ ^(https?://[^/]+) ]] && ci_url="${BASH_REMATCH[1]}$ci_path"
     fi
 
     [ -n "$tk_ref" ] && parts+=("$tk_ref")
@@ -151,27 +142,20 @@ compose() {
     for part in "${parts[@]}"; do
         text+="${text:+ · }$part"
     done
-    [ -n "$words" ] && mr_ref+=" · $words"
     return 0
 }
 
-# refresh <root> <branch> [wait]: with a third argument, wait up to 10s for a refresh already running.
 cmd_refresh() {
     local root=$1 branch=$2 json
     mkdir -p "$CACHE" || return 0
     key "$root" "$branch"
     exec 9>"$key_out.lock"
-    if [ -n "${3-}" ]; then
-        flock -w 10 9 || return 0
-    else
-        flock -n 9 || return 0
-    fi
+    flock -n 9 || return 0
     read_entry "$key_out"
 
     project_path "$root"
     if [ -z "$path_out" ]; then
-        text='' tk_ref='' tk_url='' mr_ref='' mr_url='' ci_ref='' ci_url=''
-        at=$EPOCHSECONDS asked=$EPOCHSECONDS
+        text='' at=$EPOCHSECONDS asked=$EPOCHSECONDS
         write_entry "$key_out"
         return 0
     fi
@@ -209,95 +193,9 @@ cmd_line() {
     return 0
 }
 
-# One chooser entry, two lines: key, kind and label, then the URL beneath as an OSC 8 link, which a terminal
-# outside herdr can open. The label comes last because printf pads by bytes, and it carries multibyte glyphs.
-# Records the screen rows the entry covers in $clicks, and counts them in $screen_row.
-row() {
-    printf '  \033[1m%s\033[0m  %-14s %s\n     \033]8;;%s\033\\\033[34m%s\033[0m\033]8;;\033\\\n\n' \
-        "$1" "$3" "$2" "$4" "$4"
-    clicks[$screen_row]=$1 clicks[$((screen_row + 1))]=$1
-    screen_row=$((screen_row + 3))
-}
-
-# One keypress or mouse click into $picked: the key itself, or the key of the entry clicked. A herdr popup
-# passes clicks to the program in it and never to its own link handling, so clicks are read as SGR mouse
-# reports (ESC [ < button ; col ; row M). Returns 1 on end of input.
-pick() {
-    local c seq=''
-    picked=
-    IFS= read -rsn1 c || return 1
-    if [ "$c" != $'\e' ]; then
-        picked=$c
-        return 0
-    fi
-    # A bare Escape arrives alone; a report follows it at once.
-    IFS= read -rsn1 -t 0.05 c || return 0
-    [ "$c" = '[' ] || return 0
-    IFS= read -rsn1 -t 0.05 c || return 0
-    [ "$c" = '<' ] || return 0
-    while IFS= read -rsn1 -t 0.05 c; do
-        case $c in
-            M | m) break ;;
-            *) seq+=$c ;;
-        esac
-    done
-    [[ $seq =~ ^([0-9]+)\;([0-9]+)\;([0-9]+)$ ]] || return 0
-    # A release, a motion or the wheel is not a click; modifier bits (shift 4, meta 8, ctrl 16) are ignored.
-    if [ "$c" = m ] || ((BASH_REMATCH[1] & 0xE3)); then
-        picked=mouse
-        return 0
-    fi
-    picked=${clicks[${BASH_REMATCH[3]}]-none}
-}
-
-cmd_open() {
-    local root branch url picked screen_row=1
-    local -A urls=() clicks=()
-    printf '\033[H\033[2J'
-    if ! focused; then
-        printf '\n  Not a checkout on a branch.\n'
-    else
-        key "$root" "$branch"
-        read_entry "$key_out"
-        # Ask now when the entry is too old to trust or predates the links.
-        if ((EPOCHSECONDS - at >= STALE)) || { [ -z "$tk_url" ] && [ -z "$mr_url" ]; }; then
-            printf '\n  Asking GitLab…'
-            cmd_refresh "$root" "$branch" wait
-            read_entry "$key_out"
-            printf '\033[H\033[2J'
-        fi
-        printf '\n  \033[96m%s\033[0m\n\n' "$branch"
-        screen_row=4
-        [ -n "$mr_url" ] && urls[m]=$mr_url && row m "$mr_ref" "merge request" "$mr_url"
-        [ -n "$tk_url" ] && urls[t]=$tk_url && row t "$tk_ref" ticket "$tk_url"
-        [ -n "$ci_url" ] && urls[p]=$ci_url && row p "$ci_ref" pipeline "$ci_url"
-        [ ${#urls[@]} -gt 0 ] || printf '  Nothing to open: no ticket number and no merge request.\n'
-    fi
-
-    if [ ${#urls[@]} -eq 0 ]; then
-        printf '\n  \033[96many key closes\033[0m'
-        IFS= read -rsn1 _
-        return 0
-    fi
-    printf '  \033[96mclick an entry or press its key · any other key closes\033[0m'
-    # Button presses only, in SGR form; switched off again however this ends.
-    printf '\033[?1000h\033[?1006h'
-    trap "printf '\033[?1006l\033[?1000l'" EXIT
-    # A release or motion is not an answer, and neither is a click between entries; keep waiting.
-    while pick; do
-        case $picked in
-            mouse | none) continue ;;
-        esac
-        url=${urls[$picked]-}
-        [ -n "$url" ] && setsid -f xdg-open "$url" </dev/null >/dev/null 2>&1
-        return 0
-    done
-    return 0
-}
-
 case ${1-} in
     line) cmd_line ;;
-    open) cmd_open ;;
+    open) exec "${0%/*}/herdr-forge-popup" ;;
     refresh) [ $# -eq 3 ] && cmd_refresh "$2" "$3" ;;
     *)
         echo "usage: herdr-forge line | open | refresh <root> <branch>" >&2

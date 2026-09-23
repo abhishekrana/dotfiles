@@ -40,10 +40,15 @@ paths:
   untracked because `herdr-dictate setup` appends to it. Herdr strips colour from that entry, so state is words and
   glyphs. `line` runs every 2s and forks only git; GitLab is one GraphQL call per branch per TTL, detached. Pass the
   branch as `-f b=<name>`: glab's `-F 'b[]=…'` form drops the filter and returns the project's newest MR. Herdr cannot
-  make tab bar text clickable, so `herdr-forge open` is an `alt+u` popup, with `prefix+u` as a fallback
-  (`[[keys.command]]`, same file): a key or a click opens the MR, ticket or pipeline. A popup hands every click to its
-  program and never to herdr's Ctrl+click link handling (v0.9.1), so the chooser turns on SGR mouse reporting and maps
-  the clicked row itself. `test/herdr-forge.sh` stubs glab and xdg-open.
+  make tab bar text clickable, so `herdr-forge open` hands off to `herdr-forge-popup` (stdlib Python), an `alt+u` popup
+  with `prefix+u` as a fallback (`[[keys.command]]`, same file): ticket, MR and pipeline in three columns, stacked below
+  150 columns, each with a browser and a herdr button. A popup hands every click to its program and never to herdr's
+  Ctrl+click link handling (v0.9.1), so it reads SGR mouse reports and maps the clicked row and column itself. Its
+  GraphQL is two queries asked in parallel, because one exceeds GitLab's complexity limit of 250. Most branches carry no
+  ticket number, so the ticket falls back to what the MR closes. MR pipelines run on `refs/merge-requests/N/merge`, so
+  the pipeline opens with `glab ci view -p <id>`, never `-b <branch>`; the MR diff is
+  `git diff origin/<target>...HEAD | hunk patch -`. `test/herdr-forge.sh` stubs glab, herdr and xdg-open, and drives the
+  popup through `--dump` and `--act`.
 - **`hunk/`** - `mode = "stack"` is deliberate: full width per line for the diff pane beside your work. Workdesk's `D`
   overrides it to `split` at the call, because an MR diff gets a window of its own. hunk reads the file at startup, so
   an open pane keeps its layout until respawned.

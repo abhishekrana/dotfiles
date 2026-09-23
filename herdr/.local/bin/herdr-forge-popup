@@ -1,0 +1,814 @@
+#!/usr/bin/env python3
+"""herdr-forge-popup - the focused branch's ticket, merge request and pipeline, in a herdr popup.
+
+Three columns, in the order the work happens: ticket, merge request, pipeline. Each has a Browser and a herdr
+button on one shared row; a click or a key opens it (t m p in the browser, T M P in herdr). Below WIDE columns
+the three stack. It draws the last answer at once, asks GitLab, and draws again.
+
+    herdr-forge-popup                      the popup, for $HERDR_ACTIVE_PANE_CWD (else the cwd)
+    herdr-forge-popup --dump WIDTH         print one frame and its click regions, for tests
+    herdr-forge-popup --act ACTION         run one action without drawing, for tests
+    herdr-forge-popup ticket-md PROJECT N  the ticket as markdown, for folio
+
+A herdr popup hands every mouse event to its program, so clicks are read as SGR mouse reports. The herdr buttons
+split the focused pane to the right; quitting the tool there closes the split.
+"""
+
+import json
+import os
+import re
+import select
+import signal
+import subprocess
+import sys
+import termios
+import threading
+import time
+import tty
+import unicodedata
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
+
+WIDE = 150  # narrower than this, the columns stack
+PAD, GAP, KEY_W = 4, 6, 11
+CACHE = os.path.join(os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache"), "herdr-forge")
+
+# The terminal's own 16 colours, so every flavour of the palette follows. 96 is base1, the muted tone.
+RESET, BOLD = "\033[0m", "\033[1m"
+MUTED, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN = (f"\033[{n}m" for n in (96, 31, 32, 33, 34, 35, 36))
+CHIP_KEY, CHIP_VAL = "\033[44;97m", "\033[47;30m"
+
+# Two queries, asked in parallel: one alone exceeds GitLab's complexity limit of 250.
+QUERY = """
+query($p: ID!, $b: [String!], $i: [String!], $t: Boolean!) {
+  currentUser { username }
+  project(fullPath: $p) {
+    webUrl
+    mergeRequests(sourceBranches: $b, sort: CREATED_DESC, first: 1) { nodes {
+      iid title state draft webUrl sourceBranch targetBranch detailedMergeStatus
+      approvalsRequired approvalsLeft autoMergeStrategy mergeTrainsCount mergeTrainCar { index }
+      conflicts resolvableDiscussionsCount resolvedDiscussionsCount
+      diffStatsSummary { additions deletions fileCount }
+      assignees { nodes { username } } labels { nodes { title } }
+      reviewers { nodes { username mergeRequestInteraction { reviewState } } }
+      pipelines(first: 3) { nodes { iid duration } }
+      headPipeline { iid status path ref startedAt duration stages { nodes { status } } }
+    } }
+    workItems(iids: $i) @include(if: $t) { nodes {
+      iid title webUrl state
+      widgets {
+        ... on WorkItemWidgetStatus { status { name } }
+        ... on WorkItemWidgetAssignees { assignees { nodes { username } } }
+        ... on WorkItemWidgetLabels { labels { nodes { title } } }
+        ... on WorkItemWidgetHierarchy { parent { iid title } children { count } }
+        ... on WorkItemWidgetWeight { weight }
+        ... on WorkItemWidgetMilestone { milestone { title } }
+        ... on WorkItemWidgetIteration { iteration { title dueDate } }
+        ... on WorkItemWidgetStartAndDueDate { dueDate }
+        ... on WorkItemWidgetTimeTracking { timeEstimate totalTimeSpent }
+        ... on WorkItemWidgetDevelopment { closingMergeRequests { nodes { mergeRequest { iid } } } }
+      }
+    } }
+  }
+}
+"""
+
+JOBS = """
+query($p: ID!, $b: [String!]) {
+  project(fullPath: $p) {
+    mergeRequests(sourceBranches: $b, sort: CREATED_DESC, first: 1) { nodes {
+      sourceBranch
+      headPipeline { ...jobs downstream { nodes { status sourceJob { name } ...jobs } } }
+    } }
+  }
+}
+fragment jobs on Pipeline {
+  ok: jobs(statuses: [SUCCESS]) { count }
+  bad: jobs(statuses: [FAILED]) { count }
+  busy: jobs(statuses: [RUNNING]) { count }
+  wait: jobs(statuses: [PENDING, WAITING_FOR_RESOURCE]) { count }
+  todo: jobs(statuses: [CREATED, PREPARING, SCHEDULED]) { count }
+  manual: jobs(statuses: [MANUAL]) { count }
+  failed: jobs(statuses: [FAILED], first: 10) { nodes { name allowFailure } }
+  queued: jobs(statuses: [PENDING, WAITING_FOR_RESOURCE], first: 50) { nodes { name queuedAt } }
+}
+"""
+
+# ---- text -----------------------------------------------------------------------------------------------------------
+
+
+def width(text):
+    return sum(0 if unicodedata.combining(c) else 2 if unicodedata.east_asian_width(c) in "WF" else 1 for c in text)
+
+
+def cut(text, w):
+    """Text cut to w columns, with an ellipsis when it was longer."""
+    if width(text) <= w:
+        return text
+    out = ""
+    for c in text:
+        if width(out + c) > w - 1:
+            break
+        out += c
+    return out + "…"
+
+
+def wrap(text, w, most=None):
+    """Word-wrapped lines of at most w columns; with most, the last line kept is cut instead of wrapping on."""
+    lines, cur = [], ""
+    for word in text.split():
+        # A word longer than the line is broken across lines.
+        while width(word) > w:
+            if cur:
+                lines.append(cur)
+                cur = ""
+            lines.append(word[:w])
+            word = word[w:]
+        trial = f"{cur} {word}" if cur else word
+        if width(trial) <= w:
+            cur = trial
+        else:
+            lines.append(cur)
+            cur = word
+    if cur:
+        lines.append(cur)
+    lines = [cut(line, w) for line in lines if line]
+    if most and len(lines) > most:
+        lines = lines[: most - 1] + [cut(" ".join(lines[most - 1 :]), w)]
+    return lines
+
+
+def ago(seconds):
+    s = int(seconds)
+    if s < 60:
+        return f"{s}s"
+    if s < 3600:
+        return f"{s // 60}m {s % 60:02d}s" if s < 600 else f"{s // 60}m"
+    return f"{s // 3600}h {(s % 3600) // 60:02d}m"
+
+
+def kilo(n):
+    return f"{n / 1000:.1f}k".replace(".0k", "k") if n >= 1000 else str(n)
+
+
+def when(iso):
+    return datetime.fromisoformat(iso).timestamp() if iso else None
+
+
+def ordinal(n):
+    return f"{n}{'th' if 10 <= n % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')}"
+
+
+def plural(n, word):
+    return f"{n} {word}{'' if n == 1 else 's'}"
+
+
+# ---- the place ------------------------------------------------------------------------------------------------------
+
+
+def git(root, *args):
+    r = subprocess.run(["git", "-C", root, *args], capture_output=True, text=True)
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
+def place():
+    """(root, branch, project path) for the focused pane, or None outside a checkout on a branch."""
+    cwd = os.environ.get("HERDR_ACTIVE_PANE_CWD") or os.getcwd()
+    root = git(cwd, "rev-parse", "--show-toplevel")
+    branch = root and git(root, "symbolic-ref", "--quiet", "--short", "HEAD")
+    if not branch:
+        return None
+    url = (git(root, "remote", "get-url", "origin") or "").removesuffix(".git")
+    url = url.split("://", 1)[-1].split("@", 1)[-1]
+    path = url.split(":", 1)[1] if ":" in url else url.split("/", 1)[1] if "/" in url else ""
+    return root, branch, path
+
+
+def cache_file(root, branch):
+    key = re.sub(r"[^A-Za-z0-9]", "_", f"{root}::{branch}")[-180:]
+    return os.path.join(CACHE, key + ".popup.json")
+
+
+# ---- GitLab ---------------------------------------------------------------------------------------------------------
+
+
+def glab(root, *args):
+    r = subprocess.run(["glab", "api", *args], cwd=root, capture_output=True, text=True, timeout=30)
+    if r.returncode != 0:
+        raise RuntimeError((r.stderr or r.stdout).strip().splitlines()[-1] if (r.stderr or r.stdout) else "glab failed")
+    return json.loads(r.stdout)
+
+
+def graphql(root, query, variables, flags=()):
+    args = ["graphql", "-f", f"query={query}"] + [x for k, v in variables.items() for x in ("-f", f"{k}={v}")]
+    for k, v in flags:
+        args += ["-F", f"{k}={v}"]
+    out = glab(root, *args)
+    if out.get("errors"):
+        raise RuntimeError(out["errors"][0].get("message", "GraphQL error"))
+    return out["data"]
+
+
+def details(root, path, branch, iid):
+    variables = {"p": path, "b": branch} | ({"i": iid} if iid else {})
+    return graphql(root, QUERY, variables, [("t", "true" if iid else "false")])
+
+
+def fetch(root, branch, path):
+    """Everything the popup shows, as one dict. The ticket is the branch's number, else what the MR closes."""
+    m = re.match(r"^(\d+)(?:[-_/]|$)", branch)
+    iid, via = (m.group(1), "branch") if m else (None, None)
+    with ThreadPoolExecutor(2) as pool:
+        asked = pool.submit(details, root, path, branch, iid)
+        jobs = pool.submit(graphql, root, JOBS, {"p": path, "b": branch})
+        data, jobs = asked.result(), jobs.result()
+    project = data.get("project") or {}
+    mrs = [n for n in (project.get("mergeRequests") or {}).get("nodes", []) if n.get("sourceBranch") == branch]
+    mr = mrs[0] if mrs else None
+    counted = [n for n in ((jobs.get("project") or {}).get("mergeRequests") or {}).get("nodes", [])
+               if n.get("sourceBranch") == branch]
+    if mr and mr.get("headPipeline") and counted and counted[0].get("headPipeline"):
+        mr["headPipeline"] |= counted[0]["headPipeline"]
+    tickets = (project.get("workItems") or {}).get("nodes") or []
+    if not iid and mr:
+        closes = glab(root, f"projects/{path.replace('/', '%2F')}/merge_requests/{mr['iid']}/closes_issues")
+        if closes:
+            iid, via = str(closes[0]["iid"]), "closes"
+            again = details(root, path, branch, iid).get("project") or {}
+            tickets = (again.get("workItems") or {}).get("nodes") or []
+    return {
+        "at": time.time(), "me": (data.get("currentUser") or {}).get("username"), "web": project.get("webUrl"),
+        "branch": branch, "mr": mr, "ticket": tickets[0] if tickets else None, "via": via,
+    }
+
+
+def ticket_markdown(root, path, iid):
+    """The ticket's title, fields, description and comments, for folio."""
+    enc = path.replace("/", "%2F")
+    issue = glab(root, f"projects/{enc}/issues/{iid}")
+    notes = glab(root, f"projects/{enc}/issues/{iid}/notes?sort=asc&per_page=100")
+    out = [f"# #{iid} {issue.get('title', '')}", ""]
+    meta = [issue.get("state", ""), *(f"`{label}`" for label in issue.get("labels", []))]
+    who = ", ".join("@" + a["username"] for a in issue.get("assignees", []))
+    out += [" · ".join(x for x in meta if x) + (f" · {who}" if who else ""), "", issue.get("description") or "", ""]
+    comments = [n for n in notes if not n.get("system")]
+    if comments:
+        out += ["---", "", f"## {plural(len(comments), 'comment')}", ""]
+    for n in comments:
+        out += [f"**@{n['author']['username']}** · {n['created_at'][:10]}", "", n.get("body", ""), ""]
+    return "\n".join(out)
+
+
+# ---- what each column says ----------------------------------------------------------------------------------------
+
+STATUS = {"blocked": RED, "on hold": YELLOW, "done": GREEN, "in review": CYAN, "in development": BLUE}
+REVIEW = {
+    "APPROVED": ("✓", GREEN, "approved"), "REQUESTED_CHANGES": ("✗", RED, "requested changes"),
+    "REVIEW_STARTED": ("●", BLUE, "reviewing"), "REVIEWED": ("◆", MUTED, "commented"),
+    "UNAPPROVED": ("↻", YELLOW, "approval removed"), "UNREVIEWED": ("○", MUTED, "not yet"),
+}
+RUN = {  # pipeline status: glyph, colour, words
+    "SUCCESS": ("✓", GREEN, "passed"), "FAILED": ("✗", RED, "failed"), "RUNNING": ("●", BLUE, "running"),
+    "PENDING": ("○", YELLOW, "waiting for a runner"), "WAITING_FOR_RESOURCE": ("○", YELLOW, "waiting for a resource"),
+    "CREATED": ("○", MUTED, "created"), "PREPARING": ("●", BLUE, "preparing"), "SCHEDULED": ("○", MUTED, "scheduled"),
+    "MANUAL": ("▷", MUTED, "waiting for a manual job"), "CANCELED": ("◌", MUTED, "canceled"),
+    "CANCELING": ("◌", MUTED, "canceling"), "SKIPPED": ("◌", MUTED, "skipped"),
+}
+MERGE_WORDS = {
+    "MERGEABLE": ("ready to merge", GREEN), "DISCUSSIONS_NOT_RESOLVED": ("open threads", YELLOW),
+    "CONFLICT": ("has conflicts", RED), "NEED_REBASE": ("needs a rebase", YELLOW),
+    "CI_MUST_PASS": ("pipeline must pass", RED), "CI_STILL_RUNNING": ("waiting for the pipeline", BLUE),
+    "BLOCKED_STATUS": ("blocked", RED), "DRAFT_STATUS": ("draft", MUTED),
+}
+
+
+def widget(ticket, key):
+    for w in ticket.get("widgets") or []:
+        if key in w:
+            return w[key]
+    return None
+
+
+def names(nodes, most=3):
+    people = ["@" + n["username"] for n in nodes]
+    return ", ".join(people) if len(people) <= most else f"{', '.join(people[:2])} and {len(people) - 2} more"
+
+
+def field(name, value, colour="", w=0):
+    """One labelled field as lines; value is a string (wrapped) or a list of ready lines."""
+    lines = value if isinstance(value, list) else [[(t, colour)] for t in wrap(value, w - KEY_W)]
+    return [[(name.ljust(KEY_W) if i == 0 else " " * KEY_W, MUTED)] + line for i, line in enumerate(lines)]
+
+
+def chips(labels, w):
+    """Labels as chips, a scoped label in two halves, wrapping to w; a chip wider than w is cut."""
+    lines, line, used = [], [], 0
+    for label in labels:
+        key, _, val = label.partition("::") if "::" in label else ("", "", label)
+        room = w - (width(key) + 2 if key else 0) - 2
+        val = cut(val, max(1, room))
+        size = (width(key) + 2 if key else 0) + width(val) + 3
+        if line and used + size > w:
+            lines.append(line)
+            line, used = [], 0
+        if key:
+            line.append((f" {key} ", CHIP_KEY))
+        line += [(f" {val} ", CHIP_VAL), (" ", "")]
+        used += size
+    if line:
+        lines.append(line)
+    return lines
+
+
+def ticket_column(d, w):
+    t = d["ticket"]
+    head = [("#" + t["iid"] + "  ", BOLD)]
+    title = wrap(t.get("title") or "", w - width(head[0][0]), most=3)
+    lines = [head + [(title[0] if title else "", "")]] + [[(x, "")] for x in title[1:]]
+    if d.get("via") == "closes" and d.get("mr"):
+        lines.append([(f"linked by !{d['mr']['iid']}, which closes it", MUTED)])
+    lines.append([])
+    status = (widget(t, "status") or {}).get("name") or t.get("state", "").lower()
+    lines += field("Status", status, STATUS.get(status.lower(), ""), w)
+    people = (widget(t, "assignees") or {}).get("nodes") or []
+    lines += field("Assignees" if len(people) > 1 else "Assignee", names(people) if people else "unassigned",
+                   "" if people else MUTED, w)
+    labels = [x["title"] for x in (widget(t, "labels") or {}).get("nodes") or []]
+    if labels:
+        lines += field("Labels", chips(labels, w - KEY_W))
+    more = []
+    parent = widget(t, "parent")
+    if parent:
+        more += field("Parent", [[(cut(f"#{parent['iid']} {parent['title']}", w - KEY_W), "")]])
+    kids = (widget(t, "children") or {}).get("count") or 0
+    if kids:
+        more += field("Children", plural(kids, "child item"), "", w)
+    mrs = [n["mergeRequest"]["iid"] for n in (widget(t, "closingMergeRequests") or {}).get("nodes") or []]
+    if len(mrs) > 1:
+        this = (d.get("mr") or {}).get("iid")
+        more += field("MRs", " · ".join(f"!{i} this one" if i == this else f"!{i}" for i in mrs), "", w)
+    it = widget(t, "iteration")
+    if it:
+        ends = f"ends {datetime.fromisoformat(it['dueDate']).strftime('%b %-d')}" if it.get("dueDate") else ""
+        more += field("Iteration", " · ".join(x for x in (it.get("title"), ends) if x) or "current", "", w)
+    due = widget(t, "dueDate")
+    if due:
+        late = (datetime.now(timezone.utc).date() - datetime.fromisoformat(due).date()).days
+        text = datetime.fromisoformat(due).strftime("%b %-d")
+        text += f" · overdue by {plural(late, 'day')}" if late > 0 else ""
+        more += field("Due", text, RED if late > 0 else "", w)
+    ms = widget(t, "milestone")
+    if ms:
+        more += field("Milestone", ms["title"], "", w)
+    weight = widget(t, "weight")
+    if weight is not None:
+        more += field("Weight", str(weight), "", w)
+    spent, est = widget(t, "totalTimeSpent") or 0, widget(t, "timeEstimate") or 0
+    if spent or est:
+        more += field("Time", f"{ago(spent)} spent" + (f" of {ago(est)}" if est else ""), "", w)
+    return lines + ([[]] + more if more else [])
+
+
+def merge_head(mr):
+    """What the MR is waiting on, as (words, colour)."""
+    if mr["state"] in ("merged", "closed"):
+        return mr["state"], GREEN if mr["state"] == "merged" else MUTED
+    car, strategy = mr.get("mergeTrainCar"), mr.get("autoMergeStrategy") or ""
+    if car is not None:
+        size = mr.get("mergeTrainsCount") or 0
+        return f"in the merge train · {ordinal(car['index'] + 1)}" + (f" of {size}" if size else ""), BLUE
+    if strategy == "add_to_merge_train_when_checks_pass":
+        return "joins the merge train when checks pass", BLUE
+    if strategy == "merge_when_checks_pass":
+        return "merges when checks pass", BLUE
+    if mr.get("draft"):
+        return "draft", MUTED
+    status = mr.get("detailedMergeStatus") or ""
+    if status == "NOT_APPROVED":
+        return f"needs {plural(mr.get('approvalsLeft') or 0, 'more approval')}", YELLOW
+    return MERGE_WORDS.get(status, ("open", ""))
+
+
+def mr_column(d, w):
+    mr = d["mr"]
+    words, colour = merge_head(mr)
+    lines = [[("!" + mr["iid"] + "  ", BOLD), (cut(words, w - len(mr["iid"]) - 3), colour)], []]
+    car = mr.get("mergeTrainCar")
+    if car is not None:
+        lines += field("Train", "merges when the train's pipeline passes", BLUE, w)
+    need, left = mr.get("approvalsRequired") or 0, mr.get("approvalsLeft") or 0
+    if need:
+        given = need - left
+        text = f"{given} of {need}" + (f" · needs {left} more" if left else " · all given")
+        lines += field("Approvals", text, YELLOW if left else GREEN, w)
+    reviewers = (mr.get("reviewers") or {}).get("nodes") or []
+    if reviewers:
+        rows = []
+        for r in reviewers[:3]:
+            review = (r.get("mergeRequestInteraction") or {}).get("reviewState")
+            glyph, col, state = REVIEW.get(review, ("○", MUTED, ""))
+            rows.append([(glyph + " ", col), (cut(f"@{r['username']} {state}", w - KEY_W - 2), "")])
+        if len(reviewers) > 3:
+            rows.append([("  " + f"and {len(reviewers) - 3} more", MUTED)])
+        lines += field("Reviewers", rows)
+    lines.append([])
+    if mr.get("conflicts"):
+        lines += field("Conflicts", "yes: rebase before merging", RED, w)
+    threads, done = mr.get("resolvableDiscussionsCount") or 0, mr.get("resolvedDiscussionsCount") or 0
+    if threads:
+        text = f"all {threads} resolved" if done == threads else f"{done} of {threads} resolved"
+        lines += field("Threads", text, "" if done == threads else YELLOW, w)
+    s = mr.get("diffStatsSummary") or {}
+    files = s.get("fileCount") or 0
+    lines += field("Changes", f"+{kilo(s.get('additions') or 0)} −{kilo(s.get('deletions') or 0)} · "
+                   f"{plural(files, 'file')} → {mr.get('targetBranch')}", "", w)
+    people = (mr.get("assignees") or {}).get("nodes") or []
+    labels = [x["title"] for x in (mr.get("labels") or {}).get("nodes") or []]
+    if people or labels:
+        lines.append([])
+    if people:
+        lines += field("Assignees" if len(people) > 1 else "Assignee", names(people), "", w)
+    if labels:
+        lines += field("Labels", chips(labels, w - KEY_W))
+    return lines
+
+
+def counts(p):
+    return {k: (p.get(k) or {}).get("count") or 0 for k in ("ok", "bad", "busy", "wait", "todo", "manual")}
+
+
+def bar(c, w):
+    """A bar over the jobs that run - passed, failed, running, waiting, not started - and its count."""
+    total = c["ok"] + c["bad"] + c["busy"] + c["wait"] + c["todo"]
+    if not total:
+        return [("no jobs have run", MUTED)]
+    parts, used, out = [("ok", "█", GREEN), ("bad", "█", RED), ("busy", "▓", BLUE), ("wait", "▒", YELLOW),
+                        ("todo", "░", MUTED)], 0, []
+    for i, (k, ch, col) in enumerate(parts):
+        n = w - used if i == len(parts) - 1 else max(1 if c[k] else 0, round(c[k] / total * w))
+        n = max(0, min(n, w - used))
+        out.append((ch * n, col))
+        used += n
+    return out + [(f"  {c['ok'] + c['bad']} of {total} jobs", "")]
+
+
+def previous_duration(mr):
+    head = (mr.get("headPipeline") or {}).get("iid")
+    for p in (mr.get("pipelines") or {}).get("nodes") or []:
+        if p.get("iid") != head and p.get("duration"):
+            return p["duration"]
+    return None
+
+
+def ci_column(d, w, now):
+    mr = d["mr"]
+    p = mr["headPipeline"]
+    glyph, colour, words = RUN.get(p["status"], ("●", "", p["status"].lower()))
+    train = "/train" in (p.get("ref") or "")
+    before = previous_duration(mr)
+    started = when(p.get("startedAt"))
+    if p["status"] in ("RUNNING", "PREPARING") and started:
+        elapsed = now - started
+        words += f" · {ago(elapsed)}" + (f" of ~{ago(before)}" if before else "")
+    elif p.get("duration"):
+        words += (" in " if p["status"] == "SUCCESS" else " after ") + ago(p["duration"])
+    head = ("merge train · " if train else "") + words
+    lines = [[(glyph + "  ", colour), (cut(head, w - 3), colour)], []]
+    children = (p.get("downstream") or {}).get("nodes") or []
+    total = counts(p)
+    for ch in children:
+        for k, v in counts(ch).items():
+            total[k] += v
+    lines.append(bar(total, min(30, max(10, w - 18))))
+    stages = [s["status"].upper() for s in (p.get("stages") or {}).get("nodes") or []]
+    strip = []
+    for s in stages:
+        g, col, _ = RUN.get(s, ("○", MUTED, ""))
+        strip += [(g + " ", col)]
+    done = sum(1 for s in stages if s == "SUCCESS")
+    lines.append([("stages".ljust(KEY_W), MUTED)] + strip + [(f" {done} of {len(stages)}", MUTED)])
+    for i, ch in enumerate(children):
+        g, col, _ = RUN.get(ch["status"], ("○", MUTED, ""))
+        name = cut(((ch.get("sourceJob") or {}).get("name") or "child"), max(6, w - KEY_W - 14))
+        c = counts(ch)
+        ran = c["ok"] + c["bad"] + c["busy"] + c["wait"] + c["todo"]
+        lines.append([(("children" if i == 0 else "").ljust(KEY_W), MUTED), (g + " ", col), (name, ""),
+                      (f"  {plural(ran, 'job')}", MUTED)])
+    if total["manual"]:
+        lines.append([("manual".ljust(KEY_W), MUTED), (f"{plural(total['manual'], 'job')}, not run", MUTED)])
+    if before:
+        lines.append([("last run".ljust(KEY_W), MUTED), (f"this MR's previous pipeline took {ago(before)}", MUTED)])
+    alerts = []
+    if p["status"] == "RUNNING" and started and before and now - started > before * 1.3 + 60:
+        alerts.append((f"⚠ over its usual time by {ago(now - started - before)}", YELLOW))
+    queued = [j for x in [p, *children] for j in (x.get("queued") or {}).get("nodes") or [] if j.get("queuedAt")]
+    if queued:
+        longest = max(now - when(j["queuedAt"]) for j in queued)
+        if longest > 180:
+            alerts.append((f"⚠ {plural(len(queued), 'job')} waiting for a runner, longest {ago(longest)}", YELLOW))
+    failed = [j for x in [p, *children] for j in (x.get("failed") or {}).get("nodes") or []]
+    if failed:
+        hard = [j["name"] for j in failed if not j.get("allowFailure")] or [j["name"] for j in failed]
+        shown = ", ".join(hard[:3]) + (f" and {len(hard) - 3} more" if len(hard) > 3 else "")
+        soft = "" if any(not j.get("allowFailure") for j in failed) else " (allowed to fail)"
+        alerts.append((f"✗ {len(failed)} failed: {shown}{soft}", RED))
+    if alerts:
+        lines.append([])
+    for text, col in alerts:
+        lines += [[(x, col)] for x in wrap(text, w)]
+    return lines
+
+
+def pipeline_url(d):
+    p = ((d.get("mr") or {}).get("headPipeline")) or {}
+    m = re.match(r"^(https?://[^/]+)", d.get("web") or "")
+    return m.group(1) + p["path"] if m and p.get("path") else None
+
+
+def pipeline_id(d):
+    path = (((d.get("mr") or {}).get("headPipeline")) or {}).get("path") or ""
+    m = re.search(r"/pipelines/(\d+)$", path)
+    return m.group(1) if m else None
+
+
+# ---- actions --------------------------------------------------------------------------------------------------------
+
+SECTIONS = [  # key, label, herdr button, what a missing item says
+    ("t", "TICKET", "Read in herdr", "No linked ticket: the branch has no number, and its MR closes nothing."),
+    ("m", "MERGE REQUEST", "Diff in herdr", "No merge request for this branch yet."),
+    ("p", "PIPELINE", "Jobs in herdr", "No pipeline yet."),
+]
+
+
+def available(d):
+    """Which sections have something to open."""
+    mr = d.get("mr")
+    return {"t": bool(d.get("ticket")), "m": bool(mr), "p": bool(mr and mr.get("headPipeline"))}
+
+
+def split(root, command):
+    """Split the focused pane to the right and run command there; exec, so quitting the tool closes the split."""
+    herdr = os.environ.get("HERDR_BIN_PATH") or "herdr"
+    pane = os.environ.get("HERDR_ACTIVE_PANE_ID")
+    target = ["--pane", pane] if pane else ["--current"]
+    r = subprocess.run([herdr, "pane", "split", *target, "--direction", "right", "--cwd", root],
+                       capture_output=True, text=True)
+    new = json.loads(r.stdout or "{}").get("result", {}).get("pane", {}).get("pane_id") if r.returncode == 0 else None
+    if new:
+        subprocess.run([herdr, "pane", "run", new, f"exec sh -c {sh_quote(command)}"], capture_output=True)
+    return bool(new)
+
+
+def sh_quote(s):
+    return "'" + s.replace("'", "'\\''") + "'"
+
+
+def act(action, d, root, path):
+    """Run one action: t m p open in the browser, T M P open in herdr."""
+    k, herdr = action.lower(), action.isupper()
+    mr = d.get("mr") or {}
+    if not available(d).get(k):
+        return False
+    if not herdr:
+        url = {"t": (d.get("ticket") or {}).get("webUrl"), "m": mr.get("webUrl"), "p": pipeline_url(d)}[k]
+        subprocess.Popen(["setsid", "-f", "xdg-open", url], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL)
+        return True
+    me = os.path.abspath(sys.argv[0])
+    if k == "t":
+        cmd = f"{sh_quote(me)} ticket-md {sh_quote(path)} {d['ticket']['iid']} | folio"
+    elif k == "m":
+        t = sh_quote(mr.get("targetBranch") or "main")
+        cmd = f"git fetch --quiet origin {t}; git diff --no-color origin/{t}...HEAD | hunk patch -"
+    else:
+        cmd = f"glab ci view -p {pipeline_id(d)}"
+    return split(root, cmd)
+
+
+# ---- the frame ------------------------------------------------------------------------------------------------------
+
+
+def boxes(label, w):
+    """Browser and herdr buttons, three rows tall, side by side in w columns; also their column spans."""
+    bw = max(14, min(24, (w - 4) // 2))
+    rows = [[], [], []]
+    spans = []
+    for i, (glyph, text, col) in enumerate((("↗", "Browser", BLUE), ("▶", label, ""))):
+        inner = cut(f" {glyph}  {text}", bw - 2)
+        edge = "─" * (bw - 2)
+        box = ["┌" + edge + "┐", "│" + inner + " " * (bw - 2 - width(inner)) + "│", "└" + edge + "┘"]
+        x = i * (bw + 4)
+        spans.append((x, x + bw))
+        for r in range(3):
+            if i:
+                rows[r].append((" " * 4, ""))
+            rows[r].append((box[r], col))
+    return rows, spans
+
+
+def frame(state, W, now):
+    """The whole popup as lines, and the click regions as (row, x0, x1, action)."""
+    d, err = state.get("data"), state.get("error")
+    lines, regions = [[]], []
+    branch = state.get("branch", "")
+    if state.get("fetching") and not d:
+        right = "asking GitLab…"
+    elif err:
+        right = f"GitLab unreachable · showing {ago(now - d['at'])} old" if d else "GitLab unreachable"
+    else:
+        right = f"updated {ago(now - d['at'])} ago" if d else ""
+    right += "   esc closes"
+    left = cut(branch, W - 2 * PAD - width(right) - 4)
+    lines.append([(" " * PAD, ""), (left, MAGENTA), (" " * (W - 2 * PAD - width(left) - width(right)), ""),
+                  (right, MUTED)])
+    lines.append([])
+    if not d:
+        lines.append([(" " * PAD, ""), (err or "Asking GitLab…", RED if err else MUTED)])
+        return lines, regions
+    avail = available(d)
+    builders = {"t": ticket_column, "m": mr_column, "p": lambda dd, w: ci_column(dd, w, now)}
+    wide = W >= WIDE
+    cw = min(60, (W - 2 * PAD - 2 * GAP) // 3) if wide else W - 2 * PAD
+
+    missing = {k: text for k, _, _, text in SECTIONS}
+
+    def body(k, w):
+        return builders[k](d, w) if avail[k] else [[(x, MUTED)] for x in wrap(missing[k], w)]
+
+    if wide:
+        cols = [[[(label, BOLD)], []] + body(k, cw) for k, label, _, _ in SECTIONS]
+        depth = max(len(c) for c in cols)
+        for r in range(depth):
+            row = [(" " * PAD, "")]
+            for i, col in enumerate(cols):
+                cell = col[r] if r < len(col) else []
+                used = sum(width(t) for t, _ in cell)
+                row += cell + [(" " * max(0, cw - used), "")]
+                if i < 2:
+                    row.append((" " * (GAP // 2 - 1) + "│" + " " * (GAP - GAP // 2), MUTED))
+            lines.append(row)
+        lines.append([])
+        brow = len(lines)
+        button_rows = [[(" " * PAD, "")] for _ in range(3)]
+        for i, (k, _, label, _) in enumerate(SECTIONS):
+            x = PAD + i * (cw + GAP)
+            if avail[k]:
+                rows, spans = boxes(label, cw)
+                for r in range(3):
+                    button_rows[r] += rows[r]
+                for (x0, x1), a in zip(spans, (k, k.upper())):
+                    regions += [(brow + r, x + x0, x + x1, a) for r in range(3)]
+                used = sum(width(t) for t, _ in rows[0])
+            else:
+                used = 0
+            pad = cw - used + (GAP if i < 2 else 0)
+            for r in range(3):
+                button_rows[r].append((" " * pad, ""))
+        lines += button_rows
+    else:
+        for k, label, blabel, _ in SECTIONS:
+            lines.append([(" " * PAD, ""), (label, BOLD)])
+            lines.append([])
+            lines += [[(" " * PAD, "")] + line for line in body(k, cw)]
+            if avail[k]:
+                lines.append([])
+                brow = len(lines)
+                rows, spans = boxes(blabel, cw)
+                lines += [[(" " * PAD, "")] + row for row in rows]
+                for (x0, x1), a in zip(spans, (k, k.upper())):
+                    regions += [(brow + r, PAD + x0, PAD + x1, a) for r in range(3)]
+            lines.append([])
+    lines.append([])
+    lines.append([(" " * PAD, ""), ("click a button  ·  t m p open in the browser  ·  T M P open in herdr", MUTED)])
+    return lines, regions
+
+
+def paint(lines):
+    return "\n".join("".join(f"{c}{t}{RESET}" if c else t for t, c in line) for line in lines)
+
+
+# ---- the loop -------------------------------------------------------------------------------------------------------
+
+
+def load(file):
+    try:
+        with open(file) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return None
+
+
+def save(file, data):
+    os.makedirs(CACHE, exist_ok=True)
+    with open(file + ".tmp", "w") as f:
+        json.dump(data, f)
+    os.replace(file + ".tmp", file)
+
+
+def read_event(fd):
+    """One key or click: ('key', char), ('click', row, col), ('esc',) or None for anything else."""
+    b = os.read(fd, 64).decode(errors="replace")
+    m = re.match(r"\x1b\[<(\d+);(\d+);(\d+)([Mm])", b)
+    if m:
+        button, col, row, kind = int(m.group(1)), int(m.group(2)), int(m.group(3)), m.group(4)
+        # A press of the left button, with or without modifiers; not a release, a motion or the wheel.
+        return ("click", row - 1, col - 1) if kind == "M" and not button & 0xE3 else None
+    if b in ("\x1b", "q"):
+        return ("esc",)
+    return ("key", b[0]) if len(b) == 1 else None
+
+
+def popup():
+    where = place()
+    out = sys.stdout
+    if not where:
+        out.write("\n    Not a checkout on a branch.\n\n    any key closes")
+        out.flush()
+        with raw(sys.stdin.fileno()):
+            os.read(sys.stdin.fileno(), 64)
+        return
+    root, branch, path = where
+    file = cache_file(root, branch)
+    state = {"branch": branch, "data": load(file), "error": None, "fetching": True}
+    wake_r, wake_w = os.pipe()
+
+    def worker():
+        try:
+            state["data"] = fetch(root, branch, path)
+            save(file, state["data"])
+            state["error"] = None
+        except Exception as e:  # noqa: BLE001 - any failure is shown, and the old answer kept
+            state["error"] = str(e) or type(e).__name__
+        state["fetching"] = False
+        os.write(wake_w, b"x")
+
+    threading.Thread(target=worker, daemon=True).start()
+    signal.signal(signal.SIGWINCH, lambda *_: os.write(wake_w, b"x"))
+    fd = sys.stdin.fileno()
+    out.write("\033[?25l\033[?1000h\033[?1006h")
+    try:
+        with raw(fd):
+            while True:
+                W = os.get_terminal_size().columns
+                lines, regions = frame(state, W, time.time())
+                out.write("\033[H\033[2J" + paint(lines))
+                out.flush()
+                ready, _, _ = select.select([fd, wake_r], [], [], 1.0)
+                if wake_r in ready:
+                    os.read(wake_r, 64)
+                if fd not in ready:
+                    continue
+                ev = read_event(fd)
+                if not ev:
+                    continue
+                if ev[0] == "esc":
+                    return
+                if ev[0] == "click":
+                    hit = [a for (r, x0, x1, a) in regions if r == ev[1] and x0 <= ev[2] < x1]
+                    ev = ("key", hit[0]) if hit else None
+                if ev and state.get("data") and ev[1] in "tmpTMP" and act(ev[1], state["data"], root, path):
+                    return
+                if ev and ev[1] not in "tmpTMP":
+                    return
+    finally:
+        out.write("\033[?1006l\033[?1000l\033[?25h")
+        out.flush()
+
+
+class raw:
+    """Keys one at a time, unechoed, for the length of a with block."""
+
+    def __init__(self, fd):
+        self.fd = fd
+
+    def __enter__(self):
+        self.saved = termios.tcgetattr(self.fd)
+        tty.setcbreak(self.fd)
+
+    def __exit__(self, *_):
+        termios.tcsetattr(self.fd, termios.TCSADRAIN, self.saved)
+
+
+def main(argv):
+    if len(argv) >= 4 and argv[1] == "ticket-md":
+        print(ticket_markdown(os.getcwd(), argv[2], argv[3]))
+        return 0
+    if len(argv) == 3 and argv[1] in ("--dump", "--act"):
+        where = place()
+        if not where:
+            return 1
+        root, branch, path = where
+        data = fetch(root, branch, path)
+        if argv[1] == "--act":
+            return 0 if act(argv[2], data, root, path) else 1
+        lines, regions = frame({"branch": branch, "data": data}, int(argv[2]), time.time())
+        print(paint(lines))
+        for r, x0, x1, a in regions:
+            print(f"region {r} {x0} {x1} {a}")
+        return 0
+    popup()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
