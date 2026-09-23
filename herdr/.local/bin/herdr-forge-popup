@@ -68,6 +68,7 @@ INK, EDGE = rgb(PALETTE["fg"]), rgb(PALETTE["muted"])
 SOFT = rgb(PALETTE["surface"], 48)
 CHIP_KEY, CHIP_VAL = SOFT + EDGE, SOFT + INK
 TOOL = INK
+TRACK = rgb(PALETTE["surface"])  # the empty part of the bar, in background highlights
 
 # Two queries, asked in parallel: one alone exceeds GitLab's complexity limit of 250.
 QUERY = """
@@ -474,7 +475,7 @@ def bar(c, w):
     if not total:
         return [("no jobs have run", MUTED)]
     parts, used, out = [("ok", "█", INK), ("bad", "█", RED), ("busy", "▓", INK), ("wait", "▒", INK),
-                        ("todo", "░", EDGE)], 0, []
+                        ("todo", "█", TRACK)], 0, []
     for i, (k, ch, col) in enumerate(parts):
         n = w - used if i == len(parts) - 1 else max(1 if c[k] else 0, round(c[k] / total * w))
         n = max(0, min(n, w - used))
@@ -861,11 +862,9 @@ def boxes(w):
     bw = max(13, min(16, (w - 6) // 3))
     rows, spans = [[], [], []], []
     for i, (glyph, text) in enumerate((("↗", "Browser"), ("◧", "Split"), ("▭", "New tab"))):
-        inner = cut(f" {glyph}  {text}", bw - 2)
-        edge = "─" * (bw - 2)
-        box = [[("┌" + edge + "┐", EDGE)],
-               [("│", EDGE), (inner + " " * (bw - 2 - width(inner)), INK), ("│", EDGE)],
-               [("└" + edge + "┘", EDGE)]]
+        # A borderless block of background highlights, the label on it.
+        inner = cut(f"  {glyph}  {text}", bw)
+        box = [[(" " * bw, SOFT)], [(inner + " " * (bw - width(inner)), SOFT + INK)], [(" " * bw, SOFT)]]
         x = i * (bw + 3)
         spans.append((x, x + bw))
         for r in range(3):
@@ -891,14 +890,17 @@ def frame(state, W, now):
     else:
         stamp = f"updated {ago(now - d['at'])} ago" if d else ""
     # The top line is a title bar: the branch, then the popup's own actions on the right.
-    chips = [("✕  Close", TOOL, "close")]
-    if not state.get("fetching"):
-        chips.insert(0, ("↻  Refresh", TOOL, "r"))
+    # Close is anchored at the right edge; Refresh keeps its place while it asks, dimmed, so nothing jumps.
+    chips = [("↻  Refresh", EDGE if state.get("fetching") else TOOL, "r")]
     if d and any(available(d).values()):
-        chips.insert(0, ("▭  All in tabs", TOOL, "a"))
+        chips.append(("▭  All in tabs", TOOL, "a"))
+    elif not d and state.get("fetching"):
+        # Held in place, dimmed, until the first answer says whether there is anything to open.
+        chips.append(("▭  All in tabs", EDGE, "a"))
+    chips.append(("✕  Close", TOOL, "close"))
     bar = [(stamp, MUTED)] if stamp else []
     for label, colour, action in chips:
-        bar += [("   ", ""), (f" {label} ", colour)]
+        bar += [("   ", ""), (f" {label} ", SOFT + colour)]
     used = sum(width(t) for t, _ in bar)
     left = cut(branch, max(8, W - 2 * PAD - used - 4))
     x = W - PAD - used

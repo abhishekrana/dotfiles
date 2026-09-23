@@ -54,14 +54,16 @@ paths:
   drives the popup through `--dump` and `--act`. Every herdr view runs under `herdr-forge-popup run-tab`, a supervisor
   that restarts its tool on SIGUSR1 with fresh data and stops the tool's whole process tree (hunk's node launcher leaves
   its real process behind otherwise); the ticket reads a page file it rewrites every 60s, which folio reloads by itself.
-  The popup's top line is a toolbar: the branch, the "updated" stamp, and All in tabs, Refresh (`r`) and Close chips.
-  All in tabs (key `a`, popup only) opens the focused workspace's ticket, diff and jobs tabs without focus, signals the
-  supervisors of the ones already open, replaces a tab that has none, and names in its toast what does not exist; there
-  is deliberately no global key for it. The popup uses only Solarized's colours, each in Solarized's own role, read from
-  the theme switcher's `colors.sh` as truecolor (terminal slot 7 renders a dark grey): primary content (`fg`, base00)
-  for values and button labels, secondary content (`muted`, base1) for names, outlines and rules, background highlights
-  (`surface`, base2) behind chips; accents only on marks and state words. The palette's `border` is not a Solarized
-  colour, so it is not used.
+  The popup's top line is a toolbar: the branch, the "updated" stamp, then Refresh (`r`), All in tabs and Close, with
+  Close at the right edge. Refresh and All in tabs are drawn from the first frame, dimmed while the popup asks GitLab,
+  so nothing shifts when the answer arrives. All in tabs (key `a`, popup only) opens the focused workspace's ticket,
+  diff and jobs tabs without focus, signals the supervisors of the ones already open, replaces a tab that has none, and
+  names in its toast what does not exist; there is deliberately no global key for it. The popup uses only Solarized's
+  colours, each in Solarized's own role, read from the theme switcher's `colors.sh` as truecolor (terminal slot 7
+  renders a dark grey): primary content (`fg`, base00) for values and labels, secondary content (`muted`, base1) for
+  names and rules, background highlights (`surface`, base2) for the buttons (borderless blocks), chips, toolbar and the
+  bar's empty part; accents only on marks and state words. The palette's `border` is not a Solarized colour, so it is
+  not used.
 - **`hunk/`** - `mode = "stack"` is deliberate: full width per line for the diff pane beside your work. Workdesk's `D`
   overrides it to `split` at the call, because an MR diff gets a window of its own. hunk reads the file at startup, so
   an open pane keeps its layout until respawned.

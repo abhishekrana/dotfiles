@@ -244,23 +244,24 @@ order=$(awk '/TICKET/ {t = index($0, "TICKET"); m = index($0, "MERGE REQUEST"); 
     print (t < m && m < p)}' "$TMP/frame")
 [ "$order" = 1 ] && ok "the columns read ticket, MR, pipeline" ||
     no "the columns read ticket, MR, pipeline" "$(grep TICKET "$TMP/frame")"
-eq "the toolbar's chips, then every section's three buttons" "a r close t T tab-t m M tab-m p P tab-p" \
+eq "the toolbar's chips, then every section's three buttons" "r a close t T tab-t m M tab-m p P tab-p" \
     "$(awk '$1 == "region" {print $5}' "$TMP/frame" | awk '!seen[$0]++' | tr '\n' ' ' | sed 's/ $//')"
 [ "$(region m | cut -d- -f2)" -le "$(region M | cut -d- -f1)" ] &&
     [ "$(region M | cut -d- -f2)" -le "$(region tab-m | cut -d- -f1)" ] &&
     ok "the buttons read Browser, Split, New tab" ||
     no "the buttons read Browser, Split, New tab" "m $(region m), M $(region M), tab-m $(region tab-m)"
 [ "$(awk '$1 == "region" && $5 == "close" {print $2; exit}' "$TMP/frame")" = 1 ] &&
-    [ "$(region a | cut -d- -f2)" -le "$(region r | cut -d- -f1)" ] &&
-    [ "$(region r | cut -d- -f2)" -le "$(region close | cut -d- -f1)" ] &&
-    ok "the top line reads All in tabs, Refresh, Close" ||
-    no "the top line reads All in tabs, Refresh, Close" "a $(region a), r $(region r), close $(region close)"
-check "the stamp sits in the toolbar, before its chips" "ago    ▭  All in tabs"
+    [ "$(region r | cut -d- -f2)" -le "$(region a | cut -d- -f1)" ] &&
+    [ "$(region a | cut -d- -f2)" -le "$(region close | cut -d- -f1)" ] &&
+    ok "the top line reads Refresh, All in tabs, Close" ||
+    no "the top line reads Refresh, All in tabs, Close" "r $(region r), a $(region a), close $(region close)"
+check "the stamp sits in the toolbar, before its chips" "ago    ↻  Refresh"
 too_wide=$(grep -v '^region' "$TMP/frame" | python3 -c 'import sys; print(max(len(l.rstrip("\n")) for l in sys.stdin))')
 [ "$too_wide" -le 200 ] && ok "no line is wider than the popup" ||
     no "no line is wider than the popup" "$too_wide columns"
 
-# The finish: every button the same neutral outline, in the theme's own colours.
+# The finish: soft fill in Solarized's own roles - buttons and chips on background highlights (surface), labels in
+# primary content (fg), nothing in emphasized content.
 mkdir -p "$TMP/config/theme"
 printf '_theme_surface="#010203"\n_theme_fg="#040506"\n_theme_emphasis="#070809"\n_theme_muted="#0a0b0c"\n' \
     >"$TMP/config/theme/colors.sh"
@@ -270,16 +271,40 @@ case $buttons in *$'\e[34m'* | *$'\e[35m'*)
     no "buttons carry no colour of their own" "blue or magenta in the button row"
     ;;
 *) ok "buttons carry no colour of their own" ;; esac
-case $buttons in *$'\e[38;2;10;11;12m'*$'\e[38;2;4;5;6m'*)
-    ok "outlines take secondary content, labels primary content"
+case $buttons in *┌* | *│*) no "buttons draw no outlines" "box lines in the button row" ;;
+*) ok "buttons draw no outlines" ;;
+esac
+case $buttons in *$'\e[48;2;1;2;3m\e[38;2;4;5;6m'*)
+    ok "buttons are background highlights with primary content"
     ;;
-*) no "outlines take secondary content, labels primary content" "$(printf '%q' "$buttons" | head -c 300)" ;;
+*) no "buttons are background highlights with primary content" "$(printf '%q' "$buttons" | head -c 300)" ;;
 esac
 case $raw in *$'\e[38;2;7;8;9m'*) no "no chrome in emphasized content" "base01 used for chrome" ;;
 *) ok "no chrome in emphasized content" ;;
 esac
-case $raw in *$'\e[48;2;1;2;3m'*) ok "chips sit on the theme's surface colour" ;;
-*) no "chips sit on the theme's surface colour" "no surface background in the frame" ;; esac
+
+# Nothing in the toolbar moves when the answer arrives: Refresh and All in tabs hold their places while it asks.
+toolbar() {
+    (
+        cd "$CO" && HERDR_ACTIVE_PANE_CWD=$CO python3 - "$POPUP" <<'PY'
+import importlib.machinery, importlib.util, sys, time
+loader = importlib.machinery.SourceFileLoader("popup", sys.argv[1])
+spec = importlib.util.spec_from_loader("popup", loader)
+m = importlib.util.module_from_spec(spec)
+loader.exec_module(m)
+d = m.fetch(*m.place())
+asking = m.frame({"branch": d["branch"], "data": None, "fetching": True}, 200, time.time())[1]
+known = m.frame({"branch": d["branch"], "data": d, "fetching": False}, 200, time.time())[1]
+print(" ".join(f"{a}:{x0}" for r, x0, x1, a in asking if r == 1), "|",
+      " ".join(f"{a}:{x0}" for r, x0, x1, a in known if r == 1))
+PY
+    )
+}
+places=$(toolbar)
+case $places in "r:"*"a:"*"close:"*" | r:"*) ok "the toolbar test compares Refresh, All in tabs and Close" ;;
+*) no "the toolbar test compares Refresh, All in tabs and Close" "[$places]" ;;
+esac
+eq "the toolbar's chips keep their places when the answer arrives" "${places% |*}" "${places#*| }"
 
 frame 150
 [ "$(grep -c -E '^ +(TICKET|MERGE REQUEST|PIPELINE)$' "$TMP/frame")" = 3 ] && ok "a narrow popup stacks the three" ||
