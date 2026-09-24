@@ -55,9 +55,18 @@ cleanup() {
 trap cleanup EXIT
 
 # ---- helpers ---------------------------------------------------------------
+# stop_server - end the private server and wait for it to exit. kill-server returns first, and a new-session in that
+# gap joins the dying server and dies with it (seen on CI runners under load).
+stop_server() {
+    local pid n=0
+    pid=$(tmux display-message -p '#{pid}' 2>/dev/null) || return 0
+    tmux kill-server 2>/dev/null
+    while kill -0 "$pid" 2>/dev/null && [ $((n += 1)) -le 100 ]; do sleep 0.05; done
+}
+
 # start <flavor> - a fresh dialogue with <flavor> active.
 start() {
-    tmux kill-server 2>/dev/null
+    stop_server
     : >"$TMP/applied"
     rm -f "${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}/dotfiles-settings-last-$UID"
     printf '%s' "$1" >"$XDG_CONFIG_HOME/theme/current"

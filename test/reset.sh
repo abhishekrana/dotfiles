@@ -40,8 +40,17 @@ cleanup() {
 }
 trap cleanup EXIT
 
-start() { # start <session>
+# stop_server - end the private server and wait for it to exit. kill-server returns first, and a new-session in that
+# gap joins the dying server and dies with it (seen on CI runners under load).
+stop_server() {
+    local pid n=0
+    pid=$(t display-message -p '#{pid}' 2>/dev/null) || return 0
     t kill-server 2>/dev/null
+    while kill -0 "$pid" 2>/dev/null && [ $((n += 1)) -le 100 ]; do sleep 0.05; done
+}
+
+start() { # start <session>
+    stop_server
     t -f /dev/null new-session -d -s "$1" -x 200 -y 40
     t set -g @agentbar-width 30
 }

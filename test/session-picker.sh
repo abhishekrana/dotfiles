@@ -57,6 +57,15 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# stop_server - end the private server and wait for it to exit. kill-server returns first, and a new-session in that
+# gap joins the dying server and dies with it (seen on CI runners under load).
+stop_server() {
+    local pid n=0
+    pid=$(tmux display-message -p '#{pid}' 2>/dev/null) || return 0
+    tmux kill-server 2>/dev/null
+    while kill -0 "$pid" 2>/dev/null && [ $((n += 1)) -le 100 ]; do sleep 0.05; done
+}
+
 # session <name> [agent] - a detached session, optionally holding an agent pane
 session() {
     tmux new-session -d -s "$1" -x 200 -y 40
@@ -80,7 +89,7 @@ bands() { "$PICKER" --list | cut -f2 | sed 's/\x1b\[[0-9;]*m//g'; }
 
 printf '\npicker: order and bands mirror the agent bar\n'
 
-tmux kill-server 2>/dev/null
+stop_server
 session api agent
 session blog agent
 session dotfiles agent
@@ -107,13 +116,13 @@ eq "every band is labelled and counted" \
 
 printf '\npicker: headers only when they divide something\n'
 
-tmux kill-server 2>/dev/null
+stop_server
 session solo agent
 eq "a single band shows no header or gap rows" "solo" "$(rows | tr '\n' ' ' | sed 's/ $//')"
 
 printf '\npicker: p/a/d place through the binary and follow the row\n'
 
-tmux kill-server 2>/dev/null
+stop_server
 session api agent
 session payments
 # payments is dormant and last; pinning floats it to row 2, under the header.
@@ -134,7 +143,7 @@ eq "a band header row is never placed" "" "$("$PICKER" --band "$BAND_MARK" pinne
 
 printf '\npicker: list and preview share one state language\n'
 
-tmux kill-server 2>/dev/null
+stop_server
 session api agent
 # SessionStart leaves it idle, which renders blank; a prompt makes it working.
 pane=$(tmux list-panes -s -t api -F '#{pane_id} #{pane_current_command}' | awk '$2 == "claude" {print $1}')
@@ -162,7 +171,7 @@ printf '\npicker: the branch names the session, not whatever pane is focused\n'
 # the session's ACTIVE pane. That is usually the sidebar - whose cwd is only
 # wherever that process started - or the diff pane, sitting in whatever worktree
 # it was pointed at. Every session then reported the same unrelated branch.
-tmux kill-server 2>/dev/null
+stop_server
 g() { git -c user.email=t@t -c user.name=t -c init.defaultBranch=main "$@"; }
 repo() { # repo <dir> <branch>
     mkdir -p "$1"
@@ -282,7 +291,7 @@ esac
 
 printf '\npicker: no binary means no crash\n'
 
-tmux kill-server 2>/dev/null
+stop_server
 session api agent
 session payments
 eq "falls back to a flat alphabetical list" "api payments" \
