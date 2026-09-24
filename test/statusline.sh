@@ -168,7 +168,7 @@ calm=$(row "$MAIN" 12 | sed -n 2p)
 case $calm in *$'\e[31m'* | *$'\e[33m'*) no "a calm meter stays in the text colour" "$(printf '%q' "$calm")" ;;
 *) ok "a calm meter stays in the text colour" ;;
 esac
-wide=$(row "$MAIN" 96 "$(limits 96 97 60 60)" | sed -n 2p | plain | wc -m)
+wide=$(row "$MAIN" 96 "$(limits 96 97 60 60)" | sed -n 2p | plain | LC_ALL=C.UTF-8 wc -m)
 [ "$wide" -le 98 ] && ok "the meter row fits a 99-column pane" ||
     no "the meter row fits a 99-column pane" "$wide columns"
 
