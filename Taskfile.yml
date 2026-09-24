@@ -212,7 +212,7 @@ tasks:
       - >-
         docker run --rm -e CI=true -v "$PWD:/src:ro" dotfiles-ci-mirror bash -c 'cp -r /src /work && cd /work && make -C
         {{.AGENTBAR}} build && bash test/clipboard.sh && bash test/session-picker.sh && bash test/reset.sh && bash
-        test/diff-target.sh && cd {{.AGENTBAR}} && go test ./... -count=1'
+        test/diff-target.sh && bash test/settings.sh && cd {{.AGENTBAR}} && go test ./... -count=1'
 
   theme:
     desc: Every flavor writes its own colors into every generated per-tool file

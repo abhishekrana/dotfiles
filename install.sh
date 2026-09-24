@@ -766,6 +766,7 @@ install_zoxide() {
 # with the same code and the same pins a developer machine does.
 gate_tools() {
     install_apt_packages
+    install_fzf
     install_git_cliff
     install_gitleaks
     install_ruff
