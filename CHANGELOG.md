@@ -186,6 +186,8 @@ PATCH is for everything else.
 
 ### Tests
 
+- **claude**: Count the meter row's width in characters, whatever the locale (32d1c2d)
+- Wait for the tmux server to exit before starting the next (fc270e8)
 - **herdr**: Wrap the forge test's longest line to 120 columns (cc3de93)
 - **claude**: Wrap the claude-hooks fixture to 120 columns (c5cf86c)
 - **folio**: Keep the hostile-input literal within 120 columns (5ee20ec)
