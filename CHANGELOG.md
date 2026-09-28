@@ -7,6 +7,24 @@ This repo stays on **0.x** by choice. Pre-1.0 SemVer puts the breaking signal on
 manual steps on the machine - a re-login, a re-stow, a GNOME shortcut, a systemd unit - bumps **0.x** and says which;
 PATCH is for everything else.
 
+## [0.3.1] - 2026-09-28
+
+### Added
+
+- **claude**: Add a shareable status line for the model, context and usage limits (c7214d8)
+
+### Build
+
+- **release**: Refuse task changelog until CI has passed on HEAD (5d99142)
+
+### Fixed
+
+- **claude**: Keep the usage status line and its test within 120 columns (89283ea)
+
+### Maintenance
+
+- **claude**: Stop pinning the subagent model (9a9d57a)
+
 ## [0.3.0] - 2026-09-24
 
 ### Added
