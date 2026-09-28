@@ -262,6 +262,13 @@ tasks:
       # 0.1.0 is hand-written; generating it again would add a second section.
       - sh: '! grep -q "^## \[$(echo {{.V}} | sed s/^v//)\]" CHANGELOG.md'
         msg: "CHANGELOG.md already has a {{.V}} section - edit it by hand instead"
+      # release.yml re-runs the gate on a runner, which a local `task check` cannot stand in for: the newest ci run
+      # on HEAD must have passed. No run at all means HEAD is not pushed.
+      - sh: |
+          repo=$(git remote get-url origin | sed -E 's#^(git@github\.com:|https://github\.com/)##; s#\.git$##')
+          curl -fsS "https://api.github.com/repos/$repo/actions/runs?head_sha=$(git rev-parse HEAD)&event=push" |
+            jq -e '[.workflow_runs[] | select(.name == "ci")][0].conclusion == "success"' >/dev/null
+        msg: "CI has not passed on HEAD (not pushed, still running, failed, or GitHub unreachable) - fix that first"
     cmds:
       # --prepend, not -o: regenerating would drop the hand-written 0.1.0 entry.
       - git cliff --unreleased --tag {{.V}} --prepend CHANGELOG.md

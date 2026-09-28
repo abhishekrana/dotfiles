@@ -158,9 +158,10 @@ notes are generated from these, so the type and scope are the machine-readable p
 
 ## Releasing
 
-`task check` must be green and pushed first. Then the tag is the trigger: `.github/workflows/release.yml` re-runs the
-gate, runs the Docker fresh-install test, and publishes a GitHub Release with notes from `git cliff`. Never move a
-published tag - bump the patch instead.
+`task check` must be green and pushed, and **CI must have passed on that commit** - `task changelog` refuses until it
+has, because the runner is not this machine and a local pass says nothing about it. Then the tag is the trigger:
+`.github/workflows/release.yml` re-runs the gate, runs the Docker fresh-install test, and publishes a GitHub Release
+with notes from `git cliff`. Never move a published tag - bump the patch instead.
 
 ```sh
 task check                              # gate: shellcheck, ruff, prettier, gitleaks, tests
