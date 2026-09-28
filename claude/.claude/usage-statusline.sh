@@ -3,7 +3,7 @@
 # Claude Code status line: the model, how full the context window is, and how much of the 5-hour and weekly usage
 # limits is spent, with the time until each resets.
 #
-#     Opus 5.5 1M    context ▰▰▱▱▱▱▱▱  24%    5h ▰▰▱▱▱▱▱▱  23% ↻2h13    week ▰▰▰▱▱▱▱▱  41% ↻3d
+#     Opus 5.5 1M    context ▰▰▱▱▱▱▱▱  24%    5h ▰▰▱▱▱▱▱▱  23% ↻2h13    week ... ↻3d
 #
 # Install: save as ~/.claude/usage-statusline.sh and add to ~/.claude/settings.json:
 #

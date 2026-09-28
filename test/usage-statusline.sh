@@ -44,9 +44,11 @@ payload() {
 }
 
 echo "usage status line: meters"
-eq "every meter, four spaces apart" \
-    "Opus 5.5 1M    context ▰▰▱▱▱▱▱▱  24%    5h ▰▰▱▱▱▱▱▱  23% ↻2h13    week ▰▰▰▱▱▱▱▱  41% ↻3d" \
-    "$(row "$(payload "Opus 5.5 (1M context)" 24 23 8000 41 300000)")"
+# The expected row is built in pieces: `task width` counts bytes where there is no locale, and ▰ is three.
+full="Opus 5.5 1M    context ▰▰▱▱▱▱▱▱  24%"
+full+="    5h ▰▰▱▱▱▱▱▱  23% ↻2h13"
+full+="    week ▰▰▰▱▱▱▱▱  41% ↻3d"
+eq "every meter, four spaces apart" "$full" "$(row "$(payload "Opus 5.5 (1M context)" 24 23 8000 41 300000)")"
 eq "a model with no context size is kept whole" "Sonnet 5" "$(row "$(payload "Sonnet 5" "" "" "" "" "")")"
 eq "no rate_limits, no windows" "Opus    context ▱▱▱▱▱▱▱▱   5%" "$(row "$(payload Opus 5 "" "" "" "")")"
 eq "one window alone" "Opus    week ▰▰▰▰▱▱▱▱  50% ↻1d" "$(row "$(payload Opus "" "" "" 50 90000)")"
@@ -64,11 +66,18 @@ eq "a window with no reset time has no countdown" "Opus    5h ▰▰▱▱▱▱
     "$(row "$(payload Opus "" 30 "" "" "")")"
 
 echo "usage status line: colour"
-y=$'\033[33m' r=$'\033[31m'
-case $(raw "$(payload Opus 79 "" "" "" "")") in *"$y"* | *"$r"*) no "79 is plain" "coloured" ;; *) ok "79 is plain" ;; esac
-case $(raw "$(payload Opus 80 "" "" "" "")") in *"$y"*) ok "80 is yellow" ;; *) no "80 is yellow" "not yellow" ;; esac
-case $(raw "$(payload Opus 94 "" "" "" "")") in *"$r"*) no "94 is not red" "red" ;; *) ok "94 is not red" ;; esac
-case $(raw "$(payload Opus 95 "" "" "" "")") in *"$r"*) ok "95 is red" ;; *) no "95 is red" "not red" ;; esac
+# The colour a context meter at $1 percent is drawn in.
+colour_at() {
+    case $(raw "$(payload Opus "$1" "" "" "" "")") in
+        *$'\033[31m'*) echo red ;;
+        *$'\033[33m'*) echo yellow ;;
+        *) echo plain ;;
+    esac
+}
+eq "79 is plain" plain "$(colour_at 79)"
+eq "80 is yellow" yellow "$(colour_at 80)"
+eq "94 is still yellow" yellow "$(colour_at 94)"
+eq "95 is red" red "$(colour_at 95)"
 
 echo "usage status line: portability"
 # A comma-decimal locale makes bash's printf reject "81.6"; the rounding has to happen before bash sees it.
