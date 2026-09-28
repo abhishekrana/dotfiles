@@ -14,8 +14,9 @@
 # It re-runs once a second (refreshInterval in settings.json) in every open
 # session, so the whole script is one process: helpers write a named global
 # rather than print into a `$( )` subshell, and jq reading the payload is the
-# only command it runs.
+# only command it runs. The one subshell is the pipe dictate_wait sleeps on.
 set -u
+start=${EPOCHREALTIME//[!0-9]/}
 
 here=${BASH_SOURCE[0]%/*}
 [ "$here" = "${BASH_SOURCE[0]}" ] && here=.
@@ -106,22 +107,41 @@ window() {
 DICTATE_DIR=${XDG_STATE_HOME:-$HOME/.local/state}/herdr/plugins/abhishekrana.dictate
 dictate() {
     local state='' color=$muted
-    [ -r "$DICTATE_DIR/recording.json" ] && state=$(<"$DICTATE_DIR/recording.json")
+    [ -r "$DICTATE_DIR/recording.json" ] && read -r state <"$DICTATE_DIR/recording.json"
     if [[ $state =~ \"pid\":([0-9]+) ]] && [ -d "/proc/${BASH_REMATCH[1]}" ]; then
         color=$hot
     else
         state=''
-        [ -r "$DICTATE_DIR/remote.json" ] && state=$(<"$DICTATE_DIR/remote.json")
+        [ -r "$DICTATE_DIR/remote.json" ] && read -r state <"$DICTATE_DIR/remote.json"
         [[ $state =~ \"until\":([0-9]+) ]] && ((BASH_REMATCH[1] > EPOCHSECONDS)) && color=$hot
     fi
     [ "$color" = "$hot" ] && [[ $state == *'"phase":"transcribing"'* ]] && color=$warn
     dictate_out="${color}● dictate${reset}"
 }
 
+# Holds the finished line until the chip changes, checking every 200ms, for up to STATUSLINE_DICTATE_WAIT_MS from the
+# script's start. Claude Code shows only a run that exits and cancels one when it starts the next, a second later,
+# so this turns the chip's one-second poll into a 200ms one; a cancelled run leaves the line as it was.
+dictate_wait() {
+    local was=$dictate_out tick wait=${STATUSLINE_DICTATE_WAIT_MS:-900} end left pause
+    [ -d "$DICTATE_DIR" ] && [[ $wait =~ ^[0-9]+$ ]] && ((wait > 0)) || return 0
+    end=$((start + wait * 1000))
+    exec {tick}<> <(:)
+    # The last pause is cut to what is left, so a quiet run still exits before the next one cancels it.
+    while left=$((end - ${EPOCHREALTIME//[!0-9]/})) && ((left > 0)); do
+        ((left > 200000)) && left=200000
+        printf -v pause '0.%06d' "$left"
+        read -rt "$pause" -u "$tick"
+        dictate
+        [ "$dictate_out" != "$was" ] && break
+    done
+    exec {tick}>&-
+}
+
 # Where you are, after the dictation chip, and the worktree Claude last wrote in when it is a different checkout - not
 # the cwd, which an Edit by absolute path never moves.
 dictate
-first=$dictate_out
+first=
 if [ -n "$dir" ]; then
     place "$dir"
     first+="   $place_out"
@@ -165,6 +185,9 @@ second=
 for part in "${meters[@]}"; do
     second+="${second:+    }$part"
 done
+
+dictate_wait
+first=$dictate_out$first
 
 # A row with nothing in it is skipped rather than printed blank.
 rows=()

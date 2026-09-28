@@ -54,7 +54,7 @@ row() {
         '{model: {display_name: "Opus"}, session_id: $sid, workspace: {current_dir: $dir}}
          + (if $used == "" then {} else {context_window: {used_percentage: ($used | tonumber)}} end)
          + (if $lim == null then {} else {rate_limits: $lim} end)' |
-        env XDG_STATE_HOME="$TMP/state" PATH=/usr/bin:/bin \
+        env XDG_STATE_HOME="$TMP/state" PATH=/usr/bin:/bin STATUSLINE_DICTATE_WAIT_MS="${WAIT_MS:-0}" \
             bash "$REPO/claude/.claude/statusline-command.sh"
 }
 
@@ -216,6 +216,25 @@ eq "a dead local recorder does not hide a remote dictation" "$RED" "$(chip)"
 recording
 rm -f "$DICTATE/remote.json"
 eq "a cleared remote file rests again" "$GREY" "$(chip)"
+
+# A run holds the line until the chip changes, so a press shows as it happens rather than at the next one-second run.
+ms_since() { echo $(((${EPOCHREALTIME//[!0-9]/} - $1) / 1000)); }
+t0=${EPOCHREALTIME//[!0-9]/}
+(
+    sleep 0.3
+    recording $$
+) &
+got=$(WAIT_MS=900 chip)
+took=$(ms_since "$t0")
+wait
+eq "a press during a run shows in that run" "$RED" "$got"
+((took < 600)) && ok "it shows as it happens (${took}ms)" || no "it shows as it happens" "took ${took}ms"
+t0=${EPOCHREALTIME//[!0-9]/}
+got=$(WAIT_MS=300 chip)
+took=$(ms_since "$t0")
+eq "an unchanged chip holds for the wait" "$RED" "$got"
+((took >= 300)) && ok "the wait is honoured (${took}ms)" || no "the wait is honoured" "took ${took}ms"
+recording
 
 # Nothing beside the chip may move as the phase changes.
 resting=$(place_row)
