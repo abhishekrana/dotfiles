@@ -50,6 +50,7 @@ tasks:
       - task: settings
       - task: claude-hooks
       - task: statusline
+      - task: usage-statusline
       - task: herdr-forge
       - task: workdesk-toggle
       - task: test
@@ -233,6 +234,11 @@ tasks:
     desc: The status line names the session's place, and the worktree Claude writes in when it differs
     cmds:
       - bash test/statusline.sh
+
+  usage-statusline:
+    desc: The shareable status line renders the model, context and usage windows on bash 3.2 with only jq
+    cmds:
+      - bash test/usage-statusline.sh
 
   herdr-forge:
     desc: The herdr tab bar line names the focused branch's ticket, MR and pipeline, and goes blank when unsure
