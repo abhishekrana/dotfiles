@@ -44,6 +44,7 @@ case "\$*" in
     *closes_issues*) f=closes.json ;;
     */notes*) f=notes.json ;;
     *issues/*) f=issue.json ;;
+    *merge_requests/*) f=mr.json ;;
 esac
 [ -r "$TMP/\$f" ] || exit 1
 cat "$TMP/\$f"
@@ -501,6 +502,67 @@ eq "nothing to open: no All in tabs chip" "" "$(region a)"
 on 123-feature
 mr
 jobs
+
+echo "herdr-forge: a Ctrl+clicked link"
+
+# The browser is opened detached, so wait for the stub to write it down.
+opened() {
+    for _ in $(seq 40); do
+        [ -s "$TMP/opened" ] && break
+        sleep 0.05
+    done
+    cat "$TMP/opened"
+}
+
+MR_URL=https://gitlab.example/group/project/-/merge_requests/7
+ISSUE_URL=https://gitlab.example/group/project/-/issues/123#note_9
+click() { : >"$TMP/herdr.log" && : >"$TMP/opened" &&
+    (cd "$TMP" && HERDR_WORKSPACE_ID=w1 HERDR_BIN_PATH=$TMP/bin/herdr "$POPUP" link "$1"); }
+echo "{\"result\":{\"panes\":[{\"pane_id\":\"w1:p1\",\"cwd\":\"$TMP\"},{\"pane_id\":\"w1:p2\",\"cwd\":\"$CO\"}]}}" \
+    >"$TMP/panes.json"
+click "$MR_URL"
+grep -qF -- "tab create --workspace w1 --cwd $CO --label !7 --focus" "$TMP/herdr.log" &&
+    grep -qF "run-link" "$TMP/herdr.log" && grep -qF "$MR_URL" "$TMP/herdr.log" &&
+    ok "an MR opens a focused tab named !N, in a pane's checkout" ||
+    no "an MR opens a focused tab named !N, in a pane's checkout" "$(cat "$TMP/herdr.log")"
+click "$ISSUE_URL"
+grep -qF -- "--label #123 --focus" "$TMP/herdr.log" && ok "an issue's tab is named #N" ||
+    no "an issue's tab is named #N" "$(cat "$TMP/herdr.log")"
+echo '{"result":{"tabs":[{"tab_id":"w1:t4","label":"!7"}]}}' >"$TMP/tabs.json"
+click "$MR_URL"
+grep -qF "tab focus w1:t4" "$TMP/herdr.log" && ! grep -qF "tab create" "$TMP/herdr.log" &&
+    ok "a second click focuses the open tab" || no "a second click focuses the open tab" "$(cat "$TMP/herdr.log")"
+rm -f "$TMP/tabs.json"
+echo '{"result":{"panes":[]}}' >"$TMP/panes.json"
+click "$MR_URL"
+eq "an MR with no checkout in any pane opens in the browser" "$MR_URL" "$(opened)"
+click "$ISSUE_URL"
+grep -qF -- "--cwd $HOME --label #123" "$TMP/herdr.log" && ok "an issue needs no checkout" ||
+    no "an issue needs no checkout" "$(cat "$TMP/herdr.log")"
+click https://gitlab.example/group/project/-/pipelines/5
+eq "any other URL opens in the browser" "https://gitlab.example/group/project/-/pipelines/5" "$(opened)"
+rm -f "$TMP/panes.json"
+
+sha=$(git -C "$CO" rev-parse HEAD)
+jq -nc --arg s "$sha" '{target_branch: "main", diff_refs: {base_sha: $s, head_sha: $s}}' >"$TMP/mr.json"
+linktab() { (cd "$CO" && HERDR_PANE_ID=$1 "$POPUP" run-link "$2" </dev/null >/dev/null 2>&1); }
+: >"$TMP/tools.log"
+linktab w1:p70 "$MR_URL"
+grep -qF "hunk diff $sha $sha --sidebar" "$TMP/tools.log" && ok "an MR tab is its diff, from the merge base" ||
+    no "an MR tab is its diff, from the merge base" "$(cat "$TMP/tools.log")"
+linktab w1:p71 "$ISSUE_URL"
+grep -qF "folio $TABS/w1_p71.md" "$TMP/tools.log" && grep -qF "# #123 Save-as-failed" "$TMP/page.seen" &&
+    ok "an issue tab reads its page" || no "an issue tab reads its page" "$(cat "$TMP/tools.log")"
+eq "a link tab that ends leaves nothing behind" "" "$(find "$TABS" -name 'w1_p7*' 2>/dev/null)"
+
+: >"$TMP/opened" && : >"$TMP/herdr.log"
+mkdir -p "$TABS" && echo "$MR_URL" >"$TABS/w1_p72.url"
+HERDR_PANE_ID=w1:p72 HERDR_BIN_PATH=$TMP/bin/herdr "$POPUP" browser
+eq "browser opens the link tab's page" "$MR_URL" "$(opened)"
+HERDR_PANE_ID=w1:p1 HERDR_BIN_PATH=$TMP/bin/herdr "$POPUP" browser
+grep -qF "Not a merge request or issue tab." "$TMP/herdr.log" && ok "browser says when the pane is not a link tab" ||
+    no "browser says when the pane is not a link tab" "$(cat "$TMP/herdr.log")"
+rm -f "$TABS/w1_p72.url"
 
 printf '\n%d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

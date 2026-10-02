@@ -66,7 +66,13 @@ paths:
   (terminal slot 7 renders a dark grey): primary content (`fg`, base00) for values and labels, secondary content
   (`muted`, base1) for names and rules, background highlights (`surface`, base2) for the buttons (borderless blocks),
   chips, toolbar and the bar's empty part; accents only on marks and state words. The palette's `border` is not a
-  Solarized colour, so it is not used.
+  Solarized colour, so it is not used. The `dotfiles.forge` plugin (`~/.local/share/herdr-forge`, linked by
+  `bootstrap.sh`) is a `[[link_handlers]]` entry: a Ctrl+clicked GitLab MR or issue URL runs `herdr-forge-popup link`,
+  which focuses the workspace's tab named `!N` or `#N` or opens it, and any other URL opens in the browser as before. An
+  MR tab is `hunk diff <base_sha> <head_sha> --sidebar` after fetching `refs/merge-requests/N/head`, so it needs a pane
+  in a checkout of that project and falls back to the browser without one; an issue tab is folio on `ticket-md`'s page,
+  with no checkout needed. Each link tab keeps its URL beside its pane id, which the plugin's `browser` action opens
+  (`alt+o` in the untracked config.toml).
 - **`hunk/`** - `mode = "stack"` is deliberate: full width per line for the diff pane beside your work. Workdesk's `D`
   overrides it to `split` at the call, because an MR diff gets a window of its own. hunk reads the file at startup, so
   an open pane keeps its layout until respawned.

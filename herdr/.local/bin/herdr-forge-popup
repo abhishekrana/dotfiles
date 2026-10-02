@@ -12,6 +12,9 @@ WIDE columns the three stack. It draws the last answer at once, asks GitLab, and
     herdr-forge-popup --tabs               what the All in tabs button does, without drawing, for tests
     herdr-forge-popup run-tab t|m|p        a tab's supervisor: runs the tool, restarts it on SIGUSR1
     herdr-forge-popup ticket-md PROJECT N  the ticket as markdown, for folio
+    herdr-forge-popup link URL             a Ctrl+clicked MR or issue: its tab, !N or #N, focused or opened
+    herdr-forge-popup run-link URL         a link tab: the MR's diff in hunk, or the issue in folio
+    herdr-forge-popup browser              the focused link tab's page in the browser
 
 A herdr popup hands every mouse event to its program, so clicks are read as SGR mouse reports. Quitting the tool
 a tab runs closes that tab.
@@ -209,10 +212,15 @@ def place():
     branch = root and git(root, "symbolic-ref", "--quiet", "--short", "HEAD")
     if not branch:
         return None
+    return root, branch, origin(root)[1]
+
+
+def origin(root):
+    """(host, project path) of root's origin remote, from an ssh or https URL."""
     url = (git(root, "remote", "get-url", "origin") or "").removesuffix(".git")
     url = url.split("://", 1)[-1].split("@", 1)[-1]
-    path = url.split(":", 1)[1] if ":" in url else url.split("/", 1)[1] if "/" in url else ""
-    return root, branch, path
+    host, _, path = url.partition(":") if ":" in url else url.partition("/")
+    return host, path
 
 
 def cache_file(root, branch):
@@ -635,11 +643,14 @@ def act(action, d, root, path):
     if action not in ACTIONS or not available(d).get(k):
         return False
     if action in ("t", "m", "p"):
-        url = {"t": (d.get("ticket") or {}).get("webUrl"), "m": mr.get("webUrl"), "p": pipeline_url(d)}[k]
-        subprocess.Popen(["setsid", "-f", "xdg-open", url], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                         stderr=subprocess.DEVNULL)
+        browse({"t": (d.get("ticket") or {}).get("webUrl"), "m": mr.get("webUrl"), "p": pipeline_url(d)}[k])
         return True
     return tab(root, tab_name(k, d), supervised(k))
+
+
+def browse(url):
+    subprocess.Popen(["setsid", "-f", "xdg-open", url], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                     stderr=subprocess.DEVNULL)
 
 
 # ---- a tab's supervisor ------------------------------------------------------------------------------------------
@@ -839,6 +850,110 @@ def open_tabs(d=None, where=None):
             opened.append(name)
     parts = [opened and "opened " + ", ".join(opened), refreshed and "refreshed " + ", ".join(refreshed), *absent]
     herdr("notification", "show", "forge", "--body", " · ".join(x for x in parts if x) or "nothing to open")
+
+
+# ---- a clicked link -------------------------------------------------------------------------------------------------
+
+LINK = re.compile(r"^https?://([^/]+)/(.+?)/-/(merge_requests|issues)/(\d+)(?:[/?#].*)?$")
+
+
+def parse_link(url):
+    """(host, project path, m or t, iid) for a merge request or issue URL, else None."""
+    m = LINK.match(url or "")
+    return (m.group(1), m.group(2), "m" if m.group(3) == "merge_requests" else "t", m.group(4)) if m else None
+
+
+def checkout(host, path):
+    """A checkout of host/path that some pane is in, the focused pane's first; None when no pane is in one."""
+    panes = sorted(herdr("pane", "list").get("panes") or [], key=lambda p: not p.get("focused"))
+    seen = set()
+    for cwd in [os.environ.get("HERDR_ACTIVE_PANE_CWD")] + [p.get("foreground_cwd") or p.get("cwd") for p in panes]:
+        root = cwd and git(cwd, "rev-parse", "--show-toplevel")
+        if root and root not in seen:
+            seen.add(root)
+            if origin(root) == (host, path):
+                return root
+    return None
+
+
+def link(url):
+    """Focus the clicked MR's or issue's tab, !N or #N, in this workspace, or open it; else open the browser.
+    An MR needs a checkout of its project in some pane, for the diff."""
+    parsed = parse_link(url)
+    if not parsed:
+        return browse(url)
+    host, path, k, iid = parsed
+    root = checkout(host, path)
+    if k == "m" and not root:
+        herdr("notification", "show", "forge", "--body", f"No pane is in a checkout of {path}: opened the browser.")
+        return browse(url)
+    os.environ.setdefault("HERDR_ACTIVE_WORKSPACE_ID", os.environ.get("HERDR_WORKSPACE_ID", ""))
+    command = f"{sh_quote(os.path.abspath(sys.argv[0]))} run-link {sh_quote(url)}"
+    if not tab(root or os.path.expanduser("~"), ("!" if k == "m" else "#") + iid, command):
+        browse(url)
+
+
+def run_link(url):
+    """A link tab, run from the checkout: the MR's diff in hunk, or the issue's page in folio, which is rewritten
+    each minute. The URL is kept beside the pane for `browser`."""
+    host, path, k, iid = parse_link(url)
+    root, enc = os.getcwd(), path.replace("/", "%2F")
+    os.environ["GITLAB_HOST"] = host
+    os.makedirs(TABS, exist_ok=True)
+    me = re.sub(r"[^A-Za-z0-9]", "_", os.environ.get("HERDR_PANE_ID") or str(os.getpid()))
+    keep, page = os.path.join(TABS, me + ".url"), os.path.join(TABS, me + ".md")
+    with open(keep, "w") as f:
+        f.write(url + "\n")
+    stop = threading.Event()
+    try:
+        print(f"\033[2J\033[H\n  Asking GitLab for {'!' if k == 'm' else '#'}{iid}…", flush=True)
+        if k == "t":
+            try:
+                write_page(root, path, iid, page)
+            except Exception as e:  # noqa: BLE001 - shown
+                return wait_key(f"GitLab unreachable: {e}")
+
+            def fresh():
+                while not stop.wait(PAGE_EVERY):
+                    try:
+                        write_page(root, path, iid, page)
+                    except Exception:  # noqa: BLE001 - the next minute tries again
+                        pass
+
+            threading.Thread(target=fresh, daemon=True).start()
+            argv = ["folio", page]
+        else:
+            try:
+                mr = glab(root, f"projects/{enc}/merge_requests/{iid}")
+            except Exception as e:  # noqa: BLE001 - shown
+                return wait_key(f"GitLab unreachable: {e}")
+            refs = mr.get("diff_refs") or {}
+            base, head = refs.get("base_sha"), refs.get("head_sha")
+            subprocess.run(["git", "fetch", "--quiet", "origin", f"refs/merge-requests/{iid}/head",
+                            mr.get("target_branch") or "main"], cwd=root, stdin=subprocess.DEVNULL)
+            if not (base and head and git(root, "cat-file", "-e", f"{base}^{{commit}}") is not None
+                    and git(root, "cat-file", "-e", f"{head}^{{commit}}") is not None):
+                return wait_key(f"!{iid}'s commits are not in {root}; the fetch from origin failed.")
+            argv = ["hunk", "diff", base, head, "--sidebar"]
+        signal.signal(signal.SIGINT, signal.SIG_IGN)  # Ctrl+C belongs to the tool
+        subprocess.run(argv, cwd=root, preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_DFL))
+    finally:
+        stop.set()
+        for f in (keep, page):
+            try:
+                os.remove(f)
+            except OSError:
+                pass
+
+
+def browser():
+    """Open the focused link tab's page in the browser; a toast when the focused pane is not one."""
+    pane = os.environ.get("HERDR_PANE_ID") or ""
+    try:
+        with open(os.path.join(TABS, re.sub(r"[^A-Za-z0-9]", "_", pane) + ".url")) as f:
+            return browse(f.read().strip())
+    except OSError:
+        herdr("notification", "show", "forge", "--body", "Not a merge request or issue tab.")
 
 
 # ---- the frame ------------------------------------------------------------------------------------------------------
@@ -1082,6 +1197,12 @@ def main(argv):
         return 0
     if len(argv) == 2 and argv[1] == "--tabs":
         open_tabs()
+        return 0
+    if len(argv) == 3 and argv[1] in ("link", "run-link"):
+        (link if argv[1] == "link" else run_link)(argv[2])
+        return 0
+    if len(argv) == 2 and argv[1] == "browser":
+        browser()
         return 0
     if len(argv) >= 4 and argv[1] == "ticket-md":
         print(ticket_markdown(os.getcwd(), argv[2], argv[3]))

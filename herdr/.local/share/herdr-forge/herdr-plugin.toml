@@ -1,0 +1,25 @@
+id = "dotfiles.forge"
+name = "Forge"
+version = "0.1.0"
+min_herdr_version = "0.9.1"
+description = "Ctrl+click a GitLab merge request or issue link to open it in a herdr tab"
+platforms = ["linux"]
+
+[[actions]]
+id = "open-link"
+title = "Forge: open the clicked link in a tab"
+contexts = ["workspace", "pane"]
+command = ["sh", "-c", 'exec "$HOME/.local/bin/herdr-forge-popup" link "$HERDR_PLUGIN_CLICKED_URL"']
+
+[[actions]]
+id = "browser"
+title = "Forge: open this tab's page in the browser"
+contexts = ["workspace", "pane"]
+command = ["sh", "-c", 'exec "$HOME/.local/bin/herdr-forge-popup" browser']
+
+# Any GitLab host; other URLs keep opening in the browser.
+[[link_handlers]]
+id = "gitlab"
+title = "Open in a herdr tab"
+pattern = "^https?://[^/]+/.+/-/(merge_requests|issues)/[0-9]+([/?#].*)?$"
+action = "open-link"
