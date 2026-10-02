@@ -209,13 +209,20 @@
     "gopls-lsp@claude-plugins-official": true,
     "pyright-lsp@claude-plugins-official": true,
     "notion-workspace-plugin@notion-plugin-marketplace": true,
-    "slack@claude-plugins-official": true
+    "slack@claude-plugins-official": true,
+    "animore@animore-agents": true
   },
   "extraKnownMarketplaces": {
     "notion-plugin-marketplace": {
       "source": {
         "source": "github",
         "repo": "makenotion/claude-code-notion-plugin"
+      }
+    },
+    "animore-agents": {
+      "source": {
+        "source": "directory",
+        "path": "/home/abhishek-rana/workspaces/agents"
       }
     }
   },
